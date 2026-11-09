@@ -1,0 +1,1458 @@
+GREEK-HISTORY HTML TOUCHSCREEN GAME LIBRARY
+GAME DESIGN HANDOFF — REVISED EDITION
+A complete design brief for a library of playable HTML5 games
+
+PURPOSE
+This document is intended to be handed to a separate game-design chat. It defines the project, establishes a ranked catalogue, and gives each game a sufficiently concrete design direction that its gameplay can be understood without the reader having to invent the central idea.
+
+The catalogue is deliberately broad. The ranking indicates design priority, not permission to discard lower-ranked concepts.
+
+======================================================================
+1. PROJECT BRIEF
+======================================================================
+
+THE PROJECT
+Create a library of independent HTML5 games for a Windows PC with a touchscreen. The primary player is a highly capable and curious four-year-old child. The games should respect the player's intelligence: they can have real systems, strategy, planning, physics, discovery and meaningful decisions. They should not feel like simplistic preschool worksheets.
+
+GREEK SETTING — A CENTRAL CREATIVE REQUIREMENT
+Every game must have a distinctly Greek setting. Across the catalogue, use a varied historical and cultural range:
+- Ancient Greece: Bronze Age/Mycenaean, Archaic, Classical and ancient Greek city-states.
+- Hellenistic Greece and the wider Hellenistic world.
+- Byzantine Greek-speaking world.
+- The Greek War of Independence (1821).
+- The Balkan Wars (1912–1913).
+- Modern Greece, including contemporary towns, islands, farms, ports, transport, industry and public services.
+
+Do not force every game into ancient Greece. Select the period that best supports its mechanics. A modern airport game should be modern; a phalanx game belongs in antiquity; a siege-engine puzzle may be ancient or Byzantine; a supply platformer may be set in 1940 or 1821 depending on the design. The catalogue should collectively cover different periods and regions of Greek history.
+
+HISTORICAL AUTHENTICITY
+- Use historically plausible clothing, architecture, tools, ships, vehicles, weapons, buildings, landscapes, place names and material culture for the chosen period.
+- Do not mix eras casually. A Byzantine crane, an ancient trireme and a modern excavator should not appear together unless the game explicitly uses fantasy or time-travel.
+- Where exact historical accuracy is uncertain, research it rather than inventing confident details.
+- Historical conflict must be age-appropriate and non-graphic. Represent battles abstractly through positioning, formations, supply, flags, forts or strategic outcomes.
+- Avoid simplistic nationalist caricatures. Distinguish armies, governments and historical actors from civilian populations.
+- Greek text should use natural, correct Modern Greek for the interface. If a game includes historical inscriptions or period terminology, provide a clear modern-Greek explanation where needed.
+
+LANGUAGE AND AUDIO
+- All player-facing text must be in Greek.
+- The project owner will provide any voice recordings and sound files that are needed.
+- Spoken instructions must never be essential to understanding a game.
+- Use short Greek labels, clear icons, visual demonstrations and consistent symbols.
+- Do not assume the child can read fluently. Voice can supplement the visual interface.
+- Avoid babyish wording and presentation.
+
+PLATFORM AND TECHNICAL DIRECTION
+- Browser-based HTML5 games, initially running locally on the PC. No backend is needed for the first version.
+- One library/application containing multiple independent games.
+- HTML, CSS and JavaScript ES modules.
+- Canvas for game worlds, animation and physics; DOM/HTML for menus and ordinary interface elements.
+- Pointer Events for touch, mouse and stylus input.
+- LocalStorage or IndexedDB for local progress and settings.
+- Web Audio API for audio playback.
+- Fullscreen support.
+- Large touch targets. Do not rely on hover, tiny controls or keyboard shortcuts.
+- Keyboard support may be added, but touch is the primary interaction.
+- Reusable shared components: library navigation, pause/restart, level selection, sound settings, progress saving, touch feedback and Greek text handling.
+- Each game must be independently playable and testable.
+
+DESIGN GOAL
+These are games first. Learning should emerge from play rather than from worksheets. The player should be able to experiment, understand cause and effect, make decisions, improve a strategy and master a system.
+
+======================================================================
+2. GAME DESIGN EXPECTATIONS
+======================================================================
+
+Every game design produced from this catalogue must specify the following in concrete terms.
+
+1. PLAYER ROLE AND FANTASY
+Who is the player in the game world? What are they trying to do? What makes the activity appealing?
+
+2. CORE GAMEPLAY LOOP
+Describe the repeated sequence of actions. For example: inspect the map → choose cargo → load the animals → select a route → travel → sell goods → use the proceeds to improve the caravan → take on a harder delivery. A loop must describe actual play, not merely say “the player progresses through levels.”
+
+3. CORE MECHANICS
+Define the rules governing actions and outcomes. What can the player select, move, build, spend, carry, attack, activate or change? What happens as a result? Include relevant limits, costs, timing, physics, interactions and feedback.
+
+4. OBJECTIVE AND SUCCESS
+State exactly what the player must accomplish to complete a level or session. Distinguish the required objective from optional goals such as finishing faster, using fewer resources or discovering secrets.
+
+5. LEVEL STRUCTURE
+Explain how a level begins, what is already on the board/world, what the player can do, how the level ends and how the next level differs. Give example level scenarios, not only generic promises of “more difficulty.”
+
+6. DIFFICULTY CURVE
+Explain which new rule or complication is introduced at each stage. Start with a safe, simple version of the central mechanic. Increase challenge by combining familiar rules, adding constraints or changing the situation—not by making controls less fair.
+
+7. GAME ELEMENTS
+List the actual interactive objects, units, resources, terrain, machines, characters, hazards and interface information. Explain what each important element does.
+
+8. PLAYER FEEDBACK
+Explain how the game communicates what happened and why: movement, animation, sound, counters, visual previews, highlighted routes, stability indicators, etc.
+
+9. FAILURE, RETRY AND RECOVERY
+State what can go wrong, whether the player can recover, and how restarting works. Failure should be informative, not humiliating. Do not erase unrelated progress.
+
+10. SESSION LENGTH AND REPLAYABILITY
+Give a natural stopping point. Explain what makes another attempt or another level interesting.
+
+A design is not complete if it only describes a theme, a genre or a list of features. The reader must be able to imagine a complete play session and understand the rules well enough to prototype it.
+
+======================================================================
+3. GLOBAL DESIGN PRINCIPLES
+======================================================================
+
+DIFFICULTY
+- Easy to learn, difficult to master.
+- Introduce one new rule at a time.
+- Let the player succeed early.
+- Reward skill and understanding, not time spent.
+- Failure should reveal useful information and allow a quick retry.
+- Avoid tiny targets, arbitrary penalties, hidden rules, unpredictable controls and excessive precision.
+- Include optional mastery goals for a player who wants more challenge.
+- Difficulty need not rise continuously. Mix demanding levels with exploratory or creative ones.
+
+GAMEPLAY
+- Every level needs a clear objective.
+- Choices should have visible consequences.
+- Use constraints such as space, materials, cargo capacity, time, energy, routes or units.
+- Let simple rules combine into interesting situations.
+- Vary the actual problem, not just the scenery.
+- Reward experimentation. Do not punish harmless exploration.
+- Avoid unnecessary reading and arithmetic.
+
+FEEDBACK AND PRESENTATION
+- Every important action should produce immediate, understandable feedback.
+- Use animation to explain cause and effect.
+- Keep the active play area uncluttered.
+- Use a consistent visual language.
+- Make controls generous and forgiving.
+- No graphic violence, frightening imagery or distressing consequences.
+- No advertising, monetization, loot boxes, streak pressure or punitive timers.
+
+======================================================================
+4. RANKED GAME CATALOGUE
+======================================================================
+
+Ranking is based on the strength and distinctiveness of the gameplay, the potential for meaningful systems and decisions, suitability for touchscreen, replayability and feasibility. The order is a recommended design priority, not a final production schedule.
+
+----------------------------------------------------------------------
+TIER A — STRONGEST CANDIDATES
+----------------------------------------------------------------------
+
+1. TOWER BUILDER
+Historical setting: Ancient Greece, with later campaigns in Hellenistic and Byzantine construction.
+
+GAME PREMISE
+The player is a master builder working on Greek buildings and monuments. They must construct towers, columns, watchtowers, lighthouses or monumental structures that remain standing. The game is a physics-based construction puzzle: the player is not simply stacking blocks for points; they are learning how shape, weight, support and balance affect a structure.
+
+CORE LOOP
+Receive a construction brief → inspect the available pieces and building area → select and place pieces → watch the structure settle and sway → adjust or add supports → test it against the level's challenge → complete the build and unlock the next site.
+
+CORE MECHANICS
+- The player selects a piece from a tray and drags it into the construction area.
+- Pieces have a shape, width, height, mass and material. A broad stone block is stable but heavy; a narrow column saves space but supports less; a beam can bridge a gap.
+- Pieces obey simple, consistent gravity and collision physics.
+- A structure succeeds if it reaches the required height or supports the required object and remains standing during a short stability test.
+- The player may move or remove pieces before starting the test.
+- Later levels introduce wind, uneven foundations, limited materials and loads placed at particular points.
+
+OBJECTIVE
+Each level gives a specific brief: build a tower above a height line; support a bell or statue; span a small gap; or withstand a gust of wind. The required objective is always visible. Optional goals include using fewer pieces, using only local stone or reaching a greater height.
+
+WORLD AND ELEMENTS
+Ancient quarry, building site, acropolis, island lighthouse and Byzantine town. Pieces include stone blocks, marble drums, columns, wooden beams, platforms, ropes and scaffolding appropriate to the period. Workers and cranes may appear as visual context, but should not automate the central puzzle.
+
+DIFFICULTY AND PROGRESSION
+First levels use broad blocks on flat ground. Then introduce columns, narrow supports, uneven foundations, heavier loads, wind and material limits. Later challenges combine two or three familiar constraints. The player should see a wobble or stress indication before collapse where practical.
+
+SUCCESS, FAILURE AND REPLAY
+Success is a stable structure that meets the brief. If it collapses, show the weak point and allow immediate rebuilding. A level can be replayed to beat optional construction goals. Typical session: one short construction challenge.
+
+2. DONKEY CARAVAN TRADER
+Historical setting: Ancient and Hellenistic Greece, travelling between mainland settlements, islands and market towns.
+
+GAME PREMISE
+The player leads a small merchant caravan between Greek settlements. Each place produces some goods and needs others. The player makes money by buying where a product is plentiful and selling where it is scarce. The challenge is to choose what to carry, how much to load, which route to take and when to invest in a better caravan.
+
+CORE LOOP
+Inspect the regional map and village markets → compare local prices and needs → buy goods → load the donkeys within their carrying limits → choose a route → travel and handle any route event → sell or deliver the cargo → use earnings to improve the caravan → accept a more demanding trade task.
+
+CORE MECHANICS
+- Each settlement has a small production profile and demand profile. For example, a farming village has grain and olive oil; a mountain village has timber and wool but needs pottery and fish.
+- Goods have quantities and prices. Abundant goods are cheaper; scarce goods are more expensive. Prices change in a controlled, understandable way as supply is bought or delivered.
+- The player chooses goods and quantities. Each donkey has a carrying capacity; overloading is not allowed.
+- The map shows connected routes with distance and a simple condition: easy, steep or difficult. Longer routes take more turns or travel steps.
+- Travel consumes provisions or stamina only if the design needs that constraint. Do not add resource meters without a meaningful decision.
+- Earnings can buy another donkey, a cart, larger saddlebags or access to a new route.
+
+OBJECTIVE
+A level may require a target profit, delivery of a requested quantity, supplying a village, or completing a profitable circuit. The player can finish the required task without finding the theoretically perfect trade. Optional mastery rewards efficient cargo use, high profit or a route completed with limited equipment.
+
+WORLD AND ELEMENTS
+A map of ancient Greek villages, ports and market towns; donkeys, pack saddles, carts, grain, olives, oil, pottery, wine amphorae, fish, wool, timber, tools, inns and storehouses. Use historically appropriate containers and transport for the chosen period.
+
+DIFFICULTY AND PROGRESSION
+Start with two villages and one good. Teach buying, loading and selling. Then add more villages, multiple goods, different carrying capacities and route choices. Later levels introduce delivery contracts, changing demand and a choice between a short difficult road and a longer safe one.
+
+SUCCESS, FAILURE AND REPLAY
+The player succeeds by meeting the contract or profit target. A poor trade should reduce earnings, not permanently trap the player. Allow retry or a new trading opportunity. Replay comes from discovering better routes and more efficient cargo combinations.
+
+3. CASTLE CONQUEST
+Historical setting: Byzantine Greece and the Byzantine frontier, represented as a simplified strategic map.
+
+GAME PREMISE
+The player commands a small network of forts and walled towns. Settlements produce defenders. The player sends groups from one stronghold to another to capture neutral forts, reinforce threatened positions and control the map. The central challenge is deciding how many defenders to send while keeping enough at home.
+
+CORE LOOP
+Inspect the map and troop counts → choose a friendly stronghold → choose how many troops to dispatch → select a destination → watch the group travel along a route → resolve the capture or defence → reassess the map → send the next group.
+
+CORE MECHANICS
+- Every stronghold has an owner, a current garrison and a troop-production rate.
+- Friendly strongholds gradually produce new troops up to a visible limit.
+- The player selects a stronghold, chooses a portion of its garrison using a simple slider or preset amounts, and taps a destination.
+- Troops travel along visible roads. Travel time depends on route length.
+- On arrival, the attacking group is compared with the defenders using a simple, visible rule. The larger force wins, with optional terrain bonuses introduced later.
+- Sending all troops leaves the origin vulnerable. The player must balance attack and defence.
+- Some maps contain bridges or passes that make certain routes important.
+
+OBJECTIVE
+Capture all neutral strongholds, capture a marked fortress, or hold specified locations until the level ends. Optional goals include winning with fewer troops or protecting a particular town.
+
+WORLD AND ELEMENTS
+Byzantine fortresses, walled towns, mountain passes, bridges, roads, banners, garrisons and supply points. Units are represented as clear counters or small groups, not individual combat animations.
+
+DIFFICULTY AND PROGRESSION
+Start with one friendly fort and one neutral fort. Teach dispatch and capture. Add an enemy that also sends troops, then multiple routes, stronger fortresses and terrain bonuses. Later levels require coordinated attacks and reinforcement.
+
+SUCCESS, FAILURE AND REPLAY
+Win when the stated territorial objective is achieved. If the player loses a fort, the map remains readable and the player can recover if other strongholds remain. Restart is immediate. No graphic battle scenes.
+
+4. WOMEN OF PINDUS — HISTORICAL SUPPLY ADVENTURE
+Historical setting: Epirus and the Pindus mountains during the Greco-Italian War of 1940–1941.
+
+HISTORICAL FRAMING
+The Greek army was fighting Italian forces invading through occupied Albania. The game should portray the women who carried supplies through difficult mountain terrain with respect. Do not portray Albanian civilians as enemies. The focus is courage, endurance, logistics and helping others, not combat.
+
+GAME PREMISE
+The player guides a woman carrying supplies from a mountain village to a Greek supply post. This is a side-scrolling platform adventure with a meaningful carrying mechanic: a light load is easier to move with, while a heavy load changes how the character jumps and climbs. The player must choose routes and use the environment to get the supplies through.
+
+CORE LOOP
+See the delivery request → choose or receive a supply load → traverse the mountain path → jump, climb, push or operate obstacles → decide whether to take a safer longer path or a harder shortcut → deliver the load → receive the next mission.
+
+CORE MECHANICS
+- Move left and right; jump; interact with marked objects. Controls use large touch areas or simple on-screen controls.
+- The character can carry a crate or bundle. A heavy load shortens jump distance or slows climbing; it does not make controls unpredictable.
+- The player can set down a load temporarily to cross a difficult section, then retrieve it.
+- Obstacles include gaps, slippery snow, narrow paths, rope crossings, fallen branches and damaged bridges.
+- Some obstacles require interaction: push a log into place, lower a rope, move a cart or choose another path.
+- A route may have a safe path and a shortcut. The player chooses based on the load and their confidence.
+
+OBJECTIVE
+Deliver a specified supply bundle to the destination. Later missions may require several deliveries, recovering a dropped supply crate or helping an injured soldier reach a safe shelter. Optional goals include finding a shortcut or completing the route without leaving supplies behind.
+
+WORLD AND ELEMENTS
+Stone villages, mountain paths, snow, forests, ravines, wooden bridges, pack animals, supply bundles, food, blankets, medicine and ammunition crates. Uniforms, tools and buildings should be researched and period-appropriate. Battle remains distant and abstract.
+
+DIFFICULTY AND PROGRESSION
+First teach movement without cargo. Then introduce a light bundle, a gap, a climb and finally heavier loads and route choices. Later levels combine terrain and carrying constraints. Hazards must be telegraphed and fair.
+
+SUCCESS, FAILURE AND REPLAY
+A fall or dropped load returns the player to a nearby safe point or allows the load to be recovered. Avoid harsh lives systems. Success is delivery, not defeating enemies. Each mission should be short and end at a clear supply destination.
+
+5. FACTORY AUTOMATION
+Historical setting: Modern Greece, in a small food-processing or manufacturing plant. Use a modern industrial setting rather than pretending conveyor-belt factories existed in antiquity.
+
+GAME PREMISE
+The player is the operator of a small Greek factory. They design a production line by placing machines and connecting them with conveyors. Raw materials enter one end; finished goods must reach the correct loading area. The puzzle is to make a reliable, space-efficient production system.
+
+CORE LOOP
+Read the order → inspect the raw materials, machines and factory floor → place machines → connect input and output belts → start the line → observe where materials stop or pile up → modify the layout → deliver the required products.
+
+CORE MECHANICS
+- The floor is a grid. The player places machines on grid cells and rotates them to set input/output directions.
+- Conveyor belts carry one item at a time in a direction. Belts can turn, merge or split only where the level allows.
+- Each machine transforms a defined input into an output after a visible processing time. Example: olives → olive press → olive oil; grain → mill → flour → bakery → bread.
+- Storage has a capacity. If the output is blocked, the machine stops. This creates a visible bottleneck.
+- The player can pause the factory, move components and run a test.
+- Later machines may require two inputs or create more than one output.
+
+OBJECTIVE
+Produce and deliver a target quantity of one or more products. Some levels ask for the smallest working factory, others for a layout that produces continuously without blocking.
+
+WORLD AND ELEMENTS
+A contemporary Greek factory with olive oil, flour, bread, bottled goods, crates, conveyors, presses, mills, mixers, storage and loading bays. Use Greek product labels and familiar industrial surroundings.
+
+DIFFICULTY AND PROGRESSION
+Begin with one input, one machine and one destination. Then add a turn in the belt, a second machine, storage, two products, branching and capacity limits. Later levels combine several known production steps.
+
+SUCCESS, FAILURE AND REPLAY
+The line succeeds when the required products reach the loading bay. If it jams, show the blocked belt or full output. The player can pause and redesign without losing the level. Optional mastery is a smaller, faster or more space-efficient layout.
+
+6. BRIDGE BUILDER
+Historical setting: Ancient and Byzantine Greece, with a separate modern campaign if desired. The ancient campaign should use period-appropriate timber, stone and masonry rather than modern steel suspension components.
+
+GAME PREMISE
+The player is a builder asked to connect two sides of a ravine, river or road. They construct a bridge from available materials and test whether a cart, group of travellers or supply wagon can cross. The game is a structural physics puzzle.
+
+CORE LOOP
+Inspect the gap and anchor points → choose materials → place beams, supports or arches → test the bridge with the level's vehicle → observe bending or failure → reinforce or redesign → complete the crossing.
+
+CORE MECHANICS
+- The player connects fixed anchor points using beams or support pieces.
+- Each material has a cost and strength. Timber is flexible and relatively light; stone is heavy and strong under compression; ropes can support suspended sections where historically appropriate.
+- The bridge has to support the weight of the crossing vehicle.
+- The player can test the design at any time. The vehicle moves across at a steady, readable speed.
+- Weak sections bend or break visibly. The player can return to construction and repair.
+- Later levels introduce wider gaps, uneven banks, limited materials and heavier loads.
+
+OBJECTIVE
+Allow the specified vehicle or group to cross safely. Optional goals include spending less material, using fewer supports or supporting a heavier load.
+
+WORLD AND ELEMENTS
+Ancient roads, mountain passes, rivers, ravines, stone abutments, timber beams, stone arches, ropes, carts and pack animals. Byzantine levels can introduce different bridge forms after historical research.
+
+DIFFICULTY AND PROGRESSION
+Start with a short gap and two anchor points. Teach a simple beam. Then introduce a support, an arch or a heavier cart. Later combine a long span with limited materials and difficult terrain.
+
+SUCCESS, FAILURE AND REPLAY
+If the bridge fails, show the weak section and let the player rebuild. A failed test costs no permanent resources. The level ends when the crossing is completed.
+
+7. LITTLE FIGHTERS — TWO-ACTION DUEL
+Historical setting: Ancient Greek athletic festival or martial training ground. Present it as a stylized sport inspired by ancient athletic culture, not a claim that modern boxing rules existed unchanged in antiquity.
+
+GAME PREMISE
+The player enters a series of friendly contests against cartoon opponents. The player has two attack actions—punch and kick—and must learn to read the opponent's stance and timing. The game is a short reaction-and-pattern duel, not a button-mashing contest.
+
+CORE LOOP
+Meet an opponent → observe their stance and attack pattern → choose punch, kick or wait/guard → respond at the right moment → win the round → face a new opponent with a different pattern.
+
+CORE MECHANICS
+- Two large action buttons: punch and kick. A third guard/wait action may be added if needed, but the initial design should remain simple.
+- Opponents display a clear wind-up animation before attacking.
+- Some opponents are vulnerable to a punch, others to a kick, and some must be allowed to attack before the player counters.
+- A successful action fills a simple advantage meter or scores a point. Repeated random tapping is less effective than responding to cues.
+- A round is short and uses a small number of exchanges.
+
+OBJECTIVE
+Win a best-of-three or short points-based contest. Optional challenges include winning without being hit or correctly countering a particular pattern.
+
+WORLD AND ELEMENTS
+Ancient Greek palaestra, gymnasium or festival arena; training posts, sand floor, wreaths, spectators and distinct cartoon athletes. Avoid anachronistic modern boxing gloves unless the game deliberately uses a modern sport setting.
+
+DIFFICULTY AND PROGRESSION
+First opponent uses one slow, clearly signalled move. Then introduce alternating attacks, feints, defensive opponents and different rhythms. Increase pattern complexity, not reaction speed alone.
+
+SUCCESS, FAILURE AND REPLAY
+A lost round can be replayed immediately. No injury animation or graphic impact. Success is a sporting victory and progression to the next opponent.
+
+8. AIRPORT CONTROLLER
+Historical setting: Modern Greece, at a fictionalized Greek island or mainland airport.
+
+GAME PREMISE
+The player is an air-traffic controller responsible for guiding aircraft safely to runways. Aircraft arrive from different edges of the screen and need to land or take off. The player assigns routes and runways while avoiding crossing paths and conflicts.
+
+CORE LOOP
+Observe approaching aircraft and their destinations → select an aircraft → draw or choose a route → assign a runway → watch the aircraft follow the route → resolve the landing/takeoff → handle the next aircraft.
+
+CORE MECHANICS
+- Aircraft move continuously at a readable speed.
+- Each aircraft has a destination runway or holding point.
+- The player draws a path using touch, or selects a sequence of route nodes.
+- Aircraft cannot occupy a runway simultaneously. Routes that cross at the same time create a visible conflict.
+- Aircraft can be told to wait at a holding point.
+- Later levels introduce different aircraft speeds, two runways, crosswinds or an emergency landing.
+
+OBJECTIVE
+Land or route a target number of aircraft safely. Some levels require a specific aircraft to land first or keep a runway clear. Optional mastery includes fewer delays or fewer route changes.
+
+WORLD AND ELEMENTS
+A modern Greek airport with island geography, runways, taxiways, radar screen, passenger planes, cargo aircraft, helicopters, control tower and weather symbols. Use fictional airport names unless real locations are deliberately researched.
+
+DIFFICULTY AND PROGRESSION
+Start with one aircraft and one runway. Then add a second aircraft, a crossing route, a holding point, two runways and an emergency priority. Do not begin with a stressful timer.
+
+SUCCESS, FAILURE AND REPLAY
+A conflict is shown before it becomes a collision where possible, allowing correction. If a collision occurs, use a neutral reset and explanation. The player can retry the scenario. Avoid frightening crash imagery.
+
+----------------------------------------------------------------------
+TIER B — VERY GOOD CANDIDATES
+----------------------------------------------------------------------
+
+9. VILLAGE BUILDER
+Historical setting: Ancient Greek village, Hellenistic settlement or Byzantine town. Each campaign must use buildings and social structures appropriate to its period.
+
+GAME PREMISE
+The player develops a small settlement. They place homes, wells, farms, workshops, storage and public buildings, then make sure the settlement has the connections and resources it needs. This is a compact settlement-planning game, not a huge city simulator.
+
+CORE LOOP
+Inspect the land and settlement needs → choose a building → place it and connect it by a path or road → observe what it produces or supplies → solve shortages or access problems → expand the settlement to meet the level goal.
+
+CORE MECHANICS
+- The map is a small grid or tile-based landscape.
+- Buildings occupy space and have defined functions. Farms produce food; wells provide water; workshops make goods; houses provide places for residents.
+- Some buildings need adjacency or a road connection to function.
+- Residents consume a small number of visible resources.
+- Landforms such as rivers, slopes and forests restrict placement.
+- The player has a limited number of building pieces or a simple budget.
+
+OBJECTIVE
+Reach a population target, provide enough food and water, connect specified buildings or create a functioning settlement within a fixed area.
+
+WORLD AND ELEMENTS
+Period-specific Greek houses, farms, wells, agora or market, workshops, storage, roads, walls, churches or public buildings as appropriate. Do not put a Byzantine church into a Classical Greek level.
+
+DIFFICULTY AND PROGRESSION
+Begin with a house, farm and well. Then introduce road access, limited space, a workshop and a second resource. Later levels add a river crossing, more residents or a special building requirement.
+
+SUCCESS, FAILURE AND REPLAY
+The level succeeds when the settlement meets its stated conditions. If a resource runs short, show which building or connection is responsible. Allow rebuilding. Optional mastery is a compact, efficient layout.
+
+10. CARGO TRAIN ROUTING
+Historical setting: Modern Greece, with a railway network connecting inland towns, industrial areas and ports.
+
+GAME PREMISE
+The player operates a small rail network. Trains carrying different cargoes must reach the correct stations. The player builds track segments and changes junctions so trains do not collide or become trapped.
+
+CORE LOOP
+Inspect train destinations and the map → lay or adjust track → set junction directions → start the trains → watch their movement → change switches at the right time → deliver cargo to the correct stations.
+
+CORE MECHANICS
+- Track tiles connect in defined directions: straight, curve, junction, bridge and tunnel.
+- Trains follow connected track automatically.
+- At a junction, the player chooses which branch is active.
+- Each train has a destination icon and a cargo type.
+- Trains have predictable speeds and stopping distances.
+- Later levels add multiple trains, shared track sections, sidings and station capacity.
+
+OBJECTIVE
+Deliver each train to its correct station without collision or deadlock. Optional goals include using fewer track pieces or completing all deliveries with minimal waiting.
+
+WORLD AND ELEMENTS
+Modern Greek countryside, stations, freight yards, ports, bridges, tunnels, locomotives, wagons and cargo such as grain, timber, ore and containers.
+
+DIFFICULTY AND PROGRESSION
+Start with one train and a simple route. Then introduce a junction, a second train, a shared track section, a siding and finally several destinations.
+
+SUCCESS, FAILURE AND REPLAY
+A wrong turn or blocked route should be recoverable by switching tracks where possible. A collision causes a simple reset. The player can pause the simulation and plan.
+
+11. CASTLE DEFENSE / TOWER DEFENSE
+Historical setting: Byzantine Greece, defending a fortified town or mountain pass from an abstract invading force.
+
+GAME PREMISE
+The player protects a gate or town by placing defenders and defensive structures along known approach routes. Each defender has a different strength and range. The challenge is to decide where to place limited resources before each wave arrives.
+
+CORE LOOP
+Inspect the enemy route → choose defensive positions → place towers or units → start the wave → observe which enemies get through → earn or receive a small resource allowance → improve the defence → face the next wave.
+
+CORE MECHANICS
+- Enemies follow a visible path toward a gate.
+- Defensive units attack automatically when an enemy enters their range.
+- Different units have distinct roles: long-range, rapid but weak, slow but powerful, or support.
+- The player has a limited number of placements or coins.
+- Some terrain positions provide better range or block line of sight.
+- Between waves, the player can move or upgrade units.
+
+OBJECTIVE
+Prevent a specified number of enemies from reaching the gate, or protect a location for a fixed number of waves.
+
+WORLD AND ELEMENTS
+Byzantine walls, towers, gates, archers, defenders, signal fires, narrow passes and supply points. Enemies should be stylized and non-graphic.
+
+DIFFICULTY AND PROGRESSION
+Begin with one path and one defensive unit. Add a second unit type, a fork in the path, tougher or faster opponents and limited placement spaces. Difficulty comes from choosing a strategy, not frantic tapping.
+
+SUCCESS, FAILURE AND REPLAY
+A small number of enemies may get through without ending the level immediately. If the defence fails, show where the layout was weak and allow retry. Avoid graphic combat.
+
+12. MEDITERRANEAN MERCHANT SHIPPING
+Historical setting: Ancient and Hellenistic Greek seafaring in the Aegean and eastern Mediterranean.
+
+GAME PREMISE
+The player commands a merchant vessel sailing between Greek islands and coastal ports. Each port has goods to sell and goods it needs. The player chooses cargo, manages ship capacity and selects a sea route. Unlike the donkey caravan game, the central challenge is maritime navigation and ship logistics.
+
+CORE LOOP
+Visit a port → inspect prices and local demand → choose cargo within the ship's capacity → select a sea route → sail while responding to simple navigation events → arrive and trade → upgrade the vessel or unlock another port.
+
+CORE MECHANICS
+- Ports have distinct goods and demand.
+- A ship has a cargo capacity and a travel range.
+- The sea map shows routes, distance and simple hazards such as reefs or exposed waters.
+- The player chooses between a direct route and a safer route.
+- Wind can affect travel time in a simplified, predictable way.
+- Ships can be upgraded for capacity or range.
+
+OBJECTIVE
+Complete a trade contract, supply an island, or earn a target amount across several voyages. Optional goals reward efficient cargo and route planning.
+
+WORLD AND ELEMENTS
+Ancient Greek harbour, merchant ship, amphorae, grain sacks, timber, pottery, olive oil, sail, oars, islands, headlands, safe coves and port warehouses. Ship design and cargo handling should be researched for the selected period.
+
+DIFFICULTY AND PROGRESSION
+Start with two ports and one cargo. Then add more goods, limited ship capacity, longer routes, reefs and multiple delivery requests. Later levels require planning a circuit rather than a single return trip.
+
+SUCCESS, FAILURE AND REPLAY
+A poor route costs time, not the entire campaign. If the ship reaches port, the player can trade and continue. Avoid shipwreck drama; hazards should be navigational puzzles.
+
+13. ISLAND CONQUEST
+Historical setting: Hellenistic Aegean, with rival island cities and fortified harbours.
+
+GAME PREMISE
+The player leads a small fleet trying to gain control of a chain of islands. The key challenge is not simply sending larger armies; it is planning a route, securing harbours and maintaining supply between islands.
+
+CORE LOOP
+Inspect the island map → choose a fleet and departure harbour → select a destination → travel along a sea route → resolve a landing or negotiation challenge → secure the harbour → use it as a new base → plan the next expedition.
+
+CORE MECHANICS
+- Each island has a harbour, a status (friendly, neutral or rival), a defence value and possibly a resource.
+- Ships have transport capacity and movement range.
+- A fleet cannot travel farther than its supply range unless it stops at a friendly harbour.
+- Some islands are easy to occupy but poor as bases; others are strategically important.
+- The player chooses which island to secure first.
+- Rival fleets may block routes in later levels.
+
+OBJECTIVE
+Secure a specified group of islands, connect two friendly harbours or establish a continuous supply route.
+
+WORLD AND ELEMENTS
+Aegean islands, ancient harbours, triremes or merchant vessels as appropriate, forts, coastal paths, water routes and island resources. Conflict is abstracted into counters, flags and strategic outcomes.
+
+DIFFICULTY AND PROGRESSION
+Start with three islands and no rival fleet. Then add a longer route, a neutral harbour, limited ship capacity and finally competing fleets or supply constraints.
+
+SUCCESS, FAILURE AND REPLAY
+The player wins by controlling the required islands or routes. Losing a ship or harbour should not automatically destroy the entire campaign if recovery remains possible. Replay comes from discovering a more efficient order of expansion.
+
+14. PHALANX FORMATION TACTICS
+Historical setting: Classical Greek city-states, with a focus on hoplite formations.
+
+GAME PREMISE
+The player commands a small group of hoplites on a tactical field. They arrange the soldiers into a formation, choose its facing and move it across terrain. The key idea is that a formation is strong when organized and facing the right direction, but vulnerable if stretched, split or attacked from the side.
+
+CORE LOOP
+Inspect the field and enemy position → arrange the formation → choose facing and movement → advance or hold → observe how the formations meet → reposition to protect a flank or hold an objective.
+
+CORE MECHANICS
+- Units occupy a grid or a clearly marked formation area.
+- The player can widen, deepen or rotate the formation.
+- Cohesion is represented by a visible indicator. Moving too far or around obstacles can reduce cohesion.
+- A formation has a strong front and weaker sides/rear.
+- Terrain such as a narrow pass or hill changes movement and defensive advantage.
+- Combat is abstract: formations push, retreat or lose cohesion rather than showing individual injury.
+
+OBJECTIVE
+Hold a pass, reach a marked area, protect a standard or outmanoeuvre an opposing formation.
+
+WORLD AND ELEMENTS
+Hoplites, round shields, spears, standards, rocky ground, hills, paths and city-state banners. Equipment should match the chosen period.
+
+DIFFICULTY AND PROGRESSION
+Start with moving and turning a single formation. Then introduce a narrow pass, an opposing formation, a flank route and two friendly groups that must coordinate.
+
+SUCCESS, FAILURE AND REPLAY
+Success is holding or reaching the objective while maintaining sufficient cohesion. If the formation breaks, allow regrouping or restart. No graphic battle scenes.
+
+15. FARM MANAGER
+Historical setting: A Greek farm in the Hellenistic or Byzantine period; later levels may move to modern Greece with period-appropriate tools.
+
+GAME PREMISE
+The player manages a small farm through a short sequence of seasons. They choose what to grow, care for fields and animals, harvest crops, process some products and deliver goods to a nearby market. The central challenge is planning land and production over time.
+
+CORE LOOP
+Inspect the season and market request → choose fields and crops → plant and water → wait through a short in-game growth cycle while doing other tasks → harvest → process or sell goods → prepare the farm for the next season.
+
+CORE MECHANICS
+- Each crop has a growing time, water need and yield.
+- Fields occupy space. The player chooses what to plant in each.
+- Water is limited in some levels and can be directed to fields.
+- A mill, press or storage building converts or holds products.
+- Animals may provide milk, wool or eggs, but each requires food and space.
+- In-game seasons should be short; never require the player to wait real days.
+
+OBJECTIVE
+Produce a requested set of goods, supply a village, or earn enough from a season to complete a farm improvement.
+
+WORLD AND ELEMENTS
+Olive groves, vineyards, grain fields, vegetable plots, goats, sheep, wells, cisterns, mills, presses, barns and village markets. Use tools and crops appropriate to the era.
+
+DIFFICULTY AND PROGRESSION
+Start with one crop and a small field. Add water, a second crop, harvesting order, processing and animal care. Later levels introduce limited land, seasonal requests and a choice between selling raw goods or processing them.
+
+SUCCESS, FAILURE AND REPLAY
+A missed harvest reduces the result but should not permanently ruin the farm. The player can retry a season. Optional goals reward efficient water use, low waste and a balanced farm.
+
+16. ZOO MANAGER — GREEK WILDLIFE PARK
+Historical setting: Modern Greece. This is a contemporary wildlife rescue and nature park, not an ancient zoo.
+
+GAME PREMISE
+The player designs habitats for Greek and Mediterranean wildlife in a rescue park. The goal is to create places where animals can behave naturally and receive the right food, shelter, water and space. The game should emphasize observation and care rather than collecting animals.
+
+CORE LOOP
+Meet an animal and inspect its needs → choose a suitable habitat area → place plants, rocks, water and shelter → introduce the animal → observe its behaviour → adjust the habitat if a need is unmet → care for the next animal.
+
+CORE MECHANICS
+- Each species has a small set of visible needs: habitat type, food, water, shelter and space.
+- Animals move around and show their comfort through behaviour and simple icons.
+- The player places habitat elements. Some species prefer cover; others need open ground, water or climbing structures.
+- The park has limited space, so habitats must be planned.
+- Visitors and paths may exist, but animal welfare takes priority.
+
+OBJECTIVE
+Create a suitable habitat for one or more species, or improve the welfare of animals already in the park.
+
+WORLD AND ELEMENTS
+Greek tortoises, hedgehogs, foxes, deer, wild goats, birds of prey, seals or other appropriate species, depending on research and conservation framing. Include Mediterranean vegetation, rocks, ponds, shelters and rescue facilities.
+
+DIFFICULTY AND PROGRESSION
+Start with one animal and three needs. Then introduce a second species with different habitat needs, limited space and shared facilities. Later levels ask the player to design connected but appropriate habitats.
+
+SUCCESS, FAILURE AND REPLAY
+If an animal is uncomfortable, it displays the unmet need and the player can fix it. Avoid animal illness or death as punishment. Success is a healthy, functioning habitat.
+
+17. RESTAURANT MANAGER
+Historical setting: A modern Greek taverna or small family restaurant. A separate ancient symposium/inn theme is possible only if the menu and kitchen equipment are researched and adapted.
+
+GAME PREMISE
+The player runs a small Greek taverna kitchen. Customers order familiar dishes. The player organizes ingredients and kitchen stations to prepare each order in the correct sequence. The challenge is kitchen workflow and planning, not frantic tapping.
+
+CORE LOOP
+See incoming orders → inspect ingredients and kitchen layout → prepare components at the correct stations → assemble the dish → serve it → restock or reorganize → handle a more complex set of orders.
+
+CORE MECHANICS
+- Each dish is a short recipe made from a few steps. For example, prepare salad by selecting tomato, cucumber, feta and olive oil; prepare another dish by combining ingredients after a cooking step.
+- Stations have functions: chopping board, oven, stove, serving counter.
+- Ingredients are stored in limited locations. The player moves them to stations.
+- Some steps must happen in order; others can happen in parallel.
+- Customers have a generous patience indicator. The challenge is planning, not speed.
+- Orders can share ingredients, encouraging efficient preparation.
+
+OBJECTIVE
+Complete a set of orders correctly, serve a group of customers or prepare a meal for a special event.
+
+WORLD AND ELEMENTS
+Modern Greek taverna, kitchen, tables, market deliveries and dishes such as horiatiki salad, pies, grilled vegetables and other researched, age-appropriate foods. Avoid alcohol-focused content.
+
+DIFFICULTY AND PROGRESSION
+Start with one simple dish and one station. Add a second recipe, shared ingredients, multiple stations and a limited counter. Later levels require planning the order of several dishes.
+
+SUCCESS, FAILURE AND REPLAY
+An incorrect combination can be undone before serving. A late dish may reduce a bonus but should not cause a harsh loss. Success is completing the required orders.
+
+18. MECHANICAL WORKSHOP — GEARS, PULLEYS AND LEVERS
+Historical setting: Ancient Greek and Hellenistic engineering workshop, with a later Byzantine mechanical-invention campaign.
+
+GAME PREMISE
+The player is an apprentice engineer helping build mechanisms. Each puzzle starts with a goal object that must move: lift a weight, open a gate, turn a wheel or raise a platform. The player places simple machines so that movement from a crank or falling weight reaches the target.
+
+CORE LOOP
+Inspect the mechanism and goal → choose gears, belts, pulleys or levers → place and connect components → turn the input crank → observe motion → identify where movement stops or reverses → adjust the mechanism → solve the puzzle.
+
+CORE MECHANICS
+- A crank supplies rotation.
+- Gears transfer rotation; gear size changes speed and direction in a consistent way.
+- Belts connect separated wheels and transfer rotation.
+- Pulleys and ropes lift weights.
+- Levers transfer force around a pivot.
+- Components snap to marked connection points to make touch placement manageable.
+- The player has a limited number of components in some levels.
+
+OBJECTIVE
+Make the target object perform a clear action: open, lift, rotate, lower or move to a marked position.
+
+WORLD AND ELEMENTS
+Ancient workshop, stone building site, water clock, theatre machinery or Hellenistic engineering setting. Components include wooden gears, axles, ropes, pulleys, levers, counterweights, water wheels and simple cranes. Research any named historical devices.
+
+DIFFICULTY AND PROGRESSION
+Teach a lever first, then a pulley, then gears, then combine two mechanisms. Later levels introduce direction, gear ratios or limited components. Avoid advanced engineering maths.
+
+SUCCESS, FAILURE AND REPLAY
+The mechanism either reaches the goal or visibly fails at a connection. The player can reset and alter it. Optional mastery uses fewer components or produces a particular direction/speed.
+
+19. WATERWORKS — CANALS, AQUEDUCTS AND GATES
+Historical setting: Ancient Greek and Hellenistic water engineering, with Byzantine and modern Greek variants where appropriate.
+
+GAME PREMISE
+The player is responsible for bringing water from a spring or river to fields, a settlement, a bath or a mill. They build channels and place gates to control the flow. The puzzle is to deliver enough water to the right places without wasting it or flooding another area.
+
+CORE LOOP
+Inspect the terrain and water source → identify destinations and required amounts → place channels, pipes or gates → release water → observe where it flows → adjust the route or gate settings → deliver the required water.
+
+CORE MECHANICS
+- Water flows downhill through connected channels.
+- The player places channel segments, aqueduct sections, gates and reservoirs.
+- Gates can be opened, closed or partly opened to divide flow.
+- Destinations have visible fill levels or water requirements.
+- A channel can leak or overflow only if the level explicitly teaches that rule.
+- Later levels introduce branching, elevation changes and limited water.
+
+OBJECTIVE
+Fill a reservoir, irrigate specified fields, supply a settlement or turn a water wheel.
+
+WORLD AND ELEMENTS
+Greek spring, stone channels, aqueducts, cisterns, reservoirs, irrigation fields, fountains, mills and gates. Use construction forms suitable for the period.
+
+DIFFICULTY AND PROGRESSION
+Begin with a single channel downhill. Then add a bend, a gate, two destinations and finally elevation or limited water. Each new rule should be visually demonstrated.
+
+SUCCESS, FAILURE AND REPLAY
+If water goes the wrong way, the player can close the source, alter the channels and retry. Success is meeting the target fill levels without exhausting the source.
+
+20. SIEGE ENGINEER — CATAPULT PHYSICS
+Historical setting: Ancient Greek or Byzantine fortified town. Choose one period for each campaign and use its appropriate machines and architecture.
+
+GAME PREMISE
+The player is an engineer testing a throwing machine in a safe training ground. They must launch objects along a trajectory to hit targets, land cargo in a basket or knock down a wooden obstacle. The game teaches physics through experimentation, not through graphic siege combat.
+
+CORE LOOP
+Inspect the target and launcher → choose a projectile → set launch angle and force → fire → observe the trajectory and result → adjust the settings → achieve the target.
+
+CORE MECHANICS
+- The player adjusts angle and launch power using large controls.
+- Projectiles have different weights and shapes.
+- The machine has a defined range and arc.
+- Wind or elevation may be introduced later.
+- Some levels ask the player to bounce an object or pass over a wall.
+- The number of attempts may be limited in advanced challenges, but early levels allow unlimited experiments.
+
+OBJECTIVE
+Hit a large target, land an object in a marked basket, knock over a stack of wooden blocks or deliver a supply bundle over a wall.
+
+WORLD AND ELEMENTS
+Ancient or Byzantine engineering yard, wooden throwing machine, ropes, counterweights, stones, clay balls, supply baskets, walls and targets. Do not include people as projectile targets.
+
+DIFFICULTY AND PROGRESSION
+Start with a large nearby target. Then introduce angle, power, different projectile weights, obstacles and wind. Later combine two constraints.
+
+SUCCESS, FAILURE AND REPLAY
+Every launch shows a clear arc and impact. A miss is useful information. The player can immediately change angle or power and try again.
+
+----------------------------------------------------------------------
+TIER C — GOOD IDEAS THAT NEED A DISTINCTIVE DESIGN
+----------------------------------------------------------------------
+
+21. PORT MANAGER
+Historical setting: Modern Greek commercial or island port.
+
+GAME PREMISE
+The player manages a small port. Ships arrive carrying cargo, and the player must assign them to berths, operate cranes, move goods into storage and send them onward by truck or train. The puzzle is managing limited dock space and cargo flow.
+
+CORE LOOP
+Inspect arriving ships and cargo → assign each ship to a berth → choose a crane and storage destination → unload containers or goods → move cargo to the correct yard or vehicle → clear the berth for the next ship.
+
+CORE MECHANICS
+- Berths fit only certain ship sizes.
+- Cranes can reach defined dock areas and move one load at a time.
+- Storage yards have limited capacity and accept specific cargo types.
+- Trucks or trains collect goods from loading points.
+- A ship cannot depart until its required cargo is unloaded.
+- The player chooses unloading order to prevent blocked space.
+
+OBJECTIVE
+Unload and dispatch all required cargo, or process a specified number of ships without filling the port's storage.
+
+WORLD AND ELEMENTS
+Modern Greek island or mainland harbour, ferries, cargo ships, cranes, warehouses, containers, pallets, trucks and rail sidings.
+
+DIFFICULTY AND PROGRESSION
+Start with one ship, one berth and one cargo type. Add a second berth, different cargo, limited storage and competing vehicle routes. Later levels require sequencing several ships.
+
+SUCCESS, FAILURE AND REPLAY
+If storage fills, show the blockage and let the player redirect cargo. Avoid irreversible failure. Optional mastery is fewer moves or less waiting.
+
+22. RESCUE HELICOPTER
+Historical setting: Modern Greek Civil Protection and mountain/island rescue service.
+
+GAME PREMISE
+The player pilots a rescue helicopter to deliver supplies or collect people from safe waiting areas. The main challenge is controlling altitude, speed and position accurately enough to reach a pickup zone and return to base.
+
+CORE LOOP
+Receive a rescue request → inspect the map and weather → choose a route → fly to the location → slow down and hover in the pickup zone → collect the person or cargo → fly to the landing site → complete the mission.
+
+CORE MECHANICS
+- The helicopter moves in two dimensions or a simplified top-down view.
+- Touch controls adjust direction and altitude or use a forgiving virtual joystick.
+- Wind pushes the helicopter gently in later levels.
+- The helicopter has a carrying capacity and may need multiple trips.
+- Landing and pickup zones are clearly marked.
+- Obstacles such as cliffs and trees require route planning.
+
+OBJECTIVE
+Deliver supplies to a remote village, collect a stranded hiker from a safe platform or transport a person to a rescue base.
+
+WORLD AND ELEMENTS
+Greek mountains, islands, coast, helicopter bases, helipads, rescue crews, supply crates and weather symbols. No disaster imagery or people in visible distress.
+
+DIFFICULTY AND PROGRESSION
+Start with a short flight and large landing zone. Then introduce a narrow pickup area, wind, obstacles and multiple destinations. Difficulty should come from navigation and control, not twitch reactions.
+
+SUCCESS, FAILURE AND REPLAY
+A rough landing should prompt a gentle correction, not a catastrophic crash. The player can retry from a nearby checkpoint. Missions are short.
+
+23. FIRE DEPARTMENT
+Historical setting: Modern Greek town and countryside fire service.
+
+GAME PREMISE
+The player coordinates a fire engine and crew responding to small, controlled fires. They must choose a route, position the vehicle, connect a hose to a water source and direct water at the fire. The puzzle is prioritization and resource use.
+
+CORE LOOP
+Receive the incident → inspect the map and nearby buildings → choose a route → position the fire engine → connect to a hydrant or use onboard water → aim the hose → extinguish the fire → refill or move to the next incident.
+
+CORE MECHANICS
+- Roads and obstacles determine the route.
+- The fire engine has a limited water tank.
+- A hose has a reach and direction.
+- Fire spreads slowly and visibly to nearby dry objects, but the player has time to respond.
+- Hydrants refill the tank.
+- Some levels require protecting more than one building.
+
+OBJECTIVE
+Extinguish the fire before it reaches a marked area, or protect several buildings with limited water.
+
+WORLD AND ELEMENTS
+Modern Greek neighbourhood, village, forest edge, fire station, fire engines, hydrants, hoses, water tanks, trees and buildings.
+
+DIFFICULTY AND PROGRESSION
+Begin with one small fire beside a hydrant. Then add a longer route, limited water, two fires and obstacles. Later levels require prioritizing which fire to tackle first.
+
+SUCCESS, FAILURE AND REPLAY
+If the fire grows, show its spread clearly and allow the player to continue if recovery is possible. No people in danger, graphic destruction or frightening emergency sounds.
+
+24. ROAD NETWORK BUILDER
+Historical setting: Modern Greece, connecting villages, farms, towns and coastal settlements.
+
+GAME PREMISE
+The player designs a small road network so that locations can be connected and vehicles can travel between them. The game is about network layout and efficient connections, not controlling traffic lights.
+
+CORE LOOP
+Inspect the map and destinations → draw roads between points → place bridges or tunnels where needed → run a vehicle test → observe detours or disconnected places → modify the network → complete the transport task.
+
+CORE MECHANICS
+- The map contains fixed destinations and terrain obstacles.
+- The player draws road segments between connection points.
+- Rivers require bridges; hills may require a longer route or tunnel.
+- Vehicles automatically choose a valid route.
+- Some levels impose a road-length or construction budget.
+- Later levels introduce multiple destinations and traffic bottlenecks.
+
+OBJECTIVE
+Connect all specified places, create a route between two locations or deliver goods using a limited road budget.
+
+WORLD AND ELEMENTS
+Modern Greek countryside, mountain villages, farms, ports, bridges, tunnels, roads, delivery vehicles and road junctions.
+
+DIFFICULTY AND PROGRESSION
+Start with two locations and one river. Add a third destination, a hill, a limited budget and then multiple delivery requests.
+
+SUCCESS, FAILURE AND REPLAY
+A failed connection is highlighted. The player can redraw roads. Optional mastery is a shorter or cheaper network.
+
+25. TRAFFIC CONTROLLER
+Historical setting: Modern Greek town.
+
+GAME PREMISE
+The player controls traffic lights at one or more intersections. Vehicles approach from different directions and need to cross safely. The challenge is deciding which direction gets a green light and when, while keeping queues from blocking each other.
+
+CORE LOOP
+Observe approaching vehicles and queues → choose a traffic-light phase → allow one direction to move → switch before another queue becomes excessive → give priority to an emergency vehicle when needed → complete all journeys.
+
+CORE MECHANICS
+- Each intersection has traffic-light phases.
+- Vehicles follow their marked routes when their direction receives a green light.
+- Conflicting directions cannot move simultaneously.
+- Queues grow if vehicles wait and shrink when they pass.
+- Emergency vehicles have a priority marker.
+- Later levels connect two intersections so a queue at one can block another.
+
+OBJECTIVE
+Allow a set number of vehicles to reach their destinations without collision or gridlock. Optional goals include reducing total waiting.
+
+WORLD AND ELEMENTS
+Modern Greek streets, roundabouts, pedestrian crossings, buses, cars, bicycles, traffic lights, emergency vehicles and clear route arrows.
+
+DIFFICULTY AND PROGRESSION
+Start with one simple crossing. Then add a turning lane, pedestrian phase, emergency vehicle and second intersection. Keep timing generous and predictable.
+
+SUCCESS, FAILURE AND REPLAY
+If traffic builds up, the player can change the phase and recover. Collisions should be avoided through clear signals and never shown graphically. The player can pause to plan.
+
+26. TREASURE ISLAND EXPLORATION
+Historical setting: Hellenistic Aegean island with ancient harbour, sanctuary, caves and abandoned settlement.
+
+GAME PREMISE
+The player explores a connected island to find a hidden storehouse or lost object. Progress depends on observing the environment, finding tools and using them in the right places. This is a small adventure-puzzle game rather than a random object hunt.
+
+CORE LOOP
+Explore an area → notice a blocked path or unusual clue → search nearby places for a useful object or mechanism → use the object or solve the environmental puzzle → unlock a new area → update the map → reach the final location.
+
+CORE MECHANICS
+- The island is divided into connected screens or zones.
+- The player can walk, inspect, push, pull, turn levers and use inventory objects.
+- Inventory is small and shows objects clearly.
+- Tools have logical uses: a rope crosses a gap; a key opens a matching door; a weight holds a pressure plate.
+- Landmarks are added to a simple map.
+- Puzzles use visible clues and consistent rules.
+
+OBJECTIVE
+Reach the hidden storehouse and retrieve a specific object, or open a sealed chamber.
+
+WORLD AND ELEMENTS
+Ancient harbour, olive grove, rocky path, cave, ruined wall, cistern, sanctuary and small settlement. Objects include rope, wooden peg, lamp, key, vessel and map fragments, all appropriate to the chosen period.
+
+DIFFICULTY AND PROGRESSION
+Begin with a blocked path and an obvious nearby tool. Then introduce two-step puzzles, connected areas and a clue that must be remembered. Avoid obscure riddles.
+
+SUCCESS, FAILURE AND REPLAY
+There is no harsh failure state. The player can revisit areas and experiment. Optional secrets reward observation but are not required to finish.
+
+27. LOST MINE — MECHANICAL EXPLORATION
+Historical setting: Byzantine-era underground quarry or mine in a Greek mountain region. Use historically plausible tools and machinery; do not imply modern industrial equipment existed.
+
+GAME PREMISE
+The player explores an old mine or quarry where a series of mechanisms have stopped working. To reach the exit and recover useful material, they must operate lifts, carts, pulleys and gates. The game combines exploration with physical puzzles.
+
+CORE LOOP
+Enter a mine chamber → inspect the machinery and blocked route → find a movable object or control → operate the mechanism → open the next passage → use the mine cart or lift to reach another chamber.
+
+CORE MECHANICS
+- The world is a connected sequence of chambers.
+- The player moves a character and interacts with levers, carts, lifts, counterweights and gates.
+- A cart follows connected rails when pushed.
+- A pulley or counterweight moves a platform.
+- Some mechanisms require the player to move an object into the correct position.
+- A map records visited chambers.
+
+OBJECTIVE
+Restore a lift, move a cart to the loading area, open a blocked passage or reach the mine exit.
+
+WORLD AND ELEMENTS
+Stone tunnels, quarry chambers, wooden supports, hand tools, mine carts, rails, rope lifts, pulleys, lamps, ore baskets and water channels. Keep the atmosphere adventurous rather than frightening.
+
+DIFFICULTY AND PROGRESSION
+Start with a lever that opens a gate. Then introduce a cart, a lift, a counterweight and multi-room mechanism puzzles. Each new device is taught in a safe room first.
+
+SUCCESS, FAILURE AND REPLAY
+The player can reset a mechanism locally. Avoid cave-ins or injury. Success is reaching the goal and restoring the mine system.
+
+28. ADVENTURE PLATFORMER
+Historical setting: Myth-inspired ancient Greece, with separate regions based on real Greek landscapes and architecture. Mythological elements should be clearly presented as fantasy, not history.
+
+GAME PREMISE
+The player controls a young messenger or apprentice travelling through a myth-inspired Greek world. Each region introduces a distinctive movement or environmental puzzle. The game is a platform adventure with exploration, switches, obstacles and secrets—not just a sequence of jumps to collect objects.
+
+CORE LOOP
+Enter a region → learn its movement challenge → traverse platforms and obstacles → activate mechanisms or solve a small puzzle → reach a checkpoint → unlock the next region or ability → revisit earlier areas where the new ability opens a route.
+
+CORE MECHANICS
+- Run, jump, climb and interact.
+- Platforms may move, collapse safely or respond to switches.
+- Each region has one special rule: wind currents, water levels, moving statues or rotating platforms.
+- A small number of abilities may unlock new routes.
+- Checkpoints prevent long repetition.
+- Optional secrets reward exploration.
+
+OBJECTIVE
+Reach the end of each region and complete its central environmental challenge. Optional goals include finding hidden rooms or collecting a small set of meaningful artefacts.
+
+WORLD AND ELEMENTS
+Ancient Greek-inspired islands, olive groves, mountain paths, caves, temples and mythic ruins. Mythological creatures, if used, should be friendly or stylized and have readable behaviours.
+
+DIFFICULTY AND PROGRESSION
+Teach movement on safe ground. Then introduce gaps, moving platforms, switches and one regional mechanic at a time. Later combine known mechanics. Do not rely on tiny jumps or unforgiving timing.
+
+SUCCESS, FAILURE AND REPLAY
+Falling returns the player to a nearby checkpoint. The player can retry immediately. Exploration is rewarded, not punished.
+
+29. BEAT-'EM-UP ADVENTURE
+Historical setting: Myth-inspired ancient Greek festival or storybook journey. Keep it distinct from the one-on-one Little Fighters game.
+
+GAME PREMISE
+The player travels through a side-scrolling level and encounters groups of comic troublemakers or animated training automatons. They move through the environment, avoid simple attacks, use a few actions and interact with obstacles. The emphasis is movement through a level, not duel timing.
+
+CORE LOOP
+Move through the stage → read an obstacle or opponent pattern → avoid or counter it → use an environmental object if useful → reach the next safe area → complete the stage objective.
+
+CORE MECHANICS
+- Horizontal movement and jump.
+- One basic attack and one defensive or special action.
+- Opponents have a small number of predictable behaviours.
+- Environmental objects can block a path, open a gate or help clear an obstacle.
+- Some levels include an escort or protection objective.
+- The player should be able to avoid a fight rather than defeat every opponent.
+
+OBJECTIVE
+Reach the end of a stage, escort a character to safety or retrieve an object from a guarded location.
+
+WORLD AND ELEMENTS
+Ancient Greek streets, festival grounds, training yards, theatres, temples and myth-inspired environments. Opponents can be comic animated statues or harmless fantasy creatures.
+
+DIFFICULTY AND PROGRESSION
+Begin with movement and one opponent. Add a second behaviour, environmental obstacles and multiple routes. Later levels combine movement and timing without increasing button complexity.
+
+SUCCESS, FAILURE AND REPLAY
+A hit causes a small loss of health or a brief knockback, with generous checkpoints. No graphic violence. Replay can improve the route or find a secret.
+
+30. FISH EVOLUTION
+Historical setting: Modern Greek marine environment, especially the Aegean and Mediterranean coast.
+
+GAME PREMISE
+The player controls a small fish in a living underwater ecosystem. They explore, find suitable food, avoid larger animals and grow into a fish capable of entering new areas. The central loop is survival and ecological discovery, not simply eating everything smaller.
+
+CORE LOOP
+Explore a habitat → observe food sources and larger animals → choose a safe feeding route → eat suitable food → grow or gain an ability → reach a new habitat → discover different species and conditions.
+
+CORE MECHANICS
+- The fish swims in a two-dimensional underwater space.
+- Different food types are suitable for different fish.
+- Larger predators have visible patrol or chase patterns.
+- Rocks, sea grass and caves provide cover.
+- Growth unlocks a new movement ability or access to a different habitat.
+- The player can choose between a safer route with less food and a riskier route with more reward.
+
+OBJECTIVE
+Reach a growth milestone, find a particular habitat or discover a set of species.
+
+WORLD AND ELEMENTS
+Aegean seagrass, rocky reefs, sandy seabed, caves, small fish, plankton, shellfish, sea urchins and larger Mediterranean species. Research species and feeding relationships.
+
+DIFFICULTY AND PROGRESSION
+Start in a sheltered shallow-water area. Introduce one predator and one hiding place. Then add a larger habitat, different food and a new ability. Avoid sudden unavoidable attacks.
+
+SUCCESS, FAILURE AND REPLAY
+If caught, the player returns to a nearby safe area with limited loss of progress. Predation is non-graphic. Success comes from growth and exploration.
+
+31. PINBALL
+Historical setting: Modern Greek arcade with themed tables inspired by Greek antiquity, Byzantine mosaics, islands and mythology. The machine itself is modern.
+
+GAME PREMISE
+The player controls a pinball table with two large flippers. Each table is a small mechanical world with ramps, bumpers, gates and a specific mission. The goal is to complete table objectives, not merely keep the ball in play for a high score.
+
+CORE LOOP
+Launch the ball → use the flippers to direct it toward useful targets → activate a table mechanism → complete a mission target → continue until the ball is lost or the table objective is finished.
+
+CORE MECHANICS
+- Two large touch zones operate left and right flippers.
+- The ball moves according to consistent physics.
+- Ramps and bumpers redirect the ball.
+- Targets activate visible mechanisms.
+- Each table has one or more missions, such as lighting a sequence of symbols or opening a gate.
+- Use a generous number of balls in early levels.
+
+OBJECTIVE
+Complete a sequence of targets, activate a mechanism or unlock a table feature. Score is secondary.
+
+WORLD AND ELEMENTS
+Modern arcade cabinets with table art based on an ancient temple, Byzantine mosaic, Aegean ship or Greek myth. Each table should have distinct interactive geometry.
+
+DIFFICULTY AND PROGRESSION
+Start with a simple table and large targets. Add ramps, gates, moving targets and mission sequences. Difficulty should come from learning the table, not tiny touch controls.
+
+SUCCESS, FAILURE AND REPLAY
+The player can replay a table and learn its routes. Early tables provide several balls and clear visual cues. Avoid flashing effects and excessive noise.
+
+32. RACING
+Historical setting: Modern Greece, with tracks on islands, mountain roads, coastal routes and countryside circuits. Use karts, small cars or appropriate modern vehicles.
+
+GAME PREMISE
+The player races on short tracks with turns, different surfaces and optional shortcuts. The game should reward learning the track and choosing a good line, not precise finger steering.
+
+CORE LOOP
+Choose a vehicle → inspect the track → race through turns and obstacles → choose whether to take a shortcut → cross the finish line → unlock another track or vehicle.
+
+CORE MECHANICS
+- Steering uses a forgiving touch control or lane-based steering.
+- Acceleration can be automatic so the player focuses on steering.
+- Different surfaces affect handling in predictable ways.
+- Shortcuts save time but may be harder to navigate.
+- Vehicles have simple differences such as acceleration, grip or top speed.
+
+OBJECTIVE
+Finish the race, beat a target time or complete a track using a particular vehicle.
+
+WORLD AND ELEMENTS
+Modern Greek coastal roads, mountain circuits, village streets, olive-grove tracks, karts, small cars, road signs and safe track barriers.
+
+DIFFICULTY AND PROGRESSION
+Start with a wide, simple circuit. Add turns, surface changes, gentle obstacles and shortcuts. Later combine them in longer tracks.
+
+SUCCESS, FAILURE AND REPLAY
+Leaving the track returns the vehicle smoothly. Avoid crashes and damage. Replay encourages learning the best racing line and improving time.
+
+33. SUBMARINE EXPLORATION
+Historical setting: Modern Greek marine research expedition in the Aegean.
+
+GAME PREMISE
+The player pilots a small research submarine to explore the seabed, find marked objects and return to a research vessel. The challenge is navigation in three dimensions represented simply, using depth, sonar and limited energy.
+
+CORE LOOP
+Receive an exploration objective → inspect the sonar map → pilot toward the target → adjust depth to pass obstacles → use sonar to reveal hidden routes or objects → collect a sample → return to the surface point.
+
+CORE MECHANICS
+- The submarine moves horizontally and changes depth using large controls.
+- Sonar sends a pulse that reveals nearby obstacles and points of interest.
+- The submarine has a simple energy meter; unnecessary movement uses energy.
+- Caves and reefs require careful navigation.
+- The player can mark a route back to the surface.
+- No combat.
+
+OBJECTIVE
+Reach a research location, identify or collect a sample and return safely.
+
+WORLD AND ELEMENTS
+Aegean seabed, reefs, underwater caves, shipwrecks, research vessel, sonar, lights, depth gauge and sample containers. Use marine life appropriate to the region.
+
+DIFFICULTY AND PROGRESSION
+Start in open water with one target. Add depth changes, sonar-hidden objects, narrow passages and energy limits. Instruments are introduced one at a time.
+
+SUCCESS, FAILURE AND REPLAY
+If energy runs low, the player can return to a nearby safe point. Avoid sudden crush-depth failure. Success is exploration and safe return.
+
+34. BUBBLE SHOOTER
+Historical setting: Modern Greek seaside festival or a colourful fantasy world inspired by Greek mosaics and ceramics. Do not pretend bubble-shooter mechanics are historical.
+
+GAME PREMISE
+The player aims a launcher and shoots coloured spheres into a hanging cluster. Matching groups connect and disappear or fall. Each level has a specific objective such as freeing a trapped object or clearing a route.
+
+CORE LOOP
+Inspect the bubble layout and objective → aim the launcher → shoot a sphere → create a matching group or useful attachment → observe the cluster change → plan the next shot.
+
+CORE MECHANICS
+- The player aims with a touch-drag or tap-to-set direction.
+- A shot attaches to the cluster.
+- A group of three or more matching colours clears.
+- Unsupported groups fall.
+- Walls can be used for bank shots.
+- Later levels add blockers, special bubbles and limited shots.
+
+OBJECTIVE
+Clear a target group, free a trapped object or reach a marked area using a limited number of shots.
+
+WORLD AND ELEMENTS
+Colourful spheres decorated with Greek patterns, mosaic tiles, ceramic motifs and festival objects. Visual theme is decorative rather than historical simulation.
+
+DIFFICULTY AND PROGRESSION
+Start with a simple cluster and unlimited or generous shots. Add bank shots, blockers and specific objectives. Avoid relying on random colour distribution to create unfair difficulty.
+
+SUCCESS, FAILURE AND REPLAY
+A level is won when its stated objective is met. If the board becomes blocked, allow a quick retry. Optional mastery uses fewer shots.
+
+35. MATCH-3
+Historical setting: A modern puzzle game with boards and visual themes inspired by Greek mosaics, pottery, flowers, fruit and gemstones. The matching mechanic is not presented as an ancient historical activity.
+
+GAME PREMISE
+The player swaps neighbouring tiles to make lines of matching symbols. Matches clear tiles, cause pieces above to fall and can create chain reactions. Each level has a specific board objective.
+
+CORE LOOP
+Inspect the board and goal → choose a neighbouring tile to swap → make a match → resolve falling tiles and cascades → use any special tile created → reach the level objective.
+
+CORE MECHANICS
+- Swap two adjacent tiles if the swap creates a valid match.
+- Three or more matching symbols clear.
+- Tiles above fall into empty spaces.
+- Special matches create a line-clear or area-clear effect.
+- Blockers occupy spaces and require adjacent matches or special effects to remove.
+- Some levels have a limited number of moves.
+
+OBJECTIVE
+Clear specified symbols, remove blockers, bring a special object to the bottom or reach a target score within a move limit.
+
+WORLD AND ELEMENTS
+Tiles inspired by Greek pottery patterns, mosaics, fruit, flowers and gems. Use clear silhouettes and strong contrast.
+
+DIFFICULTY AND PROGRESSION
+Start with simple matches. Introduce falling cascades, blockers, special tiles and board shapes one at a time. Later combine known rules. Avoid levels that depend mainly on luck.
+
+SUCCESS, FAILURE AND REPLAY
+The player wins by meeting the visible objective. If moves run out, allow retry without losing unrelated progress. Optional mastery is fewer moves.
+
+36. ROBOT PROGRAMMING
+Historical setting: A modern Greek science museum or robotics workshop. The robot is a contemporary educational machine, not an ancient automaton.
+
+GAME PREMISE
+The player programs a small robot to navigate a room, collect an object and reach a target. They build a sequence of command tiles, then run the program and watch the robot execute it. The challenge is planning ahead and debugging.
+
+CORE LOOP
+Inspect the room and goal → arrange movement commands → run the program → watch the robot → identify where the sequence went wrong → edit the commands → run again.
+
+CORE MECHANICS
+- Commands include move forward, turn left, turn right, pick up and activate.
+- Commands are placed in a visible sequence.
+- The robot executes one command at a time.
+- The player can pause or step through execution.
+- Later levels introduce repeat/loop commands, switches, conveyors and more than one robot.
+- A limited command count can create an optional optimization challenge.
+
+OBJECTIVE
+Reach a destination, collect an object, activate a switch or deliver an item.
+
+WORLD AND ELEMENTS
+Modern Greek science museum, workshop, robot, grid rooms, walls, doors, switches, conveyor belts, crates and command tiles.
+
+DIFFICULTY AND PROGRESSION
+Begin with two movement commands. Then add turning, an obstacle, a pickup action, a switch and finally a repeat command. Teach each command by showing what it does.
+
+SUCCESS, FAILURE AND REPLAY
+If the robot hits a wall or misses the goal, it stops and highlights the command that caused the problem. The player edits and reruns. No penalty for debugging.
+
+----------------------------------------------------------------------
+TIER D — OPTIONAL, SPECIALIST OR POSSIBLE MODES WITHIN OTHER GAMES
+----------------------------------------------------------------------
+
+37. CONSTRUCTION SITE AND CRANES
+Historical setting: Modern Greek construction site.
+
+GAME PREMISE
+The player operates a crane to move building materials from delivery vehicles to marked positions on a construction site. The challenge is lifting, rotating and placing loads without hitting obstacles.
+
+CORE LOOP
+Inspect the load and target → position the crane → attach the hook → lift the load → move and rotate it → lower it into the target zone → release and take the next load.
+
+CORE MECHANICS
+- Crane movement is simplified to a few clear controls: rotate, extend, raise/lower.
+- The load swings slightly but predictably.
+- Each piece has a target position and orientation.
+- Obstacles and limited reach require planning.
+- Some levels require placing pieces in a particular order.
+
+OBJECTIVE
+Place all required pieces correctly to complete a structure or unload a delivery vehicle.
+
+WORLD AND ELEMENTS
+Modern Greek construction site, tower crane, mobile crane, hook, cables, concrete blocks, steel beams, pallets, trucks and building frame.
+
+DIFFICULTY AND PROGRESSION
+Start with a light load and open target. Add rotation, obstacles, heavier loads and a required placement order. Keep the crane forgiving.
+
+SUCCESS, FAILURE AND REPLAY
+A dropped or misplaced load can be reset. Optional mastery uses fewer movements or completes the placement sequence efficiently. This concept may work best as a mode inside Tower Builder.
+
+38. AIRPORT MANAGER
+Historical setting: Modern Greek airport, focused on ground operations rather than aircraft routing.
+
+GAME PREMISE
+The player prepares aircraft for departure. They assign each plane to a gate, move baggage and supplies to it, and make sure the required service tasks are complete before it leaves.
+
+CORE LOOP
+An aircraft arrives → assign a suitable gate → send baggage carts and service vehicles → deliver the correct items → complete the required checks → release the aircraft → prepare for the next arrival.
+
+CORE MECHANICS
+- Gates fit certain aircraft sizes.
+- Each plane requests a visible set of services.
+- Baggage carts and service vehicles travel along airport roads.
+- Vehicles can block each other if routes are poorly planned.
+- The player chooses the order of tasks and vehicle paths.
+- The aircraft departs when all required tasks are complete.
+
+OBJECTIVE
+Prepare a set number of aircraft for departure without assigning conflicting gates or losing baggage.
+
+WORLD AND ELEMENTS
+Modern Greek airport apron, gates, terminals, baggage carts, catering vehicles, fuel trucks, passenger stairs, aircraft and service roads.
+
+DIFFICULTY AND PROGRESSION
+Start with one aircraft and two tasks. Add more gates, service vehicles, baggage destinations and overlapping arrivals. Keep the focus on ground logistics.
+
+SUCCESS, FAILURE AND REPLAY
+A missed task delays departure but can be corrected. The player can reroute vehicles. This should remain distinct from Airport Controller, which handles aircraft movement and runway conflicts.
+
+39. TREASURE HUNT — CLUE AND DEDUCTION GAME
+Historical setting: Ancient Greek archaeological site, Byzantine monastery complex or 1821-era historic house. Each scenario uses one coherent period.
+
+GAME PREMISE
+The player investigates a small mystery by observing clues and working out where an object is hidden or what sequence of events occurred. This is a visual deduction game, not a reading-heavy riddle collection.
+
+CORE LOOP
+Explore a location → inspect objects and visible clues → compare clues on a simple board → eliminate impossible locations or choices → make a deduction → check the result → unlock the next part of the mystery.
+
+CORE MECHANICS
+- Clues are visual: footprints, symbols, object positions, colour patterns, tracks, shadows or simple maps.
+- The player can pin clues to a board.
+- Each clue rules out or supports one or more possibilities.
+- The final choice is made from a small set of visible options.
+- Later puzzles combine two or three clues.
+
+OBJECTIVE
+Find a hidden object, identify the correct room or route, or determine which of several possible sequences is consistent with the evidence.
+
+WORLD AND ELEMENTS
+A coherent Greek historical location: courtyard, storeroom, archive, harbour, monastery or archaeological site. Objects and writing must match the period. Use modern Greek explanations for any historical terms.
+
+DIFFICULTY AND PROGRESSION
+Start with one obvious clue. Then add two clues that must be combined, followed by a small deduction board. Avoid obscure knowledge questions; the answer must be inferable from what the game shows.
+
+SUCCESS, FAILURE AND REPLAY
+A wrong answer should invite another look at the clues, not impose a penalty. Optional secrets reward careful observation.
+
+40. DRAWING AND CREATIVE WORKSHOP
+Historical setting: A digital creative studio with Greek visual themes from pottery, mosaics, embroidery, architecture and landscapes. It is an art tool, not a historical simulation.
+
+GAME PREMISE
+The player creates pictures and designs by drawing, placing shapes, patterns and decorative elements. Optional challenges invite them to design a vase, mosaic, ship, building or landscape.
+
+CORE LOOP
+Choose a blank canvas or prompt → select a tool or shape → draw or place elements → change colour, size or orientation → undo or rearrange → save the finished picture.
+
+CORE MECHANICS
+- Large brush, colour palette, stamp and shape controls.
+- Drag to draw or place an object.
+- Undo, redo, clear and save.
+- Optional templates show an outline but do not force a single correct answer.
+- The player can create freely without a score.
+
+OBJECTIVE
+There is no required win condition in free mode. Optional prompts ask the player to create a design using certain shapes or motifs.
+
+WORLD AND ELEMENTS
+Greek pottery silhouettes, meander patterns, mosaic pieces, island buildings, ships, plants, animals and landscapes. Avoid presenting modern decorative interpretations as historically exact.
+
+DIFFICULTY AND PROGRESSION
+Start with free creation. Optional prompts introduce a few tools at a time. The tool should remain calm and open-ended.
+
+SUCCESS, FAILURE AND REPLAY
+Every creation is valid. The player can save multiple pictures locally. No score, timer or failure state.
+
+======================================================================
+5. CATALOGUE OVERLAPS — HOW TO KEEP THE GAMES DISTINCT
+======================================================================
+
+- Donkey Caravan Trader vs Merchant Shipping:
+  Both use trade, supply, prices and capacity. The caravan game is land logistics with pack animals and route conditions. Merchant Shipping is sea navigation, port choice, ship range and maritime routes. They may share an economic simulation but should not feel like reskins.
+
+- Castle Conquest vs Island Conquest:
+  Castle Conquest is troop production and allocation between strongholds. Island Conquest is naval expansion, harbour control and supply lines. Do not make both games simply send a larger number to a destination.
+
+- Airport Controller vs Traffic Controller:
+  Airport Controller is aircraft route drawing, runway assignment and separation. Traffic Controller is traffic-light phase planning and intersection queues.
+
+- Airport Controller vs Airport Manager:
+  Controller manages aircraft in flight and on runways. Airport Manager manages gates, baggage and ground-service vehicles.
+
+- Factory Automation vs Port Manager vs Airport Manager:
+  Factory Automation is production-line design and machine flow. Port Manager is berths, cranes and cargo transfer. Airport Manager is gate assignment and aircraft turnaround.
+
+- Tower Builder vs Bridge Builder vs Construction Crane:
+  Tower Builder is stacking and structural stability. Bridge Builder is spanning a gap and carrying a moving load. Crane operation is controlled lifting and placement; it may be a mode within Tower Builder rather than a separate game.
+
+- Village Builder vs Farm Manager:
+  Village Builder is settlement layout, services and population needs. Farm Manager is crop cycles, water, processing and seasonal production.
+
+- Little Fighters vs Beat-'em-up:
+  Little Fighters is a short one-on-one timing duel with two main actions. Beat-'em-up is a side-scrolling movement adventure with obstacles and groups. Keep both only if their moment-to-moment play is clearly different.
+
+- Treasure Island vs Lost Mine vs Treasure Hunt:
+  Treasure Island is exploration and inventory-based environmental puzzles. Lost Mine is machinery and physical mechanisms. Treasure Hunt is clue comparison and deduction.
+
+- Castle Defense vs Siege Engineer:
+  Castle Defense is placing defensive units to stop a route-based wave. Siege Engineer is a physics launcher puzzle aimed at objects, not people.
+
+======================================================================
+6. RECOMMENDED DEVELOPMENT ORDER
+======================================================================
+
+The ranked catalogue is the long-term library. Do not reduce the project to six games. However, the first implementation batch should contain a small number of different genres so that the shared framework is tested by genuinely different gameplay.
+
+RECOMMENDED FIRST DESIGN BATCH
+1. Tower Builder — validates touch placement, physics and immediate visual feedback.
+2. Donkey Caravan Trader — validates maps, inventory, resource systems, decisions and progression.
+3. Castle Conquest — validates selection, counters, routes, simulation and strategic feedback.
+4. Women of Pindus — validates character movement, platforming, checkpoints and level design.
+5. Little Fighters — validates timing, animation cues and responsive action controls.
+6. Factory Automation — validates grid placement, connections, simulation and debugging.
+
+Strong next candidates:
+- Bridge Builder
+- Airport Controller
+- Village Builder
+- Mechanical Workshop
+- Waterworks
+
+DESIGN BEFORE CODING
+For each game, write a full Game Design Document (GDD) before implementation. It must define:
+- Player role and fantasy.
+- Core gameplay loop.
+- Exact mechanics and rules.
+- Controls and touch interactions.
+- All important game objects and their properties.
+- Objective and success conditions.
+- Failure and recovery.
+- Level structure and at least five example levels.
+- Difficulty curve, naming the new mechanic introduced at each stage.
+- Optional mastery challenges.
+- UI layout and Greek labels.
+- Feedback, animation and sound.
+- Art asset list and historically appropriate visual references.
+- Save/progression data.
+- Edge cases and implementation notes.
+
+Do not use vague statements such as “the player manages resources,” “the game gets harder,” or “new obstacles appear” without specifying what resources, how management works, what changes and how the player responds.
+
+COMMON GAME LIBRARY
+One application should provide:
+- Main menu and catalogue.
+- Simple game launch and return-to-library navigation.
+- Fullscreen mode.
+- Shared sound settings.
+- Local save/progress.
+- Level selection and unlocks.
+- Consistent pause, resume and restart behaviour.
+- Consistent touch feedback.
+- Greek localization.
+
+TECHNICAL FOUNDATION
+Recommended initial stack:
+- HTML5, CSS and JavaScript ES modules.
+- Canvas for game scenes, physics and animation.
+- DOM for menus and interface.
+- Pointer Events for touch and mouse.
+- LocalStorage or IndexedDB for progress.
+- Web Audio API for audio.
+- No backend for the first local version.
+
+Build and test the shared foundation before making many games:
+- Fullscreen and screen scaling.
+- Touch input, including pointer cancellation.
+- Audio loading and playback.
+- Save/load.
+- Scene transitions.
+- Pause/resume/restart.
+- Greek font and text rendering.
+- Shared asset loading.
+
+IMPLEMENTATION APPROACH
+Build one complete game to a genuinely playable standard before starting several others. It should include a short interactive introduction, several distinct levels, a fair difficulty curve, win/fail/retry states, saved progress, Greek UI and hooks for the owner's sound files. Test it with the actual player. Use the lessons to improve the shared framework.
+
+======================================================================
+7. INSTRUCTIONS TO THE NEXT DESIGN CHAT
+======================================================================
+
+Treat this document as the authoritative project brief and complete ranked catalogue.
+
+Your task is to act as a professional game designer. Do not jump straight into code. First produce a detailed, implementable GDD for one selected game.
+
+Suggested first game: Donkey Caravan Trader, because it combines a world map, settlements, production, demand, prices, cargo capacity, routes, upgrades and meaningful decisions. Tower Builder is the alternative if the immediate priority is to validate touchscreen physics and construction.
+
+For every game:
+- Preserve the Greek historical setting requirement.
+- Choose a specific historical period and region, rather than mixing eras.
+- Research visual and historical details when needed.
+- Write design documentation in English unless asked otherwise.
+- Write every player-facing string in Greek.
+- Define exact gameplay rules, not vague genre descriptions.
+- Make the game intellectually engaging without making it frustrating.
+- Design for touch first.
+- Ensure the game can be understood visually without requiring reading.
+- Keep games distinct from one another and identify opportunities for shared code or systems.
+- Do not assume the child wants simplistic educational activities.
+- Do not discard lower-ranked catalogue entries; they are part of the intended long-term library.
+
+A complete GDD must let a reader answer, without guessing:
+1. What does the player do in the first minute?
+2. What actions can the player take?
+3. What rules determine the result of each action?
+4. What is the exact objective?
+5. What makes the decisions interesting?
+6. What can go wrong, and how does the player recover?
+7. What changes in later levels?
+8. How does the game communicate success, failure and cause-and-effect?
+9. What makes another level or another attempt worthwhile?
+10. What exactly must be built by the programmer and artist?
+
+END OF HANDOFF DOCUMENT
