@@ -88,8 +88,8 @@ These override the brief where they differ.
 
 - Repo initialised with this file and the brief. No design, no code yet.
 - Next: Tower Builder one-page design.
-- Open decisions: file layout (below); physics for Tower Builder and Bridge Builder (existing library or own code).
 
-## Open: file layout
+## Decided
 
-The brief asks for ES modules, but browsers block ES module imports on pages opened directly from disk (`file://`). Options: one self-contained HTML file per game (opens by double-click), or ES modules served by a small local web server. Not decided.
+- File layout: one self-contained HTML file per game (opens by double-click) plus a library page linking to them. Shared code lives once in the repo and a build script copies it into each game file. Sounds play through audio elements or are embedded. Test saved progress on the target PC early.
+- Physics: an existing library embedded in the game file. First choice Planck.js, fallback Matter.js; the Tower Builder prototype is the stack test. Confirm the licence before embedding. Bridge Builder decided later.
