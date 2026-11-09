@@ -21,6 +21,7 @@ Authoritative brief: `docs/brief.txt` (full catalogue of 40 games, design princi
 - Never invent rules, stats or mechanics. Unknown or unverified details are stated as unknown. Research historical details; do not guess them.
 - Change only what was asked. Fix bugs generically, not just the example mentioned.
 - Answers: short plain prose, no recap, no offers, no command output. English only.
+- Talk like a person pitching a game to a friend. Plain everyday words, no design jargon (no "brief", "loop", "dynamics", "mechanic" in conversation), no undefined terms. Describe any game first as one concrete paragraph: who you are, what you do with your hands, what you are trying to achieve, what gets in the way. Example of the register: "You are a dwarf who can walk and jump; you cross dangerous moving ground and dodge enemies to reach the end of the level." Tables and frameworks come after that paragraph, never instead of it.
 - After every change: push, and give only the changed HTML files as downloads.
 - When a chat gets long, say so and give a short handoff.
 
@@ -72,6 +73,8 @@ Kept as written in the brief: Lost Mine (Byzantine mine with carts on rails) and
 - LocalStorage or IndexedDB for progress and settings; Web Audio API; fullscreen support.
 - No backend. Runs locally on the PC.
 - Each game independently playable and testable, launched from one library page.
+- Landscape screens of any size: layouts scale, nothing assumes a fixed resolution.
+- Art is replaceable: every visible thing is drawn through a named skin entry (piece, background, button, effect) with a simple code-drawn default, so free or open-licensed art can be dropped in later without touching game logic. Gameplay shapes and sizes do not depend on the art.
 
 ## Design sheet
 
@@ -79,6 +82,7 @@ Every game starts as a one-page sheet at `docs/design/<game>.md` with exactly th
 
 | Row | Content |
 |---|---|
+| Pitch | One plain paragraph a non-designer understands at once: who you are, what you do, the goal, what gets in the way |
 | Fantasy | One sentence: who the player is and what they achieve |
 | Toy | What is fun to do with no goal at all |
 | Seconds loop | What the player repeats every few seconds |
