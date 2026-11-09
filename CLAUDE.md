@@ -24,7 +24,8 @@ Authoritative brief: `docs/brief.txt` (full catalogue of 40 games, design princi
 - Answers: short plain prose, no recap, no offers, no command output. English only.
 - Talk like a person pitching a game to a friend. Plain everyday words, no design jargon (no "brief", "loop", "dynamics", "mechanic" in conversation), no undefined terms. Describe any game first as one concrete paragraph: who you are, what you do with your hands, what you are trying to achieve, what gets in the way. Example of the register: "You are a dwarf who can walk and jump; you cross dangerous moving ground and dodge enemies to reach the end of the level." Tables and frameworks come after that paragraph, never instead of it.
 - After every change: push, and give only the changed HTML files as downloads.
-- When a chat gets long, say so and give a short handoff.
+- When a chat gets long, say so and give a short handoff. One task per chat: finish, update Status and the game's `BUILD.md`, and tell the owner to start a new chat.
+- Design decisions and tricky problems go to the strongest model; routine building from a `BUILD.md` goes to a cheaper one. Use helper agents only for reading a lot to return a little (research, large searches) or bulk repetitive work from an agreed pattern, and only when setting them up costs less than it saves.
 
 ## Product rules
 
@@ -79,7 +80,7 @@ Kept as written in the brief: Lost Mine (Byzantine mine with carts on rails) and
 
 ## Design sheet
 
-Every game starts as a one-page sheet at `docs/design/<game>.md` with exactly these rows. The owner marks each row keep, change or cut; nothing is built that is not on an approved sheet. The prototype exists only to answer the last row. Anything not taken from the brief is marked "new".
+Every game starts as a one-page sheet at `games/<game>/design.md` with exactly these rows. The owner marks each row keep, change or cut; nothing is built that is not on an approved sheet. The prototype exists only to answer the last row. Anything not taken from the brief is marked "new".
 
 | Row | Content |
 |---|---|
@@ -101,11 +102,15 @@ Every game starts as a one-page sheet at `docs/design/<game>.md` with exactly th
 
 Sources: MDA (mechanics, dynamics, aesthetics) for the middle rows, nested loops for the loop rows, self-determination theory for competence, autonomy and relatedness.
 
+## Game folders
+
+Each game we work on has its own folder `games/<game>/` holding everything a new chat needs for it: `design.md` (the approved sheet), `BUILD.md` (exact instructions for the current step, written so a cheaper model can follow them without other reading), `src/`, `lib/`, and the built single HTML file. A chat working on a game reads that folder's `BUILD.md` first and nothing outside the folder unless `BUILD.md` says so.
+
 ## Process
 
 These override the brief where they differ.
 
-- Per game: design sheet (above), then a rough prototype of the core mechanic, tested with the child, then the full GDD at `docs/gdd/<game>.md` covering the list in brief lines 1367-1385, then the full build.
+- Per game: design sheet (above), then a rough prototype of the core mechanic, tested with the child, then the full GDD at `games/<game>/gdd.md` covering the list in brief lines 1367-1385, then the full build.
 - Build one game to a genuinely playable standard before starting others. Shared code is extracted from finished games, not built in advance.
 - First game: Tower Builder.
 - Priority after it: Waterworks, Mechanical Workshop, Siege Engineer, Cargo Train Routing and Robot Programming move up; the trade and conquest games (Donkey Caravan Trader, Merchant Shipping, Castle Conquest, Island Conquest) move down.
@@ -114,11 +119,9 @@ These override the brief where they differ.
 
 ## Status
 
-- Repo initialised with this file and the brief. No design, no code yet.
-- Tower Builder design sheet approved: `docs/design/tower-builder.md`.
-- Next: Tower Builder prototype.
+- Tower Builder: design sheet approved. Next: build the prototype from `games/tower-builder/BUILD.md`. Physics library is in place and the stacking check passes.
 
 ## Decided
 
 - File layout: one self-contained HTML file per game (opens by double-click) plus a library page linking to them. Shared code lives once in the repo and a build script copies it into each game file. Sounds play through audio elements or are embedded. Test saved progress on the target PC early.
-- Physics: an existing library embedded in the game file. First choice Planck.js, fallback Matter.js; the Tower Builder prototype is the stack test. Confirm the licence before embedding. Bridge Builder decided later.
+- Physics: an existing library embedded in the game file. Planck.js 1.4.2 (MIT), fallback Matter.js only if stacking proves unstable in play. Bridge Builder decided later.
