@@ -28,12 +28,43 @@ Authoritative brief: `docs/brief.txt` (full catalogue of 40 games, design princi
 
 - All player-facing text in natural, correct Modern Greek. Design docs and code comments in English.
 - Never require reading or spoken instructions: short labels, clear icons, visual demonstration. Not babyish.
-- Touch first: Pointer Events, large targets, no hover, no tiny controls, no required keyboard.
+- Touch and mouse are both first-class (development happens on a PC without a touchscreen): Pointer Events, large targets, no hover, no tiny controls, no required keyboard, no multi-touch-only gestures.
+- No numerals for gameplay quantities; see Quantities below.
+- Real-time games must offer pause-and-plan or turn-based play.
+- Level unlocks always have a parent override that opens any level.
 - One coherent Greek period and region per game or campaign; do not mix eras.
 - Conflict is abstract and non-graphic. No frightening imagery, ads, monetization, streaks or punitive timers.
 - Failure is informative, retry is immediate, unrelated progress is never erased.
 - Introduce one new rule at a time; difficulty comes from combining known rules, not from unfair controls.
 - The owner supplies voice and sound files; code provides hooks for them.
+
+## Quantities without numbers
+
+Any game with amounts, prices, capacities or strengths shows them as things the player can see and compare, not as digits:
+
+- Countable objects: coins, sacks, soldiers, amphorae drawn individually, kept small enough to take in at a glance and grouped when larger.
+- Size for magnitude: small and big coins, small and big loads.
+- Slots for capacity: a donkey has visible saddlebag places; a full one has no empty place.
+- Fill levels for continuous amounts: water, time, stamina, progress.
+- Comparison by placing things side by side or pairing them off, so "more" is seen, not calculated.
+- Change shown as objects moving: coins leave the purse and goods arrive.
+
+Exact representations per game are set in its GDD. A numeral may appear only as a secondary label.
+
+## Period coverage
+
+The brief's period list also includes the Greco-Italian War of 1940-1941 (Women of Pindus). These settings replace the brief's, so that 1821 and the Balkan Wars are covered. Mechanics are unchanged; all historical details are researched at GDD time, not assumed.
+
+| Game | Setting |
+|---|---|
+| 11. Castle Defense | War of Independence, 1821: defending a mountain pass or fortified position |
+| 13. Island Conquest | War of Independence, 1821: the island fleets in the Aegean |
+| 39. Treasure Hunt | First scenario: 1821-era historic house |
+| 10. Cargo Train Routing | Balkan Wars, 1912-1913: supply railway |
+| 6. Bridge Builder | Second campaign: Balkan Wars, 1912-1913, army engineers |
+| 7. Little Fighters | Open; not tied to a historical sport (for example an all-heroes roster). Decided in its GDD |
+
+Kept as written in the brief: Lost Mine (Byzantine mine with carts on rails) and Women of Pindus content. Siege Engineer: check which throwing machines fit which period before use.
 
 ## Tech
 
@@ -44,15 +75,20 @@ Authoritative brief: `docs/brief.txt` (full catalogue of 40 games, design princi
 
 ## Process
 
-- Design before code: a full GDD per game at `docs/gdd/<game>.md`, covering the list in brief lines 1367-1385, before any implementation.
-- Build one game to a genuinely playable standard before starting others; fold lessons into the shared code.
-- First batch, in order of the brief: Tower Builder, Donkey Caravan Trader, Castle Conquest, Women of Pindus, Little Fighters, Factory Automation.
-- Lower-ranked catalogue entries are not discarded.
+These override the brief where they differ.
+
+- Per game: one-page design, then a rough prototype of the core mechanic, tested with the child, then the full GDD at `docs/gdd/<game>.md` covering the list in brief lines 1367-1385, then the full build.
+- Build one game to a genuinely playable standard before starting others. Shared code is extracted from finished games, not built in advance.
+- First game: Tower Builder.
+- Priority after it: Waterworks, Mechanical Workshop, Siege Engineer, Cargo Train Routing and Robot Programming move up; the trade and conquest games (Donkey Caravan Trader, Merchant Shipping, Castle Conquest, Island Conquest) move down.
+- Games that need on-screen run and jump buttons (Women of Pindus, Adventure Platformer, Beat-'em-up, Little Fighters) get a control prototype before any commitment.
+- Tiers C and D are a backlog, not a commitment. Nothing is discarded.
 
 ## Status
 
-- Repo initialised with this file and the brief. No GDD, no code yet.
-- Open decisions: which game first; file layout (see below).
+- Repo initialised with this file and the brief. No design, no code yet.
+- Next: Tower Builder one-page design.
+- Open decisions: file layout (below); physics for Tower Builder and Bridge Builder (existing library or own code).
 
 ## Open: file layout
 
