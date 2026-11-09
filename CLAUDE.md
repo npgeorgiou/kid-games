@@ -119,7 +119,7 @@ These override the brief where they differ.
 
 ## Status
 
-- Tower Builder: design sheet approved. Next: build the prototype from `games/tower-builder/BUILD.md`. Physics library is in place and the stacking check passes.
+- Tower Builder prototype built, waiting for the test with the child.
 
 ## Decided
 

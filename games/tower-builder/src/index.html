@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Tower Builder</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  canvas {
+    display: block;
+    touch-action: none;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="../lib/planck.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---------------------------------------------------------------------
+  // Skin: all drawing goes through here so art can be replaced later.
+  // ---------------------------------------------------------------------
+  const SKIN = {
+    background(ctx, w, h) {
+      ctx.fillStyle = "#bfe3f0";
+      ctx.fillRect(0, 0, w, h);
+    },
+    ground(ctx, w, h) {
+      ctx.fillStyle = "#d8c08a";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "#c2a86f";
+      ctx.fillRect(0, 0, w, Math.max(4, h * 0.08));
+    },
+    pile(ctx, w, h) {
+      ctx.fillStyle = "#8a7560";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "#73604d";
+      ctx.fillRect(0, 0, w, Math.max(3, h * 0.05));
+    },
+    piece: {
+      block(ctx, w, h) {
+        ctx.fillStyle = "#c9b088";
+        ctx.strokeStyle = "#5a4a36";
+        ctx.lineWidth = 0.06;
+        ctx.fillRect(-w / 2, -h / 2, w, h);
+        ctx.strokeRect(-w / 2, -h / 2, w, h);
+      },
+      column(ctx, w, h) {
+        ctx.fillStyle = "#d6c097";
+        ctx.strokeStyle = "#5a4a36";
+        ctx.lineWidth = 0.06;
+        ctx.fillRect(-w / 2, -h / 2, w, h);
+        ctx.strokeRect(-w / 2, -h / 2, w, h);
+        // fluting lines along the long axis
+        ctx.beginPath();
+        const long = Math.max(w, h);
+        const vertical = h >= w;
+        const n = 3;
+        for (let i = 1; i <= n; i++) {
+          const t = -0.5 + i / (n + 1);
+          if (vertical) {
+            ctx.moveTo(t * w, -h / 2);
+            ctx.lineTo(t * w, h / 2);
+          } else {
+            ctx.moveTo(-w / 2, t * h);
+            ctx.lineTo(w / 2, t * h);
+          }
+        }
+        ctx.stroke();
+      },
+      beam(ctx, w, h) {
+        ctx.fillStyle = "#b99a6b";
+        ctx.strokeStyle = "#5a4a36";
+        ctx.lineWidth = 0.06;
+        ctx.fillRect(-w / 2, -h / 2, w, h);
+        ctx.strokeRect(-w / 2, -h / 2, w, h);
+      },
+      drum(ctx, r) {
+        ctx.fillStyle = "#cdb892";
+        ctx.strokeStyle = "#5a4a36";
+        ctx.lineWidth = 0.06;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        // one line across it so rolling is visible
+        ctx.beginPath();
+        ctx.moveTo(-r, 0);
+        ctx.lineTo(r, 0);
+        ctx.stroke();
+      },
+    },
+    button(ctx, name, x, y, size, pressed) {
+      const r = size * (pressed ? 0.46 : 0.5);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = pressed ? "#5f5042" : "#6e5d4a";
+      ctx.strokeStyle = "#3c3226";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#e8dcc5";
+      ctx.strokeStyle = "#3c3226";
+      ctx.lineWidth = 1.5;
+      const s = r * 0.55;
+      if (name === "block") {
+        ctx.fillRect(-s * 0.9, -s * 0.45, s * 1.8, s * 0.9);
+        ctx.strokeRect(-s * 0.9, -s * 0.45, s * 1.8, s * 0.9);
+      } else if (name === "block-end") {
+        ctx.fillRect(-s * 0.45, -s * 0.9, s * 0.9, s * 1.8);
+        ctx.strokeRect(-s * 0.45, -s * 0.9, s * 0.9, s * 1.8);
+      } else if (name === "column") {
+        ctx.fillRect(-s * 0.3, -s, s * 0.6, s * 2);
+        ctx.strokeRect(-s * 0.3, -s, s * 0.6, s * 2);
+      } else if (name === "column-lying") {
+        ctx.fillRect(-s, -s * 0.3, s * 2, s * 0.6);
+        ctx.strokeRect(-s, -s * 0.3, s * 2, s * 0.6);
+      } else if (name === "beam") {
+        ctx.fillRect(-s, -s * 0.25, s * 2, s * 0.5);
+        ctx.strokeRect(-s, -s * 0.25, s * 2, s * 0.5);
+      } else if (name === "drum") {
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (name === "broom") {
+        ctx.save();
+        ctx.rotate(-0.5);
+        ctx.fillRect(-s * 0.08, -s * 0.9, s * 0.16, s * 1.1);
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.35, s * 0.15);
+        ctx.lineTo(s * 0.35, s * 0.15);
+        ctx.lineTo(s * 0.22, s * 0.95);
+        ctx.lineTo(-s * 0.22, s * 0.95);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+    },
+  };
+
+  // ---------------------------------------------------------------------
+  // Piece definitions
+  // ---------------------------------------------------------------------
+  const PIECE_DEFS = {
+    block: { shape: "box", hx: 1.0, hy: 0.5, density: 2, skin: "block" },
+    column: { shape: "box", hx: 0.3, hy: 1.2, density: 2, skin: "column" },
+    beam: { shape: "box", hx: 1.6, hy: 0.25, density: 1, skin: "beam" },
+    drum: { shape: "circle", r: 0.6, density: 2, skin: "drum" },
+  };
+
+  const BUTTONS = [
+    { kind: "piece", def: "block", angle: 0, icon: "block" },
+    { kind: "piece", def: "block", angle: Math.PI / 2, icon: "block-end" },
+    { kind: "piece", def: "column", angle: 0, icon: "column" },
+    { kind: "piece", def: "column", angle: Math.PI / 2, icon: "column-lying" },
+    { kind: "piece", def: "beam", angle: 0, icon: "beam" },
+    { kind: "piece", def: "drum", angle: 0, icon: "drum" },
+    { kind: "broom", icon: "broom" },
+  ];
+
+  // ---------------------------------------------------------------------
+  // World setup
+  // ---------------------------------------------------------------------
+  const WORLD_WIDTH = 16; // metres
+  const WORLD_CENTER_X = WORLD_WIDTH / 2;
+  const PICK_MARGIN = 0.2; // metres
+  const MAX_RELEASE_SPEED = 3; // m/s
+
+  const world = new planck.World({ gravity: planck.Vec2(0, -10) });
+
+  const groundBody = world.createBody({ type: "static", position: planck.Vec2(WORLD_CENTER_X, -2) });
+  groundBody.createFixture({
+    shape: planck.Box(40, 2),
+    friction: 0.8,
+  });
+
+  const anchorBody = world.createBody({ type: "static" });
+
+  /** @type {Array<{id:number, defKey:string, body:any, hx?:number, hy?:number, r?:number}>} */
+  const pieces = [];
+  let nextPieceId = 1;
+
+  function spawnPiece(defKey, worldX, worldY, angle) {
+    const def = PIECE_DEFS[defKey];
+    const body = world.createBody({
+      type: "dynamic",
+      position: planck.Vec2(worldX, worldY),
+      angle: angle || 0,
+      linearDamping: 0.01,
+      angularDamping: 0.05,
+    });
+    if (def.shape === "box") {
+      body.createFixture({
+        shape: planck.Box(def.hx, def.hy),
+        density: def.density,
+        friction: 0.8,
+        restitution: 0,
+      });
+    } else {
+      body.createFixture({
+        shape: planck.Circle(def.r),
+        density: def.density,
+        friction: 0.8,
+        restitution: 0,
+      });
+    }
+    const piece = { id: nextPieceId++, defKey, body, hx: def.hx, hy: def.hy, r: def.r };
+    body.piece = piece;
+    pieces.push(piece);
+    return piece;
+  }
+
+  function removePiece(piece) {
+    const idx = pieces.indexOf(piece);
+    if (idx >= 0) pieces.splice(idx, 1);
+    if (piece.joint) {
+      world.destroyJoint(piece.joint);
+      piece.joint = null;
+    }
+    world.destroyBody(piece.body);
+  }
+
+  function clearAllPieces() {
+    for (const [, hand] of pointers) {
+      if (hand.piece) hand.piece.joint = null;
+    }
+    pointers.clear();
+    while (pieces.length) removePiece(pieces[pieces.length - 1]);
+  }
+
+  // ---------------------------------------------------------------------
+  // Canvas / layout
+  // ---------------------------------------------------------------------
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+
+  let cssWidth = 0, cssHeight = 0;
+  let scale = 1; // pixels per metre
+  let buildingHeightPx = 0; // px, height of building area (above the pile strip)
+  let pileHeightPx = 0; // px, total height of the strip below the building area
+  let groundStripPx = 0; // px, visual-only sliver of pileHeightPx drawn as "ground"
+  let trayHeightPx = 0; // px, remainder of pileHeightPx that holds the buttons
+
+  function layout() {
+    const dpr = window.devicePixelRatio || 1;
+    cssWidth = window.innerWidth;
+    cssHeight = window.innerHeight;
+    canvas.width = Math.round(cssWidth * dpr);
+    canvas.height = Math.round(cssHeight * dpr);
+    canvas.style.width = cssWidth + "px";
+    canvas.style.height = cssHeight + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    pileHeightPx = cssHeight * 0.15;
+    buildingHeightPx = cssHeight - pileHeightPx;
+    groundStripPx = pileHeightPx * 0.22;
+    trayHeightPx = pileHeightPx - groundStripPx;
+    scale = cssWidth / WORLD_WIDTH;
+  }
+  layout();
+  window.addEventListener("resize", layout);
+
+  function worldToScreen(x, y) {
+    return { x: x * scale, y: buildingHeightPx - y * scale };
+  }
+  function screenToWorld(px, py) {
+    return { x: px / scale, y: (buildingHeightPx - py) / scale };
+  }
+
+  function buttonLayout() {
+    const n = BUTTONS.length;
+    const size = Math.min(trayHeightPx * 0.86, (cssWidth / n) * 0.82);
+    const slot = cssWidth / n;
+    const y = buildingHeightPx + groundStripPx + trayHeightPx / 2;
+    const list = [];
+    for (let i = 0; i < n; i++) {
+      list.push({ def: BUTTONS[i], x: slot * (i + 0.5), y, size });
+    }
+    return list;
+  }
+
+  // ---------------------------------------------------------------------
+  // Pointer handling
+  // ---------------------------------------------------------------------
+  // pointers: pointerId -> { piece }
+  const pointers = new Map();
+
+  function inPile(py) {
+    return py >= buildingHeightPx;
+  }
+
+  function hitButton(px, py) {
+    if (!inPile(py)) return null;
+    for (const b of buttonLayout()) {
+      const dx = px - b.x, dy = py - b.y;
+      if (dx * dx + dy * dy <= (b.size / 2) * (b.size / 2)) return b.def;
+    }
+    return null;
+  }
+
+  function hitPiece(worldPt) {
+    // iterate from most-recently-added (likely on top) backwards
+    for (let i = pieces.length - 1; i >= 0; i--) {
+      const piece = pieces[i];
+      if (piece.heldBy != null) continue;
+      const local = piece.body.getLocalPoint(planck.Vec2(worldPt.x, worldPt.y));
+      if (piece.r != null) {
+        if (local.x * local.x + local.y * local.y <= (piece.r + PICK_MARGIN) * (piece.r + PICK_MARGIN)) {
+          return piece;
+        }
+      } else {
+        if (Math.abs(local.x) <= piece.hx + PICK_MARGIN && Math.abs(local.y) <= piece.hy + PICK_MARGIN) {
+          return piece;
+        }
+      }
+    }
+    return null;
+  }
+
+  function startHold(piece, worldPt, pointerId) {
+    piece.heldBy = pointerId;
+    piece.body.setFixedRotation(true);
+    const mass = piece.body.getMass() || 1;
+    const joint = world.createJoint(
+      planck.MouseJoint(
+        { maxForce: 1000 * mass, frequencyHz: 5, dampingRatio: 0.7 },
+        anchorBody,
+        piece.body,
+        planck.Vec2(worldPt.x, worldPt.y)
+      )
+    );
+    piece.joint = joint;
+    piece.desired = { x: worldPt.x, y: worldPt.y };
+    pointers.set(pointerId, { piece });
+  }
+
+  function releaseHold(pointerId) {
+    const hand = pointers.get(pointerId);
+    if (!hand) return;
+    pointers.delete(pointerId);
+    const piece = hand.piece;
+    if (!piece) return;
+    if (piece.joint) {
+      world.destroyJoint(piece.joint);
+      piece.joint = null;
+    }
+    piece.heldBy = null;
+    piece.body.setFixedRotation(false);
+    const v = piece.body.getLinearVelocity();
+    const speed = v.length();
+    if (speed > MAX_RELEASE_SPEED) {
+      piece.body.setLinearVelocity(planck.Vec2(v.x * (MAX_RELEASE_SPEED / speed), v.y * (MAX_RELEASE_SPEED / speed)));
+    }
+  }
+
+  function onPointerDown(e) {
+    // Capture keeps this pointer's moves coming to the canvas even if it
+    // leaves the canvas bounds. It is a convenience, not a precondition: if
+    // it fails for any reason, picking up or spawning a piece must still work.
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch (err) {
+      /* ignore */
+    }
+    const px = e.clientX, py = e.clientY;
+
+    const btn = hitButton(px, py);
+    if (btn) {
+      if (btn.kind === "broom") {
+        clearAllPieces();
+        return;
+      }
+      const worldPt = screenToWorld(px, py);
+      // The pile strip maps to world y below 0, inside the solid ground body.
+      // Spawning a piece there would embed it in the ground and the solver
+      // would eject it explosively. Clamp the spawn point to sit just above
+      // the ground surface, using the piece's own half-extent as the margin.
+      const def = PIECE_DEFS[btn.def];
+      const vertHalfExtent =
+        def.shape === "circle"
+          ? def.r
+          : btn.angle === 0
+          ? def.hy
+          : def.hx;
+      const spawnY = Math.max(worldPt.y, vertHalfExtent + 0.05);
+      const spawnPt = { x: worldPt.x, y: spawnY };
+      const piece = spawnPiece(btn.def, spawnPt.x, spawnPt.y, btn.angle);
+      startHold(piece, spawnPt, e.pointerId);
+      return;
+    }
+
+    if (!inPile(py)) {
+      const worldPt = screenToWorld(px, py);
+      const piece = hitPiece(worldPt);
+      if (piece) {
+        startHold(piece, worldPt, e.pointerId);
+      }
+    }
+  }
+
+  // A fast flick -- or several pointermove events the browser coalesces into
+  // one animation frame -- can report the pointer far from where it was a
+  // moment ago. Several such events can fire before a single physics tick
+  // runs, so just recording the latest point is not enough on its own: only
+  // record the pointer's raw desired position here. The actual MouseJoint
+  // target is advanced towards it by a bounded amount once per physics tick,
+  // in stepPhysics below, relative to the piece's real body position. That
+  // keeps the joint from yanking the piece through whatever is in its path
+  // within a single step, which the solver would otherwise resolve as a
+  // deep, sudden overlap -- launching the obstacle at an unrealistic speed.
+  function onPointerMove(e) {
+    const hand = pointers.get(e.pointerId);
+    if (!hand || !hand.piece || !hand.piece.joint) return;
+    hand.piece.desired = screenToWorld(e.clientX, e.clientY);
+  }
+
+  function onPointerUp(e) {
+    const hand = pointers.get(e.pointerId);
+    if (!hand) return;
+    const piece = hand.piece;
+    const overPile = inPile(e.clientY);
+    releaseHold(e.pointerId);
+    if (piece && overPile) {
+      removePiece(piece);
+    }
+  }
+
+  function onPointerCancel(e) {
+    releaseHold(e.pointerId);
+  }
+
+  canvas.addEventListener("pointerdown", onPointerDown);
+  canvas.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerup", onPointerUp);
+  canvas.addEventListener("pointercancel", onPointerCancel);
+
+  // ---------------------------------------------------------------------
+  // Out-of-bounds cleanup
+  // ---------------------------------------------------------------------
+  function cleanupOutOfBounds() {
+    for (let i = pieces.length - 1; i >= 0; i--) {
+      const piece = pieces[i];
+      const p = piece.body.getPosition();
+      if (p.x < -3 || p.x > WORLD_WIDTH + 3 || p.y < -5) {
+        if (piece.heldBy != null) {
+          releaseHold(piece.heldBy);
+        }
+        removePiece(piece);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Physics step (fixed step, accumulator)
+  // ---------------------------------------------------------------------
+  const STEP = 1 / 60;
+  const MAX_STEPS = 5;
+  const MAX_TARGET_SPEED = 10; // m/s a held piece's target may advance
+  const MAX_TARGET_STEP = MAX_TARGET_SPEED * STEP; // metres per physics tick
+  let accumulator = 0;
+  let lastTime = null;
+
+  function advanceHeldTargets() {
+    for (const hand of pointers.values()) {
+      const piece = hand.piece;
+      if (!piece || !piece.joint || !piece.desired) continue;
+      const pos = piece.body.getPosition();
+      const dx = piece.desired.x - pos.x, dy = piece.desired.y - pos.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > MAX_TARGET_STEP) {
+        const t = MAX_TARGET_STEP / dist;
+        piece.joint.setTarget(planck.Vec2(pos.x + dx * t, pos.y + dy * t));
+      } else {
+        piece.joint.setTarget(planck.Vec2(piece.desired.x, piece.desired.y));
+      }
+    }
+  }
+
+  function stepPhysics(dtSeconds) {
+    accumulator += dtSeconds;
+    let steps = 0;
+    while (accumulator >= STEP && steps < MAX_STEPS) {
+      advanceHeldTargets();
+      world.step(STEP, 8, 3);
+      accumulator -= STEP;
+      steps++;
+    }
+    if (steps === MAX_STEPS) accumulator = 0;
+  }
+
+  // ---------------------------------------------------------------------
+  // Drawing
+  // ---------------------------------------------------------------------
+  function drawPiece(piece) {
+    const pos = piece.body.getPosition();
+    const angle = piece.body.getAngle();
+    const s = worldToScreen(pos.x, pos.y);
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(-angle);
+    ctx.scale(scale, scale);
+    const fn = SKIN.piece[PIECE_DEFS[piece.defKey].skin];
+    if (piece.r != null) {
+      fn(ctx, piece.r);
+    } else {
+      fn(ctx, piece.hx * 2, piece.hy * 2);
+    }
+    ctx.restore();
+  }
+
+  function render() {
+    SKIN.background(ctx, cssWidth, buildingHeightPx);
+
+    // The pile strip is split into a thin ground band (the visible dirt
+    // surface pieces rest against) and the tray below it that holds the
+    // buttons, so the two SKIN layers read as distinct surfaces.
+    ctx.save();
+    ctx.translate(0, buildingHeightPx);
+    SKIN.ground(ctx, cssWidth, groundStripPx);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(0, buildingHeightPx + groundStripPx);
+    SKIN.pile(ctx, cssWidth, pileHeightPx - groundStripPx);
+    ctx.restore();
+
+    for (const piece of pieces) drawPiece(piece);
+
+    for (const b of buttonLayout()) {
+      SKIN.button(ctx, b.def.icon, b.x, b.y, b.size, false);
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Main loop
+  // ---------------------------------------------------------------------
+  function frame(time) {
+    if (lastTime == null) lastTime = time;
+    const dt = Math.min(0.1, (time - lastTime) / 1000);
+    lastTime = time;
+    stepPhysics(dt);
+    cleanupOutOfBounds();
+    render();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
