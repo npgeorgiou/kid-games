@@ -73,11 +73,34 @@ Kept as written in the brief: Lost Mine (Byzantine mine with carts on rails) and
 - No backend. Runs locally on the PC.
 - Each game independently playable and testable, launched from one library page.
 
+## Design sheet
+
+Every game starts as a one-page sheet at `docs/design/<game>.md` with exactly these rows. The owner marks each row keep, change or cut; nothing is built that is not on an approved sheet. The prototype exists only to answer the last row. Anything not taken from the brief is marked "new".
+
+| Row | Content |
+|---|---|
+| Fantasy | One sentence: who the player is and what they achieve |
+| Toy | What is fun to do with no goal at all |
+| Seconds loop | What the player repeats every few seconds |
+| Minutes loop | One level or session from start to end, including failure and retry |
+| Days loop | What changes and accumulates across sessions |
+| Mechanics | The rules |
+| Dynamics | The behaviour and decisions that emerge from the rules |
+| Kinds of fun | Which of the eight this game aims at, and which it does not: sensation, fantasy, narrative, challenge, fellowship, discovery, expression, pastime |
+| Competence | How the player sees that they caused the result |
+| Autonomy | Where the player chooses how |
+| Relatedness | What they can show or share with someone |
+| Mastery | Optional goals for a player who wants more |
+| What would kill the fun | The specific risks |
+| Prototype must answer | The questions the prototype is built to test with the child |
+
+Sources: MDA (mechanics, dynamics, aesthetics) for the middle rows, nested loops for the loop rows, self-determination theory for competence, autonomy and relatedness.
+
 ## Process
 
 These override the brief where they differ.
 
-- Per game: one-page design, then a rough prototype of the core mechanic, tested with the child, then the full GDD at `docs/gdd/<game>.md` covering the list in brief lines 1367-1385, then the full build.
+- Per game: design sheet (above), then a rough prototype of the core mechanic, tested with the child, then the full GDD at `docs/gdd/<game>.md` covering the list in brief lines 1367-1385, then the full build.
 - Build one game to a genuinely playable standard before starting others. Shared code is extracted from finished games, not built in advance.
 - First game: Tower Builder.
 - Priority after it: Waterworks, Mechanical Workshop, Siege Engineer, Cargo Train Routing and Robot Programming move up; the trade and conquest games (Donkey Caravan Trader, Merchant Shipping, Castle Conquest, Island Conquest) move down.
@@ -87,7 +110,8 @@ These override the brief where they differ.
 ## Status
 
 - Repo initialised with this file and the brief. No design, no code yet.
-- Next: Tower Builder one-page design.
+- Tower Builder design sheet approved: `docs/design/tower-builder.md`.
+- Next: Tower Builder prototype.
 
 ## Decided
 
