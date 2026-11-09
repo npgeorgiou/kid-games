@@ -17,6 +17,7 @@ Authoritative brief: `docs/brief.txt` (full catalogue of 40 games, design princi
 ## Working rules
 
 - Be mindful of token economy. Read only the sections a task needs, never whole files.
+- Spend as few tokens as possible: no exploratory reading, no re-reading files already seen, batch edits into one command, verify once, keep replies to what the owner needs to decide or know.
 - If a message asks a question, answer it and wait before coding.
 - Never invent rules, stats or mechanics. Unknown or unverified details are stated as unknown. Research historical details; do not guess them.
 - Change only what was asked. Fix bugs generically, not just the example mentioned.
