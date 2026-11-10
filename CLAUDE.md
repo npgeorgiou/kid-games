@@ -17,6 +17,11 @@ Authoritative brief: `docs/brief.txt` (full catalogue of 40 games, design princi
 ## Working rules
 
 - Be mindful of token economy. Read only the sections a task needs, never whole files.
+- Do what was asked, all of it, in one go. A message that lists fixes plus questions gets the fixes built and the questions answered in the same reply; wait only when an answer genuinely changes what gets built. Ask a question only if no reasonable reading exists; otherwise pick the obvious reading and state it in one line.
+- No unasked work: no refactors, extra features, polish, extra files or "while I was there" changes. No unasked suggestions in replies.
+- Never show internal reasoning, tool output, test logs, diffs or process narration. The owner sees results only: what changed (one line each), answers, downloads.
+- Cheapest path first: reason from code before running anything; one verification run at the end, not one per change; small targeted reads and edits; batch independent tool calls in one turn; never re-read what is already in context.
+- Suggestions the owner asks for: short concrete lists, each item one or two lines, sourced where facts are involved (licences, history). No padding, no frameworks unless asked.
 - Spend as few tokens as possible: no exploratory reading, no re-reading files already seen, batch edits into one command, verify once, keep replies to what the owner needs to decide or know.
 - Every game's main source file (`src/index.html`) must have `// SECTION: NAME -- what's here` comments at its major divisions. Before touching a game's code, run `grep -n "SECTION:" src/index.html` to get the map, then read only the needed section (`sed -n 'A,Bp'` or `Read` with offset/limit). Never read the whole source file. When creating a new game, add these markers from the start.
 - Debugging a physics/interaction bug: read the actual formula first and reason about whether it's dimensionally/logically right (e.g. does an "impulse" scale with mass the way it should) before writing any test. Most bugs here were findable by reading code, not by running it.
@@ -124,7 +129,7 @@ These override the brief where they differ.
 
 ## Status
 
-- Tower Builder prototype built, waiting for the test with the child.
+- Tower Builder prototype built; second round of hand/physics fixes done (force-limited hand, no rotated buttons, stone heavier, one wood look). Waiting for the test with the child.
 
 ## Decided
 
