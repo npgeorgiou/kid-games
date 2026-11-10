@@ -431,6 +431,8 @@
     piece.grabLocal = null;
     piece.controlMode = null;
     piece.desired = null;
+    piece.prevDesired = null;
+    piece.uSmooth = null;
     piece.lever = false;
     piece.body.setAngularDamping(0.08);
   }
@@ -557,11 +559,14 @@
   //
   // The hand is a force with limits, not a teleport. Each tick it pushes the
   // grab point towards the pointer with at most the material's acceleration,
-  // carries the piece's own weight, and can never push down: pressing a piece
+  // carries the piece's own weight, and never presses down on other pieces: pressing a piece
   // into another one rests it there with only its own weight, so nothing gets
   // crushed into overlap and launched, and a dragged piece cannot shove the
   // pieces under it harder than its weight allows.
   const GRAVITY = 10;
+  // Hand strength for lifting beyond the piece's own weight, in newtons:
+  // enough for a stone block with about two more on top, then it stalls.
+  const HAND_LIFT = 250;
   const PUSH_ACCEL = 8; // m/s^2: hand force while touching = 0.8 x own weight
   function touchesOtherPiece(body) {
     for (let ce = body.getContactList(); ce; ce = ce.next) {
@@ -578,18 +583,33 @@
       const m = body.getMass() || 1;
       // Touching another piece, the hand pushes only gently (a fraction of the
       // held piece's own weight), so what it pushes resists by its own mass.
-      const A = touchesOtherPiece(body) ? PUSH_ACCEL : material.maxAccel;
+      const touching = touchesOtherPiece(body);
+      const A = touching ? PUSH_ACCEL : material.maxAccel;
       const p = body.getWorldPoint(piece.grabLocal);
       const v = body.getLinearVelocityFromWorldPoint(p);
       const dx = piece.desired.x - p.x, dy = piece.desired.y - p.y;
       const dist = Math.hypot(dx, dy);
       // speed that can still brake to a stop on target with acceleration A
-      const speed = Math.min(material.maxLiftSpeed, Math.sqrt(2 * A * dist) * 0.9, dist / STEP);
-      const vx = dist > 1e-6 ? (dx / dist) * speed : 0;
-      const vy = dist > 1e-6 ? (dy / dist) * speed : 0;
+      // Move with the pointer (its own smoothed velocity), plus a correction
+      // that closes the remaining gap and can brake to a stop on target.
+      // Without the first part the piece lags and cuts across curves.
+      const prev = piece.prevDesired || piece.desired;
+      const ux = (piece.desired.x - prev.x) / STEP, uy = (piece.desired.y - prev.y) / STEP;
+      piece.prevDesired = { x: piece.desired.x, y: piece.desired.y };
+      piece.uSmooth = piece.uSmooth || { x: 0, y: 0 };
+      piece.uSmooth.x += (ux - piece.uSmooth.x) * 0.35;
+      piece.uSmooth.y += (uy - piece.uSmooth.y) * 0.35;
+      const corr = Math.min(Math.sqrt(2 * A * dist) * 0.9, dist / STEP);
+      let vx = piece.uSmooth.x + (dist > 1e-6 ? (dx / dist) * corr : 0);
+      let vy = piece.uSmooth.y + (dist > 1e-6 ? (dy / dist) * corr : 0);
+      const vlen = Math.hypot(vx, vy);
+      if (vlen > material.maxLiftSpeed) { vx *= material.maxLiftSpeed / vlen; vy *= material.maxLiftSpeed / vlen; }
       const lim = m * A * STEP;
       const jx = Math.max(-lim, Math.min(lim, m * (vx - v.x)));
-      const jy = Math.max(0, Math.min(m * GRAVITY * STEP + lim, m * (vy - v.y) + m * GRAVITY * STEP));
+      const liftLim = m * GRAVITY * STEP + Math.max(m * material.maxAccel, HAND_LIFT) * STEP;
+      // In free air the hand can also pull down (needed to swing a piece
+      // round a curve); touching other pieces it never presses down.
+      const jy = Math.max(touching ? 0 : -lim, Math.min(liftLim, m * (vy - v.y) + m * GRAVITY * STEP));
       if (piece.lever) {
         body.applyLinearImpulse(planck.Vec2(jx, jy), p, true);
       } else {
@@ -748,14 +768,17 @@
       if (now - (lastImpact.get(b) || 0) < 250) continue;
       lastImpact.set(b, now);
       const wm = new planck.WorldManifold(); contact.getWorldManifold(wm);
-      const pt = wm.points[0] || b.getPosition();
+      const p0 = wm.points[0] || b.getPosition();
+      const p1 = contact.getManifold().pointCount > 1 ? wm.points[1] : p0;
       const strength = Math.min(1, dv / 6);
       const stone = b.piece.material === "stone";
-      for (let i = 0; i < 4 + Math.round(strength * 6); i++) {
-        puffs.push({ x: pt.x, y: pt.y, vx: (Math.random() - 0.5) * 2, vy: Math.random() * 0.8, r: 0.08 + Math.random() * 0.1, life: 1 });
+      const count = 4 + Math.round(strength * 6) + Math.round(Math.hypot(p1.x - p0.x, p1.y - p0.y) * 4);
+      for (let i = 0; i < count; i++) {
+        const t = count > 1 ? i / (count - 1) : 0.5; // spread over the whole contact edge
+        puffs.push({ x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t, vx: (Math.random() - 0.5) * 2, vy: Math.random() * 0.8, r: 0.08 + Math.random() * 0.1, life: 1 });
       }
       playSound(stone ? "thud-stone" : "thud-wood", strength);
-      if (stone) shake = Math.max(shake, strength * 6 * Math.min(1, b.getMass() / 10)); // px
+      if (stone) shake = Math.max(shake, strength * 11 * Math.min(1, b.getMass() / 10)); // px
     }
   });
   function updateFeel(dt) {
@@ -764,7 +787,7 @@
       q.x += q.vx * dt; q.y += q.vy * dt; q.r += 0.5 * dt; q.life -= dt * 1.6;
       if (q.life <= 0) puffs.splice(i, 1);
     }
-    shake = Math.max(0, shake - dt * 40);
+    shake = Math.max(0, shake - dt * 45);
   }
   function drawFeel() {
     for (const q of puffs) {
