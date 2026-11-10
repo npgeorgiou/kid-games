@@ -18,6 +18,11 @@ Authoritative brief: `docs/brief.txt` (full catalogue of 40 games, design princi
 
 - Be mindful of token economy. Read only the sections a task needs, never whole files.
 - Spend as few tokens as possible: no exploratory reading, no re-reading files already seen, batch edits into one command, verify once, keep replies to what the owner needs to decide or know.
+- Every game's main source file (`src/index.html`) must have `// SECTION: NAME -- what's here` comments at its major divisions. Before touching a game's code, run `grep -n "SECTION:" src/index.html` to get the map, then read only the needed section (`sed -n 'A,Bp'` or `Read` with offset/limit). Never read the whole source file. When creating a new game, add these markers from the start.
+- Debugging a physics/interaction bug: read the actual formula first and reason about whether it's dimensionally/logically right (e.g. does an "impulse" scale with mass the way it should) before writing any test. Most bugs here were findable by reading code, not by running it.
+- One test harness per debugging session, edited in place and reused, not a new scratch file per check. One Playwright script covering several related checks beats one launch per check — each browser launch is pure overhead.
+- Don't run the same thing two ways (e.g. an isolated Node repro of a physics joint, then the same thing again in-browser) unless the first way gave an answer you don't trust. Pick one and trust it.
+- Replies: no restating the bug list back, no "here's what I checked," no step-by-step narration of the fix process. State what changed and why, in a few lines, then stop. Skip a remaining-work list unless something is actually left undone.
 - If a message asks a question, answer it and wait before coding.
 - Never invent rules, stats or mechanics. Unknown or unverified details are stated as unknown. Research historical details; do not guess them.
 - Change only what was asked. Fix bugs generically, not just the example mentioned.

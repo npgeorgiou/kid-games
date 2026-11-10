@@ -18,22 +18,33 @@ Not in the prototype: building jobs, levels, test button, wind, statue, win or l
 ## Screen
 
 - One full-window `<canvas>`. Landscape, any size. Redo the layout on `resize`.
-- The world is 16 m wide. Scale = canvas width / 16. Ground top is at world y = 0. Draw with y up.
-- The pile is a strip across the bottom, 15% of window height, below the ground. The building area is everything above it.
+- The world is 16 m wide. Scale = building-area width / 16. Ground top is at world y = 0. Draw with y up.
+- The tray is a sidebar on the right, not a bottom strip. The building area is everything to its left.
 - `touch-action: none` and `user-select: none` on the page. Use `devicePixelRatio` for a sharp canvas.
 
 ## Pieces
 
-Sizes and weights are placeholders to be tuned by feel; they are not design decisions.
+Sizes are placeholders to be tuned by feel; they are not design decisions.
 
-| Name | Shape | Size (m) | Density |
-|---|---|---|---|
-| block | box | 2.0 x 1.0 | 2 |
-| column | box | 0.6 x 2.4 | 2 |
-| beam | box | 3.2 x 0.5 | 1 |
-| drum | circle | radius 0.6 | 2 |
+| Name | Shape | Size (m) |
+|---|---|---|
+| block | box | 2.0 x 1.0 |
+| column | box | 0.6 x 2.4 |
+| beam | box | 3.2 x 0.5 |
+| drum | circle | radius 0.6 |
 
-The pile shows six large buttons: block, block on end, column, column lying down, beam, drum. "On end" and "lying down" are the same piece spawned turned 90 degrees. There is no rotate control. Pieces are unlimited. A seventh button, with a broom icon, removes every piece.
+The sidebar shows six large buttons: block, block on end, column, column lying down, beam, drum. "On end" and "lying down" are the same piece spawned turned 90 degrees. There is no rotate control. Pieces are unlimited. A seventh button, with a broom icon, removes every piece on press (not drag).
+
+## Materials (new, decided after the first child test)
+
+Two material buttons sit above the sidebar, wood and stone. The selected material applies to every piece spawned after it's picked.
+
+| Material | Density | Friction | Restitution | Carry speed cap (m/s) | Spin cap while held (rad/s) |
+|---|---|---|---|---|---|
+| wood | 0.75 | 1.45 | 0.015 | 11 | 3.0 |
+| stone | 3.6 | 1.10 | 0.0 | 6 | 1.3 |
+
+The carry-speed and spin caps are what make the weight felt in the hand (see Hands below) — they are not just density for the physics engine.
 
 ## Physics
 
@@ -47,13 +58,18 @@ The pile shows six large buttons: block, block on end, column, column lying down
 
 Pointer Events only: `pointerdown`, `pointermove`, `pointerup`, `pointercancel`. Mouse and touch must behave the same. Nothing depends on hover, right-click, keyboard or two fingers. Call `setPointerCapture` on press.
 
-- Press a pile button: a new piece appears under the pointer, already held.
-- Press a piece in the building area: pick it up.
-- While held: the piece follows the pointer through a `planck.MouseJoint` attached at the point where it was grabbed (`maxForce` = 1000 x the piece's mass). It keeps colliding with everything, so it can push other pieces. Set `setFixedRotation(true)` while held so it does not spin in the hand.
-- Release or `pointercancel`: destroy the joint, `setFixedRotation(false)`, and cap the piece's speed at 3 m/s so a flick cannot launch it.
-- Release over the pile strip: the piece is removed.
-- Several pointers at once each hold their own piece (one joint per `pointerId`).
-- Picking targets are generous: test the pointer against each piece grown by 0.2 m.
+- Press a sidebar piece button: a new piece spawns right at the sidebar edge, at the height of the pressed button, already held. Nothing appears elsewhere first.
+- Press a piece already in the building area: pick it up.
+- Grabbing the middle third of a piece (by each half-extent, or radius for the drum) is the balance zone: no tilt, carried through its centre.
+- Grabbing outside the balance zone: a lever grab, carried through the real grab point, so it tilts.
+- Two different holding mechanisms, by grab zone (new, decided after the first child test — the straightforward single mechanism did not give a direct, weighted feel):
+  - Balance-zone (centre) grab: kinematic control. Every physics tick, set the piece's velocity directly from the gap between its current position and the pointer's target, capped at the material's carry-speed cap, and force angular velocity to zero. This is what makes the piece track the hand exactly with no lag, no sliding start, and no drift when the hand stops — there is no spring here to sag or overshoot.
+  - Lever grab: a `planck.MouseJoint` at the grab point (`maxForce` = 600 x mass, `frequencyHz` 9, `dampingRatio` 0.9), target advanced each tick but clamped to the material's carry-speed cap so a fast drag can't punch the piece through others. This is what lets it tilt.
+  - Either way, the per-tick target advance is clamped using the piece's actual current position, not raw pointer events — a burst of pointer events coalesced into one frame must not move the target further than one tick's cap allows, or a fast drag can tunnel a piece through a wall or another piece.
+- Release or `pointercancel`: end whichever control mode was active, and cap the piece's speed at 3 m/s so a flick cannot launch it.
+- Release over the sidebar: the piece is removed.
+- Several pointers at once each hold their own piece.
+- Picking targets in the building area are generous: test the pointer against each piece grown by 0.12 m.
 
 ## Drawing
 

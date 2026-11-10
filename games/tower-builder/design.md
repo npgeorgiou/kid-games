@@ -26,3 +26,10 @@ Approved 2026-11-09. Mechanics are the brief's (lines 141-168) unless marked "ne
 - No rotation. The pile offers the same piece upright and lying down.
 - Pieces: broad block, narrow column, long beam, round drum.
 - Free play only: no jobs, no art, no sound, no text.
+
+New, decided during prototype testing with the child (not from the brief):
+
+- The tray is a sidebar down one side of the screen, not a strip across the bottom. A piece is dragged straight out of its sidebar button; nothing spawns automatically ahead of the drag.
+- Two materials, wood and stone, chosen per piece from two buttons above the tray. Stone is harder to pick up fast and harder to spin than wood — the weight has to be felt in the hand, not just read off a label.
+- Grabbing the middle third of a piece carries it with no tilt. Grabbing nearer an edge tilts it like a real lever.
+- A held piece tracks the hand exactly: no delay, no sliding start, no drift if the hand stops. It only tilts from an edge grab, never from being carried.

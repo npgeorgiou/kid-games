@@ -69,8 +69,11 @@
 (function () {
   "use strict";
 
+  // Map: grep -n "SECTION:" this file for the list, then read just that
+  // section (sed -n 'A,Bp' or Read with offset/limit). Do not read the whole file.
+
   // ---------------------------------------------------------------------
-  // Skin: all drawing goes through here so art can be replaced later.
+  // SECTION: SKIN -- drawing goes through here so art can be replaced later.
   // ---------------------------------------------------------------------
   const SKIN = {
     background(ctx, w, h) {
@@ -197,7 +200,7 @@
   };
 
   // ---------------------------------------------------------------------
-  // Piece definitions
+  // SECTION: PIECE DEFINITIONS -- materials, piece shapes/sizes, sidebar buttons
   // ---------------------------------------------------------------------
   const MATERIALS = {
     // maxLiftSpeed: how fast the material can be carried by hand (m/s) --
@@ -227,7 +230,7 @@
   ];
 
   // ---------------------------------------------------------------------
-  // World setup
+  // SECTION: WORLD SETUP -- planck world, ground, boundaries, piece list
   // ---------------------------------------------------------------------
   const WORLD_WIDTH = 16; // metres
   const WORLD_CENTER_X = WORLD_WIDTH / 2;
@@ -314,7 +317,7 @@
   }
 
   // ---------------------------------------------------------------------
-  // Canvas / layout
+  // SECTION: LAYOUT -- canvas, scale, screen<->world, sidebar/button positions
   // ---------------------------------------------------------------------
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
@@ -381,7 +384,7 @@
   }
 
   // ---------------------------------------------------------------------
-  // Pointer handling
+  // SECTION: POINTER HANDLING -- hit testing, hold/release, drag events
   // ---------------------------------------------------------------------
   // pointers: pointerId -> { piece }
   const pointers = new Map();
@@ -583,7 +586,7 @@
   });
 
   // ---------------------------------------------------------------------
-  // Out-of-bounds cleanup
+  // SECTION: CLEANUP -- remove pieces that fall off-world
   // ---------------------------------------------------------------------
   function cleanupOutOfBounds() {
     // A safety net only. Solid boundaries should prevent ordinary pieces
@@ -599,7 +602,7 @@
   }
 
   // ---------------------------------------------------------------------
-  // Physics step (fixed step, accumulator)
+  // SECTION: PHYSICS STEP -- fixed step accumulator, held-piece tracking
   // ---------------------------------------------------------------------
   const STEP = 1 / 60;
   const MAX_STEPS = 5;
@@ -700,7 +703,7 @@
   }
 
   // ---------------------------------------------------------------------
-  // Drawing
+  // SECTION: DRAWING -- render loop, piece drawing
   // ---------------------------------------------------------------------
   function drawPiece(piece) {
     const pos = piece.body.getPosition();
@@ -790,7 +793,7 @@
   }
 
   // ---------------------------------------------------------------------
-  // Main loop
+  // SECTION: MAIN LOOP -- requestAnimationFrame driver
   // ---------------------------------------------------------------------
   function frame(time) {
     if (lastTime == null) lastTime = time;
