@@ -160,11 +160,21 @@
   // ---------------------------------------------------------------------
   // Piece definitions
   // ---------------------------------------------------------------------
+  const MATERIALS = {
+    // maxLiftSpeed: how fast the material can be carried by hand (m/s) --
+    // this, not sluggish acceleration, is what should make stone feel heavy.
+    // maxSpin: hard cap on angular velocity while held (rad/s) -- heavier
+    // material resists being spun around in the hand more.
+    wood:  { label: "WOOD",  density: 0.75, friction: 1.45, restitution: 0.015, maxLiftSpeed: 11, maxSpin: 3.0 },
+    stone: { label: "STONE", density: 3.6,  friction: 1.10, restitution: 0.0,  maxLiftSpeed: 6,  maxSpin: 1.3 },
+  };
+  let selectedMaterial = "wood";
+
   const PIECE_DEFS = {
-    block: { shape: "box", hx: 1.0, hy: 0.5, density: 2, skin: "block" },
-    column: { shape: "box", hx: 0.3, hy: 1.2, density: 2, skin: "column" },
-    beam: { shape: "box", hx: 1.6, hy: 0.25, density: 1, skin: "beam" },
-    drum: { shape: "circle", r: 0.6, density: 2, skin: "drum" },
+    block:  { shape: "box", hx: 1.0, hy: 0.5, densityScale: 1.0, skin: "block" },
+    column: { shape: "box", hx: 0.3, hy: 1.2, densityScale: 1.0, skin: "column" },
+    beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 0.85, skin: "beam" },
+    drum:   { shape: "circle", r: 0.6, densityScale: 1.0, skin: "drum" },
   };
 
   const BUTTONS = [
@@ -182,48 +192,66 @@
   // ---------------------------------------------------------------------
   const WORLD_WIDTH = 16; // metres
   const WORLD_CENTER_X = WORLD_WIDTH / 2;
-  const PICK_MARGIN = 0.2; // metres
-  const MAX_RELEASE_SPEED = 3; // m/s
+  const PICK_MARGIN = 0.12; // metres
+  const WALL_THICKNESS = 0.18; // metres
+  const WALL_EXTRA_HEIGHT = 30; // metres above the visible area
 
   const world = new planck.World({ gravity: planck.Vec2(0, -10) });
 
   const groundBody = world.createBody({ type: "static", position: planck.Vec2(WORLD_CENTER_X, -2) });
   groundBody.createFixture({
     shape: planck.Box(40, 2),
-    friction: 0.8,
+    friction: 1.65,
   });
 
   const anchorBody = world.createBody({ type: "static" });
+  let boundaryBodies = [];
+
+  // Keep every piece inside the visible building area. The walls extend well
+  // above the viewport so tall towers are not capped by an invisible ceiling.
+  function rebuildBoundaries() {
+    for (const body of boundaryBodies) world.destroyBody(body);
+    boundaryBodies = [];
+    const visibleWorldHeight = buildingHeightPx / scale;
+    const halfHeight = (visibleWorldHeight + WALL_EXTRA_HEIGHT) / 2 + 2;
+    const centerY = (visibleWorldHeight + WALL_EXTRA_HEIGHT) / 2;
+    for (const x of [-WALL_THICKNESS / 2, WORLD_WIDTH + WALL_THICKNESS / 2]) {
+      const wall = world.createBody({ type: "static", position: planck.Vec2(x, centerY) });
+      wall.createFixture({
+        shape: planck.Box(WALL_THICKNESS / 2, halfHeight),
+        friction: 1.35,
+        restitution: 0,
+      });
+      boundaryBodies.push(wall);
+    }
+  }
 
   /** @type {Array<{id:number, defKey:string, body:any, hx?:number, hy?:number, r?:number}>} */
   const pieces = [];
   let nextPieceId = 1;
 
-  function spawnPiece(defKey, worldX, worldY, angle) {
+  function spawnPiece(defKey, worldX, worldY, angle, materialKey = selectedMaterial) {
     const def = PIECE_DEFS[defKey];
+    const material = MATERIALS[materialKey];
     const body = world.createBody({
       type: "dynamic",
       position: planck.Vec2(worldX, worldY),
       angle: angle || 0,
-      linearDamping: 0.01,
-      angularDamping: 0.05,
+      linearDamping: 0.015,
+      angularDamping: 0.08,
     });
+    const density = material.density * def.densityScale;
+    const fixtureOptions = {
+      density,
+      friction: material.friction,
+      restitution: material.restitution,
+    };
     if (def.shape === "box") {
-      body.createFixture({
-        shape: planck.Box(def.hx, def.hy),
-        density: def.density,
-        friction: 0.8,
-        restitution: 0,
-      });
+      body.createFixture({ ...fixtureOptions, shape: planck.Box(def.hx, def.hy) });
     } else {
-      body.createFixture({
-        shape: planck.Circle(def.r),
-        density: def.density,
-        friction: 0.8,
-        restitution: 0,
-      });
+      body.createFixture({ ...fixtureOptions, shape: planck.Circle(def.r) });
     }
-    const piece = { id: nextPieceId++, defKey, body, hx: def.hx, hy: def.hy, r: def.r };
+    const piece = { id: nextPieceId++, defKey, material: materialKey, body, hx: def.hx, hy: def.hy, r: def.r };
     body.piece = piece;
     pieces.push(piece);
     return piece;
@@ -240,10 +268,9 @@
   }
 
   function clearAllPieces() {
-    for (const [, hand] of pointers) {
-      if (hand.piece) hand.piece.joint = null;
-    }
-    pointers.clear();
+    // Destroy drag joints before destroying their bodies; this also clears
+    // pointer ownership cleanly if the broom is used during a multi-touch drag.
+    for (const pointerId of Array.from(pointers.keys())) releaseHold(pointerId);
     while (pieces.length) removePiece(pieces[pieces.length - 1]);
   }
 
@@ -255,10 +282,9 @@
 
   let cssWidth = 0, cssHeight = 0;
   let scale = 1; // pixels per metre
-  let buildingHeightPx = 0; // px, height of building area (above the pile strip)
-  let pileHeightPx = 0; // px, total height of the strip below the building area
-  let groundStripPx = 0; // px, visual-only sliver of pileHeightPx drawn as "ground"
-  let trayHeightPx = 0; // px, remainder of pileHeightPx that holds the buttons
+  let buildingWidthPx = 0;
+  let buildingHeightPx = 0;
+  let sidebarWidthPx = 0;
 
   function layout() {
     const dpr = window.devicePixelRatio || 1;
@@ -270,11 +296,12 @@
     canvas.style.height = cssHeight + "px";
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    pileHeightPx = cssHeight * 0.15;
-    buildingHeightPx = cssHeight - pileHeightPx;
-    groundStripPx = pileHeightPx * 0.22;
-    trayHeightPx = pileHeightPx - groundStripPx;
-    scale = cssWidth / WORLD_WIDTH;
+    sidebarWidthPx = Math.min(156, Math.max(92, cssWidth * 0.23));
+    if (cssWidth - sidebarWidthPx < 160) sidebarWidthPx = Math.max(72, cssWidth * 0.28);
+    buildingWidthPx = cssWidth - sidebarWidthPx;
+    buildingHeightPx = cssHeight;
+    scale = buildingWidthPx / WORLD_WIDTH;
+    rebuildBoundaries();
   }
   layout();
   window.addEventListener("resize", layout);
@@ -283,17 +310,33 @@
     return { x: x * scale, y: buildingHeightPx - y * scale };
   }
   function screenToWorld(px, py) {
-    return { x: px / scale, y: (buildingHeightPx - py) / scale };
+    const rect = canvas.getBoundingClientRect();
+    const localX = px - rect.left;
+    const localY = py - rect.top;
+    return { x: localX / scale, y: (buildingHeightPx - localY) / scale };
+  }
+
+  function materialLayout() {
+    const pad = 7;
+    const gap = 5;
+    const w = (sidebarWidthPx - pad * 2 - gap) / 2;
+    const h = Math.min(54, Math.max(38, cssHeight * 0.085));
+    return [
+      { key: "wood", x: buildingWidthPx + pad, y: 10, w, h },
+      { key: "stone", x: buildingWidthPx + pad + w + gap, y: 10, w, h },
+    ];
   }
 
   function buttonLayout() {
     const n = BUTTONS.length;
-    const size = Math.min(trayHeightPx * 0.86, (cssWidth / n) * 0.82);
-    const slot = cssWidth / n;
-    const y = buildingHeightPx + groundStripPx + trayHeightPx / 2;
+    const top = Math.max(76, Math.min(92, cssHeight * 0.16));
+    const bottom = 10;
+    const slot = Math.max(1, (cssHeight - top - bottom) / n);
+    const size = Math.min(sidebarWidthPx * 0.58, slot * 0.72);
+    const x = buildingWidthPx + sidebarWidthPx / 2;
     const list = [];
     for (let i = 0; i < n; i++) {
-      list.push({ def: BUTTONS[i], x: slot * (i + 0.5), y, size });
+      list.push({ def: BUTTONS[i], x, y: top + slot * (i + 0.5), size });
     }
     return list;
   }
@@ -304,12 +347,15 @@
   // pointers: pointerId -> { piece }
   const pointers = new Map();
 
-  function inPile(py) {
-    return py >= buildingHeightPx;
+  function hitMaterial(px, py) {
+    for (const b of materialLayout()) {
+      if (px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h) return b.key;
+    }
+    return null;
   }
 
   function hitButton(px, py) {
-    if (!inPile(py)) return null;
+    if (px < buildingWidthPx) return null;
     for (const b of buttonLayout()) {
       const dx = px - b.x, dy = py - b.y;
       if (dx * dx + dy * dy <= (b.size / 2) * (b.size / 2)) return b.def;
@@ -336,21 +382,58 @@
     return null;
   }
 
-  function startHold(piece, worldPt, pointerId) {
+  const MAX_RELEASE_SPEED = 3; // m/s -- a flick cannot launch the piece
+
+  function startHold(piece, worldPt, pointerId, clientX, clientY) {
+    if (pointers.has(pointerId) || piece.heldBy != null) return;
     piece.heldBy = pointerId;
-    piece.body.setFixedRotation(true);
-    const mass = piece.body.getMass() || 1;
-    const joint = world.createJoint(
-      planck.MouseJoint(
-        { maxForce: 1000 * mass, frequencyHz: 5, dampingRatio: 0.7 },
-        anchorBody,
-        piece.body,
-        planck.Vec2(worldPt.x, worldPt.y)
-      )
-    );
-    piece.joint = joint;
+
+    // A generous central balance zone avoids accidental tipping. Outside it,
+    // the real grab point is used as a lever arm and produces torque.
+    const localGrab = piece.body.getLocalPoint(planck.Vec2(worldPt.x, worldPt.y));
+    // "Center third of the block": the zone spans the middle third of each
+    // full dimension, i.e. one third of the half-extent either side of centre.
+    const balanceX = piece.r != null ? piece.r / 3 : piece.hx / 3;
+    const balanceY = piece.r != null ? piece.r / 3 : piece.hy / 3;
+    const inBalanceZone =
+      (localGrab.x * localGrab.x) / (balanceX * balanceX) +
+      (localGrab.y * localGrab.y) / (balanceY * balanceY) <= 1;
+
+    piece.grabLocal = inBalanceZone ? planck.Vec2(0, 0) : localGrab;
     piece.desired = { x: worldPt.x, y: worldPt.y };
-    pointers.set(pointerId, { piece });
+
+    if (inBalanceZone) {
+      // An ordinary centred grab: drive the body's velocity directly, every
+      // tick, towards the pointer (see advanceHeldTargets). This tracks
+      // without the lag or overshoot a spring-based joint has, and holds
+      // position exactly (no sag) when the pointer stops -- because the
+      // commanded velocity is recomputed fresh from the actual gap each
+      // tick, rather than relying on a fixed spring stiffness to resist
+      // a constant load like gravity.
+      piece.controlMode = "kinematic";
+    } else {
+      // An off-centre grab is meant to behave like gripping a real object
+      // away from its balance point: it should tilt and resist like a
+      // lever, which is exactly what a softer spring joint gives for free.
+      // Precision is less important here than that natural give.
+      piece.controlMode = "joint";
+      const mass = piece.body.getMass() || 1;
+      piece.joint = world.createJoint(
+        planck.MouseJoint(
+          { maxForce: 600 * mass, frequencyHz: 9, dampingRatio: 0.9 },
+          anchorBody,
+          piece.body,
+          planck.Vec2(worldPt.x, worldPt.y)
+        )
+      );
+    }
+
+    pointers.set(pointerId, {
+      piece,
+      lastX: clientX,
+      lastY: clientY,
+      lastMoveTime: performance.now(),
+    });
   }
 
   function releaseHold(pointerId) {
@@ -359,12 +442,14 @@
     pointers.delete(pointerId);
     const piece = hand.piece;
     if (!piece) return;
+    piece.heldBy = null;
+    piece.grabLocal = null;
+    piece.controlMode = null;
+    piece.desired = null;
     if (piece.joint) {
       world.destroyJoint(piece.joint);
       piece.joint = null;
     }
-    piece.heldBy = null;
-    piece.body.setFixedRotation(false);
     const v = piece.body.getLinearVelocity();
     const speed = v.length();
     if (speed > MAX_RELEASE_SPEED) {
@@ -373,15 +458,17 @@
   }
 
   function onPointerDown(e) {
-    // Capture keeps this pointer's moves coming to the canvas even if it
-    // leaves the canvas bounds. It is a convenience, not a precondition: if
-    // it fails for any reason, picking up or spawning a piece must still work.
-    try {
-      canvas.setPointerCapture(e.pointerId);
-    } catch (err) {
-      /* ignore */
-    }
+    e.preventDefault();
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (pointers.has(e.pointerId)) return;
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     const px = e.clientX, py = e.clientY;
+
+    const material = hitMaterial(px, py);
+    if (material) {
+      selectedMaterial = material;
+      return;
+    }
 
     const btn = hitButton(px, py);
     if (btn) {
@@ -389,81 +476,84 @@
         clearAllPieces();
         return;
       }
-      const worldPt = screenToWorld(px, py);
-      // The pile strip maps to world y below 0, inside the solid ground body.
-      // Spawning a piece there would embed it in the ground and the solver
-      // would eject it explosively. Clamp the spawn point to sit just above
-      // the ground surface, using the piece's own half-extent as the margin.
       const def = PIECE_DEFS[btn.def];
-      const vertHalfExtent =
-        def.shape === "circle"
-          ? def.r
-          : btn.angle === 0
-          ? def.hy
-          : def.hx;
-      const spawnY = Math.max(worldPt.y, vertHalfExtent + 0.05);
-      const spawnPt = { x: worldPt.x, y: spawnY };
-      const piece = spawnPiece(btn.def, spawnPt.x, spawnPt.y, btn.angle);
-      startHold(piece, spawnPt, e.pointerId);
+      const vertHalfExtent = def.shape === "circle" ? def.r : (btn.angle === 0 ? def.hy : def.hx);
+      const horizHalfExtent = def.shape === "circle" ? def.r : (btn.angle === 0 ? def.hx : def.hy);
+      // The piece must appear right at the sidebar edge, at the same height
+      // as the finger, so it is visibly dragged out of the sidebar rather
+      // than materialising somewhere else in the building area.
+      const rawY = (buildingHeightPx - py) / scale;
+      const spawnPt = {
+        x: WORLD_WIDTH - horizHalfExtent - 0.08,
+        y: Math.min(
+          Math.max(rawY, vertHalfExtent + 0.05),
+          buildingHeightPx / scale - vertHalfExtent - 0.05
+        ),
+      };
+      const piece = spawnPiece(btn.def, spawnPt.x, spawnPt.y, btn.angle, selectedMaterial);
+      startHold(piece, spawnPt, e.pointerId, px, py);
       return;
     }
 
-    if (!inPile(py)) {
+    if (px < buildingWidthPx && py < buildingHeightPx) {
       const worldPt = screenToWorld(px, py);
       const piece = hitPiece(worldPt);
-      if (piece) {
-        startHold(piece, worldPt, e.pointerId);
-      }
+      if (piece) startHold(piece, worldPt, e.pointerId, px, py);
     }
   }
 
-  // A fast flick -- or several pointermove events the browser coalesces into
-  // one animation frame -- can report the pointer far from where it was a
-  // moment ago. Several such events can fire before a single physics tick
-  // runs, so just recording the latest point is not enough on its own: only
-  // record the pointer's raw desired position here. The actual MouseJoint
-  // target is advanced towards it by a bounded amount once per physics tick,
-  // in stepPhysics below, relative to the piece's real body position. That
-  // keeps the joint from yanking the piece through whatever is in its path
-  // within a single step, which the solver would otherwise resolve as a
-  // deep, sudden overlap -- launching the obstacle at an unrealistic speed.
+  // Record the pointer's raw desired world position on every move, however
+  // small -- no minimum-distance threshold, so a slow drag is recognised just
+  // as well as a fast one. The joint is what actually moves the piece
+  // (in stepPhysics below, once per physics tick), not this handler.
   function onPointerMove(e) {
     const hand = pointers.get(e.pointerId);
-    if (!hand || !hand.piece || !hand.piece.joint) return;
+    if (!hand || !hand.piece || !hand.piece.controlMode) return;
+    hand.lastX = e.clientX;
+    hand.lastY = e.clientY;
+    hand.lastMoveTime = performance.now();
     hand.piece.desired = screenToWorld(e.clientX, e.clientY);
   }
 
   function onPointerUp(e) {
     const hand = pointers.get(e.pointerId);
     if (!hand) return;
-    const piece = hand.piece;
-    const overPile = inPile(e.clientY);
     releaseHold(e.pointerId);
-    if (piece && overPile) {
-      removePiece(piece);
-    }
   }
 
   function onPointerCancel(e) {
     releaseHold(e.pointerId);
   }
 
+  function onLostPointerCapture(e) {
+    releaseHold(e.pointerId);
+  }
+
+  function releaseAllPointers() {
+    for (const pointerId of Array.from(pointers.keys())) releaseHold(pointerId);
+  }
+
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointercancel", onPointerCancel);
+  canvas.addEventListener("lostpointercapture", onLostPointerCapture);
+  window.addEventListener("blur", releaseAllPointers);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) releaseAllPointers();
+  });
 
   // ---------------------------------------------------------------------
   // Out-of-bounds cleanup
   // ---------------------------------------------------------------------
   function cleanupOutOfBounds() {
+    // A safety net only. Solid boundaries should prevent ordinary pieces
+    // from reaching this code; never delete a piece just for leaving the view.
     for (let i = pieces.length - 1; i >= 0; i--) {
       const piece = pieces[i];
       const p = piece.body.getPosition();
-      if (p.x < -3 || p.x > WORLD_WIDTH + 3 || p.y < -5) {
-        if (piece.heldBy != null) {
-          releaseHold(piece.heldBy);
-        }
+      if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || p.y < -100) {
+        if (piece.heldBy != null) releaseHold(piece.heldBy);
         removePiece(piece);
       }
     }
@@ -474,24 +564,86 @@
   // ---------------------------------------------------------------------
   const STEP = 1 / 60;
   const MAX_STEPS = 5;
-  const MAX_TARGET_SPEED = 10; // m/s a held piece's target may advance
-  const MAX_TARGET_STEP = MAX_TARGET_SPEED * STEP; // metres per physics tick
   let accumulator = 0;
   let lastTime = null;
 
+  // Run once per physics tick, not per input event: a fast flick, or several
+  // pointermove events the browser coalesces into one animation frame, can
+  // report the pointer far from where it was a moment ago -- possibly
+  // several times before a single tick runs. Reacting to each event directly
+  // would let the piece be yanked through whatever is in its path within one
+  // step, which the solver would resolve as a sudden deep overlap, launching
+  // the obstacle at an unrealistic speed. Computing the drive fresh from the
+  // piece's actual current position, once per tick, bounds that regardless
+  // of how bursty the input was.
+  //
+  // Two control modes, chosen at pick-up (see startHold):
+  //  - "kinematic" (an ordinary, centred grab): the body's linear velocity is
+  //    set directly to whatever closes the gap to the pointer this tick, up
+  //    to the material's carrying speed. Below that speed, tracking is exact
+  //    and immediate -- no spring lag, no catch-up curve, no overshoot -- and
+  //    it recomputes from the real gap every tick, so a constant load like
+  //    gravity cannot produce a steady-state sag the way a fixed-stiffness
+  //    spring would. Rotation is suppressed entirely: a centred grab is not
+  //    a lever, so the piece should not spin in the hand.
+  //  - "joint" (an off-centre, lever grab): kept on a softer MouseJoint,
+  //    whose target is advanced the same bounded way. The give of a spring
+  //    is exactly what makes a lever grab feel like gripping something away
+  //    from its balance point; clampHeldSpin still keeps it from spinning
+  //    wildly.
   function advanceHeldTargets() {
     for (const hand of pointers.values()) {
       const piece = hand.piece;
-      if (!piece || !piece.joint || !piece.desired) continue;
-      const pos = piece.body.getPosition();
-      const dx = piece.desired.x - pos.x, dy = piece.desired.y - pos.y;
+      if (!piece || !piece.desired) continue;
+      const material = MATERIALS[piece.material];
+      const maxStep = material.maxLiftSpeed * STEP;
+
+      if (piece.controlMode === "kinematic") {
+        const pos = piece.body.getPosition();
+        const dx = piece.desired.x - pos.x, dy = piece.desired.y - pos.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 1e-6) {
+          piece.body.setLinearVelocity(planck.Vec2(0, 0));
+        } else if (dist > maxStep) {
+          const speed = material.maxLiftSpeed;
+          piece.body.setLinearVelocity(planck.Vec2((dx / dist) * speed, (dy / dist) * speed));
+        } else {
+          // Close enough to arrive exactly this tick: velocity that lands
+          // precisely on target, naturally easing to a stop with no overshoot.
+          piece.body.setLinearVelocity(planck.Vec2(dx / STEP, dy / STEP));
+        }
+        piece.body.setAngularVelocity(0);
+        continue;
+      }
+
+      if (!piece.joint) continue;
+      const grabWorld = piece.body.getWorldPoint(piece.grabLocal || planck.Vec2(0, 0));
+      const dx = piece.desired.x - grabWorld.x, dy = piece.desired.y - grabWorld.y;
       const dist = Math.hypot(dx, dy);
-      if (dist > MAX_TARGET_STEP) {
-        const t = MAX_TARGET_STEP / dist;
-        piece.joint.setTarget(planck.Vec2(pos.x + dx * t, pos.y + dy * t));
+      if (dist > maxStep) {
+        const t = maxStep / dist;
+        piece.joint.setTarget(planck.Vec2(grabWorld.x + dx * t, grabWorld.y + dy * t));
       } else {
         piece.joint.setTarget(planck.Vec2(piece.desired.x, piece.desired.y));
       }
+    }
+  }
+
+  // A hard cap on angular velocity for lever-mode holds: an off-centre grab
+  // should still tilt the piece naturally, but heavier material must resist
+  // being spun around as though it weighed nothing.
+  function clampHeldSpin() {
+    for (const hand of pointers.values()) {
+      const piece = hand.piece;
+      if (!piece) continue;
+      if (piece.controlMode === "kinematic") {
+        piece.body.setAngularVelocity(0);
+        continue;
+      }
+      const maxSpin = MATERIALS[piece.material].maxSpin;
+      const w = piece.body.getAngularVelocity();
+      if (w > maxSpin) piece.body.setAngularVelocity(maxSpin);
+      else if (w < -maxSpin) piece.body.setAngularVelocity(-maxSpin);
     }
   }
 
@@ -500,7 +652,8 @@
     let steps = 0;
     while (accumulator >= STEP && steps < MAX_STEPS) {
       advanceHeldTargets();
-      world.step(STEP, 8, 3);
+      world.step(STEP, 10, 5);
+      clampHeldSpin();
       accumulator -= STEP;
       steps++;
     }
@@ -519,31 +672,78 @@
     ctx.rotate(-angle);
     ctx.scale(scale, scale);
     const fn = SKIN.piece[PIECE_DEFS[piece.defKey].skin];
+    if (piece.r != null) fn(ctx, piece.r);
+    else fn(ctx, piece.hx * 2, piece.hy * 2);
+
+    // Wood is visibly striped; stone has a solid cool-grey finish.
     if (piece.r != null) {
-      fn(ctx, piece.r);
+      ctx.beginPath(); ctx.arc(0, 0, piece.r - 0.015, 0, Math.PI * 2); ctx.clip();
+      if (piece.material === "wood") {
+        ctx.strokeStyle = "rgba(91, 55, 25, 0.62)"; ctx.lineWidth = 0.045;
+        for (let y = -piece.r; y <= piece.r; y += 0.19) {
+          const half = Math.sqrt(Math.max(0, piece.r * piece.r - y * y));
+          ctx.beginPath(); ctx.moveTo(-half, y); ctx.lineTo(half, y); ctx.stroke();
+        }
+      } else {
+        ctx.fillStyle = "#89939b";
+        ctx.beginPath(); ctx.arc(0, 0, piece.r - 0.02, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#4d5962"; ctx.lineWidth = 0.06;
+        ctx.beginPath(); ctx.arc(0, 0, piece.r, 0, Math.PI * 2); ctx.stroke();
+      }
     } else {
-      fn(ctx, piece.hx * 2, piece.hy * 2);
+      if (piece.material === "wood") {
+        ctx.strokeStyle = "rgba(91, 55, 25, 0.62)"; ctx.lineWidth = 0.045;
+        for (let y = -piece.hy + 0.13; y < piece.hy; y += 0.19) {
+          ctx.beginPath(); ctx.moveTo(-piece.hx + 0.04, y); ctx.lineTo(piece.hx - 0.04, y); ctx.stroke();
+        }
+      } else {
+        ctx.fillStyle = "#89939b";
+        ctx.fillRect(-piece.hx + 0.025, -piece.hy + 0.025, piece.hx * 2 - 0.05, piece.hy * 2 - 0.05);
+        ctx.strokeStyle = "#4d5962"; ctx.lineWidth = 0.06;
+        ctx.strokeRect(-piece.hx, -piece.hy, piece.hx * 2, piece.hy * 2);
+      }
     }
+
     ctx.restore();
   }
 
   function render() {
-    SKIN.background(ctx, cssWidth, buildingHeightPx);
-
-    // The pile strip is split into a thin ground band (the visible dirt
-    // surface pieces rest against) and the tray below it that holds the
-    // buttons, so the two SKIN layers read as distinct surfaces.
-    ctx.save();
-    ctx.translate(0, buildingHeightPx);
-    SKIN.ground(ctx, cssWidth, groundStripPx);
-    ctx.restore();
-
-    ctx.save();
-    ctx.translate(0, buildingHeightPx + groundStripPx);
-    SKIN.pile(ctx, cssWidth, pileHeightPx - groundStripPx);
-    ctx.restore();
+    SKIN.background(ctx, buildingWidthPx, buildingHeightPx);
+    ctx.fillStyle = "#d8c08a";
+    ctx.fillRect(0, buildingHeightPx - 12, buildingWidthPx, 12);
 
     for (const piece of pieces) drawPiece(piece);
+
+    // Right-side palette replaces the old bottom tray.
+    ctx.fillStyle = "#514638";
+    ctx.fillRect(buildingWidthPx, 0, sidebarWidthPx, cssHeight);
+    ctx.fillStyle = "#3e352b";
+    ctx.fillRect(buildingWidthPx, 0, 3, cssHeight);
+
+    for (const b of materialLayout()) {
+      const selected = selectedMaterial === b.key;
+      ctx.fillStyle = selected ? "#e7d8b8" : "#796b59";
+      ctx.strokeStyle = selected ? "#fff2d3" : "#30281f";
+      ctx.lineWidth = selected ? 3 : 1.5;
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.strokeRect(b.x, b.y, b.w, b.h);
+      if (b.key === "wood") {
+        ctx.fillStyle = "#c49a62";
+        ctx.fillRect(b.x + 5, b.y + 5, b.w - 10, b.h - 10);
+        ctx.strokeStyle = "#76502e"; ctx.lineWidth = 2;
+        for (let yy = b.y + 10; yy < b.y + b.h - 5; yy += 6) {
+          ctx.beginPath(); ctx.moveTo(b.x + 7, yy); ctx.lineTo(b.x + b.w - 7, yy); ctx.stroke();
+        }
+      } else {
+        ctx.fillStyle = "#89939b";
+        ctx.fillRect(b.x + 5, b.y + 5, b.w - 10, b.h - 10);
+      }
+      ctx.fillStyle = "#211c17";
+      ctx.font = "bold 9px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(b.key === "wood" ? "WOOD" : "STONE", b.x + b.w / 2, b.y + b.h - 2);
+    }
 
     for (const b of buttonLayout()) {
       SKIN.button(ctx, b.def.icon, b.x, b.y, b.size, false);
