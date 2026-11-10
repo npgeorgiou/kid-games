@@ -130,10 +130,10 @@ These override the brief where they differ.
 
 ## Status
 
-- Tower Builder prototype built with the world map start screen (ten empty sites). Levels, tests and map decided (see its design.md). Next: agree and save the ten building outlines, then build levels. Waiting for the test with the child.
+- Tower Builder prototype built with the world map start screen (ten empty sites) and wedge stones. Ten levels decided in chronological order, outlines saved in `games/tower-builder/src/levels.js`. Next: build the levels (outline, test, map unlock). Waiting for the test with the child.
 
 ## Decided
 
 - File layout: one self-contained HTML file per game (opens by double-click) plus a library page linking to them. Shared code lives once in the repo and a build script copies it into each game file. Sounds play through audio elements or are embedded. Test saved progress on the target PC early.
-- Tower Builder campaign: owner decision, an exception to the one-period rule: ancient Mediterranean and Middle East plus Byzantine Greece, ten famous buildings (list in its design.md).
+- Tower Builder campaign: owner decision, an exception to the one-period rule: ancient Mediterranean and Middle East up to late Roman Constantinople, ten famous buildings in chronological order (list in its design.md).
 - Physics: an existing library embedded in the game file. Planck.js 1.4.2 (MIT), fallback Matter.js only if stacking proves unstable in play. Bridge Builder decided later.

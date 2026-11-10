@@ -27,6 +27,7 @@
 <canvas id="c"></canvas>
 <script src="../lib/planck.min.js"></script>
 <script src="../lib/map-land.js"></script>
+<script src="levels.js"></script>
 <script>
 (function () {
   "use strict";
@@ -65,17 +66,12 @@
       ctx.fillStyle = "#e3cf9e"; ctx.fill(path);
       ctx.strokeStyle = "#a88f5c"; ctx.lineWidth = 1.5; ctx.stroke(path);
     },
-    // An empty building site: a dashed ring with a little foundation inside.
-    mapSite(ctx, x, y, r, trueX, trueY) {
-      ctx.strokeStyle = "#5a4a36"; ctx.lineWidth = 2;
-      if (Math.hypot(trueX - x, trueY - y) > r) {
-        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(trueX, trueY); ctx.stroke();
-      }
-      ctx.fillStyle = "#5a4a36"; ctx.beginPath(); ctx.arc(trueX, trueY, 3, 0, Math.PI * 2); ctx.fill();
+    // An empty building site: a pale dashed circle.
+    mapSite(ctx, x, y, r) {
       ctx.fillStyle = "rgba(255, 248, 230, 0.85)";
+      ctx.strokeStyle = "#5a4a36"; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       ctx.setLineDash([6, 5]); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = "#b9a37c"; ctx.fillRect(x - r * 0.55, y + r * 0.2, r * 1.1, r * 0.25);
     },
     pile(ctx, w, h) {
       ctx.fillStyle = "#8a7560";
@@ -121,6 +117,14 @@
         ctx.lineWidth = 0.06;
         ctx.fillRect(-w / 2, -h / 2, w, h);
         ctx.strokeRect(-w / 2, -h / 2, w, h);
+      },
+      wedge(ctx, w, h) {
+        ctx.fillStyle = "#c9b088";
+        ctx.strokeStyle = "#5a4a36";
+        ctx.lineWidth = 0.06;
+        ctx.beginPath();
+        ctx.moveTo(-w / 3, -h / 2); ctx.lineTo(w / 3, -h / 2); ctx.lineTo(w / 2, h / 2); ctx.lineTo(-w / 2, h / 2);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
       },
       drum(ctx, r) {
         ctx.fillStyle = "#cdb892";
@@ -168,6 +172,10 @@
       } else if (name === "beam") {
         ctx.fillRect(-s, -s * 0.25, s * 2, s * 0.5);
         ctx.strokeRect(-s, -s * 0.25, s * 2, s * 0.5);
+      } else if (name === "wedge") {
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.5, s * 0.8); ctx.lineTo(s * 0.5, s * 0.8); ctx.lineTo(s * 0.75, -s * 0.8); ctx.lineTo(-s * 0.75, -s * 0.8);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
       } else if (name === "drum") {
         ctx.beginPath();
         ctx.arc(0, 0, s * 0.8, 0, Math.PI * 2);
@@ -217,6 +225,8 @@
     column: { shape: "box", hx: 0.3, hy: 1.2, densityScale: 1.0, skin: "column" },
     beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 0.85, skin: "beam" },
     drum:   { shape: "circle", r: 0.6, densityScale: 1.0, skin: "drum" },
+    // arch stone: narrow end down; about ten make a half circle
+    wedge:  { shape: "poly", verts: [[-0.3, -0.5], [0.3, -0.5], [0.45, 0.5], [-0.45, 0.5]], hx: 0.45, hy: 0.5, densityScale: 1.0, skin: "wedge" },
   };
 
   const BUTTONS = [
@@ -224,6 +234,7 @@
     { kind: "piece", def: "column", angle: 0, icon: "column" },
     { kind: "piece", def: "beam", angle: 0, icon: "beam" },
     { kind: "piece", def: "drum", angle: 0, icon: "drum" },
+    { kind: "piece", def: "wedge", angle: 0, icon: "wedge" },
     { kind: "broom", icon: "broom" },
     { kind: "home", icon: "home" },
   ];
@@ -287,12 +298,14 @@
       friction: material.friction,
       restitution: material.restitution,
     };
-    if (def.shape === "box") {
+    if (def.shape === "poly") {
+      body.createFixture({ ...fixtureOptions, shape: planck.Polygon(def.verts.map(([x, y]) => planck.Vec2(x, y))) });
+    } else if (def.shape === "box") {
       body.createFixture({ ...fixtureOptions, shape: planck.Box(def.hx, def.hy) });
     } else {
       body.createFixture({ ...fixtureOptions, shape: planck.Circle(def.r) });
     }
-    const piece = { id: nextPieceId++, defKey, material: materialKey, body, hx: def.hx, hy: def.hy, r: def.r };
+    const piece = { id: nextPieceId++, defKey, material: materialKey, body, hx: def.hx, hy: def.hy, r: def.r, verts: def.verts };
     body.piece = piece;
     pieces.push(piece);
     return piece;
@@ -721,6 +734,8 @@
         ctx.beginPath(); ctx.arc(0, 0, piece.r, 0, Math.PI * 2); ctx.stroke();
       }
     } else {
+      const poly = () => { ctx.beginPath(); piece.verts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); };
+      if (piece.verts) { poly(); ctx.save(); ctx.clip(); }
       if (piece.material === "wood") {
         // grain runs along the long side
         ctx.strokeStyle = "rgba(91, 55, 25, 0.62)"; ctx.lineWidth = 0.045;
@@ -735,7 +750,11 @@
         ctx.fillStyle = "#89939b";
         ctx.fillRect(-piece.hx + 0.025, -piece.hy + 0.025, piece.hx * 2 - 0.05, piece.hy * 2 - 0.05);
         ctx.strokeStyle = "#4d5962"; ctx.lineWidth = 0.06;
-        ctx.strokeRect(-piece.hx, -piece.hy, piece.hx * 2, piece.hy * 2);
+        if (!piece.verts) ctx.strokeRect(-piece.hx, -piece.hy, piece.hx * 2, piece.hy * 2);
+      }
+      if (piece.verts) {
+        ctx.restore(); poly();
+        ctx.strokeStyle = piece.material === "wood" ? "#5a4a36" : "#4d5962"; ctx.lineWidth = 0.06; ctx.stroke();
       }
     }
 
@@ -849,22 +868,22 @@
   // SECTION: MAP -- world map start screen, the ten monument sites (empty for now)
   // ---------------------------------------------------------------------
   let mode = "map"; // "map" | "build"
-  // Level order. lon/lat: the real place; mx/my: where the marker sits when
-  // the real place is too close to another site for two big targets.
+  // Chronological = level order. lon/lat: approximate marker spot, nudged a
+  // little from the real place (comment) so markers don't overlap.
   const SITES = [
-    { key: "mastaba",   lon: 31.13, lat: 29.98, mx: 30.0, my: 28.6 }, // mastaba fields, Giza
-    { key: "ziggurat",  lon: 46.10, lat: 30.96 },                     // Ur
-    { key: "djoser",    lon: 31.22, lat: 29.87, mx: 32.6, my: 29.0 }, // Saqqara
-    { key: "liongate",  lon: 22.76, lat: 37.73, mx: 21.2, my: 38.4 }, // Mycenae
-    { key: "karnak",    lon: 32.66, lat: 25.72 },                     // Karnak, Luxor
-    { key: "parthenon", lon: 23.73, lat: 37.97, mx: 24.9, my: 39.2 }, // Athens
-    { key: "pharos",    lon: 29.88, lat: 31.21, mx: 28.6, my: 32.6 }, // Alexandria
-    { key: "ishtar",    lon: 44.42, lat: 32.54 },                     // Babylon
-    { key: "valens",    lon: 28.96, lat: 41.01 },                     // Constantinople
-    { key: "mystras",   lon: 22.37, lat: 37.07, mx: 21.6, my: 36.3 }, // Mystras
+    { key: "mastaba",   lon: 30.1,  lat: 29.9  }, // Saqqara, c. 3000 BC
+    { key: "djoser",    lon: 32.3,  lat: 29.9  }, // Saqqara 31.22E 29.87N, c. 2650 BC
+    { key: "ziggurat",  lon: 46.10, lat: 30.96 }, // Ur, c. 2100 BC
+    { key: "karnak",    lon: 32.66, lat: 25.72 }, // Karnak, c. 1290-1220 BC
+    { key: "liongate",  lon: 22.2,  lat: 38.2  }, // Mycenae 22.76E 37.73N, c. 1250 BC
+    { key: "ishtar",    lon: 44.42, lat: 32.54 }, // Babylon, c. 575 BC
+    { key: "parthenon", lon: 24.5,  lat: 38.7  }, // Athens 23.73E 37.97N, 447-432 BC
+    { key: "mausoleum", lon: 27.42, lat: 37.04 }, // Halicarnassus (Bodrum), c. 350 BC
+    { key: "pharos",    lon: 29.6,  lat: 31.6  }, // Alexandria 29.88E 31.21N, c. 280 BC
+    { key: "valens",    lon: 28.96, lat: 41.01 }, // Constantinople, AD 368
   ];
-  const MAP_BOX = { lon0: 18, lon1: 50, lat0: 23, lat1: 44 };
-  const MAP_KX = Math.cos(33.5 * Math.PI / 180);
+  const MAP_BOX = { lon0: 18, lon1: 47.6, lat0: 24.8, lat1: 44 };
+  const MAP_KX = Math.cos(34.4 * Math.PI / 180);
   function mapView() {
     const wDeg = (MAP_BOX.lon1 - MAP_BOX.lon0) * MAP_KX, hDeg = MAP_BOX.lat1 - MAP_BOX.lat0;
     const k = Math.min(cssWidth / wDeg, cssHeight / hDeg);
@@ -904,8 +923,8 @@
     ctx.restore();
     const r = siteRadius(v);
     for (const site of SITES) {
-      const t = v.pt(site.lon, site.lat), m = v.pt(site.mx ?? site.lon, site.my ?? site.lat);
-      SKIN.mapSite(ctx, m.x, m.y, r, t.x, t.y);
+      const m = v.pt(site.lon, site.lat);
+      SKIN.mapSite(ctx, m.x, m.y, r);
     }
     const fb = freePlayButton();
     SKIN.button(ctx, "block", fb.x, fb.y, fb.size, false);
