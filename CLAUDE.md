@@ -17,6 +17,7 @@ Authoritative brief: `docs/brief.txt` (full catalogue of 40 games, design princi
 ## Working rules
 
 - Be mindful of token economy. Read only the sections a task needs, never whole files.
+- Repo access: the repo is always available. Attach it with `add_repo` (push access) at chat start; if that or a push is refused, retry `add_repo` once, then push. Never tell the owner there is no access without having retried.
 - Do what was asked, all of it, in one go. A message that lists fixes plus questions gets the fixes built and the questions answered in the same reply; wait only when an answer genuinely changes what gets built. Ask a question only if no reasonable reading exists; otherwise pick the obvious reading and state it in one line.
 - No unasked work: no refactors, extra features, polish, extra files or "while I was there" changes. No unasked suggestions in replies.
 - Never show internal reasoning, tool output, test logs, diffs or process narration. The owner sees results only: what changed (one line each), answers, downloads.

@@ -33,7 +33,7 @@ Sizes are placeholders to be tuned by feel; they are not design decisions.
 | beam | box | 3.2 x 0.5 |
 | drum | circle | radius 0.6 |
 
-The sidebar shows six large buttons: block, block on end, column, column lying down, beam, drum. "On end" and "lying down" are the same piece spawned turned 90 degrees. There is no rotate control. Pieces are unlimited. A seventh button, with a broom icon, removes every piece on press (not drag).
+The sidebar shows four large buttons: block, column, beam, drum, each in one orientation. There is no rotate control. Pieces are unlimited. A seventh button, with a broom icon, removes every piece on press (not drag).
 
 ## Materials (new, decided after the first child test)
 
@@ -41,8 +41,8 @@ Two material buttons sit above the sidebar, wood and stone. The selected materia
 
 | Material | Density | Friction | Restitution | Carry speed cap (m/s) | Spin cap while held (rad/s) |
 |---|---|---|---|---|---|
-| wood | 0.75 | 1.45 | 0.015 | 11 | 3.0 |
-| stone | 3.6 | 1.10 | 0.0 | 6 | 1.3 |
+| wood | 0.75 | 0.5 | 0.015 | 11 | 3.0 |
+| stone | 5.0 | 0.6 | 0.0 | 6 | 1.3 |
 
 The carry-speed and spin caps are what make the weight felt in the hand (see Hands below) — they are not just density for the physics engine.
 
@@ -50,7 +50,7 @@ The carry-speed and spin caps are what make the weight felt in the hand (see Han
 
 - `new planck.World({ gravity: planck.Vec2(0, -10) })`.
 - Ground: static box, top at y = 0, wider than the screen. No side walls.
-- Every piece: friction 0.8, restitution 0.
+- Friction and restitution per material (table above), close to real wood and dry stone; ground friction 0.8. Hand acceleration cap: wood 40, stone 22 m/s^2.
 - Fixed step: accumulate real time and call `world.step(1/60, 8, 3)` per 1/60 s, at most 5 steps per frame.
 - A piece whose centre goes more than 3 m outside the screen sideways, or below y = -5, is removed.
 
@@ -62,11 +62,8 @@ Pointer Events only: `pointerdown`, `pointermove`, `pointerup`, `pointercancel`.
 - Press a piece already in the building area: pick it up.
 - Grabbing the middle third of a piece (by each half-extent, or radius for the drum) is the balance zone: no tilt, carried through its centre.
 - Grabbing outside the balance zone: a lever grab, carried through the real grab point, so it tilts.
-- Two different holding mechanisms, by grab zone (new, decided after the first child test — the straightforward single mechanism did not give a direct, weighted feel):
-  - Balance-zone (centre) grab: kinematic control. Every physics tick, set the piece's velocity directly from the gap between its current position and the pointer's target, capped at the material's carry-speed cap, and force angular velocity to zero. This is what makes the piece track the hand exactly with no lag, no sliding start, and no drift when the hand stops — there is no spring here to sag or overshoot.
-  - Lever grab: a `planck.MouseJoint` at the grab point (`maxForce` = 600 x mass, `frequencyHz` 9, `dampingRatio` 0.9), target advanced each tick but clamped to the material's carry-speed cap so a fast drag can't punch the piece through others. This is what lets it tilt.
-  - Either way, the per-tick target advance is clamped using the piece's actual current position, not raw pointer events — a burst of pointer events coalesced into one frame must not move the target further than one tick's cap allows, or a fast drag can tunnel a piece through a wall or another piece.
-- Release or `pointercancel`: end whichever control mode was active, and cap the piece's speed at 3 m/s so a flick cannot launch it.
+- One holding mechanism, a limited force (decided after the second round of fixes): each physics tick an impulse pushes the grab point towards the pointer, with the speed capped by the material's carry-speed cap and braking so it stops on target, the horizontal and upward push capped by the material's hand acceleration, plus the piece's own weight carried. The hand never pushes down, so a piece pressed onto another rests there with its own weight only. While the held piece touches another piece the push cap drops to 0.8 x its own weight, so whatever it pushes resists by its own mass. The grab point stays under the finger. Centre grab: the impulse goes through the centre and a limited torque holds the pick-up angle. Lever grab: the impulse goes through the grab point, so it tilts. The target is computed from the piece's actual position each tick, never from raw pointer bursts.
+- Release or `pointercancel`: the hand lets go; the piece keeps its velocity, so it can be thrown.
 - Release over the sidebar: the piece is removed.
 - Several pointers at once each hold their own piece.
 - Picking targets in the building area are generous: test the pointer against each piece grown by 0.12 m.
@@ -87,7 +84,7 @@ const SKIN = {
 };
 ```
 
-Defaults: flat warm stone colours with a darker outline, pale sky, sandy ground. The drum gets one line across it so its rolling is visible. A held piece is drawn slightly lighter. Game code never draws directly and never reads sizes from the skin.
+Defaults: flat warm stone colours with a darker outline, pale sky, sandy ground. The drum gets one line across it so its rolling is visible. Wood shows only grain stripes, running along the long side. Impacts make dust puffs, a small screen shake for heavy stone, and call `playSound("thud-wood"|"thud-stone", strength)` (plays `<audio id="snd-...">` if present). A held piece is drawn slightly lighter. Game code never draws directly and never reads sizes from the skin.
 
 ## Done when
 
