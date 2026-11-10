@@ -120,6 +120,47 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       ctx.setLineDash([6, 5]); ctx.stroke(); ctx.setLineDash([]);
     },
+    // Level outline (screen-pixel paths): the building's shape, its openings kept clear.
+    outline(ctx, solid, holes) {
+      ctx.fillStyle = "rgba(255, 244, 214, 0.6)"; ctx.fill(solid);
+      ctx.fillStyle = "#bfe3f0"; ctx.fill(holes);
+      ctx.strokeStyle = "#8a6d3b"; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
+      ctx.stroke(solid); ctx.stroke(holes); ctx.setLineDash([]);
+    },
+    // Where wood goes (wood courses, or temporary wooden supports).
+    woodZone(ctx, path) {
+      ctx.fillStyle = "rgba(196, 154, 98, 0.45)"; ctx.fill(path);
+      ctx.strokeStyle = "#9a6a3a"; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.stroke(path); ctx.setLineDash([]);
+    },
+    // Where the load will be lowered on.
+    loadGhost(ctx, path) {
+      ctx.strokeStyle = "rgba(90, 60, 30, 0.75)"; ctx.lineWidth = 2; ctx.setLineDash([3, 5]); ctx.stroke(path); ctx.setLineDash([]);
+    },
+    // The load itself, drawn in metres with y up, centred on its body.
+    load(ctx, verts) {
+      ctx.fillStyle = "#8c6a3c"; ctx.strokeStyle = "#4a3518"; ctx.lineWidth = 0.06;
+      ctx.beginPath(); verts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    },
+    wind(ctx, x, y, len, alpha) {
+      ctx.strokeStyle = "rgba(255, 255, 255, " + (0.75 * alpha) + ")"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x - len, y); ctx.lineTo(x, y); ctx.stroke();
+    },
+    petal(ctx, x, y, r, angle, alpha, hue) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+      ctx.fillStyle = "hsla(" + hue + ", 80%, 60%, " + alpha + ")"; ctx.fillRect(-r, -r * 0.5, r * 2, r);
+      ctx.restore();
+    },
+    // A site that can be played now: solid bright circle.
+    mapSiteOpen(ctx, x, y, r) {
+      ctx.fillStyle = "#fff3c4"; ctx.strokeStyle = "#5a4a36"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    },
+    // A finished site; the player's own building is drawn on top of it.
+    mapSiteDone(ctx, x, y, r) {
+      ctx.fillStyle = "#bfe3f0"; ctx.strokeStyle = "#8a6d3b"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    },
     pile(ctx, w, h) {
       ctx.fillStyle = "#8a7560";
       ctx.fillRect(0, 0, w, h);
@@ -192,7 +233,7 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
       const r = size * (pressed ? 0.46 : 0.5);
       ctx.save();
       ctx.translate(x, y);
-      ctx.fillStyle = pressed ? "#5f5042" : "#6e5d4a";
+      ctx.fillStyle = name === "test" ? (pressed ? "#77756c" : "#4f8a3c") : pressed ? "#5f5042" : "#6e5d4a";
       ctx.strokeStyle = "#3c3226";
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -236,6 +277,13 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
         ctx.closePath(); ctx.fill(); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(-s * 0.33, -s * 0.8); ctx.lineTo(-s * 0.33, s * 0.6);
         ctx.moveTo(s * 0.33, -s * 0.6); ctx.lineTo(s * 0.33, s * 0.8); ctx.stroke();
+      } else if (name === "test") {
+        // wind lines: start the test
+        ctx.strokeStyle = pressed ? "#a8a59a" : "#f4ecd8"; ctx.lineWidth = Math.max(2.5, s * 0.2); ctx.lineCap = "round";
+        for (const [yy, len] of [[-0.55, 1.5], [0, 2], [0.55, 1.2]]) {
+          ctx.beginPath(); ctx.moveTo(-s, yy * s); ctx.lineTo(-s + len * s, yy * s); ctx.stroke();
+        }
+        ctx.lineCap = "butt";
       } else if (name === "broom") {
         ctx.save();
         ctx.rotate(-0.5);
@@ -284,6 +332,7 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     { kind: "piece", def: "wedge", angle: 0, icon: "wedge" },
     { kind: "broom", icon: "broom" },
     { kind: "home", icon: "home" },
+    { kind: "test", icon: "test" }, // levels only
   ];
 
   // ---------------------------------------------------------------------
@@ -294,10 +343,12 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
   const PICK_MARGIN = 0.12; // metres
   const WALL_THICKNESS = 0.18; // metres
   const WALL_EXTRA_HEIGHT = 30; // metres above the visible area
+  let worldWidth = WORLD_WIDTH; // visible width; wider than 16 m when a tall level zooms out
 
   const world = new planck.World({ gravity: planck.Vec2(0, -10) });
 
-  const groundBody = world.createBody({ type: "static", position: planck.Vec2(WORLD_CENTER_X, -2) });
+  // Kinematic so the earthquake can move it; at rest it behaves as static.
+  const groundBody = world.createBody({ type: "kinematic", position: planck.Vec2(WORLD_CENTER_X, -2) });
   groundBody.createFixture({
     shape: planck.Box(40, 2),
     friction: 0.8,
@@ -314,7 +365,7 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     const visibleWorldHeight = buildingHeightPx / scale;
     const halfHeight = (visibleWorldHeight + WALL_EXTRA_HEIGHT) / 2 + 2;
     const centerY = (visibleWorldHeight + WALL_EXTRA_HEIGHT) / 2;
-    for (const x of [-WALL_THICKNESS / 2, WORLD_WIDTH + WALL_THICKNESS / 2]) {
+    for (const x of [-WALL_THICKNESS / 2, worldWidth + WALL_THICKNESS / 2]) {
       const wall = world.createBody({ type: "static", position: planck.Vec2(x, centerY) });
       wall.createFixture({
         shape: planck.Box(WALL_THICKNESS / 2, halfHeight),
@@ -386,6 +437,8 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
   let buildingWidthPx = 0;
   let buildingHeightPx = 0;
   let sidebarWidthPx = 0;
+  let currentLevel = null; // index into LEVELS; null = free play
+  let levelTop = 0; // metres of height the current level needs on screen
 
   function layout() {
     const dpr = window.devicePixelRatio || 1;
@@ -402,6 +455,8 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     buildingWidthPx = cssWidth - sidebarWidthPx;
     buildingHeightPx = cssHeight;
     scale = buildingWidthPx / WORLD_WIDTH;
+    if (currentLevel != null) scale = Math.min(scale, buildingHeightPx / levelTop);
+    worldWidth = buildingWidthPx / scale;
     rebuildBoundaries();
   }
   layout();
@@ -429,7 +484,8 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
   }
 
   function buttonLayout() {
-    const n = BUTTONS.length;
+    const defs = BUTTONS.filter((b) => b.kind !== "test" || currentLevel != null);
+    const n = defs.length;
     const top = Math.max(76, Math.min(92, cssHeight * 0.16));
     const bottom = 10;
     const slot = Math.max(1, (cssHeight - top - bottom) / n);
@@ -437,7 +493,7 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     const x = buildingWidthPx + sidebarWidthPx / 2;
     const list = [];
     for (let i = 0; i < n; i++) {
-      list.push({ def: BUTTONS[i], x, y: top + slot * (i + 0.5), size });
+      list.push({ def: defs[i], x, y: top + slot * (i + 0.5), size });
     }
     return list;
   }
@@ -547,10 +603,16 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     }
 
     const btn = hitButton(px, py);
+    if (test && !(btn && btn.kind === "home")) return; // hands off during the test
     if (btn) {
       if (btn.kind === "home") {
         releaseAllPointers();
+        abortTest();
         mode = "map";
+        return;
+      }
+      if (btn.kind === "test") {
+        startTest();
         return;
       }
       if (btn.kind === "broom") {
@@ -565,7 +627,7 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
       // than materialising somewhere else in the building area.
       const rawY = (buildingHeightPx - py) / scale;
       const spawnPt = {
-        x: WORLD_WIDTH - horizHalfExtent - 0.08,
+        x: worldWidth - horizHalfExtent - 0.08,
         y: Math.min(
           Math.max(rawY, vertHalfExtent + 0.05),
           buildingHeightPx / scale - vertHalfExtent - 0.05
@@ -597,12 +659,14 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
   }
 
   function onPointerUp(e) {
+    if (cornerHold && cornerHold.id === e.pointerId) cornerHold = null;
     const hand = pointers.get(e.pointerId);
     if (!hand) return;
     releaseHold(e.pointerId);
   }
 
   function onPointerCancel(e) {
+    if (cornerHold && cornerHold.id === e.pointerId) cornerHold = null;
     releaseHold(e.pointerId);
   }
 
@@ -742,6 +806,7 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     let steps = 0;
     while (accumulator >= STEP && steps < MAX_STEPS) {
       advanceHeldTargets();
+      testTick(STEP);
       world.step(STEP, 10, 5);
       clampHeldSpin();
       accumulator -= STEP;
@@ -755,13 +820,19 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
   // ---------------------------------------------------------------------
   function drawPiece(piece) {
     const pos = piece.body.getPosition();
-    const angle = piece.body.getAngle();
     const s = worldToScreen(pos.x, pos.y);
+    drawPieceShape(piece.defKey, piece.material, s.x, s.y, piece.body.getAngle(), scale);
+  }
+
+  // Draws one piece at a screen point and pixels-per-metre (also used for the map's small monuments).
+  function drawPieceShape(defKey, material, sx, sy, angle, sc) {
+    const def = PIECE_DEFS[defKey];
+    const piece = { material, r: def.r, hx: def.hx, hy: def.hy, verts: def.verts };
     ctx.save();
-    ctx.translate(s.x, s.y);
+    ctx.translate(sx, sy);
     ctx.rotate(-angle);
-    ctx.scale(scale, scale);
-    const fn = SKIN.piece[PIECE_DEFS[piece.defKey].skin];
+    ctx.scale(sc, sc);
+    const fn = SKIN.piece[def.skin];
     if (piece.r != null) fn(ctx, piece.r);
     else fn(ctx, piece.hx * 2, piece.hy * 2, piece.material);
 
@@ -813,7 +884,12 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     ctx.fillStyle = "#d8c08a";
     ctx.fillRect(0, buildingHeightPx - 12, buildingWidthPx, 12);
 
+    drawLevelBackdrop();
     for (const piece of pieces) drawPiece(piece);
+    for (const l of loads) {
+      const q = l.body.getPosition(), s = worldToScreen(q.x, q.y);
+      drawLoadShape(l.verts, s.x, s.y, l.body.getAngle(), scale);
+    }
 
     // Right-side palette replaces the old bottom tray.
     ctx.fillStyle = "#514638";
@@ -847,7 +923,7 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     }
 
     for (const b of buttonLayout()) {
-      SKIN.button(ctx, b.def.icon, b.x, b.y, b.size, false);
+      SKIN.button(ctx, b.def.icon, b.x, b.y, b.size, b.def.kind === "test" && !testReady());
     }
   }
 
@@ -898,6 +974,8 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
       const q = puffs[i];
       q.x += q.vx * dt; q.y += q.vy * dt;
       if (q.kind === "dust") { q.r += 0.5 * dt; q.life -= dt * 1.6; }
+      else if (q.kind === "wind") { q.life -= dt * 1.5; }
+      else if (q.kind === "petal") { q.vy -= 2 * dt; q.a += dt * 4; q.life -= dt * 0.4; }
       else { q.vy -= GRAVITY * dt; q.a += dt * 8; q.life -= dt * 1.2; }
       if (q.life <= 0) puffs.splice(i, 1);
     }
@@ -907,12 +985,352 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     for (const q of puffs) {
       const s = worldToScreen(q.x, q.y);
       if (q.kind === "dust") SKIN.dust(ctx, s.x, s.y, q.r * scale, q.life);
+      else if (q.kind === "wind") SKIN.wind(ctx, s.x, s.y, q.r * scale, q.life);
+      else if (q.kind === "petal") SKIN.petal(ctx, s.x, s.y, q.r * scale, q.a, Math.min(1, q.life * 2), q.hue);
       else SKIN.chip(ctx, s.x, s.y, q.r * scale, q.a, q.life);
     }
   }
 
   // ---------------------------------------------------------------------
-  // SECTION: MAP -- world map start screen, the ten monument sites (empty for now)
+  // SECTION: LEVELS -- outline, forgiving check, test (supports, wind, load, quake), pass/fail, saved progress
+  // ---------------------------------------------------------------------
+  // All numbers in this section are placeholders to be tuned by play, not design decisions.
+  const LEVEL_X0 = WORLD_WIDTH / 2; // level data is centred on x = 0
+  const CELL = 0.1, GX = 400, GY = 160; // check grid: 0.1 m cells over x 0..40 m, y 0..16 m
+  const CHECK = {
+    fill: 0.8,       // share of the outline that must be covered before the test
+    fillAfter: 0.7,  // ... and still covered after it
+    farReach: 0.5,   // metres outside the outline that still count as "inside"
+    farCells: 5,     // allowed cells beyond that
+    holeMax: 0.05,   // share of an opening that may be blocked
+    woodMin: 0.6,    // share of a wood-course zone that must be wood
+    loadMove: 0.6,   // metres the load may shift and still be in place
+    loadTilt: 0.35,  // radians
+  };
+  const LOAD_DROP = 2; // metres above its place the load starts
+  const LOAD_SPEED = 0.8; // m/s lowering speed
+  const TEST_WIND = [20, 22, 24, 26, 28, 30, 32, 34, 60, 40]; // N per metre of exposed height, per level
+  const TEST_LOAD_DENSITY = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // kg/m^2, per level
+  const TEST_QUAKE = [0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.32, 0.34, 0.36, 0.38]; // peak ground speed m/s, per level
+  const QUAKE_HZ = 1.6;
+  const PHASE_TIME = { wind: 3.5, loadSettle: 2, quake: 3, settle: 1.5, pass: 3.5, fail: 2 };
+
+  let grid = null;   // current level geometry and check masks
+  let check = null;  // latest check result
+  let checkTimer = 0;
+  let test = null;   // running test
+  let loads = [];    // load bodies during a test
+
+  const SAVE_KEY = "tower-builder-progress-v1";
+  const progress = (() => { try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch (err) { return {}; } })();
+  progress.done = progress.done || {};
+  let allOpen = false;   // parent override
+  let cornerHold = null; // { id, t } while the map's top-left corner is held
+
+  function levelOpen(i) {
+    return i >= 0 && (allOpen || i === 0 || !!progress.done[LEVELS[i - 1].key]);
+  }
+
+  const toWorldRing = (ring) => { const out = []; for (let i = 0; i < ring.length; i += 2) out.push([ring[i] + LEVEL_X0, ring[i + 1]]); return out; };
+  function inRing(x, y, r) {
+    let inside = false;
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+      const [xi, yi] = r[i], [xj, yj] = r[j];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  const ringCentre = (r) => { let x = 0, y = 0; for (const p of r) { x += p[0]; y += p[1]; } return [x / r.length, y / r.length]; };
+
+  function buildLevel(i) {
+    const L = LEVELS[i], n = GX * GY;
+    const g = {
+      L, solid: L.solid.map(toWorldRing), holes: L.holes.map(toWorldRing), wood: L.wood.map(toWorldRing), load: L.load.map(toWorldRing),
+      inOutline: new Uint8Array(n), inHole: new Uint8Array(n), inWood: new Uint8Array(n), near: new Uint8Array(n), cov: new Uint8Array(n),
+      solidCells: 0, holeCells: 0, woodCells: 0,
+    };
+    let x0 = Infinity, x1 = -Infinity, y1 = 0;
+    for (const r of [...g.solid, ...g.holes, ...g.wood, ...g.load]) for (const [x, y] of r) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    g.top = y1 + LOAD_DROP + 1;
+    const ix0 = Math.max(0, Math.floor(x0 / CELL)), ix1 = Math.min(GX - 1, Math.ceil(x1 / CELL));
+    const iy1 = Math.min(GY - 1, Math.ceil(y1 / CELL));
+    for (let iy = 0; iy <= iy1; iy++) {
+      for (let ix = ix0; ix <= ix1; ix++) {
+        const x = (ix + 0.5) * CELL, y = (iy + 0.5) * CELL, k = iy * GX + ix;
+        const hole = g.holes.some((r) => inRing(x, y, r));
+        if (hole) { g.inHole[k] = 1; g.holeCells++; }
+        else if (g.solid.some((r) => inRing(x, y, r))) { g.inOutline[k] = 1; g.solidCells++; }
+        if (g.wood.some((r) => inRing(x, y, r))) { g.inWood[k] = 1; g.woodCells++; }
+      }
+    }
+    const R = Math.round(CHECK.farReach / CELL);
+    for (let iy = 0; iy <= iy1; iy++) {
+      for (let ix = ix0; ix <= ix1; ix++) {
+        const k = iy * GX + ix;
+        if (!g.inOutline[k] && !g.inHole[k]) continue;
+        for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+          const jx = ix + dx, jy = iy + dy;
+          if (dx * dx + dy * dy <= R * R && jx >= 0 && jx < GX && jy >= 0 && jy < GY) g.near[jy * GX + jx] = 1;
+        }
+      }
+    }
+    return g;
+  }
+
+  function cellOf(x, y) {
+    const ix = Math.floor(x / CELL), iy = Math.floor(y / CELL);
+    return ix >= 0 && ix < GX && iy >= 0 && iy < GY ? iy * GX + ix : -1;
+  }
+
+  // Which cells the pieces cover, and how that compares with the outline.
+  function runCheck() {
+    const g = grid, cov = g.cov, v = planck.Vec2(0, 0);
+    cov.fill(0);
+    let far = 0;
+    for (const p of pieces) {
+      if (p.heldBy != null) continue;
+      const code = p.material === "wood" ? 1 : 2;
+      for (let f = p.body.getFixtureList(); f; f = f.getNext()) {
+        const bb = f.getAABB(0);
+        if (bb.upperBound.x > GX * CELL || bb.upperBound.y > GY * CELL) far += 1000;
+        const ax = Math.max(0, Math.floor(bb.lowerBound.x / CELL)), bx = Math.min(GX - 1, Math.floor(bb.upperBound.x / CELL));
+        const ay = Math.max(0, Math.floor(bb.lowerBound.y / CELL)), by = Math.min(GY - 1, Math.floor(bb.upperBound.y / CELL));
+        for (let iy = ay; iy <= by; iy++) for (let ix = ax; ix <= bx; ix++) {
+          v.x = (ix + 0.5) * CELL; v.y = (iy + 0.5) * CELL;
+          if (f.testPoint(v)) cov[iy * GX + ix] = code;
+        }
+      }
+    }
+    const support = g.L.woodRole === "support";
+    let filled = 0, holeBad = 0, woodIn = 0;
+    for (let k = 0; k < cov.length; k++) {
+      const c = cov[k];
+      if (!c) continue;
+      if (g.inOutline[k]) filled++;
+      if (!g.near[k]) far++;
+      if (g.inHole[k] && !(support && c === 1)) holeBad++;
+      if (g.inWood[k] && c === 1) woodIn++;
+    }
+    return {
+      fill: g.solidCells ? filled / g.solidCells : 0,
+      far,
+      hole: g.holeCells ? holeBad / g.holeCells : 0,
+      wood: g.woodCells ? woodIn / g.woodCells : 1,
+    };
+  }
+
+  function checkPasses(c) {
+    return c.fill >= CHECK.fill && c.far <= CHECK.farCells && c.hole <= CHECK.holeMax &&
+      (grid.L.woodRole !== "courses" || c.wood >= CHECK.woodMin);
+  }
+  function testReady() {
+    return currentLevel != null && !test && !!check && pointers.size === 0 && checkPasses(check);
+  }
+  function updateCheck(dt) {
+    if (currentLevel == null || test) return;
+    checkTimer -= dt;
+    if (checkTimer <= 0) { check = runCheck(); checkTimer = 0.25; }
+  }
+
+  function startLevel(i) {
+    releaseAllPointers();
+    if (currentLevel !== i) clearAllPieces();
+    if (!grid || grid.L !== LEVELS[i]) grid = buildLevel(i);
+    currentLevel = i;
+    levelTop = grid.top;
+    check = null; checkTimer = 0;
+    mode = "build";
+    layout();
+  }
+  function startFree() {
+    releaseAllPointers();
+    if (currentLevel != null) clearAllPieces();
+    currentLevel = null; grid = null; check = null;
+    mode = "build";
+    layout();
+  }
+
+  // --- the test: supports pulled out, wind, load lowered on, earthquake, then judged
+  function startTest() {
+    if (!testReady()) return;
+    releaseAllPointers();
+    const snapshot = pieces.map((p) => { const q = p.body.getPosition(); return { defKey: p.defKey, material: p.material, x: q.x, y: q.y, angle: p.body.getAngle() }; });
+    let toPull = [];
+    if (grid.L.woodRole === "support") {
+      toPull = pieces.filter((p) => {
+        if (p.material !== "wood") return false;
+        const q = p.body.getPosition(), k = cellOf(q.x, q.y);
+        return k >= 0 && (grid.inWood[k] || grid.inHole[k]);
+      });
+    }
+    test = { phase: "supports", t: 0, snapshot, toPull, pulled: false };
+  }
+  function nextPhase(phase) {
+    test.phase = phase; test.t = 0;
+    if (phase === "wind") playSound("wind", 1);
+    if (phase === "load") spawnLoads();
+    if (phase === "quake") playSound("quake", 1);
+  }
+  function testTick(dt) {
+    if (!test) return;
+    test.t += dt;
+    const lv = currentLevel, T = test.t;
+    if (test.phase === "supports") {
+      if (test.toPull.length) {
+        if (T >= 0.25) {
+          const p = test.toPull.shift();
+          if (pieces.includes(p)) { dustAt(p.body.getPosition()); removePiece(p); test.pulled = true; }
+          test.t = 0;
+        }
+      } else if (T >= (test.pulled ? 1.5 : 0.3)) nextPhase("wind");
+    } else if (test.phase === "wind") {
+      const D = PHASE_TIME.wind, ramp = Math.max(0, Math.min(1, T / 0.7, (D - T) / 0.7));
+      applyWind(TEST_WIND[lv] * ramp);
+      if (Math.random() < 0.6 * ramp) puffs.push({ kind: "wind", x: 0, y: Math.random() * levelTop, vx: 10, vy: 0, r: 0.6 + Math.random() * 0.9, life: 1 });
+      if (T >= D) nextPhase("load");
+    } else if (test.phase === "load") {
+      let all = true;
+      for (const l of loads) {
+        if (l.released) continue;
+        all = false;
+        if (touchesOtherPiece(l.body) || l.body.getPosition().y <= l.ty - 0.2) {
+          l.body.setDynamic(); l.body.setAwake(true); l.released = true; test.t = 0;
+        }
+      }
+      if (all && T >= PHASE_TIME.loadSettle) nextPhase("quake");
+    } else if (test.phase === "quake") {
+      const D = PHASE_TIME.quake, env = Math.sin((Math.PI * Math.min(T, D)) / D);
+      groundBody.setLinearVelocity(planck.Vec2(TEST_QUAKE[lv] * env * Math.sin(2 * Math.PI * QUAKE_HZ * T), 0));
+      shake = Math.max(shake, 5 * env);
+      if (T >= D) { resetGround(); nextPhase("settle"); }
+    } else if (test.phase === "settle") {
+      if (T >= PHASE_TIME.settle) {
+        const pass = runCheck().fill >= CHECK.fillAfter && loads.every(loadInPlace);
+        nextPhase(pass ? "pass" : "fail");
+        if (pass) { celebrate(); playSound("cheer", 1); }
+      }
+    } else if (test.phase === "pass") {
+      if (T >= PHASE_TIME.pass) { saveMonument(); finishTest(); mode = "map"; }
+    } else if (test.phase === "fail") {
+      if (T >= PHASE_TIME.fail) restoreSnapshot();
+    }
+  }
+
+  // Wind from the left: each 0.1 m band of height pushes on the first thing it meets.
+  function applyWind(P) {
+    for (let y = 0.05; y < levelTop; y += 0.1) {
+      let hit = null, hx = 0, hy = 0;
+      world.rayCast(planck.Vec2(0.02, y), planck.Vec2(worldWidth - 0.02, y), (f, pt, nrm, frac) => {
+        const b = f.getBody();
+        if (!b.piece && !b.isLoad) return -1;
+        hit = b; hx = pt.x; hy = pt.y;
+        return frac;
+      });
+      if (hit) hit.applyForce(planck.Vec2(P * 0.1, 0), planck.Vec2(hx, hy), true);
+    }
+  }
+
+  function spawnLoads() {
+    loads = grid.load.map((ring) => {
+      const [cx, cy] = ringCentre(ring);
+      const verts = ring.map(([x, y]) => [x - cx, y - cy]);
+      const body = world.createBody({ type: "kinematic", position: planck.Vec2(cx, cy + LOAD_DROP) });
+      body.createFixture({ shape: planck.Polygon(verts.map(([x, y]) => planck.Vec2(x, y))), density: TEST_LOAD_DENSITY[currentLevel], friction: 0.6, restitution: 0 });
+      body.isLoad = true;
+      body.setLinearVelocity(planck.Vec2(0, -LOAD_SPEED));
+      return { body, tx: cx, ty: cy, verts, released: false };
+    });
+  }
+  function loadInPlace(l) {
+    const q = l.body.getPosition();
+    return l.released && Math.hypot(q.x - l.tx, q.y - l.ty) <= CHECK.loadMove && Math.abs(l.body.getAngle()) <= CHECK.loadTilt;
+  }
+  function resetGround() {
+    groundBody.setLinearVelocity(planck.Vec2(0, 0));
+    groundBody.setPosition(planck.Vec2(WORLD_CENTER_X, -2));
+  }
+  function finishTest() {
+    for (const l of loads) world.destroyBody(l.body);
+    loads = [];
+    resetGround();
+    test = null;
+    checkTimer = 0;
+  }
+  // Failed: the pieces return to where the player put them.
+  function restoreSnapshot() {
+    const snap = test.snapshot;
+    finishTest();
+    clearAllPieces();
+    for (const s of snap) spawnPiece(s.defKey, s.x, s.y, s.angle, s.material);
+  }
+  // Leaving mid-test keeps the player's work: a pass is saved, anything else is put back.
+  function abortTest() {
+    if (!test) return;
+    if (test.phase === "pass") { saveMonument(); finishTest(); } else restoreSnapshot();
+  }
+
+  function dustAt(q) {
+    for (let i = 0; i < 10; i++) puffs.push({ kind: "dust", x: q.x + (Math.random() - 0.5), y: q.y + (Math.random() - 0.5), vx: (Math.random() - 0.5) * 2, vy: Math.random(), r: 0.1 + Math.random() * 0.1, life: 1 });
+  }
+  function celebrate() {
+    let x0 = Infinity, x1 = -Infinity, y1 = 0;
+    for (const r of grid.solid) for (const [x, y] of r) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    for (let i = 0; i < 80; i++) {
+      puffs.push({ kind: "petal", x: x0 + Math.random() * (x1 - x0), y: y1 + 1 + Math.random(), vx: (Math.random() - 0.5) * 3, vy: 1 + Math.random() * 3, r: 0.07 + Math.random() * 0.05, a: Math.random() * 6, hue: Math.floor(Math.random() * 360), life: 1 });
+    }
+  }
+
+  function saveMonument() {
+    const r3 = (n) => Math.round(n * 1000) / 1000;
+    progress.done[grid.L.key] = {
+      pieces: pieces.map((p) => { const q = p.body.getPosition(); return [p.defKey, p.material, r3(q.x), r3(q.y), r3(p.body.getAngle())]; }),
+      loads: loads.map((l) => { const q = l.body.getPosition(); return [r3(q.x), r3(q.y), r3(l.body.getAngle()), l.verts]; }),
+    };
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (err) { /* ignore */ }
+  }
+
+  // --- drawing
+  function drawLoadShape(verts, sx, sy, angle, sc) {
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(-angle); ctx.scale(sc, -sc);
+    SKIN.load(ctx, verts);
+    ctx.restore();
+  }
+  function screenPath(rings) {
+    const path = new Path2D();
+    for (const r of rings) {
+      r.forEach(([x, y], i) => { const s = worldToScreen(x, y); if (i) path.lineTo(s.x, s.y); else path.moveTo(s.x, s.y); });
+      path.closePath();
+    }
+    return path;
+  }
+  function drawLevelBackdrop() {
+    if (currentLevel == null || !grid) return;
+    SKIN.outline(ctx, screenPath(grid.solid), screenPath(grid.holes));
+    if (grid.wood.length) SKIN.woodZone(ctx, screenPath(grid.wood));
+    if (!loads.length) SKIN.loadGhost(ctx, screenPath(grid.load));
+  }
+  // The player's finished building, small, on its map site.
+  function drawMonumentMini(done, cx, cy, r) {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const [d, , x, y] of done.pieces) {
+      const def = PIECE_DEFS[d], e = def.r != null ? def.r : Math.max(def.hx, def.hy);
+      x0 = Math.min(x0, x - e); x1 = Math.max(x1, x + e); y0 = Math.min(y0, y - e); y1 = Math.max(y1, y + e);
+    }
+    for (const [x, y, , verts] of done.loads) for (const [vx, vy] of verts) {
+      x0 = Math.min(x0, x + vx); x1 = Math.max(x1, x + vx); y0 = Math.min(y0, y + vy); y1 = Math.max(y1, y + vy);
+    }
+    if (!Number.isFinite(x0)) return;
+    const sc = (1.5 * r) / Math.max(x1 - x0, y1 - y0, 1), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    const at = (x, y) => [cx + (x - mx) * sc, cy + (my - y) * sc];
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r - 1.5, 0, Math.PI * 2); ctx.clip();
+    for (const [d, m, x, y, a] of done.pieces) { const [sx, sy] = at(x, y); drawPieceShape(d, m, sx, sy, a, sc); }
+    for (const [x, y, a, verts] of done.loads) { const [sx, sy] = at(x, y); drawLoadShape(verts, sx, sy, a, sc); }
+    ctx.restore();
+  }
+
+  // ---------------------------------------------------------------------
+  // SECTION: MAP -- world map start screen, the ten sites (locked, open, finished), parent override
   // ---------------------------------------------------------------------
   let mode = "map"; // "map" | "build"
   // Chronological = level order. lon/lat: approximate marker spot, nudged a
@@ -971,15 +1389,27 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     const r = siteRadius(v);
     for (const site of SITES) {
       const m = v.pt(site.lon, site.lat);
-      SKIN.mapSite(ctx, m.x, m.y, r);
+      const i = LEVELS.findIndex((L) => L.key === site.key);
+      const done = progress.done[site.key];
+      if (done) { SKIN.mapSiteDone(ctx, m.x, m.y, r); drawMonumentMini(done, m.x, m.y, r); }
+      else if (levelOpen(i)) SKIN.mapSiteOpen(ctx, m.x, m.y, r);
+      else SKIN.mapSite(ctx, m.x, m.y, r);
     }
+    // Parent override: hold the top-left corner for three seconds to open (or re-lock) every site.
+    if (cornerHold && performance.now() - cornerHold.t > 3000) { allOpen = !allOpen; cornerHold = null; }
     const fb = freePlayButton();
     SKIN.button(ctx, "block", fb.x, fb.y, fb.size, false);
   }
   function onMapPointerDown(e) {
     const fb = freePlayButton();
-    if (Math.hypot(e.clientX - fb.x, e.clientY - fb.y) <= fb.size / 2) { mode = "build"; return; }
-    // Sites have no levels yet.
+    if (Math.hypot(e.clientX - fb.x, e.clientY - fb.y) <= fb.size / 2) { startFree(); return; }
+    if (e.clientX < 90 && e.clientY < 90) { cornerHold = { id: e.pointerId, t: performance.now() }; return; }
+    const v = mapView(), r = siteRadius(v);
+    for (const site of SITES) {
+      const m = v.pt(site.lon, site.lat);
+      const i = LEVELS.findIndex((L) => L.key === site.key);
+      if (Math.hypot(e.clientX - m.x, e.clientY - m.y) <= r * 1.15 && levelOpen(i)) { startLevel(i); return; }
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -996,6 +1426,7 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     }
     stepPhysics(dt);
     cleanupOutOfBounds();
+    updateCheck(dt);
     updateFeel(dt);
     ctx.save();
     if (shake > 0) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);

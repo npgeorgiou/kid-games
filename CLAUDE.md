@@ -130,7 +130,7 @@ These override the brief where they differ.
 
 ## Status
 
-- Tower Builder prototype built with the world map start screen (ten empty sites) and wedge stones. Ten levels decided in chronological order, outlines saved in `games/tower-builder/src/levels.js`. Next: build the levels (outline, test, map unlock). Waiting for the test with the child.
+- Tower Builder: free play, world map and the ten levels built (outline check, test of supports, wind, load, earthquake, map unlock with parent override, saved monuments). Test strengths are placeholders. Next: test with the child and tune.
 
 ## Decided
 
