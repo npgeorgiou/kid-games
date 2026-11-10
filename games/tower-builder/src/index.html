@@ -26,6 +26,7 @@
 <body>
 <canvas id="c"></canvas>
 <script src="../lib/planck.min.js"></script>
+<script src="../lib/map-land.js"></script>
 <script>
 (function () {
   "use strict";
@@ -50,6 +51,31 @@
     dust(ctx, x, y, r, alpha) {
       ctx.fillStyle = "rgba(214, 196, 160, " + (0.5 * alpha) + ")";
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    },
+    chip(ctx, x, y, r, angle, alpha) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+      ctx.fillStyle = "rgba(120, 128, 135, " + alpha + ")";
+      ctx.beginPath(); ctx.moveTo(-r, -r * 0.6); ctx.lineTo(r, -r * 0.3); ctx.lineTo(r * 0.3, r); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    },
+    mapSea(ctx, x, y, w, h) {
+      ctx.fillStyle = "#9cc9d9"; ctx.fillRect(x, y, w, h);
+    },
+    mapLand(ctx, path) {
+      ctx.fillStyle = "#e3cf9e"; ctx.fill(path);
+      ctx.strokeStyle = "#a88f5c"; ctx.lineWidth = 1.5; ctx.stroke(path);
+    },
+    // An empty building site: a dashed ring with a little foundation inside.
+    mapSite(ctx, x, y, r, trueX, trueY) {
+      ctx.strokeStyle = "#5a4a36"; ctx.lineWidth = 2;
+      if (Math.hypot(trueX - x, trueY - y) > r) {
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(trueX, trueY); ctx.stroke();
+      }
+      ctx.fillStyle = "#5a4a36"; ctx.beginPath(); ctx.arc(trueX, trueY, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(255, 248, 230, 0.85)";
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.setLineDash([6, 5]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "#b9a37c"; ctx.fillRect(x - r * 0.55, y + r * 0.2, r * 1.1, r * 0.25);
     },
     pile(ctx, w, h) {
       ctx.fillStyle = "#8a7560";
@@ -147,6 +173,14 @@
         ctx.arc(0, 0, s * 0.8, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+      } else if (name === "home") {
+        // a little folded map
+        ctx.beginPath();
+        ctx.moveTo(-s, -s * 0.6); ctx.lineTo(-s * 0.33, -s * 0.8); ctx.lineTo(s * 0.33, -s * 0.6); ctx.lineTo(s, -s * 0.8);
+        ctx.lineTo(s, s * 0.6); ctx.lineTo(s * 0.33, s * 0.8); ctx.lineTo(-s * 0.33, s * 0.6); ctx.lineTo(-s, s * 0.8);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-s * 0.33, -s * 0.8); ctx.lineTo(-s * 0.33, s * 0.6);
+        ctx.moveTo(s * 0.33, -s * 0.6); ctx.lineTo(s * 0.33, s * 0.8); ctx.stroke();
       } else if (name === "broom") {
         ctx.save();
         ctx.rotate(-0.5);
@@ -173,7 +207,7 @@
     // this, not sluggish acceleration, is what should make stone feel heavy.
     // maxSpin: hard cap on angular velocity while held (rad/s) -- heavier
     // material resists being spun around in the hand more.
-    wood:  { label: "WOOD",  density: 0.75, friction: 0.5,  restitution: 0.015, maxLiftSpeed: 11, maxSpin: 3.0, maxAccel: 40 },
+    wood:  { label: "WOOD",  density: 1.1,  friction: 0.5,  restitution: 0.015, maxLiftSpeed: 9,  maxSpin: 3.0, maxAccel: 30 },
     stone: { label: "STONE", density: 5.0,  friction: 0.6,  restitution: 0.0,  maxLiftSpeed: 6,  maxSpin: 1.3, maxAccel: 22 },
   };
   let selectedMaterial = "wood";
@@ -191,6 +225,7 @@
     { kind: "piece", def: "beam", angle: 0, icon: "beam" },
     { kind: "piece", def: "drum", angle: 0, icon: "drum" },
     { kind: "broom", icon: "broom" },
+    { kind: "home", icon: "home" },
   ];
 
   // ---------------------------------------------------------------------
@@ -439,6 +474,7 @@
 
   function onPointerDown(e) {
     e.preventDefault();
+    if (mode === "map") { onMapPointerDown(e); return; }
     if (e.pointerType === "mouse" && e.button !== 0) return;
     if (pointers.has(e.pointerId)) return;
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
@@ -452,6 +488,11 @@
 
     const btn = hitButton(px, py);
     if (btn) {
+      if (btn.kind === "home") {
+        releaseAllPointers();
+        mode = "map";
+        return;
+      }
       if (btn.kind === "broom") {
         clearAllPieces();
         return;
@@ -565,8 +606,8 @@
   // pieces under it harder than its weight allows.
   const GRAVITY = 10;
   // Hand strength for lifting beyond the piece's own weight, in newtons:
-  // enough for a stone block with about two more on top, then it stalls.
-  const HAND_LIFT = 250;
+  // a stone block lifts with three more on top (slowly), not with four.
+  const HAND_LIFT = 350;
   const PUSH_ACCEL = 8; // m/s^2: hand force while touching = 0.8 x own weight
   function touchesOtherPiece(body) {
     for (let ce = body.getContactList(); ce; ce = ce.next) {
@@ -772,19 +813,26 @@
       const p1 = contact.getManifold().pointCount > 1 ? wm.points[1] : p0;
       const strength = Math.min(1, dv / 6);
       const stone = b.piece.material === "stone";
-      const count = 4 + Math.round(strength * 6) + Math.round(Math.hypot(p1.x - p0.x, p1.y - p0.y) * 4);
+      const other = b === bA ? bB : bA;
+      // dust where a piece hits the ground, stone chips where stone hits stone, nothing otherwise
+      const kind = other === groundBody ? "dust" : (stone && other.piece && other.piece.material === "stone") ? "chip" : null;
+      const count = kind ? 4 + Math.round(strength * 6) + Math.round(Math.hypot(p1.x - p0.x, p1.y - p0.y) * 4) : 0;
       for (let i = 0; i < count; i++) {
         const t = count > 1 ? i / (count - 1) : 0.5; // spread over the whole contact edge
-        puffs.push({ x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t, vx: (Math.random() - 0.5) * 2, vy: Math.random() * 0.8, r: 0.08 + Math.random() * 0.1, life: 1 });
+        const x = p0.x + (p1.x - p0.x) * t, y = p0.y + (p1.y - p0.y) * t;
+        if (kind === "dust") puffs.push({ kind, x, y, vx: (Math.random() - 0.5) * 2, vy: Math.random() * 0.8, r: 0.08 + Math.random() * 0.1, life: 1 });
+        else puffs.push({ kind, x, y, vx: (Math.random() - 0.5) * 3, vy: 1 + Math.random() * 2, r: 0.04 + Math.random() * 0.05, a: Math.random() * 6, life: 1 });
       }
       playSound(stone ? "thud-stone" : "thud-wood", strength);
-      if (stone) shake = Math.max(shake, strength * 11 * Math.min(1, b.getMass() / 10)); // px
+      if (stone && kind) shake = Math.max(shake, strength * 11 * Math.min(1, b.getMass() / 10)); // px
     }
   });
   function updateFeel(dt) {
     for (let i = puffs.length - 1; i >= 0; i--) {
       const q = puffs[i];
-      q.x += q.vx * dt; q.y += q.vy * dt; q.r += 0.5 * dt; q.life -= dt * 1.6;
+      q.x += q.vx * dt; q.y += q.vy * dt;
+      if (q.kind === "dust") { q.r += 0.5 * dt; q.life -= dt * 1.6; }
+      else { q.vy -= GRAVITY * dt; q.a += dt * 8; q.life -= dt * 1.2; }
       if (q.life <= 0) puffs.splice(i, 1);
     }
     shake = Math.max(0, shake - dt * 45);
@@ -792,8 +840,80 @@
   function drawFeel() {
     for (const q of puffs) {
       const s = worldToScreen(q.x, q.y);
-      SKIN.dust(ctx, s.x, s.y, q.r * scale, q.life);
+      if (q.kind === "dust") SKIN.dust(ctx, s.x, s.y, q.r * scale, q.life);
+      else SKIN.chip(ctx, s.x, s.y, q.r * scale, q.a, q.life);
     }
+  }
+
+  // ---------------------------------------------------------------------
+  // SECTION: MAP -- world map start screen, the ten monument sites (empty for now)
+  // ---------------------------------------------------------------------
+  let mode = "map"; // "map" | "build"
+  // Level order. lon/lat: the real place; mx/my: where the marker sits when
+  // the real place is too close to another site for two big targets.
+  const SITES = [
+    { key: "mastaba",   lon: 31.13, lat: 29.98, mx: 30.0, my: 28.6 }, // mastaba fields, Giza
+    { key: "ziggurat",  lon: 46.10, lat: 30.96 },                     // Ur
+    { key: "djoser",    lon: 31.22, lat: 29.87, mx: 32.6, my: 29.0 }, // Saqqara
+    { key: "liongate",  lon: 22.76, lat: 37.73, mx: 21.2, my: 38.4 }, // Mycenae
+    { key: "karnak",    lon: 32.66, lat: 25.72 },                     // Karnak, Luxor
+    { key: "parthenon", lon: 23.73, lat: 37.97, mx: 24.9, my: 39.2 }, // Athens
+    { key: "pharos",    lon: 29.88, lat: 31.21, mx: 28.6, my: 32.6 }, // Alexandria
+    { key: "ishtar",    lon: 44.42, lat: 32.54 },                     // Babylon
+    { key: "valens",    lon: 28.96, lat: 41.01 },                     // Constantinople
+    { key: "mystras",   lon: 22.37, lat: 37.07, mx: 21.6, my: 36.3 }, // Mystras
+  ];
+  const MAP_BOX = { lon0: 18, lon1: 50, lat0: 23, lat1: 44 };
+  const MAP_KX = Math.cos(33.5 * Math.PI / 180);
+  function mapView() {
+    const wDeg = (MAP_BOX.lon1 - MAP_BOX.lon0) * MAP_KX, hDeg = MAP_BOX.lat1 - MAP_BOX.lat0;
+    const k = Math.min(cssWidth / wDeg, cssHeight / hDeg);
+    const ox = (cssWidth - wDeg * k) / 2, oy = (cssHeight - hDeg * k) / 2;
+    return {
+      k, ox, oy, w: wDeg * k, h: hDeg * k,
+      pt: (lon, lat) => ({ x: ox + (lon - MAP_BOX.lon0) * MAP_KX * k, y: oy + (MAP_BOX.lat1 - lat) * k }),
+    };
+  }
+  let mapPath = null, mapPathKey = "";
+  function landPath(v) {
+    const key = v.k + "," + v.ox + "," + v.oy;
+    if (mapPath && key === mapPathKey) return mapPath;
+    mapPath = new Path2D();
+    for (const ring of MAP_LAND) {
+      for (let i = 0; i < ring.length; i += 2) {
+        const q = v.pt(ring[i] / 10, ring[i + 1] / 10);
+        if (i === 0) mapPath.moveTo(q.x, q.y); else mapPath.lineTo(q.x, q.y);
+      }
+      mapPath.closePath();
+    }
+    mapPathKey = key;
+    return mapPath;
+  }
+  function siteRadius(v) { return Math.max(22, Math.min(v.w, v.h) * 0.04); }
+  function freePlayButton() {
+    const size = Math.max(70, Math.min(cssWidth, cssHeight) * 0.14);
+    return { x: cssWidth - size * 0.75, y: cssHeight - size * 0.75, size };
+  }
+  function renderMap() {
+    ctx.fillStyle = "#6f9fb1"; ctx.fillRect(0, 0, cssWidth, cssHeight);
+    const v = mapView();
+    ctx.save();
+    ctx.beginPath(); ctx.rect(v.ox, v.oy, v.w, v.h); ctx.clip();
+    SKIN.mapSea(ctx, v.ox, v.oy, v.w, v.h);
+    SKIN.mapLand(ctx, landPath(v));
+    ctx.restore();
+    const r = siteRadius(v);
+    for (const site of SITES) {
+      const t = v.pt(site.lon, site.lat), m = v.pt(site.mx ?? site.lon, site.my ?? site.lat);
+      SKIN.mapSite(ctx, m.x, m.y, r, t.x, t.y);
+    }
+    const fb = freePlayButton();
+    SKIN.button(ctx, "block", fb.x, fb.y, fb.size, false);
+  }
+  function onMapPointerDown(e) {
+    const fb = freePlayButton();
+    if (Math.hypot(e.clientX - fb.x, e.clientY - fb.y) <= fb.size / 2) { mode = "build"; return; }
+    // Sites have no levels yet.
   }
 
   // ---------------------------------------------------------------------
@@ -803,6 +923,11 @@
     if (lastTime == null) lastTime = time;
     const dt = Math.min(0.1, (time - lastTime) / 1000);
     lastTime = time;
+    if (mode === "map") {
+      renderMap();
+      requestAnimationFrame(frame);
+      return;
+    }
     stepPhysics(dt);
     cleanupOutOfBounds();
     updateFeel(dt);

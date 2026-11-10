@@ -1,0 +1,3 @@
+lib/map-land.js: coastline from Natural Earth 1:50m land (public domain, naturalearthdata.com),
+via the world-atlas npm package (ISC licence, Mike Bostock), cropped to 18-50E, 23-44N and
+quantised to 0.1 degree (values are degrees x 10).
