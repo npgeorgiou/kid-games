@@ -110,7 +110,7 @@
     },
     // A site that can be played now: solid bright circle.
     mapSiteOpen(ctx, x, y, r) {
-      ctx.fillStyle = "#fff3c4"; ctx.strokeStyle = "#5a4a36"; ctx.lineWidth = 3;
+      ctx.fillStyle = "#e0473b"; ctx.strokeStyle = "#5a4a36"; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     },
     // A finished site; the player's own building is drawn on top of it.
@@ -282,6 +282,11 @@
           ctx.beginPath(); ctx.moveTo(-s, yy * s); ctx.lineTo(-s + len * s, yy * s); ctx.stroke();
         }
         ctx.lineCap = "butt";
+      } else if (name === "autobuild") {
+        // parent override: a little stack being built
+        for (const [bx, by, bw] of [[-0.9, 0.35, 0.85], [0.05, 0.35, 0.85], [-0.42, -0.35, 0.85]]) {
+          ctx.fillRect(bx * s, by * s, bw * s, 0.6 * s); ctx.strokeRect(bx * s, by * s, bw * s, 0.6 * s);
+        }
       } else if (name === "broom") {
         ctx.save();
         ctx.rotate(-0.5);
@@ -319,10 +324,13 @@
     block:  { shape: "box", hx: 1.0, hy: 0.5, densityScale: 1.0, skin: "block", half: "block-half" },
     column: { shape: "box", hx: 0.3, hy: 1.2, densityScale: 1.0, skin: "column", half: "column-half" },
     beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 0.85, skin: "beam", half: "beam-half" },
+    // capital (new, fourth standard size): a flat slab laid on a pillar; an upright block (2 m) plus a capital is one column high
+    capital: { shape: "box", hx: 0.8, hy: 0.2, densityScale: 1.0, skin: "beam", half: "capital-half" },
     // what a snapped wooden piece breaks into (two halves along its length; they do not snap again)
     "block-half":  { shape: "box", hx: 0.5, hy: 0.5, densityScale: 1.0, skin: "block" },
     "column-half": { shape: "box", hx: 0.3, hy: 0.6, densityScale: 1.0, skin: "column" },
     "beam-half":   { shape: "box", hx: 0.8, hy: 0.25, densityScale: 0.85, skin: "beam" },
+    "capital-half": { shape: "box", hx: 0.4, hy: 0.2, densityScale: 1.0, skin: "beam" },
     drum:   { shape: "circle", r: 0.6, densityScale: 1.0, skin: "drum" },
     // arch stone: narrow end down; about ten make a half circle
     // nine make a half circle (20 degrees each, a keystone in the middle): inner radius 2, outer 3
@@ -435,6 +443,8 @@
     // pointer ownership cleanly if the broom is used during a multi-touch drag.
     for (const pointerId of Array.from(pointers.keys())) releaseHold(pointerId);
     while (pieces.length) removePiece(pieces[pieces.length - 1]);
+    for (const l of loads) world.destroyBody(l.body); // a finished site's load goes with its building
+    loads = [];
   }
 
   // ---------------------------------------------------------------------
@@ -548,7 +558,7 @@
     // iterate from most-recently-added (likely on top) backwards
     for (let i = pieces.length - 1; i >= 0; i--) {
       const piece = pieces[i];
-      if (piece.heldBy != null) continue;
+      if (piece.heldBy != null || piece.auto) continue;
       const local = piece.body.getLocalPoint(planck.Vec2(worldPt.x, worldPt.y));
       if (piece.r != null) {
         if (local.x * local.x + local.y * local.y <= (piece.r + PICK_MARGIN) * (piece.r + PICK_MARGIN)) {
@@ -649,9 +659,10 @@
     }
 
     const btn = hitButton(px, py);
-    if (test && !(btn && btn.kind === "home")) return; // hands off during the test
+    if ((test || auto) && !(btn && btn.kind === "home")) return; // hands off during the test and the quick build
     if (btn) {
       if (btn.kind === "home") {
+        cancelAuto();
         releaseAllPointers();
         abortTest();
         mode = "map";
@@ -674,6 +685,8 @@
       return;
     }
     if (currentLevel != null) {
+      const ab = autoBuildButton();
+      if (ab && Math.hypot(px - ab.x, py - ab.y) <= ab.size / 2) { startAutoBuild(); return; }
       const pb = hitPile(px, py);
       if (pb) { // held small inside the sidebar; becomes the real piece when dragged out
         startPileHold(e.pointerId, pb, pilePoint(px, py), false);
@@ -744,11 +757,22 @@
     for (const pointerId of Array.from(pointers.keys())) releaseHold(pointerId);
   }
 
+  // Open hand over something that can be picked up, closed hand while holding.
+  function updateCursor(e) {
+    let c = "default";
+    if (mode !== "map") {
+      if (Array.from(pointers.values()).some((h) => h.piece || h.pileBody)) c = "grabbing";
+      else if ((currentLevel != null && hitPile(e.clientX, e.clientY)) ||
+        (e.clientX < buildingWidthPx && hitPiece(screenToWorld(e.clientX, e.clientY)))) c = "grab";
+    }
+    if (canvas.style.cursor !== c) canvas.style.cursor = c;
+  }
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointercancel", onPointerCancel);
   canvas.addEventListener("lostpointercapture", onLostPointerCapture);
+  for (const ev of ["pointerdown", "pointermove", "pointerup"]) canvas.addEventListener(ev, updateCursor);
   window.addEventListener("blur", releaseAllPointers);
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) releaseAllPointers();
@@ -801,14 +825,29 @@
   const PUSH_ACCEL = 8; // m/s^2: hand force while touching = 0.8 x own weight ...
   const HAND_PUSH = 120; // N ... plus this much hand strength, so a mudbrick can shove another along the ground (stone only slowly)
   const NEAR_GAP = 0.25, NEAR_SPEED = 1.5; // within this gap of another piece the held piece moves at most this fast (no sudden ramming)
-  function nearOtherPiece(body) {
-    let near = false;
-    for (let f = body.getFixtureList(); f && !near; f = f.getNext()) {
+  // Within NEAR_GAP of another piece only the speed towards it is capped; moving along
+  // or away from it stays at full speed (capping all of it made dragging over the building lag).
+  const dIn = new planck.DistanceInput(), dOut = new planck.DistanceOutput(), dCache = new planck.SimplexCache();
+  function capApproach(body, vx, vy, cap) {
+    for (let f = body.getFixtureList(); f; f = f.getNext()) {
       const bb = f.getAABB(0);
       const box = planck.AABB(planck.Vec2(bb.lowerBound.x - NEAR_GAP, bb.lowerBound.y - NEAR_GAP), planck.Vec2(bb.upperBound.x + NEAR_GAP, bb.upperBound.y + NEAR_GAP));
-      world.queryAABB(box, (fx) => { const b = fx.getBody(); if (b !== body && (b.piece || b.isLoad) && !(b.piece && b.piece.ghost)) { near = true; return false; } return true; });
+      world.queryAABB(box, (fx) => {
+        const b = fx.getBody();
+        if (b === body || !(b.piece || b.isLoad) || (b.piece && (b.piece.ghost || b.piece.auto))) return true;
+        dIn.proxyA.set(f.getShape(), 0); dIn.proxyB.set(fx.getShape(), 0);
+        dIn.transformA.set(body.getTransform()); dIn.transformB.set(b.getTransform());
+        dIn.useRadii = true; dCache.count = 0;
+        planck.Distance(dOut, dCache, dIn);
+        const d = dOut.distance;
+        if (d >= NEAR_GAP || d < 0.003) return true; // far, or already touching (the push force is limited then)
+        const ux = (dOut.pointB.x - dOut.pointA.x) / d, uy = (dOut.pointB.y - dOut.pointA.y) / d;
+        const toward = vx * ux + vy * uy;
+        if (toward > cap) { vx -= (toward - cap) * ux; vy -= (toward - cap) * uy; }
+        return true;
+      });
     }
-    return near;
+    return [vx, vy];
   }
   function touchesOtherPiece(body) {
     if (body.piece && body.piece.ghost) return false;
@@ -845,9 +884,9 @@
       const corr = Math.min(Math.sqrt(2 * A * dist) * 0.9, dist / STEP);
       let vx = piece.uSmooth.x + (dist > 1e-6 ? (dx / dist) * corr : 0);
       let vy = piece.uSmooth.y + (dist > 1e-6 ? (dy / dist) * corr : 0);
-      const vlen = Math.hypot(vx, vy);
-      const vcap = !piece.ghost && (touching || nearOtherPiece(body)) ? Math.min(NEAR_SPEED, material.maxLiftSpeed) : material.maxLiftSpeed;
+      const vlen = Math.hypot(vx, vy), vcap = material.maxLiftSpeed;
       if (vlen > vcap) { vx *= vcap / vlen; vy *= vcap / vlen; }
+      if (!piece.ghost) [vx, vy] = capApproach(body, vx, vy, Math.min(NEAR_SPEED, material.maxLiftSpeed));
       const lim = (touching ? Math.min(m * material.maxAccel, m * PUSH_ACCEL + HAND_PUSH) : m * A) * STEP;
       // Impulse that gives the grab point the wanted velocity change. Off-centre the piece
       // also turns, so the grab point reacts with less than the full mass (effective mass
@@ -897,12 +936,13 @@
     let steps = 0;
     while (accumulator >= STEP && steps < MAX_STEPS) {
       advanceHeldTargets();
+      autoTick(STEP);
       testTick(STEP);
       world.step(STEP, 10, 5);
       clampHeldSpin();
       updateStrain();
       solidifyGhosts();
-      if (currentLevel != null) { drivePileHands(); pileWorld.step(STEP, 6, 2); rescuePile(); }
+      if (currentLevel != null) { drivePileHands(); pileWorld.step(STEP, 10, 6); rescuePile(); }
       accumulator -= STEP;
       steps++;
     }
@@ -1022,6 +1062,8 @@
     }
 
     if (currentLevel != null) drawPile();
+    const ab = currentLevel != null ? autoBuildButton() : null;
+    if (ab) SKIN.button(ctx, "autobuild", ab.x, ab.y, ab.size, false);
     for (const b of buttonLayout()) {
       SKIN.button(ctx, b.def.icon, b.x, b.y, b.size, b.def.kind === "test" && !testReady() && !tabHeldNow());
     }
@@ -1052,7 +1094,7 @@
     "drag-wood": [["sounds/drag-wood.mp3", 0.6]],   // same for wood
     "music-map": [["sounds/music-map.mp3", 0.2]],
     "music-level": [["sounds/music-level.mp3", 0.17]],
-    drumroll: [["sounds/drumroll.mp3", 0.8]],    // loops while the test load is lowered
+    drumroll: [["sounds/drumroll.mp3", 0.8]],    // sped up or slowed down to last as long as the test load is lowered
     // collapse.mp3 is in src/sounds but not used yet
   };
   let actx = null;
@@ -1068,7 +1110,8 @@
     }
   }
   // Plays a sound; returns a handle with stop(fadeSeconds) and setVolume(v), or null.
-  function playSound(name, volume, loop = false) {
+  // fitSeconds: play the clip faster or slower so it lasts exactly that long
+  function playSound(name, volume, loop = false, fitSeconds = 0) {
     const list = SOUNDS[name];
     if (!actx || !list) return null;
     const parts = [];
@@ -1076,6 +1119,7 @@
       if (!buffers[f]) continue;
       const src = actx.createBufferSource(), gain = actx.createGain();
       src.buffer = buffers[f]; src.loop = loop;
+      if (fitSeconds > 0) src.playbackRate.value = Math.max(0.25, Math.min(4, buffers[f].duration / fitSeconds));
       gain.gain.value = Math.max(0, Math.min(1, volume)) * v;
       src.connect(gain).connect(actx.destination);
       src.start();
@@ -1110,7 +1154,9 @@
         const c = ce.contact;
         if (!c.isTouching()) continue;
         const wm = new planck.WorldManifold(); c.getWorldManifold(wm);
-        const n = wm.normal, va = p.body.getLinearVelocity(), vb = ce.other.getLinearVelocity();
+        const k = c.getManifold().pointCount, pt = k > 1 ? planck.Vec2((wm.points[0].x + wm.points[1].x) / 2, (wm.points[0].y + wm.points[1].y) / 2) : wm.points[0];
+        if (!pt) continue;
+        const n = wm.normal, va = p.body.getLinearVelocityFromWorldPoint(pt), vb = ce.other.getLinearVelocityFromWorldPoint(pt);
         const rx = va.x - vb.x, ry = va.y - vb.y, rn = rx * n.x + ry * n.y;
         const slide = Math.hypot(rx - rn * n.x, ry - rn * n.y);
         if (slide > speed[key]) speed[key] = slide;
@@ -1306,7 +1352,7 @@
       if (p.material === "mudbrick") {
         const v = p.body.getLinearVelocity(), pv = p.prevV;
         p.prevV = { x: v.x, y: v.y };
-        if (pv && p.heldBy == null && Math.hypot(v.x - pv.x, v.y - pv.y) > MUD_SHATTER_SPEED) { crumble(p); continue; }
+        if (pv && p.heldBy == null && !p.auto && Math.hypot(v.x - pv.x, v.y - pv.y) > MUD_SHATTER_SPEED) { crumble(p); continue; }
       }
       // hit: wood snaps at once when an impact bends it past its strength
       if (p.canSnap && p.heldBy == null && impactMoment(p) > SNAP_MOMENT) { p.impacts.length = 0; snapWood(p); continue; }
@@ -1362,6 +1408,7 @@
   let pileWalls = null, pileQuietUntil = 0;
   pileWorld.on("post-solve", (contact, impulse) => feelContact(contact, impulse, true)); // SECTION FEEL
   let pileScale = 20;      // px per metre in the sidebar
+  const PILE_MAX_SPEED = 4, PILE_MAX_UP = 2; // m/s, pile pieces not in the hand
   let pileBinRect = null;  // px rect of the bin
 
   function pileBodies() {
@@ -1376,7 +1423,7 @@
   }
   function createPileBody(item, x, y) {
     const def = PIECE_DEFS[item.defKey], mat = MATERIALS[item.material];
-    const body = pileWorld.createBody({ type: "dynamic", position: planck.Vec2(x, y), angularDamping: 0.6, linearDamping: 0.1 });
+    const body = pileWorld.createBody({ type: "dynamic", position: planck.Vec2(x, y), angularDamping: 1.5, linearDamping: 0.3 });
     const fo = { density: mat.density * def.densityScale, friction: 0.7, restitution: 0 };
     if (def.shape === "poly") body.createFixture({ ...fo, shape: planck.Polygon(def.verts.map(([vx, vy]) => planck.Vec2(vx, vy))) });
     else if (def.shape === "box") body.createFixture({ ...fo, shape: planck.Box(def.hx, def.hy) });
@@ -1437,7 +1484,7 @@
     const bx = d.r != null ? d.r / 3 : short(d.hx, d.hy), by = d.r != null ? d.r / 3 : short(d.hy, d.hx);
     const centred = forceCentre || (l.x * l.x) / (bx * bx) + (l.y * l.y) / (by * by) <= 1;
     const grab = centred ? body.getLocalCenter() : l;
-    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: 60 * body.getMass() * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
+    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: 10 * body.getMass() * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
     if (centred) body.setAngularVelocity(0);
     pointers.set(pointerId, { piece: null, pileBody: body, pileGrab: planck.Vec2(grab.x, grab.y), pileTarget: pt, joint, centred });
   }
@@ -1454,7 +1501,16 @@
     const r = pileBinRect;
     if (!r) return;
     const W = r.w / pileScale, H = r.h / pileScale;
+    const held = new Set(Array.from(pointers.values()).map((h) => h.pileBody));
     for (const b of pileBodies()) {
+      // pieces knocked by the hand stay messy but do not fly far
+      if (!held.has(b)) {
+        const v = b.getLinearVelocity(), sp = Math.hypot(v.x, v.y);
+        if (sp > PILE_MAX_SPEED || v.y > PILE_MAX_UP) {
+          const k = Math.min(1, PILE_MAX_SPEED / sp);
+          b.setLinearVelocity(planck.Vec2(v.x * k, Math.min(PILE_MAX_UP, v.y * k)));
+        }
+      }
       const q = b.getPosition();
       if (q.x < -0.6 || q.x > W + 0.6 || q.y < -0.6 || !Number.isFinite(q.x + q.y)) {
         b.setTransform(planck.Vec2(W / 2, H + 1), 0); b.setLinearVelocity(planck.Vec2(0, 0)); b.setAngularVelocity(0);
@@ -1524,7 +1580,7 @@
   const LEVEL_X0 = WORLD_WIDTH / 2; // level data is centred on x = 0
   const CELL = 0.1, GX = 400, GY = 160; // check grid: 0.1 m cells over x 0..40 m, y 0..16 m
   const CHECK = {
-    fill: 0.85,      // share of the outline that must be covered before the test
+    fill: 0.83,      // share of the outline that must be covered before the test
     fillAfter: 0.8,  // ... and still covered at each step of it
     farReach: 0.5,   // metres outside the outline that still count as "inside"
     farCells: 5,     // allowed cells beyond that
@@ -1532,6 +1588,7 @@
     woodMin: 0.6,    // share of a wood-course zone that must be wood
     loadMove: 0.6,   // metres the load may shift and still be in place
     loadTilt: 0.35,  // radians
+    loadCells: 2,    // cells of the load's place that may be covered
   };
   const LOAD_DROP = 2; // metres above its place the load starts
   const LOAD_SPEED = 1.2; // m/s lowering speed
@@ -1540,34 +1597,69 @@
   // 7.5 N/m here: weight x half-width against wind x half-height); level 1 has no columns.
   const TEST_WIND = [90, 5, 5, 5, 5, 5, 5, 5, 5, 5];
   const TEST_LOAD_DENSITY = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // kg/m^2, per level
-  const TEST_QUAKE = [0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.32, 0.34, 0.36, 0.38]; // peak ground speed m/s, per level
+  const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
   const PHASE_TIME = { settle: 1.2, wind: 3.5, loadSettle: 1.5, quake: 3, pass: 3.5, fail: 3, why: 2 };
 
-  // What the sidebar pile holds per level: [shape, material, count]. Each level adds
-  // one material or shape, and everything met before stays in the pile.
-  // The counts leave little spare, so the order of layers matters:
-  // stone low (mudbrick crumbles under it), wood only where fully held up.
-  const LEVEL_STOCK = {
-    mastaba:   [["block", "mudbrick", 16]],                                                          // mudbrick only
-    djoser:    [["block", "stone", 12], ["block", "mudbrick", 14]],                                  // + stone
-    ziggurat:  [["block", "stone", 6], ["block", "mudbrick", 8], ["beam", "stone", 4], ["beam", "wood", 6]], // + wood, + beam
-    karnak:    [["column", "stone", 10], ["beam", "stone", 2], ["beam", "wood", 3], ["block", "stone", 2], ["block", "mudbrick", 2]], // + column
-    liongate:  [["block", "stone", 14], ["block", "mudbrick", 10], ["beam", "stone", 2], ["beam", "wood", 3], ["column", "stone", 2]],
-    ishtar:    [["centering", "wood", 1], ["wedge", "stone", 12], ["block", "stone", 16], ["block", "mudbrick", 12], ["block", "wood", 6], ["column", "wood", 4],
-                ["beam", "wood", 4], ["beam", "stone", 2], ["column", "stone", 2]],                  // + wedge, wood as supports
-    parthenon: [["block", "stone", 10], ["block", "mudbrick", 6], ["column", "stone", 7], ["beam", "stone", 3], ["beam", "wood", 3],
-                ["wedge", "stone", 4], ["block", "wood", 2]],
-    mausoleum: [["block", "stone", 16], ["block", "mudbrick", 14], ["column", "stone", 7], ["beam", "stone", 3], ["beam", "wood", 3],
-                ["wedge", "stone", 2], ["block", "wood", 2]],
-    pharos:    [["block", "stone", 10], ["block", "mudbrick", 10], ["column", "stone", 3], ["beam", "stone", 2], ["beam", "wood", 2],
-                ["block", "wood", 2], ["wedge", "stone", 2]],
-    valens:    [["centering", "wood", 4], ["wedge", "stone", 40], ["block", "stone", 20], ["block", "mudbrick", 8], ["block", "wood", 8], ["column", "wood", 8],
-                ["beam", "wood", 4], ["beam", "stone", 3], ["column", "stone", 2]],
+  // Suggested builds, in building order: [shape, material, x, y, angle] in level coordinates.
+  // The quick build (Tab, then the button on the pile) builds these; the pile is made from them.
+  const UP = Math.PI / 2;
+  const blockRow = (mat, x0, n, y) => Array.from({ length: n }, (_, k) => ["block", mat, x0 + 1 + 2 * k, y, 0]);
+  const mirror = (list) => list.concat(list.map(([d, m, x, y, a]) => [d, m, -x, y, -a]));
+  // an arch on its wooden centering: wooden blocks up to the springing (one in the middle if it stands on
+  // the crown of an arch below), the form, then nine wedges from both sides
+  function archBuild(cx, sy, supportRows, single = false) {
+    const out = [];
+    if (single) out.push(["block", "wood", cx, sy - 0.5, 0]);
+    else for (let r = 0; r < supportRows; r++) out.push(["block", "wood", cx - 1, sy - supportRows + r + 0.5, 0], ["block", "wood", cx + 1, sy - supportRows + r + 0.5, 0]);
+    out.push(["centering", "wood", cx, sy + (4 * 1.95) / (3 * Math.PI) + 0.01, 0]);
+    for (const i of [0, 8, 1, 7, 2, 6, 3, 5, 4]) {
+      const t = ((10 + 20 * i) * Math.PI) / 180;
+      out.push(["wedge", "stone", cx + 2.51 * Math.cos(t), sy + 2.51 * Math.sin(t), t - Math.PI / 2]);
+    }
+    return out;
+  }
+  const COLS6 = [-4.5, -2.7, -0.9, 0.9, 2.7, 4.5];
+  const SOLUTIONS = {
+    mastaba: [0.5, 1.5, 2.5].flatMap((y) => blockRow("mudbrick", -4, 4, y)),
+    djoser: [0, 1, 2, 3, 4, 5].flatMap((r) => blockRow(r <= 2 ? "stone" : "mudbrick", -(6 - r), 6 - r, r + 0.5)),
+    ziggurat: [...blockRow("stone", -5, 5, 0.5), ...[-3.2, 0, 3.2].map((x) => ["beam", "wood", x, 1.25, 0]), ...blockRow("mudbrick", -3, 3, 2),
+      ["beam", "wood", -1.6, 2.75, 0], ["beam", "wood", 1.6, 2.75, 0], ...blockRow("mudbrick", -2, 2, 3.5)],
+    karnak: mirror([["column", "stone", -4.0, 1.2, 0], ["block", "stone", -1.3, 1.0, UP], ["capital", "stone", -1.3, 2.2, 0],
+      ["beam", "stone", -2.7, 2.65, 0], ["column", "stone", -0.8, 3.6, 0]]),
+    liongate: [...[0.5, 1.5].flatMap((y) => [...blockRow("stone", -5, 2, y), ...blockRow("stone", 1, 2, y)]),
+      ...[-3.2, 0, 3.2].map((x) => ["beam", "stone", x, 2.25, 0]), ...blockRow("mudbrick", -5, 2, 3), ...blockRow("mudbrick", 1, 2, 3)],
+    ishtar: [...[0.5, 1.5].flatMap((y) => [-5, -3, 3, 5].map((x) => ["block", "stone", x, y, 0])),
+      ...[2.5, 3.5, 4.5, 5.5, 6.5].flatMap((y) => [["block", "mudbrick", -5, y, 0], ["block", "mudbrick", 5, y, 0]]),
+      ...archBuild(0, 2, 2), ...mirror([["column", "stone", -3.33, 3.2, 0], ["capital", "stone", -3.2, 4.6, 0]])],
+    parthenon: [...blockRow("stone", -6, 6, 0.5), ...blockRow("stone", -5, 5, 1.5), ...COLS6.map((x) => ["column", "stone", x, 3.2, 0]),
+      ...[-3.2, 0, 3.2].map((x) => ["beam", "stone", x, 4.65, 0])],
+    mausoleum: [...[0.5, 1.5, 2.5].flatMap((y) => blockRow("stone", -5, 5, y)), ...COLS6.map((x) => ["column", "stone", x, 4.2, 0]),
+      ...[-3.2, 0, 3.2].map((x) => ["beam", "stone", x, 5.65, 0]), ...blockRow("mudbrick", -4, 4, 6.4), ...blockRow("mudbrick", -3, 3, 7.4), ...blockRow("mudbrick", -2, 2, 8.4)],
+    pharos: [...[0.5, 1.5, 2.5].flatMap((y) => blockRow("stone", -3, 3, y)), ...blockRow("stone", -2, 2, 3.5), ...blockRow("mudbrick", -2, 2, 4.5),
+      ...blockRow("mudbrick", -2, 2, 5.5), ...[-0.6, 0, 0.6].map((x) => ["column", "stone", x, 7.2, 0])],
+    valens: [["block", "stone", -6, 0.5, 0], ["block", "stone", 0, 0.5, 0], ["block", "stone", 6, 0.5, 0],
+      ...archBuild(-3, 1, 1), ...archBuild(3, 1, 1),
+      ...mirror([["block", "stone", -6.5, 2.0, UP], ["capital", "stone", -6.2, 3.2, 0], ["block", "stone", -6, 3.92, 0], ["column", "stone", -6, 4.72, UP]]),
+      ["capital", "stone", 0, 3.26, 0], ["block", "stone", 0, 3.98, 0], ["capital", "stone", 0, 4.7, 0],
+      ...archBuild(-3, 5.02, 1, true), ...archBuild(3, 5.02, 1, true), ...mirror([["block", "stone", -6.5, 6.05, UP]]),
+      ["block", "stone", -6.2, 7.6, 0], ["block", "stone", 6.2, 7.6, 0], ["capital", "stone", 0, 7.28, 0], ["column", "stone", 0, 7.8, UP]],
+  };
+  // The pile = the suggested build plus just enough for the wrong choices this level is about
+  // (weak or wrong material where it fails); nothing else is left over.
+  const LEVEL_EXTRA = {
+    ziggurat: [["beam", "stone", 3]],                           // stone in a wood course
+    karnak: [["beam", "wood", 2], ["block", "mudbrick", 2]],    // wooden roof beams, mudbrick pillars
+    liongate: [["beam", "wood", 1]],                            // a wooden lintel under the lion slab
+    ishtar: [["beam", "stone", 2]],                             // a flat lintel instead of an arch
+    parthenon: [["beam", "wood", 2]],                           // wooden architrave
+    mausoleum: [["beam", "wood", 2]],                           // wooden architrave under the stepped roof
+    pharos: [["block", "wood", 2]],                             // light wood in the tower
+    valens: [["block", "mudbrick", 2]],                         // mudbrick piers
   };
   function stockItems(i) {
-    const out = [];
-    for (const [defKey, material, n] of LEVEL_STOCK[LEVELS[i].key] || []) for (let k = 0; k < n; k++) out.push({ defKey, material });
+    const key = LEVELS[i].key, out = (SOLUTIONS[key] || []).map(([defKey, material]) => ({ defKey, material }));
+    for (const [defKey, material, n] of LEVEL_EXTRA[key] || []) for (let k = 0; k < n; k++) out.push({ defKey, material });
     return out;
   }
 
@@ -1611,7 +1703,7 @@
     const L = LEVELS[i], n = GX * GY;
     const g = {
       L, solid: L.solid.map(toWorldRing), holes: L.holes.map(toWorldRing), wood: L.wood.map(toWorldRing), load: L.load.map(toWorldRing),
-      inOutline: new Uint8Array(n), inHole: new Uint8Array(n), inWood: new Uint8Array(n), near: new Uint8Array(n), cov: new Uint8Array(n),
+      inOutline: new Uint8Array(n), inHole: new Uint8Array(n), inWood: new Uint8Array(n), inLoad: new Uint8Array(n), near: new Uint8Array(n), cov: new Uint8Array(n),
       solidCells: 0, holeCells: 0, woodCells: 0,
     };
     let x0 = Infinity, x1 = -Infinity, y1 = 0;
@@ -1619,6 +1711,12 @@
     g.top = y1 + LOAD_DROP + 1;
     const ix0 = Math.max(0, Math.floor(x0 / CELL)), ix1 = Math.min(GX - 1, Math.ceil(x1 / CELL));
     const iy1 = Math.min(GY - 1, Math.ceil(y1 / CELL));
+    // the load's place, less a 0.15 m margin (pieces stacked to the top stand a few mm into it)
+    const LM = 0.15, inLoad = (x, y) => g.load.some((r) => inRing(x, y, r));
+    for (let k = 0; k < n; k++) {
+      const x = (k % GX + 0.5) * CELL, y = (Math.floor(k / GX) + 0.5) * CELL;
+      if (y <= y1 && inLoad(x, y - LM) && inLoad(x, y + LM) && inLoad(x - LM, y) && inLoad(x + LM, y)) g.inLoad[k] = 1;
+    }
     for (let iy = 0; iy <= iy1; iy++) {
       for (let ix = ix0; ix <= ix1; ix++) {
         const x = (ix + 0.5) * CELL, y = (iy + 0.5) * CELL, k = iy * GX + ix;
@@ -1660,7 +1758,7 @@
     cov.fill(0);
     let far = 0;
     for (const p of pieces) {
-      if (p.heldBy != null) continue;
+      if (p.heldBy != null || p.auto) continue;
       const code = p.material === "wood" ? 1 : 2, cells = [];
       let outside = false, touchesSite = false;
       for (let f = p.body.getFixtureList(); f; f = f.getNext()) {
@@ -1679,7 +1777,7 @@
       for (const k of cells) cov[k] = code;
     }
     const support = g.L.woodRole === "support";
-    let filled = 0, holeBad = 0, woodIn = 0;
+    let filled = 0, holeBad = 0, woodIn = 0, loadBad = 0;
     for (let k = 0; k < cov.length; k++) {
       const c = cov[k];
       if (!c) continue;
@@ -1687,17 +1785,19 @@
       if (!g.near[k]) far++;
       if (g.inHole[k] && !(support && c === 1)) holeBad++;
       if (g.inWood[k] && c === 1) woodIn++;
+      if (g.inLoad[k]) loadBad++;
     }
     return {
       fill: g.solidCells ? filled / g.solidCells : 0,
       far,
       hole: g.holeCells ? holeBad / g.holeCells : 0,
       wood: g.woodCells ? woodIn / g.woodCells : 1,
+      load: loadBad, // cells of the load's place taken by pieces
     };
   }
 
   function checkPasses(c) {
-    return c.fill >= CHECK.fill && c.far <= CHECK.farCells && c.hole <= CHECK.holeMax &&
+    return c.fill >= CHECK.fill && c.far <= CHECK.farCells && c.hole <= CHECK.holeMax && c.load <= CHECK.loadCells &&
       (grid.L.woodRole !== "courses" || c.wood >= CHECK.woodMin);
   }
   // The cells to paint red for each rule that fails (uses grid.cov from the last runCheck).
@@ -1707,20 +1807,34 @@
     const woodBad = fillNeeded === CHECK.fill && g.L.woodRole === "courses" && c.wood < CHECK.woodMin;
     for (let k = 0; k < g.cov.length; k++) {
       const cv = g.cov[k];
-      if ((g.inOutline[k] && !cv) || // unfilled parts of the outline are always shown
-           (farBad && cv && !g.near[k]) ||
+      if ((farBad && cv && !g.near[k]) ||
           (holeBad && g.inHole[k] && cv && !(support && cv === 1)) || (woodBad && g.inWood[k] && cv !== 1)) out.push(k);
     }
     return out;
   }
+  // Ready only after the check has passed for READY_HOLD seconds with every piece at rest,
+  // so a piece still settling cannot flash the button green.
+  const READY_HOLD = 0.5;
+  let readySince = null;
+  function piecesAtRest() {
+    for (const p of pieces) {
+      const v = p.body.getLinearVelocity();
+      if (Math.hypot(v.x, v.y) > 0.05 || Math.abs(p.body.getAngularVelocity()) > 0.05) return false;
+    }
+    return true;
+  }
   function testReady() {
-    return currentLevel != null && !test && !!check && pointers.size === 0 && checkPasses(check);
+    return currentLevel != null && !test && !auto && pointers.size === 0 && readySince != null && performance.now() - readySince >= READY_HOLD * 1000;
   }
   function updateCheck(dt) {
     if (failShow && failShow.until != null && performance.now() > failShow.until) failShow = null;
     if (currentLevel == null || test) return;
     checkTimer -= dt;
-    if (checkTimer <= 0) { check = runCheck(); checkTimer = 0.25; }
+    if (checkTimer <= 0) {
+      check = runCheck(); checkTimer = 0.25;
+      const ok = pointers.size === 0 && !auto && checkPasses(check) && piecesAtRest();
+      readySince = ok ? (readySince != null ? readySince : performance.now()) : null;
+    }
   }
 
   function startLevel(i) {
@@ -1730,7 +1844,8 @@
     if (!grid || grid.L !== LEVELS[i]) grid = buildLevel(i);
     currentLevel = i;
     levelTop = grid.top;
-    check = null; checkTimer = 0; failShow = null;
+    check = null; checkTimer = 0; failShow = null; readySince = null;
+    cancelAuto();
     mode = "build";
     layout();
     if (!fresh) fillPile(pileItems()); // re-entering: what is left, tidied
@@ -1750,6 +1865,12 @@
         const j = left.findIndex((it) => it.defKey === key && it.material === m);
         if (j >= 0) left.splice(j, 1);
       }
+      for (const [x, y, a, verts] of done.loads || []) { // the load stays on top of the finished building
+        const body = world.createBody({ type: "dynamic", position: planck.Vec2(x, y), angle: a });
+        body.createFixture({ shape: planck.Polygon(verts.map(([vx, vy]) => planck.Vec2(vx, vy))), density: TEST_LOAD_DENSITY[i], friction: 0.6, restitution: 0 });
+        body.isLoad = true;
+        loads.push({ body, tx: x, ty: y, verts, released: true });
+      }
       fillPile(left);
     }
   }
@@ -1759,6 +1880,62 @@
     currentLevel = null; grid = null; check = null; failShow = null;
     mode = "build";
     layout();
+  }
+
+  // --- quick build (parent override): with Tab held a button appears on the pile; it tidies
+  // everything back into the pile, then builds the suggested way, piece by piece, very fast.
+  const AUTO_SPEED = 30, AUTO_PAUSE = 0.06; // m/s flying in, s between pieces
+  let auto = null; // { queue, cur, wait }
+  function autoBuildButton() {
+    if (currentLevel == null || test || auto || !tabHeldNow() || !SOLUTIONS[LEVELS[currentLevel].key] || !pileBinRect) return null;
+    const r = pileBinRect, size = Math.min(48, r.w * 0.35);
+    return { x: r.x + r.w / 2, y: r.y + size / 2 + 6, size };
+  }
+  function startAutoBuild() {
+    releaseAllPointers();
+    const items = pileItems().concat(pieces.map((p) => ({ defKey: p.defKey, material: p.material })));
+    clearAllPieces();
+    fillPile(items);
+    failShow = null;
+    auto = { queue: SOLUTIONS[LEVELS[currentLevel].key].slice(), cur: null, wait: 0.3 };
+  }
+  function placeAuto(c) {
+    const b = c.piece.body;
+    b.setLinearVelocity(planck.Vec2(0, 0)); b.setAngularVelocity(0);
+    b.setTransform(planck.Vec2(c.tx, c.ty), c.ta);
+    b.setDynamic();
+    for (let f = b.getFixtureList(); f; f = f.getNext()) f.setSensor(false);
+    b.setAwake(true);
+    c.piece.auto = false; c.piece.prevV = null;
+  }
+  function cancelAuto() {
+    if (auto && auto.cur && pieces.includes(auto.cur.piece)) placeAuto(auto.cur);
+    auto = null;
+  }
+  function autoTick(dt) {
+    if (!auto) return;
+    const c = auto.cur;
+    if (c && !pieces.includes(c.piece)) { auto.cur = null; return; }
+    if (c) {
+      const b = c.piece.body, q = b.getPosition(), dx = c.tx - q.x, dy = c.ty - q.y, d = Math.hypot(dx, dy);
+      if (d <= AUTO_SPEED * dt) { placeAuto(c); auto.cur = null; auto.wait = AUTO_PAUSE; return; }
+      b.setLinearVelocity(planck.Vec2((dx / d) * AUTO_SPEED, (dy / d) * AUTO_SPEED));
+      b.setAngularVelocity((c.ta - b.getAngle()) / Math.max(dt, d / AUTO_SPEED));
+      return;
+    }
+    if ((auto.wait -= dt) > 0) return;
+    const step = auto.queue.shift();
+    if (!step) { auto = null; return; }
+    const [defKey, material, x, y, a] = step;
+    const pb = pileBodies().find((bd) => bd.pileItem.defKey === defKey && bd.pileItem.material === material);
+    if (!pb) return; // not in the pile any more: skip it
+    pileWorld.destroyBody(pb);
+    const d = PIECE_DEFS[defKey], e = d.r != null ? d.r : Math.max(d.hx, d.hy);
+    const piece = spawnPiece(defKey, worldWidth - e, y, 0, material);
+    piece.body.setKinematic();
+    for (let f = piece.body.getFixtureList(); f; f = f.getNext()) f.setSensor(true);
+    piece.auto = true;
+    auto.cur = { piece, tx: x + LEVEL_X0, ty: y + 0.02, ta: a };
   }
 
   // --- the test: supports pulled out, wind, load lowered on, earthquake. After each
@@ -1771,13 +1948,15 @@
       // grey button pressed: show why it is not ready yet
       if (pointers.size === 0) {
         check = runCheck();
-        failShow = { cells: failingCells(check, CHECK.fill), loads: [], until: performance.now() + PHASE_TIME.why * 1000 };
+        failShow = { cells: failingCells(check, CHECK.fill), loads: [], loadZone: check.load > CHECK.loadCells, unfilled: true, until: performance.now() + PHASE_TIME.why * 1000 };
         playSound("not-ready", 1);
       }
       return;
     }
     releaseAllPointers();
     failShow = null;
+    for (const l of loads) world.destroyBody(l.body); // a finished site's load: the test lowers a new one
+    loads = [];
     const snapshot = pieces.map((p) => { const q = p.body.getPosition(); return { defKey: p.defKey, material: p.material, x: q.x, y: q.y, angle: p.body.getAngle() }; });
     let toPull = [];
     if (grid.L.woodRole === "support") {
@@ -1793,7 +1972,11 @@
     if (test.loop) { test.loop.stop(0.6); test.loop = null; }
     test.phase = phase; test.t = 0;
     if (phase === "wind") test.loop = playSound("wind", 1, true);
-    if (phase === "load") { spawnLoads(); test.loop = playSound("drumroll", 1, true); }
+    if (phase === "load") {
+      spawnLoads();
+      const T = Math.max(0.5, ...loads.map((l) => (l.body.getPosition().y - l.ty) / LOAD_SPEED));
+      test.loop = playSound("drumroll", 1, false, T);
+    }
     if (phase === "quake") test.loop = playSound("quake", 1);
   }
   // Wait, then check; go on to `next` or stop with the reason shown.
@@ -1802,7 +1985,7 @@
     const c = runCheck();
     const badLoads = loads.filter((l) => !loadInPlace(l));
     if (c.fill < CHECK.fillAfter || badLoads.length) {
-      failShow = { cells: c.fill < CHECK.fillAfter ? failingCells(c, CHECK.fillAfter) : [], loads: badLoads, until: null };
+      failShow = { cells: c.fill < CHECK.fillAfter ? failingCells(c, CHECK.fillAfter) : [], loads: badLoads, unfilled: true, until: null };
       nextPhase("fail");
       playSound("fail", 1);
       return false;
@@ -1848,7 +2031,7 @@
     } else if (test.phase === "quake") {
       const D = PHASE_TIME.quake, env = Math.sin((Math.PI * Math.min(T, D)) / D);
       groundBody.setLinearVelocity(planck.Vec2(TEST_QUAKE[lv] * env * Math.sin(2 * Math.PI * QUAKE_HZ * T), 0));
-      shake = Math.max(shake, 5 * env);
+      shake = Math.max(shake, 10 * env);
       if (T >= D) { resetGround(); settleThenCheck("pass"); }
     } else if (test.phase === "pass") {
       if (T >= PHASE_TIME.pass) { saveMonument(); finishTest(); mode = "map"; }
@@ -1954,18 +2137,53 @@
     if (currentLevel == null || !grid) return;
     SKIN.outline(ctx, screenPath(grid.solid), screenPath(grid.holes));
     if (grid.wood.length) SKIN.woodZone(ctx, screenPath(grid.wood));
-    const badGhost = failShow && failShow.loads.length;
+    const badGhost = failShow && (failShow.loads.length || failShow.loadZone);
     if (!loads.length || badGhost) SKIN.loadGhost(ctx, screenPath(grid.load), badGhost);
   }
   // Red, pulsing: the parts of the outline (or openings, or wood zones) that broke a rule.
+  // Unfilled outline = the outline with every piece cut out (a little wider than itself, so
+  // pieces that touch leave no seam), drawn on a spare canvas: straight edges, real gaps only.
+  const SEAM = 0.04; // m
+  let unfilledCanvas = null;
+  function drawUnfilled(alpha) {
+    const dpr = window.devicePixelRatio || 1;
+    const oc = unfilledCanvas || (unfilledCanvas = document.createElement("canvas"));
+    if (oc.width !== canvas.width || oc.height !== canvas.height) { oc.width = canvas.width; oc.height = canvas.height; }
+    const o = oc.getContext("2d");
+    o.setTransform(1, 0, 0, 1, 0, 0); o.clearRect(0, 0, oc.width, oc.height); o.setTransform(dpr, 0, 0, dpr, 0, 0);
+    o.globalCompositeOperation = "source-over";
+    o.fillStyle = "rgb(220, 40, 30)";
+    o.fill(screenPath(grid.solid.concat(grid.holes)), "evenodd");
+    o.globalCompositeOperation = "destination-out";
+    o.fillStyle = o.strokeStyle = "#000"; o.lineWidth = 2 * SEAM * scale; o.lineJoin = "round";
+    for (const p of pieces) {
+      if (p.heldBy != null || p.auto) continue;
+      for (let f = p.body.getFixtureList(); f; f = f.getNext()) {
+        const sh = f.getShape(), path = new Path2D();
+        if (sh.getType() === "circle") {
+          const c = worldToScreen(p.body.getPosition().x, p.body.getPosition().y);
+          path.arc(c.x, c.y, sh.getRadius() * scale, 0, Math.PI * 2);
+        } else {
+          sh.m_vertices.forEach((v, i) => { const w = p.body.getWorldPoint(v), q = worldToScreen(w.x, w.y); if (i) path.lineTo(q.x, q.y); else path.moveTo(q.x, q.y); });
+          path.closePath();
+        }
+        o.fill(path); o.stroke(path);
+      }
+    }
+    o.globalCompositeOperation = "source-over";
+    ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(oc, 0, 0, cssWidth, cssHeight); ctx.restore();
+  }
   function drawFailShow() {
-    if (!failShow || !failShow.cells.length) return;
+    if (!failShow) return;
+    const alpha = 0.35 + 0.2 * Math.sin(performance.now() / 120);
+    if (failShow.unfilled && grid) drawUnfilled(alpha);
+    if (!failShow.cells.length) return;
     const path = new Path2D(), px = CELL * scale;
     for (const k of failShow.cells) {
       const s = worldToScreen((k % GX) * CELL, (Math.floor(k / GX) + 1) * CELL);
       path.rect(s.x, s.y, px + 0.5, px + 0.5);
     }
-    SKIN.failCells(ctx, path, 0.35 + 0.2 * Math.sin(performance.now() / 120));
+    SKIN.failCells(ctx, path, alpha);
   }
   // The player's finished building, small, on its map site.
   function drawMonumentMini(done, cx, cy, r) {
