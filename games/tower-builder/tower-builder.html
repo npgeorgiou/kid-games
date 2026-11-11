@@ -447,7 +447,7 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
       body.createFixture({ ...fixtureOptions, shape: planck.Circle(def.r) });
     }
     const piece = { id: nextPieceId++, defKey, material: materialKey, body, hx: def.hx, hy: def.hy, r: def.r, verts: def.verts };
-    piece.strain = 0; piece.crush = 0; piece.sup = []; piece.loads = []; // SECTION BREAKING
+    piece.strain = 0; piece.crush = 0; piece.sup = []; piece.loads = []; piece.impacts = []; // SECTION BREAKING
     piece.canSnap = materialKey === "wood" && def.shape === "box" && !!def.half;
     body.piece = piece;
     pieces.push(piece);
@@ -607,8 +607,11 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     const localGrab = piece.body.getLocalPoint(planck.Vec2(worldPt.x, worldPt.y));
     // "Center third of the block": the zone spans the middle third of each
     // full dimension, i.e. one third of the half-extent either side of centre.
-    const balanceX = piece.r != null ? piece.r / 3 : piece.hx / 3;
-    const balanceY = piece.r != null ? piece.r / 3 : piece.hy / 3;
+    // Across the short side of a long piece the zone is most of the width, so a standing
+    // column or plank picked anywhere across it is carried upright.
+    const shortSide = (h, o) => (h < o * 0.8 ? h * 0.8 : h / 3);
+    const balanceX = piece.r != null ? piece.r / 3 : shortSide(piece.hx, piece.hy);
+    const balanceY = piece.r != null ? piece.r / 3 : shortSide(piece.hy, piece.hx);
     const inBalanceZone =
       (localGrab.x * localGrab.x) / (balanceX * balanceX) +
       (localGrab.y * localGrab.y) / (balanceY * balanceY) <= 1;
@@ -636,6 +639,8 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     pointers.delete(pointerId);
     const piece = hand.piece;
     if (!piece) return;
+    // let go while still passing through other pieces: it was never placed, so it goes back to the pile
+    if (piece.ghost && currentLevel != null && pieces.includes(piece)) { piece.heldBy = null; returnToPile(piece); return; }
     piece.heldBy = null;
     piece.grabLocal = null;
     piece.controlMode = null;
@@ -702,10 +707,8 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     }
     if (currentLevel != null) {
       const pb = hitPile(px, py);
-      if (pb) {
-        const it = pb.pileItem;
-        pileWorld.destroyBody(pb);
-        spawnHeldAtEdge(it.defKey, 0, it.material, e.pointerId, px, py);
+      if (pb) { // held small inside the sidebar; becomes the real piece when dragged out
+        pointers.set(e.pointerId, { piece: null, pileBody: pb, pileGrab: pb.getLocalPoint(pilePoint(px, py)), pileTarget: pilePoint(px, py) });
         return;
       }
     }
@@ -723,6 +726,15 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
   // (in stepPhysics below, once per physics tick), not this handler.
   function onPointerMove(e) {
     const hand = pointers.get(e.pointerId);
+    if (hand && currentLevel != null && !test) {
+      if (hand.pileBody) {
+        if (e.clientX < buildingWidthPx) pileToWorld(e.pointerId, hand, e.clientX, e.clientY);
+        else { hand.pileTarget = pilePoint(e.clientX, e.clientY); return; }
+      } else if (hand.piece && e.clientX >= buildingWidthPx && pieces.includes(hand.piece)) {
+        worldToPile(e.pointerId, hand, e.clientX, e.clientY);
+        return;
+      }
+    }
     if (!hand || !hand.piece || !hand.piece.controlMode) return;
     hand.lastX = e.clientX;
     hand.lastY = e.clientY;
@@ -809,6 +821,7 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
   const HAND_LIFT = 350;
   const PUSH_ACCEL = 8; // m/s^2: hand force while touching = 0.8 x own weight
   function touchesOtherPiece(body) {
+    if (body.piece && body.piece.ghost) return false;
     for (let ce = body.getContactList(); ce; ce = ce.next) {
       if (ce.contact.isTouching() && ce.other.piece) return true;
     }
@@ -885,7 +898,8 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
       world.step(STEP, 10, 5);
       clampHeldSpin();
       updateStrain();
-      if (currentLevel != null) pileWorld.step(STEP, 6, 2);
+      solidifyGhosts();
+      if (currentLevel != null) { drivePileHands(); pileWorld.step(STEP, 6, 2); }
       accumulator -= STEP;
       steps++;
     }
@@ -898,7 +912,9 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
   function drawPiece(piece) {
     const pos = piece.body.getPosition();
     const s = worldToScreen(pos.x, pos.y);
+    if (piece.ghost) { ctx.save(); ctx.globalAlpha = 0.55; }
     drawPieceShape(piece.defKey, piece.material, s.x, s.y, piece.body.getAngle(), scale, piece.strain);
+    if (piece.ghost) ctx.restore();
   }
 
   // Draws one piece at a screen point and pixels-per-metre (also used for the map's small monuments).
@@ -1025,7 +1041,7 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
   const puffs = [];
   let shake = 0;
   const lastImpact = new Map(); // body -> time, so one landing makes one thud
-  const MUD_SHATTER_SPEED = 8; // m/s of sudden stop that crumbles a mudbrick at once (about a 3 m fall); placeholder
+  const MUD_SHATTER_SPEED = 7; // m/s lost in one step that crumbles a mudbrick at once (about a 2.5 m fall); placeholder
   world.on("post-solve", (contact, impulse) => {
     const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
     const n = Math.max(...impulse.normalImpulses.slice(0, contact.getManifold().pointCount));
@@ -1033,7 +1049,6 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     for (const b of [bA, bB]) {
       if (!b.piece) continue;
       const dv = n / (b.getMass() || 1); // speed change this contact caused, m/s
-      if (b.piece.material === "mudbrick" && dv > MUD_SHATTER_SPEED) b.piece.shatter = true; // crumbled after the step (SECTION BREAKING)
       if (dv < 1.2) continue;
       const now = performance.now();
       if (now - (lastImpact.get(b) || 0) < 250) continue;
@@ -1125,11 +1140,18 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
       if (py < 0) { px = -px; py = -py; }
       if (py < 0.5) continue; // standing too upright to bend
       const c = body.getPosition();
-      let s0 = Infinity, s1 = -Infinity;
+      let s0 = Infinity, s1 = -Infinity, sl = 0, nl = 0;
       for (const [x, y, fx, fy] of pts) {
         const s = (x - c.x) * ux + (y - c.y) * uy, f = fx * px + fy * py;
         if (f > 0) { s0 = Math.min(s0, s); s1 = Math.max(s1, s); }
-        else piece.loads.push([s, -f]);
+        else { piece.loads.push([s, -f]); sl += s; nl++; }
+      }
+      // what hit it: kinetic energy it brought in = J^2 / 2m (J = the impulse that stopped it this step)
+      const other = body === bA ? bB : bA, mo = other.isDynamic() ? other.getMass() : 0;
+      if (nl && mo > 0) {
+        let J = 0;
+        for (let i = 0; i < cnt; i++) J += impulse.normalImpulses[i];
+        if (J / mo > 1.5) piece.impacts.push([sl / nl, (J * J) / (2 * mo), mo * GRAVITY]); // a real hit, not settling (over 1.5 m/s)
       }
       if (s1 >= s0) piece.sup.push([s0, s1]); // one support contact holds up the whole stretch between its points
     }
@@ -1155,11 +1177,48 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     return M;
   }
 
+  // Impact on a beam (energy method): an object bringing kinetic energy KE onto a span L
+  // between supports raises the bending moment by sqrt(6 * KE * EI / L) wherever it lands,
+  // on top of its weight's own moment W*a*b/L; past the last support the arm a replaces L
+  // and the weight's moment is W*a. Stiffer or shorter spans take more of the blow.
+  const WOOD_EI = 1;       // bending stiffness of the wooden pieces, N*m^2 (placeholder, tune by play)
+  const IMPACT_MIN_SPAN = 0.5; // m: spans shorter than this count as this
+  function impactMoment(p) {
+    if (!p.sup.length || !p.impacts.length) return 0;
+    let M = 0;
+    for (const [x, ke, W] of p.impacts) {
+      let l = -Infinity, r = Infinity, held = false;
+      for (const [a, b] of p.sup) {
+        if (x >= a - 0.05 && x <= b + 0.05) { held = true; break; }
+        if (b < x) l = Math.max(l, b);
+        if (a > x) r = Math.min(r, a);
+      }
+      if (held) continue;
+      let m;
+      if (Number.isFinite(l) && Number.isFinite(r)) {
+        const L = r - l;
+        m = (W * (x - l) * (r - x)) / L + Math.sqrt((6 * ke * WOOD_EI) / Math.max(IMPACT_MIN_SPAN, L));
+      } else {
+        const a = Math.min(Math.abs(x - l), Math.abs(r - x));
+        m = W * a + Math.sqrt((6 * ke * WOOD_EI) / Math.max(IMPACT_MIN_SPAN, a));
+      }
+      M = Math.max(M, m);
+    }
+    return M;
+  }
+
   function updateStrain() {
     for (const p of pieces.slice()) {
-      if (p.shatter && p.heldBy == null) { crumble(p); continue; }
-      p.shatter = false;
       if (p.material !== "mudbrick" && !p.canSnap) continue;
+      // hard landing: a mudbrick whose speed changed by more than MUD_SHATTER_SPEED in one step crumbles at once
+      if (p.material === "mudbrick") {
+        const v = p.body.getLinearVelocity(), pv = p.prevV;
+        p.prevV = { x: v.x, y: v.y };
+        if (pv && p.heldBy == null && Math.hypot(v.x - pv.x, v.y - pv.y) > MUD_SHATTER_SPEED) { crumble(p); continue; }
+      }
+      // hit: wood snaps at once when an impact bends it past its strength
+      if (p.canSnap && p.heldBy == null && impactMoment(p) > SNAP_MOMENT) { p.impacts.length = 0; snapWood(p); continue; }
+      p.impacts.length = 0;
       let over = false, time = 1;
       if (p.heldBy == null) {
         if (p.material === "mudbrick") { over = p.crush > CRUSH_FORCE; time = STRAIN_TIME.crumble; }
@@ -1232,6 +1291,7 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     return body;
   }
   function fillPile(items) {
+    for (const [id, h] of Array.from(pointers)) if (h.pileBody) pointers.delete(id);
     for (let b = pileWorld.getBodyList(); b; ) { const nb = b.getNext(); pileWorld.destroyBody(b); b = nb; }
     const r = pileBinRect;
     if (!r) return;
@@ -1268,6 +1328,59 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
       if (dist <= margin && dist < bestD) { best = b; bestD = dist; }
     }
     return best;
+  }
+  function pilePoint(px, py) {
+    const r = pileBinRect;
+    return planck.Vec2((px - r.x) / pileScale, (r.y + r.h - py) / pileScale);
+  }
+  // A hand holding a small piece in the sidebar moves its grab point towards the pointer.
+  function drivePileHands() {
+    for (const hand of pointers.values()) {
+      if (!hand.pileBody) continue;
+      const b = hand.pileBody, g = b.getWorldPoint(hand.pileGrab), r = pileBinRect;
+      const tx = Math.max(0, Math.min(r.w / pileScale, hand.pileTarget.x)), ty = Math.max(0, Math.min(r.h / pileScale, hand.pileTarget.y));
+      let vx = (tx - g.x) / (STEP * 4), vy = (ty - g.y) / (STEP * 4);
+      const vl = Math.hypot(vx, vy), cap = 25;
+      if (vl > cap) { vx *= cap / vl; vy *= cap / vl; }
+      b.setAwake(true);
+      b.setLinearVelocity(planck.Vec2(vx, vy));
+      b.setAngularVelocity(b.getAngularVelocity() * 0.8);
+    }
+  }
+  function setGhost(piece, on) {
+    piece.ghost = on;
+    for (let f = piece.body.getFixtureList(); f; f = f.getNext()) f.setSensor(on);
+  }
+  // Dragged out of the sidebar: the real piece appears under the finger, passing through
+  // everything until it is clear of other pieces and the ground, so it cannot knock the building.
+  function pileToWorld(pointerId, hand, px, py) {
+    const b = hand.pileBody, it = b.pileItem, a = b.getAngle(), g = hand.pileGrab;
+    pointers.delete(pointerId);
+    pileWorld.destroyBody(b);
+    const w = screenToWorld(px, py), ca = Math.cos(a), sa = Math.sin(a);
+    const piece = spawnPiece(it.defKey, w.x - (g.x * ca - g.y * sa), w.y - (g.x * sa + g.y * ca), a, it.material);
+    setGhost(piece, true);
+    startHold(piece, w, pointerId, px, py);
+  }
+  // Dragged into the sidebar: the piece shrinks into the pile and stays in the hand.
+  function worldToPile(pointerId, hand, px, py) {
+    const piece = hand.piece, g = piece.grabLocal, a = piece.body.getAngle();
+    piece.ghost = false;
+    releaseHold(pointerId);
+    if (!pieces.includes(piece)) return;
+    removePiece(piece);
+    const t = pilePoint(px, py), ca = Math.cos(a), sa = Math.sin(a);
+    const b = createPileBody({ defKey: piece.defKey, material: piece.material }, t.x - (g.x * ca - g.y * sa), t.y - (g.x * sa + g.y * ca));
+    b.setTransform(b.getPosition(), a);
+    pointers.set(pointerId, { piece: null, pileBody: b, pileGrab: planck.Vec2(g.x, g.y), pileTarget: t });
+  }
+  function solidifyGhosts() {
+    for (const p of pieces) {
+      if (!p.ghost) continue;
+      let clear = true;
+      for (let ce = p.body.getContactList(); ce; ce = ce.next) if (ce.contact.isTouching()) { clear = false; break; }
+      if (clear) setGhost(p, false);
+    }
   }
   function returnToPile(piece) {
     const item = { defKey: piece.defKey, material: piece.material };
@@ -1307,7 +1420,9 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
   const LOAD_DROP = 2; // metres above its place the load starts
   const LOAD_SPEED = 0.8; // m/s lowering speed
   // N per metre of exposed height. Level 1: a top row of wooden blocks slides off, mudbrick holds.
-  const TEST_WIND = [90, 45, 45, 40, 45, 45, 40, 45, 55, 45];
+  // From level 2 on, below what tips a lone stone column (0.6 x 2.4 m tips at about
+  // 7.5 N/m here: weight x half-width against wind x half-height); level 1 has no columns.
+  const TEST_WIND = [90, 5, 5, 5, 5, 5, 5, 5, 5, 5];
   const TEST_LOAD_DENSITY = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // kg/m^2, per level
   const TEST_QUAKE = [0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.32, 0.34, 0.36, 0.38]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
@@ -1413,6 +1528,13 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     return ix >= 0 && ix < GX && iy >= 0 && iy < GY ? iy * GX + ix : -1;
   }
 
+  // Resting on the ground, or on other pieces that do, without reaching the building site.
+  function onGroundAlone(p) {
+    let lowest = Infinity;
+    for (let f = p.body.getFixtureList(); f; f = f.getNext()) lowest = Math.min(lowest, f.getAABB(0).lowerBound.y);
+    for (let ce = p.body.getContactList(); ce; ce = ce.next) if (ce.contact.isTouching() && ce.other === groundBody) return true;
+    return lowest < 1.2; // lying low in a heap on the floor
+  }
   // Which cells the pieces cover, and how that compares with the outline.
   function runCheck() {
     const g = grid, cov = g.cov, v = planck.Vec2(0, 0);
@@ -1420,17 +1542,22 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     let far = 0;
     for (const p of pieces) {
       if (p.heldBy != null) continue;
-      const code = p.material === "wood" ? 1 : 2;
+      const code = p.material === "wood" ? 1 : 2, cells = [];
+      let outside = false, touchesSite = false;
       for (let f = p.body.getFixtureList(); f; f = f.getNext()) {
         const bb = f.getAABB(0);
-        if (bb.upperBound.x > GX * CELL || bb.upperBound.y > GY * CELL) far += 1000;
+        if (bb.upperBound.x > GX * CELL || bb.upperBound.y > GY * CELL) outside = true;
         const ax = Math.max(0, Math.floor(bb.lowerBound.x / CELL)), bx = Math.min(GX - 1, Math.floor(bb.upperBound.x / CELL));
         const ay = Math.max(0, Math.floor(bb.lowerBound.y / CELL)), by = Math.min(GY - 1, Math.floor(bb.upperBound.y / CELL));
         for (let iy = ay; iy <= by; iy++) for (let ix = ax; ix <= bx; ix++) {
           v.x = (ix + 0.5) * CELL; v.y = (iy + 0.5) * CELL;
-          if (f.testPoint(v)) cov[iy * GX + ix] = code;
+          if (f.testPoint(v)) { const k = iy * GX + ix; cells.push(k); if (g.near[k]) touchesSite = true; }
         }
       }
+      // a piece lying on the ground away from the building is just left-over material: it does not count
+      if (!touchesSite && onGroundAlone(p)) continue;
+      if (outside) far += 1000;
+      for (const k of cells) cov[k] = code;
     }
     const support = g.L.woodRole === "support";
     let filled = 0, holeBad = 0, woodIn = 0;
@@ -1576,10 +1703,13 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
         else nextPhase(test.after);
       }
     } else if (test.phase === "wind") {
-      const D = PHASE_TIME.wind, ramp = Math.max(0, Math.min(1, T / 0.7, (D - T) / 0.7));
-      applyWind(TEST_WIND[lv] * ramp);
-      if (Math.random() < 0.6 * ramp) puffs.push({ kind: "wind", x: 0, y: Math.random() * levelTop, vx: 10, vy: 0, r: 0.6 + Math.random() * 0.9, life: 1 });
-      if (T >= D) settleThenCheck("load");
+      // from the left, a one-second lull, then from the right
+      const D = PHASE_TIME.wind, GAP = 1, right = T >= D + GAP, t = right ? T - D - GAP : T;
+      const ramp = T > D && !right ? 0 : Math.max(0, Math.min(1, t / 0.7, (D - t) / 0.7));
+      const dir = right ? -1 : 1;
+      applyWind(TEST_WIND[lv] * ramp, dir);
+      if (Math.random() < 0.6 * ramp) puffs.push({ kind: "wind", x: dir > 0 ? 0 : worldWidth, y: Math.random() * levelTop, vx: 10 * dir, vy: 0, r: 0.6 + Math.random() * 0.9, life: 1 });
+      if (T >= 2 * D + GAP) settleThenCheck("load");
     } else if (test.phase === "load") {
       let all = true;
       for (const l of loads) {
@@ -1602,17 +1732,19 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
     }
   }
 
-  // Wind from the left: each 0.1 m band of height pushes on the first thing it meets.
-  function applyWind(P) {
+  // Wind from the left (dir 1) or right (dir -1): each 0.1 m band of height pushes only
+  // on the first thing it meets; whatever is behind it is sheltered.
+  function applyWind(P, dir) {
+    const xa = dir > 0 ? 0.02 : worldWidth - 0.02, xb = dir > 0 ? worldWidth - 0.02 : 0.02;
     for (let y = 0.05; y < levelTop; y += 0.1) {
       let hit = null, hx = 0, hy = 0;
-      world.rayCast(planck.Vec2(0.02, y), planck.Vec2(worldWidth - 0.02, y), (f, pt, nrm, frac) => {
+      world.rayCast(planck.Vec2(xa, y), planck.Vec2(xb, y), (f, pt, nrm, frac) => {
         const b = f.getBody();
         if (!b.piece && !b.isLoad) return -1;
         hit = b; hx = pt.x; hy = pt.y;
         return frac;
       });
-      if (hit) hit.applyForce(planck.Vec2(P * 0.1, 0), planck.Vec2(hx, hy), true);
+      if (hit) hit.applyForce(planck.Vec2(dir * P * 0.1, 0), planck.Vec2(hx, hy), true);
     }
   }
 
@@ -1734,12 +1866,12 @@ const LEVELS = [{"key": "mastaba","nameEl": "Μαστάμπα","date": "c. 3000 
   // Chronological = level order. lon/lat: approximate marker spot, nudged a
   // little from the real place (comment) so markers don't overlap.
   const SITES = [
-    { key: "mastaba",   lon: 30.1,  lat: 29.9  }, // Saqqara, c. 3000 BC
-    { key: "djoser",    lon: 32.3,  lat: 29.9  }, // Saqqara 31.22E 29.87N, c. 2650 BC
-    { key: "ziggurat",  lon: 46.10, lat: 30.96 }, // Ur, c. 2100 BC
-    { key: "karnak",    lon: 32.66, lat: 25.72 }, // Karnak, c. 1290-1220 BC
+    { key: "mastaba",   lon: 28.5,  lat: 29.0  }, // Saqqara 31.22E 29.87N, c. 3000 BC (moved apart from Djoser and Alexandria)
+    { key: "djoser",    lon: 31.4,  lat: 29.0  }, // Saqqara 31.22E 29.87N, c. 2650 BC
+    { key: "ziggurat",  lon: 45.0,  lat: 31.2  }, // Ur 46.10E 30.96N, c. 2100 BC (moved in from the edge)
+    { key: "karnak",    lon: 32.9,  lat: 26.9  }, // Karnak 32.66E 25.72N, c. 1290-1220 BC (moved in from the edge)
     { key: "liongate",  lon: 22.2,  lat: 38.2  }, // Mycenae 22.76E 37.73N, c. 1250 BC
-    { key: "ishtar",    lon: 44.42, lat: 32.54 }, // Babylon, c. 575 BC
+    { key: "ishtar",    lon: 43.6,  lat: 33.3  }, // Babylon 44.42E 32.54N, c. 575 BC (moved in from the edge)
     { key: "parthenon", lon: 24.5,  lat: 38.7  }, // Athens 23.73E 37.97N, 447-432 BC
     { key: "mausoleum", lon: 27.42, lat: 37.04 }, // Halicarnassus (Bodrum), c. 350 BC
     { key: "pharos",    lon: 29.6,  lat: 31.6  }, // Alexandria 29.88E 31.21N, c. 280 BC
