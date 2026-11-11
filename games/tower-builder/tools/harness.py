@@ -68,6 +68,8 @@ with sync_playwright() as p:
           for(let k=0;k<45;k++){p.desired={x:g.x+k*4/45,y:g.y};run(1);mx=Math.max(mx,Math.abs(p.body.getAngle()-hang));lag=Math.max(lag,p.desired.x-gx());}
           let amp=[];for(let k=0;k<240;k++){run(1);amp.push(Math.abs(p.body.getAngle()-hang));over=Math.max(over,gx()-p.desired.x);}
           out[mat]={lag:+lag.toFixed(2),overshoot:+over.toFixed(2),maxTiltMoving:+mx.toFixed(2),maxAfterStop:+Math.max(...amp).toFixed(2),after2s:+Math.max(...amp.slice(120,180)).toFixed(2),after3s:+Math.max(...amp.slice(180)).toFixed(2)};T.releaseHold(98);}
+          for(const [d,mat,gx] of [["beam","wood",1.5],["column","stone",0],["beam","stone",1.5]]){const p=T.spawnPiece(d,7,8,d==="column"?Math.PI/2:0,mat);const g=p.body.getWorldPoint({x:d==="column"?0:gx,y:d==="column"?1.1:0});
+            const a0=p.body.getAngle();T.startHold(p,g,98,0,0);p.desired={x:g.x,y:g.y};run(180);out[d+'/'+mat+' hangs after 3s (rad turned)']=+Math.abs(p.body.getAngle()-a0).toFixed(2);T.releaseHold(98);}
           return out;}'''))
         levels=[]
     for i in levels:

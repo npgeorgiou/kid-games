@@ -510,7 +510,14 @@
 
     sidebarWidthPx = Math.min(156, Math.max(92, cssWidth * 0.23));
     if (cssWidth - sidebarWidthPx < 160) sidebarWidthPx = Math.max(72, cssWidth * 0.28);
-    if (currentLevel != null) sidebarWidthPx = Math.min(240, Math.max(130, cssWidth * 0.24)); // room for the pile
+    if (currentLevel != null) { // room for the pile: as wide as this level's full pile needs at the one pile size
+      pilePx = Math.max(28, Math.min(48, cssHeight / 22));
+      const items = stockItems(currentLevel), maxW = cssWidth * 0.5;
+      for (sidebarWidthPx = Math.min(240, Math.max(130, cssWidth * 0.24)); sidebarWidthPx < maxW; sidebarWidthPx += 10) {
+        const size = Math.min(64, (sidebarWidthPx - 32) / 3), bin = { w: sidebarWidthPx - 16, h: cssHeight - size - 24 };
+        if (pileLayout(items, bin, pilePx)[2]) break;
+      }
+    }
     buildingWidthPx = cssWidth - sidebarWidthPx;
     buildingHeightPx = cssHeight;
     scale = buildingWidthPx / WORLD_WIDTH;
@@ -634,6 +641,7 @@
     // Outside the balance zone the grab point is a lever and tilts the piece.
     piece.grabLocal = localGrab;
     piece.lever = !inBalanceZone;
+    piece.shortSide = piece.r != null ? 2 * piece.r : 2 * Math.min(piece.hx, piece.hy);
     piece.holdAngle = piece.body.getAngle();
     piece.desired = { x: worldPt.x, y: worldPt.y };
     piece.controlMode = "hand";
@@ -905,6 +913,14 @@
       // held piece's own weight), so what it pushes resists by its own mass.
       const touching = touchesOtherPiece(body);
       const A = touching ? PUSH_ACCEL : material.maxAccel;
+      // Held off-centre, the hand's grip resists turning up to a torque that grows with the piece's
+      // weight and its short side: a chunky block is carried without swinging; a long thin beam or
+      // column overpowers the grip, hangs and can be swung round in circles.
+      if (piece.lever) {
+        const Ic = Math.max(1e-6, body.getInertia() - m * Vec2len2(body.getLocalCenter()));
+        const w = body.getAngularVelocity(), cap = GRIP * m * GRAVITY * piece.shortSide * piece.shortSide * STEP;
+        body.setAngularVelocity(w + Math.max(-cap, Math.min(cap, -Ic * w)) / Ic);
+      }
       const p = body.getWorldPoint(piece.grabLocal);
       const v = body.getLinearVelocityFromWorldPoint(p);
       const dx = piece.desired.x - p.x, dy = piece.desired.y - p.y;
@@ -930,19 +946,11 @@
       // also turns, so the grab point reacts with less than the full mass (effective mass
       // K^-1); using the full mass there overshoots every tick and makes the piece tremble.
       let dvx = vx - v.x, dvy = vy - v.y + GRAVITY * STEP, Px = m * dvx, Py = m * dvy;
-      let wGrip = null;
       if (piece.lever) {
-        // Held off-centre, a firm hand carries the piece without letting it swing; its weight only
-        // turns it slowly (at most SAG_SPIN) until it hangs below the hand, so it can still be turned upright.
-        const c = body.getWorldCenter(), rx = p.x - c.x, ry = p.y - c.y;
-        let d = Math.PI / 2 - Math.atan2(ry, rx);
-        while (d > Math.PI) d -= 2 * Math.PI;
-        while (d < -Math.PI) d += 2 * Math.PI;
-        wGrip = Math.max(-SAG_SPIN, Math.min(SAG_SPIN, 3 * d));
-        // centre velocity that gives the grab point the wanted velocity while the piece turns at wGrip
-        const vc = body.getLinearVelocity();
-        dvx = vx + wGrip * ry - vc.x; dvy = vy - wGrip * rx - vc.y + GRAVITY * STEP;
-        Px = m * dvx; Py = m * dvy;
+        const c = body.getWorldCenter(), lc = body.getLocalCenter(), rx = p.x - c.x, ry = p.y - c.y;
+        const Ic = Math.max(1e-6, body.getInertia() - m * (lc.x * lc.x + lc.y * lc.y));
+        const k11 = 1 / m + (ry * ry) / Ic, k22 = 1 / m + (rx * rx) / Ic, k12 = -(rx * ry) / Ic, det = k11 * k22 - k12 * k12;
+        Px = (k22 * dvx - k12 * dvy) / det; Py = (-k12 * dvx + k11 * dvy) / det;
       }
       const jx = Math.max(-lim, Math.min(lim, Px));
       const liftLim = m * GRAVITY * STEP + Math.max(m * material.maxAccel, HAND_LIFT) * STEP;
@@ -950,8 +958,7 @@
       // round a curve); touching other pieces it never presses down.
       const jy = Math.max(touching ? 0 : -lim, Math.min(liftLim, Py));
       if (piece.lever) {
-        body.applyLinearImpulse(planck.Vec2(jx, jy), body.getWorldCenter(), true);
-        body.applyAngularImpulse(body.getInertia() * (wGrip - body.getAngularVelocity()), true);
+        body.applyLinearImpulse(planck.Vec2(jx, jy), p, true);
       } else {
         body.applyLinearImpulse(planck.Vec2(jx, jy), body.getWorldCenter(), true);
         // centred grab: hold the pick-up angle with limited torque
@@ -967,7 +974,8 @@
   // Heavier material resists being spun around in the hand; a piece held off-centre
   // swinging under its own weight may turn up to LEVER_SPIN.
   const LEVER_SPIN = 5; // rad/s
-  const SAG_SPIN = 0.8; // rad/s: how fast a piece held off-centre turns to hang below the hand
+  const GRIP = 2.5; // grip torque = GRIP x weight x short side^2: holds a block or square (short side 1 m) from its corner; a column (0.6 m), beam (0.5) or capital (0.4) held at its end hangs and swings
+  const Vec2len2 = (v) => v.x * v.x + v.y * v.y;
   function clampHeldSpin() {
     for (const hand of pointers.values()) {
       const piece = hand.piece;
@@ -1545,11 +1553,10 @@
     for (let b = pileWorld.getBodyList(); b; ) { const nb = b.getNext(); pileWorld.destroyBody(b); b = nb; }
     const r = pileBinRect;
     if (!r) return;
-    let places;
-    // the same piece size in every level's pile: the largest at which every level's full pile fits
-    const key = r.w + "x" + r.h;
-    if (pileUniform.key !== key) pileUniform = { key, scale: Math.min(...LEVELS.map((L, i) => pileLayout(stockItems(i), r, null)[0])) };
-    [pileScale, places] = pileLayout(items, r, pileUniform.scale);
+    // the same piece size in every level's pile (pilePx); only a screen too narrow for it shrinks it
+    let places, fits;
+    [pileScale, places, fits] = pileLayout(items, r, pilePx);
+    if (!fits) [pileScale, places] = pileLayout(items, r, null);
     const W = r.w / pileScale, H = r.h / pileScale;
     const walls = (pileWalls = pileWorld.createBody({ type: "static" }));
     pileQuietUntil = performance.now() + 1500;
@@ -1560,7 +1567,7 @@
     for (const [it, x, y, a] of places) { const b = createPileBody(it, x, y); if (a) b.setTransform(b.getPosition(), a); }
     for (let i = 0; i < 240; i++) { pileWorld.step(STEP, 8, 3); settlePile(); } // settled before it is shown
   }
-  let pileUniform = { key: null, scale: 0 };
+  let pilePx = 34; // px per metre in the sidebar, set by layout()
   // Where each piece goes in the bin: [scale, [[item, x, y, angle]...]]. scale null: as big as fits.
   function pileLayout(items, r, fixedScale) {
     // Orderly: by material (sturdiest lowest: stone, wood, mudbrick), then tallest first and like
@@ -1592,12 +1599,13 @@
       }
       return [out, y + rowH];
     };
-    if (fixedScale) return [fixedScale, pack(r.w / fixedScale)[0]];
+    const fit = (sc, out, top) => top <= (r.h / sc) * 0.92 && out.every(([it]) => size(it)[0] < r.w / sc - 2 * GAP);
+    if (fixedScale) { const [out, top] = pack(r.w / fixedScale); return [fixedScale, out, fit(fixedScale, out, top)]; }
     let sc = 48, places = [];
     for (; sc > 6; sc *= 0.95) {
       const [out, top] = pack(r.w / sc);
       places = out;
-      if (top <= (r.h / sc) * 0.8 && out.every(([it]) => size(it)[0] < r.w / sc - 2 * GAP)) break;
+      if (fit(sc, out, top)) break;
     }
     return [sc, places];
   }
@@ -1628,7 +1636,7 @@
     const bx = d.r != null ? d.r / 3 : short(d.hx, d.hy), by = d.r != null ? d.r / 3 : short(d.hy, d.hx);
     const centred = forceCentre || (l.x * l.x) / (bx * bx) + (l.y * l.y) / (by * by) <= 1;
     const grab = centred ? body.getLocalCenter() : l;
-    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: (60 * body.getMass() + 2 * pileBodies().reduce((s, b) => s + b.getMass(), 0)) * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
+    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: (120 * body.getMass() + 4 * pileBodies().reduce((s, b) => s + b.getMass(), 0)) * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
     body.setAngularDamping(PILE_SWING_DAMP[body.pileItem.material]); body.setLinearDamping(0);
     if (centred) body.setAngularVelocity(0);
     pointers.set(pointerId, { piece: null, pileBody: body, pileGrab: planck.Vec2(grab.x, grab.y), pileTarget: pt, joint, centred });

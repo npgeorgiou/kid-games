@@ -171,6 +171,14 @@ The owner's second fix list (18 items) is built and pushed. What changed:
 - Harness: `probe` (pile false hits, bottom lift, held swing), `sizes` (pile hits per screen size). Drop and lead per level printed.
 - Open (owner to decide): Lion Gate, Mausoleum and Pharos are too plain (ideas in chat).
 
+## Current state, update 4 (12 Nov 2026; overrides the sections above where they differ)
+
+- Sidebar hand: pin force (60 x own weight + 2 x the whole pile's weight) x g: the most buried piece lifts 4.3-5.7 m in 1.5 s (harness `probe`).
+- Off-centre hold in the building area is a firm grip: the hand moves the piece at its centre and sets its spin to turn it towards hanging below the hand at most `SAG_SPIN` 0.8 rad/s. Harness: no tilt when moved sideways (was 0.8 rad). `swingDamping` removed; the sidebar keeps its free swing.
+- The load plays `hit-stone-stone` when it lands.
+- Every pile uses the same piece size: the largest at which every level's full pile fits the bin (`pileUniform`).
+- Level redesign proposals (headpiece = important part, new shapes, history checked) are on branch `level-proposals` (make-levels.py, new piece `abacus`), all passing the harness. Not merged: waiting for the owner's verdict on the pictures.
+
 ## Task list
 
 Empty. Nothing is waiting to be built. The next step is the owner's play-test of the update above.
