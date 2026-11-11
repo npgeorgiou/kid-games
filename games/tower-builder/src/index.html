@@ -27,6 +27,7 @@
 <canvas id="c"></canvas>
 <script src="../lib/planck.min.js"></script>
 <script src="levels.js"></script>
+<script src="map-routes.js"></script>
 <script>
 (function () {
   "use strict";
@@ -99,9 +100,19 @@
       ctx.beginPath(); verts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
       ctx.fill(); ctx.stroke();
     },
-    wind(ctx, x, y, len, alpha) {
-      ctx.strokeStyle = "rgba(255, 255, 255, " + (0.75 * alpha) + ")"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(x - len, y); ctx.lineTo(x, y); ctx.stroke();
+    // a gust: a long wavy streak with a curl at its head, trailing behind the way it blows
+    wind(ctx, x, y, len, alpha, dir, ph) {
+      const a = Math.min(1, alpha * 1.6), amp = len * 0.06;
+      ctx.save(); ctx.lineCap = "round";
+      ctx.strokeStyle = "rgba(255, 255, 255, " + (0.85 * a) + ")"; ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      for (let i = 0; i <= 16; i++) { const t = i / 16, px = x - dir * len * (1 - t), py = y + Math.sin(ph + t * 7) * amp * (1 - t); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); }
+      const cr = len * 0.07;
+      ctx.arc(x, y - cr, cr, Math.PI / 2, dir > 0 ? Math.PI * 2.2 : -Math.PI * 0.2, dir < 0);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(255, 255, 255, " + (0.45 * a) + ")"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x - dir * len * 0.9, y + len * 0.12); ctx.lineTo(x - dir * len * 0.3, y + len * 0.12); ctx.stroke();
+      ctx.restore();
     },
     petal(ctx, x, y, r, angle, alpha, hue) {
       ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
@@ -115,7 +126,7 @@
     },
     // A finished site; the player's own building is drawn on top of it.
     mapSiteDone(ctx, x, y, r) {
-      ctx.fillStyle = "#bfe3f0"; ctx.strokeStyle = "#8a6d3b"; ctx.lineWidth = 3;
+      ctx.fillStyle = "rgba(120, 200, 110, 0.6)"; ctx.strokeStyle = "#3d6b2f"; ctx.lineWidth = 3; // semi-transparent green
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     },
     // What broke a rule: red cells over the outline.
@@ -204,6 +215,7 @@
         ctx.fillStyle = "#c9a36b"; ctx.strokeStyle = "#5a4a36"; ctx.lineWidth = 0.06;
         ctx.beginPath(); ctx.moveTo(R, -c); ctx.arc(0, -c, R, 0, Math.PI, false); ctx.closePath(); ctx.fill(); ctx.stroke();
       },
+      gable() {}, // drawn from its polygon like any shaped piece (fill and outline below)
       wedge(ctx, w, h) {
         ctx.fillStyle = "#c9b088";
         ctx.strokeStyle = "#5a4a36";
@@ -313,10 +325,10 @@
     // this, not sluggish acceleration, is what should make stone feel heavy.
     // maxSpin: hard cap on angular velocity while held (rad/s) -- heavier
     // material resists being spun around in the hand more.
-    wood:  { label: "WOOD",  density: 1.1,  friction: 0.5,  restitution: 0.015, maxLiftSpeed: 9,  maxSpin: 3.0, maxAccel: 30 },
+    wood:  { label: "WOOD",  density: 1.1,  friction: 0.5,  restitution: 0.015, maxLiftSpeed: 9,  maxSpin: 3.0, maxAccel: 30, swingDamping: 0.25 },
     // mudbrick: between wood and stone in weight; crumbles under heavy weight (SECTION BREAKING)
-    mudbrick: { label: "MUDBRICK", density: 3.2, friction: 0.7, restitution: 0.0, maxLiftSpeed: 7.5, maxSpin: 2.0, maxAccel: 26 },
-    stone: { label: "STONE", density: 5.0,  friction: 0.6,  restitution: 0.0,  maxLiftSpeed: 6,  maxSpin: 1.3, maxAccel: 22 },
+    mudbrick: { label: "MUDBRICK", density: 3.2, friction: 0.7, restitution: 0.0, maxLiftSpeed: 7.5, maxSpin: 2.0, maxAccel: 26, swingDamping: 0.12 },
+    stone: { label: "STONE", density: 5.0,  friction: 0.6,  restitution: 0.0,  maxLiftSpeed: 6,  maxSpin: 1.3, maxAccel: 22, swingDamping: 0.04 }, // swingDamping: angular damping while swinging in the hand (air: light wood slows more)
   };
   let selectedMaterial = "wood";
 
@@ -326,6 +338,11 @@
     beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 0.85, skin: "beam", half: "beam-half" },
     // capital (new, fourth standard size): a flat slab laid on a pillar; an upright block (2 m) plus a capital is one column high
     capital: { shape: "box", hx: 0.8, hy: 0.2, densityScale: 1.0, skin: "beam", half: "capital-half" },
+    // square (new, fifth standard size): half a block, for spandrels and staggered joints
+    square: { shape: "box", hx: 0.5, hy: 0.5, densityScale: 1.0, skin: "block" },
+    // pediment halves (new): right-angled triangles with a short flat tip for the top slab; shapes in src/levels.js
+    gableL: { shape: "poly", verts: LEVEL_PIECES.gableL, hx: Math.max(...LEVEL_PIECES.gableL.map((v) => Math.abs(v[0]))), hy: Math.max(...LEVEL_PIECES.gableL.map((v) => Math.abs(v[1]))), densityScale: 1.0, skin: "gable" },
+    gableR: { shape: "poly", verts: LEVEL_PIECES.gableR, hx: Math.max(...LEVEL_PIECES.gableR.map((v) => Math.abs(v[0]))), hy: Math.max(...LEVEL_PIECES.gableR.map((v) => Math.abs(v[1]))), densityScale: 1.0, skin: "gable" },
     // what a snapped wooden piece breaks into (two halves along its length; they do not snap again)
     "block-half":  { shape: "box", hx: 0.5, hy: 0.5, densityScale: 1.0, skin: "block" },
     "column-half": { shape: "box", hx: 0.3, hy: 0.6, densityScale: 1.0, skin: "column" },
@@ -361,6 +378,7 @@
   const WALL_THICKNESS = 0.18; // metres
   const WALL_EXTRA_HEIGHT = 30; // metres above the visible area
   let worldWidth = WORLD_WIDTH; // visible width; wider than 16 m when a tall level zooms out
+  let viewX0 = 0; // world x at the left edge of the building area (negative when zoomed out, so the level stays centred)
 
   const world = new planck.World({ gravity: planck.Vec2(0, -10) });
 
@@ -382,7 +400,7 @@
     const visibleWorldHeight = buildingHeightPx / scale;
     const halfHeight = (visibleWorldHeight + WALL_EXTRA_HEIGHT) / 2 + 2;
     const centerY = (visibleWorldHeight + WALL_EXTRA_HEIGHT) / 2;
-    for (const x of [-WALL_THICKNESS / 2, worldWidth + WALL_THICKNESS / 2]) {
+    for (const x of [viewX0 - WALL_THICKNESS / 2, viewX0 + worldWidth + WALL_THICKNESS / 2]) {
       const wall = world.createBody({ type: "static", position: planck.Vec2(x, centerY) });
       wall.createFixture({
         shape: planck.Box(WALL_THICKNESS / 2, halfHeight),
@@ -479,6 +497,7 @@
     scale = buildingWidthPx / WORLD_WIDTH;
     if (currentLevel != null) scale = Math.min(scale, buildingHeightPx / levelTop);
     worldWidth = buildingWidthPx / scale;
+    viewX0 = WORLD_CENTER_X - worldWidth / 2;
     rebuildBoundaries();
     if (currentLevel != null) { pileBinRect = levelSidebar().bin; fillPile(pileItems()); }
   }
@@ -486,13 +505,13 @@
   window.addEventListener("resize", layout);
 
   function worldToScreen(x, y) {
-    return { x: x * scale, y: buildingHeightPx - y * scale };
+    return { x: (x - viewX0) * scale, y: buildingHeightPx - y * scale };
   }
   function screenToWorld(px, py) {
     const rect = canvas.getBoundingClientRect();
     const localX = px - rect.left;
     const localY = py - rect.top;
-    return { x: localX / scale, y: (buildingHeightPx - localY) / scale };
+    return { x: localX / scale + viewX0, y: (buildingHeightPx - localY) / scale };
   }
 
   function materialLayout() {
@@ -599,7 +618,7 @@
     piece.holdAngle = piece.body.getAngle();
     piece.desired = { x: worldPt.x, y: worldPt.y };
     piece.controlMode = "hand";
-    if (piece.lever) piece.body.setAngularDamping(1); // held off-centre it swings freely, not sluggishly
+    if (piece.lever) piece.body.setAngularDamping(MATERIALS[piece.material].swingDamping); // held off-centre it swings like its weight
 
     pointers.set(pointerId, {
       piece,
@@ -614,6 +633,7 @@
     if (!hand) return;
     pointers.delete(pointerId);
     if (hand.joint) { try { pileWorld.destroyJoint(hand.joint); } catch (err) { /* body already gone */ } }
+    if (hand.pileBody && pileBodies().includes(hand.pileBody)) { hand.pileBody.setAngularDamping(PILE_ANG_DAMP); hand.pileBody.setLinearDamping(0.3); }
     const piece = hand.piece;
     if (!piece) return;
     // let go while still passing through other pieces: it was never placed, so it goes back to the pile
@@ -636,7 +656,7 @@
     const horizHalfExtent = def.shape === "circle" ? def.r : (angle === 0 ? def.hx : def.hy);
     const rawY = (buildingHeightPx - py) / scale;
     const spawnPt = {
-      x: worldWidth - horizHalfExtent - 0.08,
+      x: viewX0 + worldWidth - horizHalfExtent - 0.08,
       y: Math.min(Math.max(rawY, vertHalfExtent + 0.05), buildingHeightPx / scale - vertHalfExtent - 0.05),
     };
     const piece = spawnPiece(defKey, spawnPt.x, spawnPt.y, angle, material);
@@ -931,22 +951,41 @@
     }
   }
 
-  function stepPhysics(dtSeconds) {
+  function stepPhysics(dtSeconds, maxSteps = MAX_STEPS) {
     accumulator += dtSeconds;
     let steps = 0;
-    while (accumulator >= STEP && steps < MAX_STEPS) {
+    while (accumulator >= STEP && steps < maxSteps) {
       advanceHeldTargets();
       autoTick(STEP);
       testTick(STEP);
       world.step(STEP, 10, 5);
+      settleResting();
       clampHeldSpin();
       updateStrain();
       solidifyGhosts();
-      if (currentLevel != null) { drivePileHands(); pileWorld.step(STEP, 10, 6); rescuePile(); }
+      if (currentLevel != null) { drivePileHands(); pileWorld.step(STEP, 10, 6); settlePile(); rescuePile(); }
       accumulator -= STEP;
       steps++;
     }
-    if (steps === MAX_STEPS) accumulator = 0;
+    if (steps === maxSteps) accumulator = 0;
+  }
+  // Pieces that are nearly still lose the last of their speed quickly, so contact noise
+  // cannot keep them trembling or knocking each other in a loop, and they fall asleep.
+  // Faster motion (falling, tipping, sliding) is untouched. Written into the velocity
+  // directly: planck's setters would wake the body and stop it ever sleeping.
+  function damp(b, vLin, vAng, k) {
+    if (!b.isAwake() || !b.isDynamic()) return;
+    const v = b.m_linearVelocity;
+    if (Math.hypot(v.x, v.y) < vLin && Math.abs(b.m_angularVelocity) < vAng) { v.x *= k; v.y *= k; b.m_angularVelocity *= k; }
+  }
+  function settleResting() {
+    if (test && (test.phase === "wind" || test.phase === "quake")) return; // the test's own shaking is real
+    for (const p of pieces) if (p.heldBy == null && !p.ghost && !p.auto) damp(p.body, 0.05, 0.08, 0.85);
+    for (const l of loads) if (l.released) damp(l.body, 0.05, 0.08, 0.85);
+  }
+  function settlePile() {
+    const held = new Set(Array.from(pointers.values()).map((h) => h.pileBody));
+    for (const b of pileBodies()) if (!held.has(b)) damp(b, 0.4, 0.8, 0.7);
   }
 
   // ---------------------------------------------------------------------
@@ -1111,7 +1150,8 @@
   }
   // Plays a sound; returns a handle with stop(fadeSeconds) and setVolume(v), or null.
   // fitSeconds: play the clip faster or slower so it lasts exactly that long
-  function playSound(name, volume, loop = false, fitSeconds = 0) {
+  function soundLength(name) { const l = SOUNDS[name]; return l && buffers[l[0][0]] ? buffers[l[0][0]].duration : 0; }
+  function playSound(name, volume, loop = false, fitSeconds = 0, opts = {}) {
     const list = SOUNDS[name];
     if (!actx || !list) return null;
     const parts = [];
@@ -1119,10 +1159,11 @@
       if (!buffers[f]) continue;
       const src = actx.createBufferSource(), gain = actx.createGain();
       src.buffer = buffers[f]; src.loop = loop;
-      if (fitSeconds > 0) src.playbackRate.value = Math.max(0.25, Math.min(4, buffers[f].duration / fitSeconds));
+      if (opts.rate) src.playbackRate.value = opts.rate;
+      else if (fitSeconds > 0) src.playbackRate.value = Math.max(0.25, Math.min(4, buffers[f].duration / fitSeconds));
       gain.gain.value = Math.max(0, Math.min(1, volume)) * v;
       src.connect(gain).connect(actx.destination);
-      src.start();
+      src.start(actx.currentTime, Math.min(opts.offset || 0, Math.max(0, buffers[f].duration - 0.05)));
       parts.push({ src, gain, v });
     }
     if (!parts.length) return null;
@@ -1221,7 +1262,7 @@
       const q = puffs[i];
       q.x += q.vx * dt; q.y += q.vy * dt;
       if (q.kind === "dust") { q.r += 0.5 * dt; q.life -= dt * 1.6; }
-      else if (q.kind === "wind") { q.life -= dt * 1.5; }
+      else if (q.kind === "wind") { q.life -= dt * 0.9; }
       else if (q.kind === "petal") { q.vy -= 2 * dt; q.a += dt * 4; q.life -= dt * 0.4; }
       else { q.vy -= GRAVITY * dt; q.a += dt * 8; q.life -= dt * 1.2; }
       if (q.life <= 0) puffs.splice(i, 1);
@@ -1234,7 +1275,10 @@
       if (q.pile && !r0) continue;
       const s = q.pile ? { x: r0.x + q.x * pileScale, y: r0.y + r0.h - q.y * pileScale } : worldToScreen(q.x, q.y);
       if (q.kind === "dust") SKIN.dust(ctx, s.x, s.y, q.r * sc0, q.life);
-      else if (q.kind === "wind") SKIN.wind(ctx, s.x, s.y, q.r * sc0, q.life);
+      else if (q.kind === "wind") { // kept to the building area, off the sidebar
+        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, buildingWidthPx, cssHeight); ctx.clip();
+        SKIN.wind(ctx, s.x, s.y, q.r * sc0, q.life, q.dir || 1, q.ph || 0); ctx.restore();
+      }
       else if (q.kind === "mudchip") SKIN.mudChip(ctx, s.x, s.y, q.r * sc0, q.a, q.life);
       else if (q.kind === "splinter") SKIN.splinter(ctx, s.x, s.y, q.r * sc0, q.a, q.life);
       else if (q.kind === "petal") SKIN.petal(ctx, s.x, s.y, q.r * sc0, q.a, Math.min(1, q.life * 2), q.hue);
@@ -1368,6 +1412,19 @@
     }
   }
 
+  // Anything that breaks during the test fails it; its place is shown red.
+  function noteBroken(p) {
+    if (!test || !grid) return;
+    const v = planck.Vec2(0, 0);
+    for (let f = p.body.getFixtureList(); f; f = f.getNext()) {
+      const bb = f.getAABB(0);
+      for (let x = Math.floor(bb.lowerBound.x / CELL); x <= Math.floor(bb.upperBound.x / CELL); x++)
+        for (let y = Math.max(0, Math.floor(bb.lowerBound.y / CELL)); y <= Math.floor(bb.upperBound.y / CELL); y++) {
+          v.x = (x + 0.5) * CELL; v.y = (y + 0.5) * CELL;
+          if (f.testPoint(v)) { const k = cellOf(v.x, v.y); if (k >= 0) test.broken.push(k); }
+        }
+    }
+  }
   function crumble(p) {
     const body = p.body, c = body.getPosition(), a = body.getAngle(), ca = Math.cos(a), sa = Math.sin(a);
     const hx = p.hx != null ? p.hx : p.r, hy = p.hy != null ? p.hy : p.r;
@@ -1379,6 +1436,7 @@
     }
     playSound("crumble", 1);
     shake = Math.max(shake, 4);
+    noteBroken(p);
     removePiece(p);
   }
 
@@ -1388,6 +1446,7 @@
     const along = p.hx >= p.hy, L = (along ? p.hx : p.hy) / 2;
     const ux = along ? Math.cos(a) : -Math.sin(a), uy = along ? Math.sin(a) : Math.cos(a);
     const vx = v.x, vy = v.y;
+    noteBroken(p);
     removePiece(p);
     for (const s of [-1, 1]) {
       const q = spawnPiece(def.half, c.x + s * ux * L, c.y + s * uy * L, a, "wood");
@@ -1408,6 +1467,7 @@
   let pileWalls = null, pileQuietUntil = 0;
   pileWorld.on("post-solve", (contact, impulse) => feelContact(contact, impulse, true)); // SECTION FEEL
   let pileScale = 20;      // px per metre in the sidebar
+  const PILE_ANG_DAMP = 3; // pile pieces not in the hand
   const PILE_MAX_SPEED = 4, PILE_MAX_UP = 2; // m/s, pile pieces not in the hand
   let pileBinRect = null;  // px rect of the bin
 
@@ -1423,7 +1483,7 @@
   }
   function createPileBody(item, x, y) {
     const def = PIECE_DEFS[item.defKey], mat = MATERIALS[item.material];
-    const body = pileWorld.createBody({ type: "dynamic", position: planck.Vec2(x, y), angularDamping: 1.5, linearDamping: 0.3 });
+    const body = pileWorld.createBody({ type: "dynamic", position: planck.Vec2(x, y), angularDamping: PILE_ANG_DAMP, linearDamping: 0.3 });
     const fo = { density: mat.density * def.densityScale, friction: 0.7, restitution: 0 };
     if (def.shape === "poly") body.createFixture({ ...fo, shape: planck.Polygon(def.verts.map(([vx, vy]) => planck.Vec2(vx, vy))) });
     else if (def.shape === "box") body.createFixture({ ...fo, shape: planck.Box(def.hx, def.hy) });
@@ -1484,7 +1544,8 @@
     const bx = d.r != null ? d.r / 3 : short(d.hx, d.hy), by = d.r != null ? d.r / 3 : short(d.hy, d.hx);
     const centred = forceCentre || (l.x * l.x) / (bx * bx) + (l.y * l.y) / (by * by) <= 1;
     const grab = centred ? body.getLocalCenter() : l;
-    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: 10 * body.getMass() * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
+    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: 30 * body.getMass() * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
+    body.setAngularDamping(MATERIALS[body.pileItem.material].swingDamping); body.setLinearDamping(0);
     if (centred) body.setAngularVelocity(0);
     pointers.set(pointerId, { piece: null, pileBody: body, pileGrab: planck.Vec2(grab.x, grab.y), pileTarget: pt, joint, centred });
   }
@@ -1595,66 +1656,27 @@
   // N per metre of exposed height. Level 1: a top row of wooden blocks slides off, mudbrick holds.
   // From level 2 on, below what tips a lone stone column (0.6 x 2.4 m tips at about
   // 7.5 N/m here: weight x half-width against wind x half-height); level 1 has no columns.
-  const TEST_WIND = [90, 5, 5, 5, 5, 5, 5, 5, 5, 5];
-  const TEST_LOAD_DENSITY = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // kg/m^2, per level
+  const TEST_WIND = [110, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5];
+  const TEST_LOAD_DENSITY = [5, 6, 7, 20, 25, 10, 11, 12, 13, 14]; // kg/m^2, per level (Karnak roof beam and Lion Gate slab are heavy stone)
   const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
+  const TEST_FAST = 10, DRUM_LEAD = 1.5; // Tab test speed-up; seconds the drumroll may start before the load moves
   const PHASE_TIME = { settle: 1.2, wind: 3.5, loadSettle: 1.5, quake: 3, pass: 3.5, fail: 3, why: 2 };
 
-  // Suggested builds, in building order: [shape, material, x, y, angle] in level coordinates.
-  // The quick build (Tab, then the button on the pile) builds these; the pile is made from them.
-  const UP = Math.PI / 2;
-  const blockRow = (mat, x0, n, y) => Array.from({ length: n }, (_, k) => ["block", mat, x0 + 1 + 2 * k, y, 0]);
-  const mirror = (list) => list.concat(list.map(([d, m, x, y, a]) => [d, m, -x, y, -a]));
-  // an arch on its wooden centering: wooden blocks up to the springing (one in the middle if it stands on
-  // the crown of an arch below), the form, then nine wedges from both sides
-  function archBuild(cx, sy, supportRows, single = false) {
-    const out = [];
-    if (single) out.push(["block", "wood", cx, sy - 0.5, 0]);
-    else for (let r = 0; r < supportRows; r++) out.push(["block", "wood", cx - 1, sy - supportRows + r + 0.5, 0], ["block", "wood", cx + 1, sy - supportRows + r + 0.5, 0]);
-    out.push(["centering", "wood", cx, sy + (4 * 1.95) / (3 * Math.PI) + 0.01, 0]);
-    for (const i of [0, 8, 1, 7, 2, 6, 3, 5, 4]) {
-      const t = ((10 + 20 * i) * Math.PI) / 180;
-      out.push(["wedge", "stone", cx + 2.51 * Math.cos(t), sy + 2.51 * Math.sin(t), t - Math.PI / 2]);
-    }
-    return out;
-  }
-  const COLS6 = [-4.5, -2.7, -0.9, 0.9, 2.7, 4.5];
-  const SOLUTIONS = {
-    mastaba: [0.5, 1.5, 2.5].flatMap((y) => blockRow("mudbrick", -4, 4, y)),
-    djoser: [0, 1, 2, 3, 4, 5].flatMap((r) => blockRow(r <= 2 ? "stone" : "mudbrick", -(6 - r), 6 - r, r + 0.5)),
-    ziggurat: [...blockRow("stone", -5, 5, 0.5), ...[-3.2, 0, 3.2].map((x) => ["beam", "wood", x, 1.25, 0]), ...blockRow("mudbrick", -3, 3, 2),
-      ["beam", "wood", -1.6, 2.75, 0], ["beam", "wood", 1.6, 2.75, 0], ...blockRow("mudbrick", -2, 2, 3.5)],
-    karnak: mirror([["column", "stone", -4.0, 1.2, 0], ["block", "stone", -1.3, 1.0, UP], ["capital", "stone", -1.3, 2.2, 0],
-      ["beam", "stone", -2.7, 2.65, 0], ["column", "stone", -0.8, 3.6, 0]]),
-    liongate: [...[0.5, 1.5].flatMap((y) => [...blockRow("stone", -5, 2, y), ...blockRow("stone", 1, 2, y)]),
-      ...[-3.2, 0, 3.2].map((x) => ["beam", "stone", x, 2.25, 0]), ...blockRow("mudbrick", -5, 2, 3), ...blockRow("mudbrick", 1, 2, 3)],
-    ishtar: [...[0.5, 1.5].flatMap((y) => [-5, -3, 3, 5].map((x) => ["block", "stone", x, y, 0])),
-      ...[2.5, 3.5, 4.5, 5.5, 6.5].flatMap((y) => [["block", "mudbrick", -5, y, 0], ["block", "mudbrick", 5, y, 0]]),
-      ...archBuild(0, 2, 2), ...mirror([["column", "stone", -3.33, 3.2, 0], ["capital", "stone", -3.2, 4.6, 0]])],
-    parthenon: [...blockRow("stone", -6, 6, 0.5), ...blockRow("stone", -5, 5, 1.5), ...COLS6.map((x) => ["column", "stone", x, 3.2, 0]),
-      ...[-3.2, 0, 3.2].map((x) => ["beam", "stone", x, 4.65, 0])],
-    mausoleum: [...[0.5, 1.5, 2.5].flatMap((y) => blockRow("stone", -5, 5, y)), ...COLS6.map((x) => ["column", "stone", x, 4.2, 0]),
-      ...[-3.2, 0, 3.2].map((x) => ["beam", "stone", x, 5.65, 0]), ...blockRow("mudbrick", -4, 4, 6.4), ...blockRow("mudbrick", -3, 3, 7.4), ...blockRow("mudbrick", -2, 2, 8.4)],
-    pharos: [...[0.5, 1.5, 2.5].flatMap((y) => blockRow("stone", -3, 3, y)), ...blockRow("stone", -2, 2, 3.5), ...blockRow("mudbrick", -2, 2, 4.5),
-      ...blockRow("mudbrick", -2, 2, 5.5), ...[-0.6, 0, 0.6].map((x) => ["column", "stone", x, 7.2, 0])],
-    valens: [["block", "stone", -6, 0.5, 0], ["block", "stone", 0, 0.5, 0], ["block", "stone", 6, 0.5, 0],
-      ...archBuild(-3, 1, 1), ...archBuild(3, 1, 1),
-      ...mirror([["block", "stone", -6.5, 2.0, UP], ["capital", "stone", -6.2, 3.2, 0], ["block", "stone", -6, 3.92, 0], ["column", "stone", -6, 4.72, UP]]),
-      ["capital", "stone", 0, 3.26, 0], ["block", "stone", 0, 3.98, 0], ["capital", "stone", 0, 4.7, 0],
-      ...archBuild(-3, 5.02, 1, true), ...archBuild(3, 5.02, 1, true), ...mirror([["block", "stone", -6.5, 6.05, UP]]),
-      ["block", "stone", -6.2, 7.6, 0], ["block", "stone", 6.2, 7.6, 0], ["capital", "stone", 0, 7.28, 0], ["column", "stone", 0, 7.8, UP]],
-  };
+  // Suggested builds (src/levels.js, made by tools/make-levels.py), in building order: [shape, material, x, y, angle]
+  // in level coordinates. The quick build (Tab, then the button on the pile) builds these; the pile is made from them.
+  const SOLUTIONS = Object.fromEntries(LEVELS.map((L) => [L.key, L.solution]));
   // The pile = the suggested build plus just enough for the wrong choices this level is about
   // (weak or wrong material where it fails); nothing else is left over.
   const LEVEL_EXTRA = {
+    mastaba: [["block", "wood", 4]],                            // light wooden blocks: the wind takes them
     ziggurat: [["beam", "stone", 3]],                           // stone in a wood course
-    karnak: [["beam", "wood", 2], ["block", "mudbrick", 2]],    // wooden roof beams, mudbrick pillars
-    liongate: [["beam", "wood", 1]],                            // a wooden lintel under the lion slab
+    karnak: [["block", "mudbrick", 2]],                         // mudbrick pillars crumble under the roof
+    liongate: [["beam", "wood", 1], ["block", "mudbrick", 4]],  // a wooden lintel snaps; mudbrick low in the heavy wall crumbles
     ishtar: [["beam", "stone", 2]],                             // a flat lintel instead of an arch
-    parthenon: [["beam", "wood", 2]],                           // wooden architrave
-    mausoleum: [["beam", "wood", 2]],                           // wooden architrave under the stepped roof
-    pharos: [["block", "wood", 2]],                             // light wood in the tower
+    parthenon: [["block", "mudbrick", 5]],                      // a mudbrick top step crumbles under the columns
+    mausoleum: [["block", "mudbrick", 6]],                      // a mudbrick podium crumbles under the roof and columns
+    pharos: [["block", "mudbrick", 4]],                         // mudbrick low in the tall tower crumbles
     valens: [["block", "mudbrick", 2]],                         // mudbrick piers
   };
   function stockItems(i) {
@@ -1721,8 +1743,11 @@
       for (let ix = ix0; ix <= ix1; ix++) {
         const x = (ix + 0.5) * CELL, y = (iy + 0.5) * CELL, k = iy * GX + ix;
         const hole = g.holes.some((r) => inRing(x, y, r));
-        if (hole) { g.inHole[k] = 1; g.holeCells++; }
-        else if (g.solid.some((r) => inRing(x, y, r))) { g.inOutline[k] = 1; g.solidCells++; }
+        // an opening counts only 0.15 m in from its edge: pieces settle a few cm, and small openings would
+        // otherwise fail on their rim; the rim itself is neither outline nor opening
+        const deep = hole && [[LM, 0], [-LM, 0], [0, LM], [0, -LM]].every(([dx, dy]) => g.holes.some((r) => inRing(x + dx, y + dy, r)));
+        if (deep) { g.inHole[k] = 1; g.holeCells++; }
+        else if (!hole && g.solid.some((r) => inRing(x, y, r))) { g.inOutline[k] = 1; g.solidCells++; }
         if (g.wood.some((r) => inRing(x, y, r))) { g.inWood[k] = 1; g.woodCells++; }
       }
     }
@@ -1783,7 +1808,7 @@
       if (!c) continue;
       if (g.inOutline[k]) filled++;
       if (!g.near[k]) far++;
-      if (g.inHole[k] && !(support && c === 1)) holeBad++;
+      if (g.inHole[k] || (support && g.inWood[k])) holeBad++; // wooden supports left in count too
       if (g.inWood[k] && c === 1) woodIn++;
       if (g.inLoad[k]) loadBad++;
     }
@@ -1808,7 +1833,7 @@
     for (let k = 0; k < g.cov.length; k++) {
       const cv = g.cov[k];
       if ((farBad && cv && !g.near[k]) ||
-          (holeBad && g.inHole[k] && cv && !(support && cv === 1)) || (woodBad && g.inWood[k] && cv !== 1)) out.push(k);
+          (holeBad && (g.inHole[k] || (support && g.inWood[k])) && cv) || (woodBad && g.inWood[k] && cv !== 1)) out.push(k);
     }
     return out;
   }
@@ -1884,7 +1909,7 @@
 
   // --- quick build (parent override): with Tab held a button appears on the pile; it tidies
   // everything back into the pile, then builds the suggested way, piece by piece, very fast.
-  const AUTO_SPEED = 30, AUTO_PAUSE = 0.06; // m/s flying in, s between pieces
+  const AUTO_SPEED = 60, AUTO_PAUSE = 0.03; // m/s flying in, s between pieces
   let auto = null; // { queue, cur, wait }
   function autoBuildButton() {
     if (currentLevel == null || test || auto || !tabHeldNow() || !SOLUTIONS[LEVELS[currentLevel].key] || !pileBinRect) return null;
@@ -1907,6 +1932,15 @@
     for (let f = b.getFixtureList(); f; f = f.getNext()) f.setSensor(false);
     b.setAwake(true);
     c.piece.auto = false; c.piece.prevV = null;
+    // it is set down, not dropped, so no impact makes a sound: play its landing here, on time
+    const m = c.piece.material, lo = b.getFixtureList().getAABB(0).lowerBound.y;
+    let under = lo < 0.08 ? "ground" : null;
+    if (!under) world.queryAABB(planck.AABB(planck.Vec2(c.tx - 0.3, lo - 0.08), planck.Vec2(c.tx + 0.3, lo + 0.02)), (f) => {
+      const o = f.getBody();
+      if (o !== b && o.piece && !o.piece.ghost && !o.piece.auto) { under = o.piece.material; return false; }
+      return true;
+    });
+    if (under) playSound("hit-" + (under === "ground" ? ["ground", m] : [m, under].sort()).join("-"), 0.6);
   }
   function cancelAuto() {
     if (auto && auto.cur && pieces.includes(auto.cur.piece)) placeAuto(auto.cur);
@@ -1925,13 +1959,18 @@
     }
     if ((auto.wait -= dt) > 0) return;
     const step = auto.queue.shift();
-    if (!step) { auto = null; return; }
+    if (!step) {
+      // the arches stand: take the wooden supports out again, one by one
+      const sup = supportPieces();
+      if (sup.length) { const p = sup[0]; dustAt(p.body.getPosition()); returnToPile(p); auto.wait = 0.15; return; }
+      auto = null; return;
+    }
     const [defKey, material, x, y, a] = step;
     const pb = pileBodies().find((bd) => bd.pileItem.defKey === defKey && bd.pileItem.material === material);
     if (!pb) return; // not in the pile any more: skip it
     pileWorld.destroyBody(pb);
     const d = PIECE_DEFS[defKey], e = d.r != null ? d.r : Math.max(d.hx, d.hy);
-    const piece = spawnPiece(defKey, worldWidth - e, y, 0, material);
+    const piece = spawnPiece(defKey, viewX0 + worldWidth - e, y, 0, material);
     piece.body.setKinematic();
     for (let f = piece.body.getFixtureList(); f; f = f.getNext()) f.setSensor(true);
     piece.auto = true;
@@ -1940,6 +1979,15 @@
 
   // --- the test: supports pulled out, wind, load lowered on, earthquake. After each
   // step the building is checked; the first failure stops the test and is shown in red.
+  // Wooden pieces standing in an opening or a support zone: temporary supports.
+  function supportPieces() {
+    if (!grid || grid.L.woodRole !== "support") return [];
+    return pieces.filter((p) => {
+      if (p.material !== "wood" || p.auto) return false;
+      const q = p.body.getPosition(), k = cellOf(q.x, q.y);
+      return k >= 0 && (grid.inWood[k] || grid.inHole[k]);
+    });
+  }
   function startTest() {
     if (currentLevel == null || test) return;
     // Tab held (parent override): the test runs even when the building is not ready
@@ -1958,15 +2006,8 @@
     for (const l of loads) world.destroyBody(l.body); // a finished site's load: the test lowers a new one
     loads = [];
     const snapshot = pieces.map((p) => { const q = p.body.getPosition(); return { defKey: p.defKey, material: p.material, x: q.x, y: q.y, angle: p.body.getAngle() }; });
-    let toPull = [];
-    if (grid.L.woodRole === "support") {
-      toPull = pieces.filter((p) => {
-        if (p.material !== "wood") return false;
-        const q = p.body.getPosition(), k = cellOf(q.x, q.y);
-        return k >= 0 && (grid.inWood[k] || grid.inHole[k]);
-      });
-    }
-    test = { phase: "supports", t: 0, snapshot, toPull, after: null };
+    const toPull = []; // supports are no longer pulled by the test: left in, they fail the check
+    test = { phase: "supports", t: 0, snapshot, toPull, after: null, fast: tabHeldNow(), broken: [] };
   }
   function nextPhase(phase) {
     if (test.loop) { test.loop.stop(0.6); test.loop = null; }
@@ -1974,8 +2015,16 @@
     if (phase === "wind") test.loop = playSound("wind", 1, true);
     if (phase === "load") {
       spawnLoads();
-      const T = Math.max(0.5, ...loads.map((l) => (l.body.getPosition().y - l.ty) / LOAD_SPEED));
-      test.loop = playSound("drumroll", 1, false, T);
+      // The drumroll ends when the load lands. It plays at nearly its own speed (0.85-1.2x);
+      // too long a clip skips its start, and a short drop (tall building) starts it up to
+      // DRUM_LEAD seconds before the load moves. All in real seconds (Tab: test 10x faster).
+      const sp = test.fast ? TEST_FAST : 1, D = soundLength("drumroll");
+      const T = Math.max(0.3, ...loads.map((l) => (l.body.getPosition().y - l.ty) / LOAD_SPEED)) / sp;
+      const rate = D ? Math.max(0.85, Math.min(1.2, D / T)) : 1, excess = Math.max(0, D / rate - T);
+      const lead = Math.min(DRUM_LEAD / sp, excess);
+      test.lead = lead * sp; // game seconds the load waits before it starts down
+      if (lead > 0) for (const l of loads) l.body.setLinearVelocity(planck.Vec2(0, 0));
+      test.loop = playSound("drumroll", 1, false, 0, { rate, offset: (excess - lead) * rate });
     }
     if (phase === "quake") test.loop = playSound("quake", 1);
   }
@@ -1984,8 +2033,14 @@
   function checkpoint() {
     const c = runCheck();
     const badLoads = loads.filter((l) => !loadInPlace(l));
+    if (test.broken.length) { // something broke: show where it was
+      failShow = { cells: test.broken.slice(), loads: [], unfilled: false, until: null };
+      nextPhase("fail"); playSound("fail", 1);
+      return false;
+    }
     if (c.fill < CHECK.fillAfter || badLoads.length) {
-      failShow = { cells: c.fill < CHECK.fillAfter ? failingCells(c, CHECK.fillAfter) : [], loads: badLoads, unfilled: true, until: null };
+      failShow = badLoads.length ? { cells: [], loads: badLoads, unfilled: false, until: null } // only the load's place is red
+        : { cells: failingCells(c, CHECK.fillAfter), loads: [], unfilled: true, until: null };
       nextPhase("fail");
       playSound("fail", 1);
       return false;
@@ -2015,9 +2070,14 @@
       const ramp = T > D && !right ? 0 : Math.max(0, Math.min(1, t / 0.7, (D - t) / 0.7));
       const dir = right ? -1 : 1;
       applyWind(TEST_WIND[lv] * ramp, dir);
-      if (Math.random() < 0.6 * ramp) puffs.push({ kind: "wind", x: dir > 0 ? 0 : worldWidth, y: Math.random() * levelTop, vx: 10 * dir, vy: 0, r: 0.6 + Math.random() * 0.9, life: 1 });
+      for (let k = 0; k < 3; k++) if (Math.random() < 0.8 * ramp) puffs.push({ kind: "wind", x: dir > 0 ? viewX0 - 2 : viewX0 + worldWidth + 2, y: Math.random() * Math.max(levelTop, buildingHeightPx / scale), vx: (20 + Math.random() * 8) * dir, vy: (Math.random() - 0.5) * 1.5, r: 1.5 + Math.random() * 3, dir, ph: Math.random() * 6, life: 1 });
       if (T >= 2 * D + GAP) settleThenCheck("load");
     } else if (test.phase === "load") {
+      if (test.lead > 0) {
+        test.lead -= dt; test.t = 0;
+        if (test.lead <= 0) for (const l of loads) if (!l.released) l.body.setLinearVelocity(planck.Vec2(0, -LOAD_SPEED));
+        return;
+      }
       let all = true;
       for (const l of loads) {
         if (l.released) continue;
@@ -2043,7 +2103,7 @@
   // Wind from the left (dir 1) or right (dir -1): each 0.1 m band of height pushes only
   // on the first thing it meets; whatever is behind it is sheltered.
   function applyWind(P, dir) {
-    const xa = dir > 0 ? 0.02 : worldWidth - 0.02, xb = dir > 0 ? worldWidth - 0.02 : 0.02;
+    const xa = dir > 0 ? viewX0 + 0.02 : viewX0 + worldWidth - 0.02, xb = dir > 0 ? viewX0 + worldWidth - 0.02 : viewX0 + 0.02;
     for (let y = 0.05; y < levelTop; y += 0.1) {
       let hit = null, hx = 0, hy = 0;
       world.rayCast(planck.Vec2(xa, y), planck.Vec2(xb, y), (f, pt, nrm, frac) => {
@@ -2226,7 +2286,7 @@
   ];
   const MAP_W = 2176, MAP_H = 1408;
   const mapImg = new Image(); mapImg.src = "art/map.jpg";
-  const boatImg = new Image(); boatImg.src = "art/boat.png";
+  const boatImg = new Image(); boatImg.src = "art/boat-owner.png"; // owner's picture, white background cut out
   // The picture fills the screen; where it is cropped, the crop is centred on the sites.
   function mapView() {
     const k = Math.max(cssWidth / MAP_W, cssHeight / MAP_H);
@@ -2237,39 +2297,161 @@
     const ox = fit((x0 + x1) / 2, cssWidth, MAP_W), oy = fit((y0 - rImg + y1 + rImg) / 2, cssHeight, MAP_H);
     return { k, ox, oy, w: MAP_W * k, h: MAP_H * k, pt: (x, y) => ({ x: ox + x * k, y: oy + y * k }) };
   }
-  // Boats sail slowly from shore to shore and back. Routes in map pixels, through open sea.
-  const BOAT_ROUTES = [
-    [[370, 455], [470, 560], [610, 640], [660, 790], [705, 870]],   // Attica - past Crete - Alexandria
-    [[620, 575], [800, 640], [980, 715], [1150, 790]],              // Caria - south of Cyprus - Levant
-    [[780, 135], [1000, 90], [1300, 115]],                           // Black Sea coast
-    [[960, 1060], [1040, 1220], [1110, 1390]],                       // Red Sea
-    [[300, 690], [200, 790], [120, 850]],                            // Crete - Libya
-  ];
-  const BOAT_SPEED = 20; // map pixels per second
-  const boats = BOAT_ROUTES.map((route, i) => ({ route, d: (i * 157) % 300, dir: i % 2 ? -1 : 1, wait: 0 }));
-  function routeLength(r) { let L = 0; for (let i = 1; i < r.length; i++) L += Math.hypot(r[i][0] - r[i - 1][0], r[i][1] - r[i - 1][1]); return L; }
-  function routePoint(r, d) {
+  // Ten boats, each sailing its fixed ports back and forth (src/map-routes.js: legs keep to open water).
+  const BOAT_SPEED = 20, BOAT_REST = 3, BOAT_SIZE = 56; // map pixels per second, seconds in port, map pixels wide
+  const polyLen = (r) => { let L = 0; for (let i = 1; i < r.length; i++) L += Math.hypot(r[i][0] - r[i - 1][0], r[i][1] - r[i - 1][1]); return L; };
+  function polyPoint(r, d) { // point at distance d along a polyline, and the direction it runs there
     for (let i = 1; i < r.length; i++) {
       const sl = Math.hypot(r[i][0] - r[i - 1][0], r[i][1] - r[i - 1][1]);
-      if (d <= sl || i === r.length - 1) { const t = Math.min(1, d / sl); return [r[i - 1][0] + (r[i][0] - r[i - 1][0]) * t, r[i - 1][1] + (r[i][1] - r[i - 1][1]) * t, r[i][0] - r[i - 1][0]]; }
+      if (d <= sl || i === r.length - 1) { const t = sl ? Math.max(0, Math.min(1, d / sl)) : 0; return [r[i - 1][0] + (r[i][0] - r[i - 1][0]) * t, r[i - 1][1] + (r[i][1] - r[i - 1][1]) * t, r[i][0] - r[i - 1][0]]; }
       d -= sl;
     }
-    return r[0];
+    return [r[0][0], r[0][1], 0];
   }
+  const boats = BOAT_LINES.map((line, i) => {
+    const lens = line.legs.map(polyLen), leg = i % line.legs.length;
+    return { line, lens, leg, dir: 1, d: lens[leg] * ((i * 0.37) % 1), wait: 0, x: 0, y: 0, vx: 1 };
+  });
+  // Seconds a boat of this line needs to sail from stop a to stop b (indexes), and for a whole round.
+  const sailTime = (b, i, j) => { let L = 0; for (let k = Math.min(i, j); k < Math.max(i, j); k++) L += b.lens[k]; return L / BOAT_SPEED + Math.abs(i - j) * BOAT_REST; };
   function updateBoats(dt) {
     for (const b of boats) {
       if (b.wait > 0) { b.wait -= dt; continue; }
-      const L = routeLength(b.route);
       b.d += b.dir * BOAT_SPEED * dt;
-      if (b.d >= L || b.d <= 0) { b.d = Math.max(0, Math.min(L, b.d)); b.dir = -b.dir; b.wait = 3; } // rest in port
+      const L = b.lens[b.leg];
+      if (b.d < L && b.d > 0) continue;
+      // in port: rest, let travellers on and off, then the next leg (turning round at either end)
+      const stop = b.dir > 0 ? b.leg + 1 : b.leg;
+      b.d = b.dir > 0 ? L : 0; b.wait = BOAT_REST;
+      boatInPort(b, b.line.stops[stop]);
+      if (b.dir > 0) { if (b.leg + 1 < b.lens.length) { b.leg++; b.d = 0; } else b.dir = -1; }
+      else if (b.leg > 0) { b.leg--; b.d = b.lens[b.leg]; } else b.dir = 1;
     }
+    for (const b of boats) { const [x, y, dx] = polyPoint(b.line.legs[b.leg], b.d); b.x = x; b.y = y; if (dx) b.vx = dx * b.dir; }
   }
   function drawBoats(v) {
     const t = performance.now() / 1000;
     boats.forEach((b, i) => {
-      const [x, y, dx] = routePoint(b.route, b.d), q = v.pt(x, y);
-      SKIN.mapBoat(ctx, boatImg, q.x, q.y, 70 * v.k, dx * b.dir < 0, Math.sin(t * 1.3 + i) * 0.05);
+      const q = v.pt(b.x, b.y), tilt = Math.sin(t * 1.3 + i) * 0.05;
+      SKIN.mapBoat(ctx, boatImg, q.x, q.y, BOAT_SIZE * v.k, b.vx < 0, tilt);
+      const g = groups.find((gr) => gr.state === "boat" && gr.boat === b);
+      if (g) drawGroup(v, g, PEOPLE.map((_, k) => [b.x + (k - 2.5) * 5.5, b.y - 6]), "idle", b.vx < 0); // on deck
     });
+  }
+
+  // Travellers (owner decision): ten groups of the six villagers (src/art/villagers, craftpix free licence).
+  // They start on the boats; in a port with a finished site reachable over land they get off and walk there
+  // at boat speed, then on to another finished site by whichever is quicker, walking or a boat; after at most
+  // three sites on foot they board the next boat that calls and go where it goes.
+  const PEOPLE = ["Boy", "Girl", "Man", "Old_man", "Old_woman", "Woman"];
+  const PEOPLE_ART = {
+    Boy: ["art/villagers/Boy_walk.png", "art/villagers/Boy_idle.png"], Girl: ["art/villagers/Girl_walk.png", "art/villagers/Girl_idle.png"],
+    Man: ["art/villagers/Man_walk.png", "art/villagers/Man_idle.png"], Old_man: ["art/villagers/Old_man_walk.png", "art/villagers/Old_man_idle.png"],
+    Old_woman: ["art/villagers/Old_woman_walk.png", "art/villagers/Old_woman_idle.png"], Woman: ["art/villagers/Woman_walk.png", "art/villagers/Woman_idle.png"],
+  };
+  const peopleImg = {};
+  for (const n of PEOPLE) peopleImg[n] = { walk: Object.assign(new Image(), { src: PEOPLE_ART[n][0] }), idle: Object.assign(new Image(), { src: PEOPLE_ART[n][1] }) };
+  const WALK_SPEED = BOAT_SPEED, MAX_ON_FOOT = 3, VISIT_TIME = 4, PERSON_GAP = 9; // map px/s, sites, seconds, map px between walkers
+  const groups = boats.map((b) => ({ state: "boat", boat: b, onFoot: 0, stops: 0, recent: [], plan: null }));
+  function walkPath(from, to) {
+    const p = MAP_WALKS[from + ">" + to];
+    if (p) return p;
+    const q = MAP_WALKS[to + ">" + from];
+    return q ? q.slice().reverse() : null;
+  }
+  const doneSites = () => SITES.filter((s) => progress.done[s.key]).map((s) => s.key);
+  function startWalk(g, path, then) { g.state = "walk"; g.path = path; g.len = polyLen(path); g.s = 0; g.then = then; }
+  function boatInPort(b, port) {
+    for (const g of groups) {
+      if (g.state === "boat" && g.boat === b) {
+        g.stops++;
+        let site = null;
+        if (g.plan) { if (g.plan.offAt === port) site = g.plan.site; }
+        else if (g.stops >= 1) { // off where a finished site can be walked to; the nearest one
+          let best = Infinity;
+          for (const k of doneSites()) {
+            const p = walkPath("port:" + port, "site:" + k);
+            if (p && !g.recent.includes(k) && polyLen(p) < best) { best = polyLen(p); site = k; }
+          }
+        }
+        const p = site && walkPath("port:" + port, "site:" + site);
+        if (p) { g.plan = null; g.boat = null; startWalk(g, [MAP_PORTS[port]].concat(p), { site }); }
+      } else if (g.state === "port" && g.port === port && (!g.plan || g.plan.line === b.line)) {
+        g.state = "boat"; g.boat = b; g.onFoot = 0; g.stops = 0; // aboard: off at the planned port, or wherever a site is near
+      }
+    }
+  }
+  // At a site: where next. Walking there, or walking to a port and taking a boat, whichever is quicker.
+  function chooseNext(g) {
+    const here = g.site, ports = Object.keys(MAP_PORTS).filter((p) => walkPath("port:" + p, "site:" + here));
+    const toPort = (p) => polyLen(walkPath("site:" + here, "port:" + p)) / WALK_SPEED;
+    if (g.onFoot < MAX_ON_FOOT) {
+      let best = null;
+      for (const k of doneSites()) {
+        if (k === here || g.recent.includes(k)) continue;
+        const w = walkPath("site:" + here, "site:" + k);
+        if (w) { const t = polyLen(w) / WALK_SPEED; if (!best || t < best.t) best = { t, walk: w, site: k }; }
+        for (const b of boats) for (const p1 of ports) {
+          const i = b.line.stops.indexOf(p1);
+          if (i < 0) continue;
+          b.line.stops.forEach((p2, j) => {
+            const w2 = j !== i && walkPath("port:" + p2, "site:" + k);
+            if (!w2) return;
+            const t = toPort(p1) + sailTime(b, 0, b.lens.length) + sailTime(b, i, j) + polyLen(w2) / WALK_SPEED; // waiting: about one round
+            if (!best || t < best.t) best = { t, port: p1, plan: { line: b.line, offAt: p2, site: k } };
+          });
+        }
+      }
+      if (best && best.walk) { startWalk(g, best.walk, { site: best.site }); return; }
+      if (best) { startWalk(g, walkPath("site:" + here, "port:" + best.port), { port: best.port, plan: best.plan }); return; }
+    }
+    // three sites on foot (or nowhere else to go): the nearest port, and the next boat that calls
+    let near = null;
+    for (const p of ports) if (!near || toPort(p) < toPort(near)) near = p;
+    if (near) startWalk(g, walkPath("site:" + here, "port:" + near), { port: near, plan: null });
+    else g.wait = VISIT_TIME; // nowhere to go yet: stay a little longer
+  }
+  function updateTravellers(dt, v) {
+    const rSite = (siteRadius() * DONE_SIZE) / v.k + 6; // walkers stop at the edge of a finished site's circle
+    for (const g of groups) {
+      if (g.state === "walk") {
+        g.s += WALK_SPEED * dt;
+        const end = g.then.site ? g.len - rSite : g.len;
+        if (g.s >= end) {
+          g.s = Math.max(0, end);
+          if (g.then.site) { g.state = "visit"; g.site = g.then.site; g.wait = VISIT_TIME; g.onFoot++; g.recent = [g.site].concat(g.recent).slice(0, 2); }
+          else { g.state = "port"; g.port = g.then.port; g.plan = g.then.plan; }
+        }
+      } else if (g.state === "visit" && (g.wait -= dt) <= 0) {
+        if (!progress.done[g.site]) g.recent = []; // the site is gone (progress reset): just move on
+        chooseNext(g);
+      }
+    }
+  }
+  // Six walkers, the leader at `pts[0]`; `anim` walk or idle.
+  function drawGroup(v, g, pts, anim, flip) {
+    const t = performance.now() / 1000, frames = anim === "walk" ? 6 : 4, H = 40 * v.k; // a 48 px frame drawn this tall
+    ctx.save(); ctx.imageSmoothingEnabled = false;
+    PEOPLE.forEach((n, k) => {
+      const im = peopleImg[n][anim], [x, y] = pts[k], q = v.pt(x, y);
+      if (!im.complete || !im.naturalWidth) return;
+      const f = Math.floor(t * (anim === "walk" ? 10 : 5) + k * 1.7) % frames;
+      ctx.save(); ctx.translate(q.x, q.y); if (flip) ctx.scale(-1, 1);
+      ctx.drawImage(im, f * 48, 0, 48, 48, -H / 2, -H, H, H);
+      ctx.restore();
+    });
+    ctx.restore();
+  }
+  function drawTravellers(v) {
+    for (const g of groups) {
+      if (g.state === "walk") {
+        const pts = PEOPLE.map((_, k) => polyPoint(g.path, Math.max(0, g.s - k * PERSON_GAP)));
+        drawGroup(v, g, pts, "walk", pts[0][2] < 0);
+      } else if (g.state === "visit" || g.state === "port") {
+        const end = g.path ? polyPoint(g.path, g.s) : [0, 0];
+        drawGroup(v, g, PEOPLE.map((_, k) => [end[0] + (k - 2.5) * PERSON_GAP * 0.8, end[1] + (k % 2) * 3]), "idle", false);
+      }
+    }
   }
   function siteRadius() { return Math.max(22, Math.min(cssWidth, cssHeight) * 0.04); }
   const DONE_SIZE = 1.6; // finished sites are drawn this much bigger
@@ -2287,6 +2469,7 @@
     const v = mapView();
     SKIN.mapImage(ctx, mapImg, v.ox, v.oy, v.w, v.h);
     updateBoats(dt);
+    updateTravellers(dt, v);
     drawBoats(v);
     for (const site of SITES) {
       const m = siteMarker(v, site), r = m.r;
@@ -2296,6 +2479,7 @@
       else if (levelOpen(i)) SKIN.mapSiteOpen(ctx, m.x, m.y, r);
       else SKIN.mapSite(ctx, m.x, m.y, r);
     }
+    drawTravellers(v);
     // Parent override: hold the top-left corner for three seconds to open (or re-lock) every site.
     if (cornerHold && performance.now() - cornerHold.t > 3000) { allOpen = !allOpen; cornerHold = null; }
     const fb = freePlayButton();
@@ -2329,7 +2513,8 @@
       requestAnimationFrame(frame);
       return;
     }
-    stepPhysics(dt);
+    const fast = test && test.fast && test.phase !== "fail" && test.phase !== "pass" ? TEST_FAST : 1;
+    stepPhysics(dt * fast, MAX_STEPS * fast);
     cleanupOutOfBounds();
     updateCheck(dt);
     updateFeel(dt);
