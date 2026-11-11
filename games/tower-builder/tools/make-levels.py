@@ -11,13 +11,16 @@ HERE = pathlib.Path(__file__).resolve().parent.parent
 UP = math.pi / 2
 
 # --- piece shapes (must match PIECE_DEFS in src/index.html; polygons not listed there come from LEVEL_PIECES)
-def gable_verts(side):
-    b, h, flat = 4.2, 1.1, 0.25  # half the gable: right angle at the inner bottom, a short flat tip for the top slab
-    pts = [(-b, 0), (0, 0), (0, h), (-flat, h * (1 - flat / b))]
-    if side > 0: pts = [(-x, y) for x, y in reversed(pts)]
+def centred(pts):
     c = Polygon(pts).centroid
     return [[round(x - c.x, 4), round(y - c.y, 4)] for x, y in pts]
-LEVEL_PIECES = {"gableL": gable_verts(-1), "gableR": gable_verts(1)}
+def gable_verts(side):
+    b, h = 3.7, 1.0  # half the gable: right angle at the inner bottom; a square stone fills the middle between the halves
+    pts = [(-b, 0), (0, 0), (0, h)]
+    if side > 0: pts = [(-x, y) for x, y in reversed(pts)]
+    return centred(pts)
+TRI = 1.5  # triangle (new): right-angled, both short sides 1.5; fills the corner between an arch and the wall beside it
+LEVEL_PIECES = {"gableL": gable_verts(-1), "gableR": gable_verts(1), "tri": centred([(0, 0), (TRI, 0), (0, TRI)])}
 R_C = 1.95
 SHAPES = {
     "block": box(-1, -0.5, 1, 0.5), "square": box(-0.5, -0.5, 0.5, 0.5), "column": box(-0.3, -1.2, 0.3, 1.2),
@@ -26,6 +29,19 @@ SHAPES = {
     "centering": Polygon([(R_C * math.cos(math.pi * i / 10), R_C * math.sin(math.pi * i / 10) - 4 * R_C / (3 * math.pi)) for i in range(11)]),
     **{k: Polygon(v) for k, v in LEVEL_PIECES.items()},
 }
+# a triangle with its right angle at corner (cx, cy), the short sides along the wall and the top,
+# the long side facing down towards (sx, sy) = -1/+1: the arch below and to that side
+def tri_at(cx, cy, sx, mat="stone"):
+    # rest shape has the right angle at the bottom left; turned -90 deg it sits at the top left, 180 deg at the top right
+    a = -UP if sx > 0 else math.pi
+    sh = affinity.rotate(SHAPES["tri"], a, origin=(0, 0), use_radians=True)
+    corner = (sh.bounds[0], sh.bounds[3]) if sx > 0 else (sh.bounds[2], sh.bounds[3])
+    return ["tri", mat, round(cx - corner[0], 4), round(cy - corner[1], 4), round(a, 4)]
+def tri_rest(cx, cy, right_angle_at, mat):  # lying on a short side, right angle at the bottom 'left' or 'right' corner (cx, cy)
+    a = 0 if right_angle_at == "left" else UP
+    sh = affinity.rotate(SHAPES["tri"], a, origin=(0, 0), use_radians=True)
+    bx = sh.bounds[0] if right_angle_at == "left" else sh.bounds[2]
+    return ["tri", mat, round(cx - bx, 4), round(cy - sh.bounds[1], 4), round(a, 4)]
 def placed(d, x, y, a):
     return affinity.translate(affinity.rotate(SHAPES[d], a, origin=(0, 0), use_radians=True), x, y)
 
@@ -81,22 +97,27 @@ level("karnak", "Υπόστυλη αίθουσα του Καρνάκ", "c. 1290-
       [rect(-1.6, 5.8, 1.6, 6.3)])
 gate = rect(-1, 0, 1, 3)
 level("liongate", "Πύλη των Λεόντων", "c. 1250 BC", "overhanging stones held by weight",
-      "the lintel and the walls beside the relieving triangle simplified to whole blocks and beams; the lion slab is the load",
+      "the relieving triangle above the lintel is two stone triangles leaning together, built on two wooden triangles taken out at the end (the real one is corbelled courses with the lion slab set in it); the lion slab is the load on top",
       [p for y in (0.5, 1.5, 2.5) for p in row("stone", -5, 2, y) + row("stone", 1, 2, y)] + [["beam", "stone", x, 3.25, 0] for x in (-3.2, 0, 3.2)] +
-      [p for y in (4, 5, 6) for p in row("stone", -5, 2, y) + row("stone", 1, 2, y)],
-      [Polygon([(-0.9, 3.5), (0.9, 3.5), (0, 4.5)])], [gate])
+      mirror([["block", "stone", -3.5, 4.0, 0], ["square", "stone", -2.0, 4.0, 0], ["beam", "stone", -3.1, 4.75, 0]]) +
+      [tri_rest(0, 3.5, "right", "wood"), tri_rest(0, 3.5, "left", "wood")] +  # wooden form for the triangle, taken out at the end
+      [tri_at(-1.5, 5.0, 1), tri_at(1.5, 5.0, -1)] + row("stone", -5, 5, 5.5) + staggered("stone", -5, 5, 6.5),
+      [rect(-1.5, 7, 1.5, 7.6)], [gate, Polygon([(-1.5, 3.5), (1.5, 3.5), (0, 5.0)])], "support")
 level("ishtar", "Πύλη της Ιστάρ", "c. 575 BC", "wedge-stone arch on wooden supports",
-      "spandrels beside the arch are square blocks; the curved gaps above the arch cannot be filled with straight pieces",
+      "spandrels beside the arch are square blocks and two triangles; small curved slivers along the arch cannot be filled",
       [p for y in (0.5, 1.5) for p in row("stone", -6, 2, y) + row("stone", 2, 2, y)] +
       [p for y in (2.5, 3.5, 4.5, 5.5, 6.5) for p in (["block", "mudbrick", -5, y, 0], ["block", "mudbrick", 5, y, 0])] +
-      arch(0, 2, 2) + [p for y in (2.5, 3.5, 4.5) for p in (["square", "stone", -3.5, y, 0], ["square", "stone", 3.5, y, 0])],
+      arch(0, 2, 2) + [p for y in (2.5, 3.5, 4.5) for p in (["square", "stone", -3.5, y, 0], ["square", "stone", 3.5, y, 0])] +
+      [tri_at(-3, 5, 1), tri_at(3, 5, -1)],
       [rect(-3.8, 5, 3.8, 5.6)], [arch_hole(0, 2)], "support")
 P0 = 3
+COLS4 = [-4.4, -1.6, 1.6, 4.4]  # gaps between the capitals; the beam joints (+-1.6) rest on the middle of a capital
 level("parthenon", "Παρθενώνας", "447-432 BC", "columns with capitals, a pediment, acroteria",
-      "real front has 8 columns; 6 here to fit; three steps of whole blocks; architrave, frieze and pediment simplified",
-      row("stone", -7, 7, 0.5) + row("stone", -6, 6, 1.5) + row("stone", -5, 5, 2.5) + colonnade(P0) +
-      [["capital", "stone", x, P0 + 3.5, 0] for x in COLS6] +
-      [["gableL", "stone", -4.2 + 0, 0, 0], ["gableR", "stone", 0, 0, 0], ["capital", "stone", 0, 0, 0]],  # placed below
+      "real front has 8 columns; 4 here so the capitals stand apart under 3.2 m beams; three steps of whole blocks; architrave, frieze and pediment simplified; the pediment's middle is a square stone",
+      row("stone", -7, 7, 0.5) + row("stone", -6, 6, 1.5) + row("stone", -5, 5, 2.5) +
+      [["column", "stone", x, P0 + 1.2, 0] for x in COLS4] + [["capital", "stone", x, P0 + 2.6, 0] for x in COLS4] +
+      [["beam", "stone", x, P0 + 3.05, 0] for x in (-3.2, 0, 3.2)] + [["capital", "stone", x, P0 + 3.5, 0] for x in COLS6] +
+      [["gableL", "stone", 0, 0, 0], ["gableR", "stone", 0, 0, 0], ["square", "stone", 0, 0, 0]],  # placed below
       [], [])
 level("mausoleum", "Μαυσωλείο της Αλικαρνασσού", "c. 350 BC", "heavy stepped roof carried on columns",
       "podium, colonnade, stepped pyramid roof, chariot on top, corner ornaments (proportions from reconstructions, which differ)",
@@ -109,24 +130,24 @@ level("pharos", "Φάρος της Αλεξάνδρειας", "c. 280 BC", "very
       [p for k in range(4) for p in (row("stone", -3, 3, k + 5.5) if k % 2 == 0 else staggered("stone", -3, 3, k + 5.5))] +
       [["column", "stone", x, 10.2, 0] for x in (-0.6, 0, 0.6)] + [["capital", "stone", 0, 11.6, 0]],
       [rect(-0.4, 11.8, 0.4, 13.1)])
-V = mirror([["block", "stone", -6.5, 2.0, UP], ["capital", "stone", -6.2, 3.2, 0], ["block", "stone", -6, 3.92, 0], ["column", "stone", -6, 4.72, UP]])
+def tier(sy):  # two arches springing at sy, square piers at the ends, a triangle in each corner beside an arch
+    return [p for k in range(3) for p in (["square", "stone", -6.5, sy + 0.5 + k, 0], ["square", "stone", 6.5, sy + 0.5 + k, 0])] + \
+        [tri_at(-6, sy + 3, 1), tri_at(0, sy + 3, -1), tri_at(0, sy + 3, 1), tri_at(6, sy + 3, -1)]
+UPPER = 5.02
 level("valens", "Υδραγωγείο του Ουάλη", "AD 368", "two tiers of arches",
-      "real upper arches are smaller; same size here because there is one wedge size",
-      [["block", "stone", -6, 0.5, 0], ["block", "stone", 0, 0.5, 0], ["block", "stone", 6, 0.5, 0]] + arch(-3, 1, 1) + arch(3, 1, 1) + V +
-      [["capital", "stone", 0, 3.26, 0], ["block", "stone", 0, 3.98, 0], ["capital", "stone", 0, 4.7, 0]] +
-      arch(-3, 5.02, 1, True) + arch(3, 5.02, 1, True) + mirror([["block", "stone", -6.5, 6.05, UP]]) +
-      [["block", "stone", -6.2, 7.6, 0], ["block", "stone", 6.2, 7.6, 0], ["capital", "stone", 0, 7.28, 0], ["column", "stone", 0, 7.8, UP]],
-      [rect(-7, 8, 7, 8.6)], [arch_hole(-3, 1), arch_hole(3, 1), arch_hole(-3, 5, 4), arch_hole(3, 5, 4)], "support")
+      "real upper arches are smaller; same size here because there is one wedge size; a full course between the tiers",
+      [["block", "stone", -6, 0.5, 0], ["block", "stone", 0, 0.5, 0], ["block", "stone", 6, 0.5, 0]] + arch(-3, 1, 1) + arch(3, 1, 1) + tier(1) +
+      row("stone", -7, 7, UPPER - 0.5) + arch(-3, UPPER, 0) + arch(3, UPPER, 0) + tier(UPPER),
+      [rect(-7, UPPER + 3.05, 7, UPPER + 3.65)], [arch_hole(-3, 1), arch_hole(3, 1), arch_hole(-3, UPPER, UPPER), arch_hole(3, UPPER, UPPER)], "support")
 
-# Parthenon pediment: the two halves stand on the frieze, the slab on their flat tips, acroteria on the frieze ends and the slab
+# Parthenon pediment: the two halves stand on the frieze either side of a square stone; acroteria on the frieze ends and on the square
 pth = next(l for l in L if l["key"] == "parthenon")
 fr_top = P0 + 3.7
 gl, gr = Polygon(LEVEL_PIECES["gableL"]), Polygon(LEVEL_PIECES["gableR"])
-pth["sol"][-3] = ["gableL", "stone", round(-gl.bounds[2], 4), round(fr_top - gl.bounds[1], 4), 0]
-pth["sol"][-2] = ["gableR", "stone", round(-gr.bounds[0], 4), round(fr_top - gr.bounds[1], 4), 0]
-tip = fr_top + gl.bounds[3] - gl.bounds[1]
-pth["sol"][-1] = ["capital", "stone", 0, round(tip + 0.2, 4), 0]
-pth["load"] = [acroterion(-4.5, fr_top, 0.45), acroterion(4.5, fr_top, 0.45), acroterion(0, tip + 0.4, 0.8, 1.0)]
+pth["sol"][-3] = ["gableL", "stone", round(-0.5 - gl.bounds[2], 4), round(fr_top - gl.bounds[1], 4), 0]
+pth["sol"][-2] = ["gableR", "stone", round(0.5 - gr.bounds[0], 4), round(fr_top - gr.bounds[1], 4), 0]
+pth["sol"][-1] = ["square", "stone", 0, fr_top + 0.5, 0]
+pth["load"] = [acroterion(-4.5, fr_top, 0.45), acroterion(4.5, fr_top, 0.45), acroterion(0, fr_top + 1.0, 0.8, 1.0)]
 
 def parts(geom):
     return [g for g in ([geom] if geom.geom_type == "Polygon" else list(geom.geoms)) if g.area >= 0.05]
@@ -153,7 +174,9 @@ out = []
 for l in L:
     sup = l["woodRole"] == "support"
     shapes = [placed(d, x, y, a) for d, m, x, y, a in l["sol"] if not (sup and m == "wood")]
-    u = unary_union([s.buffer(0.03, join_style=2) for s in shapes]).buffer(-0.03, join_style=2)
+    # closed over gaps narrower than 0.7 m (pockets and slivers no piece can fill are part of the
+    # outline, not lace-like openings); real openings come from the level's holes
+    u = unary_union([s.buffer(0.35, join_style=2, mitre_limit=10) for s in shapes]).buffer(-0.35, join_style=2, mitre_limit=10)
     holes = list(l["holes"])
     if holes: u = u.difference(unary_union(holes))
     u = u.simplify(0.004)

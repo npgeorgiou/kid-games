@@ -138,7 +138,7 @@ These override the brief where they differ.
 
 ## Status
 
-- Tower Builder: free play, picture world map with ten boats on fixed ports and traveller groups, ten levels generated from their suggested builds (`tools/make-levels.py`), each with a wrong choice that fails, owner sounds and music, breaking, limited sidebar pile, arches on wooden supports the player removes, pediment pieces, and a test (wind both ways, load lowered with drumroll, earthquake; anything breaking fails it). Quick build and 10x test behind Tab. Handoff: `games/tower-builder/BUILD.md`, sections "Current state", "Current state, update 2" and "Task list" (empty: waiting for the owner's play-test fix list). Next: owner play-test, then the test with the child.
+- Tower Builder: free play, picture world map with ten boats on fixed ports and traveller groups, ten levels generated from their suggested builds (`tools/make-levels.py`), each with a wrong choice that fails, owner sounds and music, breaking, limited sidebar pile, arches on wooden supports the player removes, pediment pieces, and a test (wind both ways, load lowered with drumroll, earthquake; anything breaking fails it). Quick build and 10x test behind Tab. Handoff: `games/tower-builder/BUILD.md`, sections "Current state", "Current state, update 2", "Current state, update 3" and "Task list". Triangle piece; Lion Gate, Parthenon and Valens rebuilt. Next: owner play-test; redesign of the plain levels (Lion Gate, Mausoleum, Pharos) with the owner.
 
 ## Decided
 

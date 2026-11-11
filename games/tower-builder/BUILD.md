@@ -155,6 +155,22 @@ The 11 Nov task list (20 items) is fully built and pushed. What changed:
 - Harness: `python3 tools/harness.py [levels] [jitter]` prints one line per level and per wrong choice; `jitter` also measures resting speeds.
 - Not yet play-tested by the owner: all of the above.
 
+## Current state, update 3 (11 Nov 2026, night; overrides the sections above where they differ)
+
+The owner's second fix list (18 items) is built and pushed. What changed:
+
+- Impacts: sound, dust/chips and wood impact-snapping use the closing speed at the contact (`approachSpeed`, measured in pre-solve) capped by impulse/mass. Before, the steady weight of pieces above was read as a hit: a still pile made thousands of false hits (one bang every 250 ms per piece), now none.
+- Sidebar hand pin 60 x weight (was 30): the bottom piece of every pile lifts out (Pharos bottom piece lifted 0.03 m before, 2.5+ m now).
+- Held off-centre: grip friction `swingDamping` (wood 6, mudbrick 9, stone 12 per s) applied by the hand before it reads the grab point's speed (as body angular damping it acted after the hand and dragged the piece). Harness swing check (corner held, moved 4 m sideways): stone tilt 1.9 -> 0.8 rad, still swinging 1.9 rad after 3 s -> stopped. The sidebar keeps the old free swing (`PILE_SWING_DAMP`).
+- Drumroll: the roll in drumroll.mp3 is 5.5 s (`DRUM_ROLL`), the rest a quiet fade; fitting all 10.3 s skipped the roll's start (level 2 heard only the fade). Now played from its start at 0.9-1.1x; a short drop starts it up to 1.5 s early; a long drop lowers the load faster. Measured in the browser: roll length and start-to-landing agree within 0.1 s.
+- Test button: little building with the orange load; yellow fast badge (two arrowheads) while Tab is latched or the test runs 10x. Map: a Tab latch from inside a level no longer shows every site open on return (`tabOnMap`).
+- Pile: bigger (largest scale with rows under 80% of the bin), one height and material per row, wedges and triangles nested in up/down pairs, columns lying, round and sloped pieces on top, 240 settle steps before it is shown.
+- New piece `tri` (right-angled, short sides 1.5). Lion Gate: relieving triangle of two stone triangles on two wooden triangles (supports, taken out; woodRole "support"); lion slab load on top. Ishtar: a triangle in each corner beside the arch. Valens rebuilt: two tiers of two arches, square piers, a triangle beside every arch shoulder, a full course between tiers.
+- Parthenon: four columns at +-1.6, +-4.4 so capitals stand apart; pediment halves (3.7 x 1.0) either side of a square; middle acroterion on the square.
+- Outlines: closed over gaps under 0.7 m (make-levels), so no lace of tiny openings.
+- Harness: `probe` (pile false hits, bottom lift, held swing), `sizes` (pile hits per screen size). Drop and lead per level printed.
+- Open (owner to decide): Lion Gate, Mausoleum and Pharos are too plain (ideas in chat).
+
 ## Task list
 
 Empty. Nothing is waiting to be built. The next step is the owner's play-test of the update above.

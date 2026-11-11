@@ -239,6 +239,18 @@
         ctx.stroke();
       },
     },
+    // two arrowheads on a button: the test will run fast (Tab)
+    fastBadge(ctx, x, y, size) {
+      const r = size * 0.2, cx = x + size * 0.36, cy = y + size * 0.36;
+      ctx.save();
+      ctx.fillStyle = "#f2c230"; ctx.strokeStyle = "#3c3226"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#3c3226";
+      for (const dx of [-0.55, 0.05]) {
+        ctx.beginPath(); ctx.moveTo(cx + dx * r, cy - 0.5 * r); ctx.lineTo(cx + (dx + 0.5) * r, cy); ctx.lineTo(cx + dx * r, cy + 0.5 * r); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    },
     button(ctx, name, x, y, size, pressed) {
       const r = size * (pressed ? 0.46 : 0.5);
       ctx.save();
@@ -288,12 +300,15 @@
         ctx.beginPath(); ctx.moveTo(-s * 0.33, -s * 0.8); ctx.lineTo(-s * 0.33, s * 0.6);
         ctx.moveTo(s * 0.33, -s * 0.6); ctx.lineTo(s * 0.33, s * 0.8); ctx.stroke();
       } else if (name === "test") {
-        // wind lines: start the test
-        ctx.strokeStyle = pressed ? "#a8a59a" : "#f4ecd8"; ctx.lineWidth = Math.max(2.5, s * 0.2); ctx.lineCap = "round";
-        for (const [yy, len] of [[-0.55, 1.5], [0, 2], [0.55, 1.2]]) {
-          ctx.beginPath(); ctx.moveTo(-s, yy * s); ctx.lineTo(-s + len * s, yy * s); ctx.stroke();
+        // start the test: a little building with the orange load coming down onto it
+        if (pressed) ctx.fillStyle = "#a8a59a";
+        for (const [bx, by, bw, bh] of [[-0.95, 0.55, 0.9, 0.45], [0.05, 0.55, 0.9, 0.45], [-0.25, 0.1, 0.5, 0.45], [-0.75, -0.1, 1.5, 0.2]]) {
+          ctx.fillRect(bx * s, by * s, bw * s, bh * s); ctx.strokeRect(bx * s, by * s, bw * s, bh * s);
         }
-        ctx.lineCap = "butt";
+        ctx.fillStyle = pressed ? "#b08a60" : "#e8912f"; ctx.strokeStyle = "#8a4f12";
+        ctx.beginPath();
+        ctx.moveTo(-0.3 * s, -0.25 * s); ctx.lineTo(0.3 * s, -0.25 * s); ctx.lineTo(0.38 * s, -0.7 * s); ctx.lineTo(0, -1.0 * s); ctx.lineTo(-0.38 * s, -0.7 * s);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
       } else if (name === "autobuild") {
         // parent override: a little stack being built
         for (const [bx, by, bw] of [[-0.9, 0.35, 0.85], [0.05, 0.35, 0.85], [-0.42, -0.35, 0.85]]) {
@@ -325,10 +340,10 @@
     // this, not sluggish acceleration, is what should make stone feel heavy.
     // maxSpin: hard cap on angular velocity while held (rad/s) -- heavier
     // material resists being spun around in the hand more.
-    wood:  { label: "WOOD",  density: 1.1,  friction: 0.5,  restitution: 0.015, maxLiftSpeed: 9,  maxSpin: 3.0, maxAccel: 30, swingDamping: 0.25 },
+    wood:  { label: "WOOD",  density: 1.1,  friction: 0.5,  restitution: 0.015, maxLiftSpeed: 9,  maxSpin: 3.0, maxAccel: 30, swingDamping: 6 },
     // mudbrick: between wood and stone in weight; crumbles under heavy weight (SECTION BREAKING)
-    mudbrick: { label: "MUDBRICK", density: 3.2, friction: 0.7, restitution: 0.0, maxLiftSpeed: 7.5, maxSpin: 2.0, maxAccel: 26, swingDamping: 0.12 },
-    stone: { label: "STONE", density: 5.0,  friction: 0.6,  restitution: 0.0,  maxLiftSpeed: 6,  maxSpin: 1.3, maxAccel: 22, swingDamping: 0.04 }, // swingDamping: angular damping while swinging in the hand (air: light wood slows more)
+    mudbrick: { label: "MUDBRICK", density: 3.2, friction: 0.7, restitution: 0.0, maxLiftSpeed: 7.5, maxSpin: 2.0, maxAccel: 26, swingDamping: 9 },
+    stone: { label: "STONE", density: 5.0,  friction: 0.6,  restitution: 0.0,  maxLiftSpeed: 6,  maxSpin: 1.3, maxAccel: 22, swingDamping: 12 }, // held off-centre: grip friction on the swing (1/s), applied by the hand itself (SECTION PHYSICS STEP)
   };
   let selectedMaterial = "wood";
 
@@ -343,6 +358,8 @@
     // pediment halves (new): right-angled triangles with a short flat tip for the top slab; shapes in src/levels.js
     gableL: { shape: "poly", verts: LEVEL_PIECES.gableL, hx: Math.max(...LEVEL_PIECES.gableL.map((v) => Math.abs(v[0]))), hy: Math.max(...LEVEL_PIECES.gableL.map((v) => Math.abs(v[1]))), densityScale: 1.0, skin: "gable" },
     gableR: { shape: "poly", verts: LEVEL_PIECES.gableR, hx: Math.max(...LEVEL_PIECES.gableR.map((v) => Math.abs(v[0]))), hy: Math.max(...LEVEL_PIECES.gableR.map((v) => Math.abs(v[1]))), densityScale: 1.0, skin: "gable" },
+    // triangle (new): right-angled, short sides 1.5 m; fills the corner between an arch and the wall beside it (Lion Gate, Ishtar, Valens)
+    tri: { shape: "poly", verts: LEVEL_PIECES.tri, hx: Math.max(...LEVEL_PIECES.tri.map((v) => Math.abs(v[0]))), hy: Math.max(...LEVEL_PIECES.tri.map((v) => Math.abs(v[1]))), densityScale: 1.0, skin: "gable" },
     // what a snapped wooden piece breaks into (two halves along its length; they do not snap again)
     "block-half":  { shape: "box", hx: 0.5, hy: 0.5, densityScale: 1.0, skin: "block" },
     "column-half": { shape: "box", hx: 0.3, hy: 0.6, densityScale: 1.0, skin: "column" },
@@ -618,7 +635,6 @@
     piece.holdAngle = piece.body.getAngle();
     piece.desired = { x: worldPt.x, y: worldPt.y };
     piece.controlMode = "hand";
-    if (piece.lever) piece.body.setAngularDamping(MATERIALS[piece.material].swingDamping); // held off-centre it swings like its weight
 
     pointers.set(pointerId, {
       piece,
@@ -685,7 +701,7 @@
         cancelAuto();
         releaseAllPointers();
         abortTest();
-        mode = "map";
+        mode = "map"; mapEnteredAt = performance.now();
         return;
       }
       if (btn.kind === "test") {
@@ -887,6 +903,10 @@
       // held piece's own weight), so what it pushes resists by its own mass.
       const touching = touchesOtherPiece(body);
       const A = touching ? PUSH_ACCEL : material.maxAccel;
+      // Held off-centre, the grip resists the swing (a firm hand, heavier stone gripped harder).
+      // Done here, before the grab point's velocity is read, so the hand still tracks the
+      // finger exactly; as body angular damping it acted after the hand and dragged the piece behind.
+      if (piece.lever) body.setAngularVelocity(body.getAngularVelocity() * Math.exp(-material.swingDamping * STEP));
       const p = body.getWorldPoint(piece.grabLocal);
       const v = body.getLinearVelocityFromWorldPoint(p);
       const dx = piece.desired.x - p.x, dy = piece.desired.y - p.y;
@@ -1031,6 +1051,7 @@
       const poly = () => { ctx.beginPath(); piece.verts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); };
       if (piece.verts) { poly(); ctx.save(); ctx.clip(); }
       if (piece.material === "wood") {
+        if (piece.verts) { ctx.fillStyle = "#c9a36b"; ctx.fillRect(-piece.hx, -piece.hy, piece.hx * 2, piece.hy * 2); } // a shaped wooden piece (triangle) has no skin fill of its own
         // grain runs along the long side
         ctx.strokeStyle = "rgba(91, 55, 25, 0.62)"; ctx.lineWidth = 0.045;
         const along = piece.hx >= piece.hy, a = along ? piece.hx : piece.hy, c = along ? piece.hy : piece.hx;
@@ -1105,6 +1126,7 @@
     if (ab) SKIN.button(ctx, "autobuild", ab.x, ab.y, ab.size, false);
     for (const b of buttonLayout()) {
       SKIN.button(ctx, b.def.icon, b.x, b.y, b.size, b.def.kind === "test" && !testReady() && !tabHeldNow());
+      if (b.def.kind === "test" && (tabHeldNow() || (test && test.fast))) SKIN.fastBadge(ctx, b.x, b.y, b.size);
     }
   }
 
@@ -1211,10 +1233,25 @@
   }
   const puffs = [];
   let shake = 0;
+  const feelHits = [0, 0];
   const lastImpact = new Map(); // body -> time, so one landing makes one thud
   const MUD_SHATTER_SPEED = 7; // m/s lost in one step that crumbles a mudbrick at once (about a 2.5 m fall); placeholder
   // Also used by the sidebar pile (pile = true): same dust, chips and sounds, no shake, no breaking.
   world.on("post-solve", (contact, impulse) => feelContact(contact, impulse, false));
+  // How fast the two bodies were closing at the contact before the solver ran (m/s).
+  // A resting stack has ~0 here even though its contact impulse carries the weight of
+  // everything above; reading impulse/mass alone mistook that weight for a hit every step.
+  function approachSpeed(contact) {
+    const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
+    const wm = new planck.WorldManifold(); contact.getWorldManifold(wm);
+    let vn = 0;
+    for (let i = 0; i < contact.getManifold().pointCount; i++) {
+      const p = wm.points[i], va = bA.getLinearVelocityFromWorldPoint(p), vb = bB.getLinearVelocityFromWorldPoint(p);
+      vn = Math.max(vn, -((vb.x - va.x) * wm.normal.x + (vb.y - va.y) * wm.normal.y));
+    }
+    return vn;
+  }
+  world.on("pre-solve", (contact) => { contact.tbVn = approachSpeed(contact); });
   function feelContact(contact, impulse, pile) {
     const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
     const n = Math.max(...impulse.normalImpulses.slice(0, contact.getManifold().pointCount));
@@ -1225,8 +1262,9 @@
     for (const b of [bA, bB]) {
       const it = item(b);
       if (!it) continue;
-      const dv = n / (b.getMass() || 1); // speed change this contact caused, m/s
+      const dv = Math.min(n / (b.getMass() || 1), contact.tbVn || 0); // speed change this contact caused, m/s, at most the closing speed
       if (dv < 1.2) continue;
+      feelHits[pile ? 1 : 0]++; // test counter (tools/harness.py)
       const now = performance.now();
       if (now - (lastImpact.get(b) || 0) < 250) continue;
       lastImpact.set(b, now);
@@ -1333,7 +1371,8 @@
       if (nl && mo > 0) {
         let J = 0;
         for (let i = 0; i < cnt; i++) J += impulse.normalImpulses[i];
-        if (J / mo > 1.5) piece.impacts.push([sl / nl, (J * J) / (2 * mo), mo * GRAVITY]); // a real hit, not settling (over 1.5 m/s)
+        const hv = Math.min(J / mo, contact.tbVn || 0); // closing speed: resting weight is not a hit
+        if (hv > 1.5) piece.impacts.push([sl / nl, 0.5 * mo * hv * hv, mo * GRAVITY]); // a real hit, not settling (over 1.5 m/s)
       }
       if (s1 >= s0) piece.sup.push([s0, s1]); // one support contact holds up the whole stretch between its points
     }
@@ -1465,9 +1504,11 @@
   // the sidebar returns it.
   const pileWorld = new planck.World({ gravity: planck.Vec2(0, -10) });
   let pileWalls = null, pileQuietUntil = 0;
+  pileWorld.on("pre-solve", (contact) => { contact.tbVn = approachSpeed(contact); }); // SECTION FEEL
   pileWorld.on("post-solve", (contact, impulse) => feelContact(contact, impulse, true)); // SECTION FEEL
   let pileScale = 20;      // px per metre in the sidebar
   const PILE_ANG_DAMP = 3; // pile pieces not in the hand
+  const PILE_SWING_DAMP = { wood: 0.25, mudbrick: 0.12, stone: 0.04 }; // held near an end in the sidebar it swings freely, so it can be turned upright
   const PILE_MAX_SPEED = 4, PILE_MAX_UP = 2; // m/s, pile pieces not in the hand
   let pileBinRect = null;  // px rect of the bin
 
@@ -1496,26 +1537,51 @@
     for (let b = pileWorld.getBodyList(); b; ) { const nb = b.getNext(); pileWorld.destroyBody(b); b = nb; }
     const r = pileBinRect;
     if (!r) return;
-    const total = items.reduce((s, it) => s + pieceArea(it.defKey), 0) || 1;
-    pileScale = Math.min(34, Math.sqrt((0.42 * r.w * r.h) / total));
+    // Orderly: by material (sturdiest lowest: stone, wood, mudbrick), then tallest first and like
+    // with like, packed in rows; as big as the bin allows with every row inside it.
+    const STURDY = { stone: 0, wood: 1, mudbrick: 2 };
+    const lying = (it) => it.defKey === "column"; // columns lie down in the pile (held near an end they swing upright)
+    const size = (it) => { const d = PIECE_DEFS[it.defKey]; return d.r != null ? [2 * d.r, 2 * d.r] : lying(it) ? [2 * d.hy, 2 * d.hx] : [2 * d.hx, 2 * d.hy]; };
+    // One kind of piece per row, so every row has a flat top. Wedges and triangles alternate up and
+    // down and nest into a flat band; the curved forms and the pediment halves go on top, where nothing rests on them.
+    const curved = (it) => (it.defKey === "centering" || it.defKey === "gableL" || it.defKey === "gableR" ? 1 : 0); // sloped or round tops
+    items = items.slice().sort((a, b) => curved(a) - curved(b) || STURDY[a.material] - STURDY[b.material] || size(b)[1] - size(a)[1] || size(b)[0] - size(a)[0] || (a.defKey < b.defKey ? -1 : a.defKey > b.defKey ? 1 : 0));
+    const GAP = 0.08;
+    const pack = (W) => {
+      const out = []; let x = GAP, y = 0.02, rowH = 0, rowKey = null, k = 0;
+      for (const it of items) {
+        const [w, h] = size(it), nested = it.defKey === "wedge" || it.defKey === "tri";
+        const key = (nested || curved(it) ? it.defKey : h.toFixed(2)) + "/" + it.material; // a row holds one height of one material (blocks and squares share)
+        const pairW = it.defKey === "wedge" ? 1.95 : it.defKey === "tri" ? w + 0.03 : w; // a nested pair's width
+        const second = (it.defKey === "wedge" || it.defKey === "tri") && key === rowKey && k % 2 === 1;
+        if (key !== rowKey) k = 0;
+        if (!second && rowH > 0 && (key !== rowKey || x + pairW > W - GAP)) { x = GAP; y += rowH + 0.03; rowH = 0; k = 0; }
+        let px = x + w / 2, py = y + h / 2, a = lying(it) ? Math.PI / 2 : 0;
+        if (it.defKey === "wedge") { px = x + 0.525 + (second ? 0.9 : 0); a = second ? Math.PI : 0; } // narrow end down, then wide end down beside it
+        if (it.defKey === "tri") { const c = PIECE_DEFS.tri.verts; // two make a square: right angle bottom left, then top right
+          const lx = -Math.min(...c.map((v) => v[0])), ly = -Math.min(...c.map((v) => v[1]));
+          px = x + (second ? w - lx + 0.03 : lx); py = y + (second ? h - ly + 0.03 : ly); a = second ? Math.PI : 0; }
+        out.push([it, px, py, a]); rowH = Math.max(rowH, h); rowKey = key; k++;
+        if (second || !(it.defKey === "wedge" || it.defKey === "tri")) x += pairW + GAP;
+      }
+      return [out, y + rowH];
+    };
+    let places = [];
+    pileScale = 48;
+    for (; pileScale > 6; pileScale *= 0.95) {
+      const [out, top] = pack(r.w / pileScale);
+      places = out;
+      if (top <= (r.h / pileScale) * 0.8 && out.every(([it]) => size(it)[0] < r.w / pileScale - 2 * GAP)) break;
+    }
     const W = r.w / pileScale, H = r.h / pileScale;
     const walls = (pileWalls = pileWorld.createBody({ type: "static" }));
     pileQuietUntil = performance.now() + 1500;
     walls.createFixture({ shape: planck.Box(W, 0.5, planck.Vec2(W / 2, -0.5), 0), friction: 0.8 });
     walls.createFixture({ shape: planck.Box(0.5, H * 3, planck.Vec2(-0.5, H * 1.5), 0), friction: 0.3 });
     walls.createFixture({ shape: planck.Box(0.5, H * 3, planck.Vec2(W + 0.5, H * 1.5), 0), friction: 0.3 });
-    // rows from the bottom up, sturdiest material lowest (stone, wood, mudbrick), then a short settle
-    const STURDY = { stone: 0, wood: 1, mudbrick: 2 };
-    items = items.slice().sort((a, b) => STURDY[a.material] - STURDY[b.material]);
-    let x = 0.05, y = 0.02, rowH = 0;
-    for (const it of items) {
-      const d = PIECE_DEFS[it.defKey];
-      const w = d.r != null ? 2 * d.r : 2 * d.hx, h = d.r != null ? 2 * d.r : 2 * d.hy;
-      if (x + w > W - 0.05 && x > 0.05) { x = 0.05; y += rowH + 0.03; rowH = 0; }
-      createPileBody(it, x + w / 2, y + h / 2);
-      x += w + 0.05; rowH = Math.max(rowH, h);
-    }
-    for (let i = 0; i < 90; i++) pileWorld.step(STEP, 8, 3);
+    // rows from the bottom up, then a short settle
+    for (const [it, x, y, a] of places) { const b = createPileBody(it, x, y); if (a) b.setTransform(b.getPosition(), a); }
+    for (let i = 0; i < 240; i++) { pileWorld.step(STEP, 8, 3); settlePile(); } // settled before it is shown
   }
   function hitPile(px, py) {
     const r = pileBinRect;
@@ -1544,8 +1610,8 @@
     const bx = d.r != null ? d.r / 3 : short(d.hx, d.hy), by = d.r != null ? d.r / 3 : short(d.hy, d.hx);
     const centred = forceCentre || (l.x * l.x) / (bx * bx) + (l.y * l.y) / (by * by) <= 1;
     const grab = centred ? body.getLocalCenter() : l;
-    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: 30 * body.getMass() * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
-    body.setAngularDamping(MATERIALS[body.pileItem.material].swingDamping); body.setLinearDamping(0);
+    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: 60 * body.getMass() * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
+    body.setAngularDamping(PILE_SWING_DAMP[body.pileItem.material]); body.setLinearDamping(0);
     if (centred) body.setAngularVelocity(0);
     pointers.set(pointerId, { piece: null, pileBody: body, pileGrab: planck.Vec2(grab.x, grab.y), pileTarget: pt, joint, centred });
   }
@@ -1574,6 +1640,7 @@
       }
       const q = b.getPosition();
       if (q.x < -0.6 || q.x > W + 0.6 || q.y < -0.6 || !Number.isFinite(q.x + q.y)) {
+        feelHits[2] = (feelHits[2] || 0) + 1; // test counter (tools/harness.py)
         b.setTransform(planck.Vec2(W / 2, H + 1), 0); b.setLinearVelocity(planck.Vec2(0, 0)); b.setAngularVelocity(0);
       }
     }
@@ -1661,6 +1728,7 @@
   const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
   const TEST_FAST = 10, DRUM_LEAD = 1.5; // Tab test speed-up; seconds the drumroll may start before the load moves
+  const DRUM_ROLL = 5.5; // s: the roll in drumroll.mp3; the rest of the file (to 10.3 s) is a quiet fade
   const PHASE_TIME = { settle: 1.2, wind: 3.5, loadSettle: 1.5, quake: 3, pass: 3.5, fail: 3, why: 2 };
 
   // Suggested builds (src/levels.js, made by tools/make-levels.py), in building order: [shape, material, x, y, angle]
@@ -1706,8 +1774,10 @@
   window.addEventListener("blur", () => { if (tabDown) { tabDown = false; tabUpAt = performance.now(); } });
   const TAB_LATCH = 3000;
   const tabHeldNow = () => tabDown || performance.now() - tabUpAt < TAB_LATCH;
+  let mapEnteredAt = 0; // a Tab latch from before the map was shown does not open every site on it
+  const tabOnMap = () => tabDown || (tabUpAt > mapEnteredAt && performance.now() - tabUpAt < TAB_LATCH);
   function levelOpen(i) {
-    return i >= 0 && (allOpen || tabHeldNow() || i === 0 || !!progress.done[LEVELS[i - 1].key]);
+    return i >= 0 && (allOpen || (mode === "map" ? tabOnMap() : tabHeldNow()) || i === 0 || !!progress.done[LEVELS[i - 1].key]);
   }
 
   const toWorldRing = (ring) => { const out = []; for (let i = 0; i < ring.length; i += 2) out.push([ring[i] + LEVEL_X0, ring[i + 1]]); return out; };
@@ -2015,16 +2085,19 @@
     if (phase === "wind") test.loop = playSound("wind", 1, true);
     if (phase === "load") {
       spawnLoads();
-      // The drumroll ends when the load lands. It plays at nearly its own speed (0.85-1.2x);
-      // too long a clip skips its start, and a short drop (tall building) starts it up to
-      // DRUM_LEAD seconds before the load moves. All in real seconds (Tab: test 10x faster).
-      const sp = test.fast ? TEST_FAST : 1, D = soundLength("drumroll");
-      const T = Math.max(0.3, ...loads.map((l) => (l.body.getPosition().y - l.ty) / LOAD_SPEED)) / sp;
-      const rate = D ? Math.max(0.85, Math.min(1.2, D / T)) : 1, excess = Math.max(0, D / rate - T);
-      const lead = Math.min(DRUM_LEAD / sp, excess);
+      // The roll lasts exactly as long as the load is lowered, from its start, at nearly its own
+      // speed (0.9-1.1x). A short drop (tall building) starts it up to DRUM_LEAD seconds before the
+      // load moves; a long drop lowers the load faster instead of stretching the sound.
+      // All in real seconds (Tab: test 10x faster).
+      const sp = test.fast ? TEST_FAST : 1, R = soundLength("drumroll") ? DRUM_ROLL / sp : 0;
+      const drop = Math.max(0.3, ...loads.map((l) => l.body.getPosition().y - l.ty));
+      const T = drop / LOAD_SPEED / sp;
+      let rate = R ? Math.max(0.9, Math.min(1.1, R / T)) : 1, lead = 0;
+      if (R / rate > T) { lead = Math.min(DRUM_LEAD / sp, R / rate - T); rate = Math.max(rate, R / (T + lead)); }
+      test.loadSpeed = R && R / rate < T ? (drop / sp) / (R / rate) : LOAD_SPEED; // m/s, game time
       test.lead = lead * sp; // game seconds the load waits before it starts down
-      if (lead > 0) for (const l of loads) l.body.setLinearVelocity(planck.Vec2(0, 0));
-      test.loop = playSound("drumroll", 1, false, 0, { rate, offset: (excess - lead) * rate });
+      for (const l of loads) l.body.setLinearVelocity(planck.Vec2(0, lead > 0 ? 0 : -test.loadSpeed));
+      test.loop = playSound("drumroll", 1, false, 0, { rate });
     }
     if (phase === "quake") test.loop = playSound("quake", 1);
   }
@@ -2075,7 +2148,7 @@
     } else if (test.phase === "load") {
       if (test.lead > 0) {
         test.lead -= dt; test.t = 0;
-        if (test.lead <= 0) for (const l of loads) if (!l.released) l.body.setLinearVelocity(planck.Vec2(0, -LOAD_SPEED));
+        if (test.lead <= 0) for (const l of loads) if (!l.released) l.body.setLinearVelocity(planck.Vec2(0, -test.loadSpeed));
         return;
       }
       let all = true;
@@ -2094,7 +2167,7 @@
       shake = Math.max(shake, 10 * env);
       if (T >= D) { resetGround(); settleThenCheck("pass"); }
     } else if (test.phase === "pass") {
-      if (T >= PHASE_TIME.pass) { saveMonument(); finishTest(); mode = "map"; }
+      if (T >= PHASE_TIME.pass) { saveMonument(); finishTest(); mode = "map"; mapEnteredAt = performance.now(); }
     } else if (test.phase === "fail") {
       if (T >= PHASE_TIME.fail) restoreSnapshot();
     }
