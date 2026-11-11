@@ -15,7 +15,7 @@ def centred(pts):
     c = Polygon(pts).centroid
     return [[round(x - c.x, 4), round(y - c.y, 4)] for x, y in pts]
 def gable_verts(side):
-    b, h = 3.7, 1.0  # half the gable: right angle at the inner bottom; a square stone fills the middle between the halves
+    b, h = 4.5, 1.0  # half the gable: right angle at the inner bottom; a square stone fills the middle between the halves
     pts = [(-b, 0), (0, 0), (0, h)]
     if side > 0: pts = [(-x, y) for x, y in reversed(pts)]
     return centred(pts)
@@ -24,7 +24,7 @@ LEVEL_PIECES = {"gableL": gable_verts(-1), "gableR": gable_verts(1), "tri": cent
 R_C = 1.95
 SHAPES = {
     "block": box(-1, -0.5, 1, 0.5), "square": box(-0.5, -0.5, 0.5, 0.5), "column": box(-0.3, -1.2, 0.3, 1.2),
-    "beam": box(-1.6, -0.25, 1.6, 0.25), "capital": box(-0.8, -0.2, 0.8, 0.2),
+    "beam": box(-1.6, -0.25, 1.6, 0.25), "capital": box(-0.8, -0.2, 0.8, 0.2), "abacus": box(-0.5, -0.15, 0.5, 0.15),
     "wedge": Polygon([(-0.35, -0.5), (0.35, -0.5), (0.525, 0.5), (-0.525, 0.5)]),
     "centering": Polygon([(R_C * math.cos(math.pi * i / 10), R_C * math.sin(math.pi * i / 10) - 4 * R_C / (3 * math.pi)) for i in range(11)]),
     **{k: Polygon(v) for k, v in LEVEL_PIECES.items()},
@@ -82,27 +82,24 @@ def level(key, nameEl, date, demand, note, sol, load, holes=(), woodRole=None):
 
 level("mastaba", "Μαστάμπα", "c. 3000 BC", "stack a wide, solid mass", "",
       [p for y in (0.5, 1.5, 2.5) for p in row("mudbrick", -4, 4, y)], [rect(-1.6, 3, 1.6, 3.5)])
-level("djoser", "Πυραμίδα του Ζοζέρ", "c. 2650 BC", "build tall in steps, top block", "",
-      [p for r in range(6) for p in row("stone" if r <= 2 else "mudbrick", -(6 - r), 6 - r, r + 0.5)], [rect(-1, 6, 1, 7)])
-level("ziggurat", "Ζιγκουράτ της Ουρ", "c. 2100 BC", "wood courses inside the stone",
-      "wood courses stand in for the reed-mat layers of Mesopotamian ziggurats; whether Ur had them: unverified",
-      row("stone", -5, 5, 0.5) + row("stone", -5, 5, 1.5) + [["beam", "wood", x, 2.25, 0] for x in (-3.2, 0, 3.2)] +
-      row("mudbrick", -4, 4, 3) + [["beam", "wood", x, 3.75, 0] for x in (-1.6, 1.6)] + row("mudbrick", -3, 3, 4.5) + row("mudbrick", -1, 1, 5.5),
-      [rect(-1, 6, 1, 7)], woodRole="courses")
+level("djoser", "Πυραμίδα του Ζοζέρ", "c. 2650 BC", "build tall in steps; the sixth step goes on last", "six steps; the load is the top step",
+      [p for r in range(5) for p in row("stone" if r <= 2 else "mudbrick", -(6 - r), 6 - r, r + 0.5)], [rect(-1, 5, 1, 6)])
+level("ziggurat", "Ζιγκουράτ της Ουρ", "c. 2100 BC", "three terraces with reed-mat courses, a stairway, the temple on top",
+      "Britannica: mudbrick core strengthened with reed matting, three tiers, staircases, temple of Nanna on top (not preserved); wood courses stand for the reed mats; the stairway is one triangle",
+      row("stone", -5, 5, 0.5) + [["beam", "wood", x, 1.25, 0] for x in (-3.2, 0, 3.2)] + [tri_rest(-5, 0, "right", "stone")] +
+      row("mudbrick", -4, 4, 2.0) + row("mudbrick", -4, 4, 3.0) + [["beam", "wood", x, 3.75, 0] for x in (-1.6, 1.6)] + row("mudbrick", -2, 2, 4.5),
+      [rect(-1.5, 5, 1.5, 6.0)], woodRole="courses")
 level("karnak", "Υπόστυλη αίθουσα του Καρνάκ", "c. 1290-1220 BC", "beams across gaps between columns",
       "cut through the hall on a platform: middle pillars are an upright block and a capital carrying the side beams and the upper columns; side roofs are stone slabs",
       row("stone", -7, 7, 0.5) + mirror([["column", "stone", -5.9, 2.2, 0], ["column", "stone", -4.3, 2.2, 0], ["block", "stone", -1.3, 2.0, UP],
                                           ["capital", "stone", -1.3, 3.2, 0], ["capital", "stone", -5.1, 3.6, 0], ["beam", "stone", -2.7, 3.65, 0],
                                           ["capital", "stone", -1.9, 4.1, 0], ["capital", "stone", -3.5, 4.1, 0], ["column", "stone", -0.8, 4.6, 0]]),
       [rect(-1.6, 5.8, 1.6, 6.3)])
-gate = rect(-1, 0, 1, 3)
-level("liongate", "Πύλη των Λεόντων", "c. 1250 BC", "overhanging stones held by weight",
-      "the relieving triangle above the lintel is two stone triangles leaning together, built on two wooden triangles taken out at the end (the real one is corbelled courses with the lion slab set in it); the lion slab is the load on top",
-      [p for y in (0.5, 1.5, 2.5) for p in row("stone", -5, 2, y) + row("stone", 1, 2, y)] + [["beam", "stone", x, 3.25, 0] for x in (-3.2, 0, 3.2)] +
-      mirror([["block", "stone", -3.5, 4.0, 0], ["square", "stone", -2.0, 4.0, 0], ["beam", "stone", -3.1, 4.75, 0]]) +
-      [tri_rest(0, 3.5, "right", "wood"), tri_rest(0, 3.5, "left", "wood")] +  # wooden form for the triangle, taken out at the end
-      [tri_at(-1.5, 5.0, 1), tri_at(1.5, 5.0, -1)] + row("stone", -5, 5, 5.5) + staggered("stone", -5, 5, 6.5),
-      [rect(-1.5, 7, 1.5, 7.6)], [gate, Polygon([(-1.5, 3.5), (1.5, 3.5), (0, 5.0)])], "support")
+gate = rect(-1.5, 0, 1.5, 2)
+level("liongate", "Πύλη των Λεόντων", "c. 1250 BC", "two upright jambs carry the great lintel",
+      "two monolith jambs capped by a huge lintel (4.5 x 2.0 x 0.8 m); the lintel is the load, lowered between the walls onto the jambs; the relieving triangle above it cannot be built before it, so the slot above stays open",
+      [p for y in (0.5, 1.5, 2.5, 3.5) for p in row("stone", -6.5, 2, y) + row("stone", 2.5, 2, y)] + [["block", "stone", -2.0, 1.0, UP], ["block", "stone", 2.0, 1.0, UP]],
+      [rect(-2.25, 2.02, 2.25, 2.82)], [gate])
 level("ishtar", "Πύλη της Ιστάρ", "c. 575 BC", "wedge-stone arch on wooden supports",
       "spandrels beside the arch are square blocks and two triangles; small curved slivers along the arch cannot be filled",
       [p for y in (0.5, 1.5) for p in row("stone", -6, 2, y) + row("stone", 2, 2, y)] +
@@ -111,25 +108,34 @@ level("ishtar", "Πύλη της Ιστάρ", "c. 575 BC", "wedge-stone arch on 
       [tri_at(-3, 5, 1), tri_at(3, 5, -1)],
       [rect(-3.8, 5, 3.8, 5.6)], [arch_hole(0, 2)], "support")
 P0 = 3
-COLS4 = [-4.4, -1.6, 1.6, 4.4]  # gaps between the capitals; the beam joints (+-1.6) rest on the middle of a capital
-level("parthenon", "Παρθενώνας", "447-432 BC", "columns with capitals, a pediment, acroteria",
-      "real front has 8 columns; 4 here so the capitals stand apart under 3.2 m beams; three steps of whole blocks; architrave, frieze and pediment simplified; the pediment's middle is a square stone",
-      row("stone", -7, 7, 0.5) + row("stone", -6, 6, 1.5) + row("stone", -5, 5, 2.5) +
-      [["column", "stone", x, P0 + 1.2, 0] for x in COLS4] + [["capital", "stone", x, P0 + 2.6, 0] for x in COLS4] +
-      [["beam", "stone", x, P0 + 3.05, 0] for x in (-3.2, 0, 3.2)] + [["capital", "stone", x, P0 + 3.5, 0] for x in COLS6] +
+COLS8 = [-5.6, -4.0, -2.4, -0.8, 0.8, 2.4, 4.0, 5.6]  # eight columns; the architrave stones span one gap each
+level("parthenon", "Παρθενώνας", "447-432 BC", "eight columns, a pediment, acroteria",
+      "eight columns on the front as on the real temple; three steps; small square tops (abacus) leave gaps between the columns; architrave one stone per gap; pediment halves either side of a square",
+      row("stone", -8, 8, 0.5) + row("stone", -7, 7, 1.5) + staggered("stone", -6, 6, 2.5) +
+      [["column", "stone", x, P0 + 1.2, 0] for x in COLS8] + [["abacus", "stone", x, P0 + 2.55, 0] for x in COLS8] +
+      [["capital", "stone", x, P0 + 2.9, 0] for x in (-4.8, -3.2, -1.6, 0, 1.6, 3.2, 4.8)] +
+      [["capital", "stone", x, P0 + 3.3, 0] for x in (-4.8, -3.2, -1.6, 0, 1.6, 3.2, 4.8)] +
       [["gableL", "stone", 0, 0, 0], ["gableR", "stone", 0, 0, 0], ["square", "stone", 0, 0, 0]],  # placed below
       [], [])
-level("mausoleum", "Μαυσωλείο της Αλικαρνασσού", "c. 350 BC", "heavy stepped roof carried on columns",
-      "podium, colonnade, stepped pyramid roof, chariot on top, corner ornaments (proportions from reconstructions, which differ)",
-      row("stone", -6, 6, 0.5) + staggered("stone", -6, 6, 1.5) + row("stone", -6, 6, 2.5) + colonnade(3) +
-      [p for k, n in enumerate((4, 3, 2, 1)) for p in row("stone", -n, n, 6.8 + k)],
-      [acroterion(-4.4, 6.3, 0.45), acroterion(4.4, 6.3, 0.45), Polygon([(-0.9, 10.3), (0.9, 10.3), (1.0, 10.8), (0.5, 11.4), (-0.6, 11.4), (-1.0, 10.8)])])
-level("pharos", "Φάρος της Αλεξάνδρειας", "c. 280 BC", "very tall, three tiers, strong wind",
-      "tier proportions from reconstructions, simplified to whole blocks; top tier is three columns",
-      [p for k in range(5) for p in (row("stone", -5, 5, k + 0.5) if k % 2 == 0 else staggered("stone", -5, 5, k + 0.5))] +
-      [p for k in range(4) for p in (row("stone", -3, 3, k + 5.5) if k % 2 == 0 else staggered("stone", -3, 3, k + 5.5))] +
+DOOR = rect(-1.4, 0, 1.4, 2)
+level("mausoleum", "Μαυσωλείο της Αλικαρνασσού", "c. 350 BC", "a door through the podium; the stepped roof on the colonnade",
+      "Pliny: podium, 36 columns (pteron), pyramid of 24 steps, four-horse chariot on top; lions stood at the base of the pyramid (livius.org); a door into the podium (tomb chamber) with a beam lintel",
+      mirror([["block", "stone", -5.4, 0.5, 0], ["block", "stone", -3.4, 0.5, 0], ["square", "stone", -1.9, 0.5, 0],
+              ["square", "stone", -5.9, 1.5, 0], ["block", "stone", -4.4, 1.5, 0], ["block", "stone", -2.4, 1.5, 0], ["capital", "stone", -5.6, 2.2, 0]]) +
+      [["beam", "stone", x, 2.25, 0] for x in (-3.2, 0, 3.2)] + colonnade(2.5) +
+      [p for k, n in enumerate((4, 3, 2, 1)) for p in row("stone", -n, n, 6.3 + k)],
+      [Polygon([(-4.8, 5.8), (-4.05, 5.8), (-4.05, 6.25), (-4.3, 6.55), (-4.8, 6.35)]), Polygon([(4.8, 5.8), (4.05, 5.8), (4.05, 6.25), (4.3, 6.55), (4.8, 6.35)]),
+       Polygon([(-0.9, 9.8), (0.9, 9.8), (1.0, 10.3), (0.5, 10.9), (-0.6, 10.9), (-1.0, 10.3)])], [DOOR])
+WIN = lambda y, w=1: rect(-w, y, w, y + 1)
+def win_row(n, y):  # a full course with a window two wide in its middle
+    half = [["block", "stone", -1 - 2 * k - 1, y, 0] for k in range(n // 2)]
+    return mirror(half)
+level("pharos", "Φάρος της Αλεξάνδρειας", "c. 280 BC", "three tiers with windows, statues on the corners, a statue on top",
+      "three tapering tiers: square, octagonal, round (here a ring of three columns); windows over the inner ramp; Roman coins show Tritons on the corners and a statue (Zeus or Poseidon) on top",
+      row("stone", -5, 5, 0.5) + win_row(4, 1.5) + staggered("stone", -5, 5, 2.5) + win_row(4, 3.5) + staggered("stone", -5, 5, 4.5) +
+      row("stone", -3, 3, 5.5) + win_row(2, 6.5) + staggered("stone", -3, 3, 7.5) + row("stone", -3, 3, 8.5) +
       [["column", "stone", x, 10.2, 0] for x in (-0.6, 0, 0.6)] + [["capital", "stone", 0, 11.6, 0]],
-      [rect(-0.4, 11.8, 0.4, 13.1)])
+      [rect(-0.4, 11.8, 0.4, 13.1), acroterion(-4.4, 5, 0.5, 0.9), acroterion(4.4, 5, 0.5, 0.9)], [WIN(1), WIN(3), WIN(6)])
 def tier(sy):  # two arches springing at sy, square piers at the ends, a triangle in each corner beside an arch
     return [p for k in range(3) for p in (["square", "stone", -6.5, sy + 0.5 + k, 0], ["square", "stone", 6.5, sy + 0.5 + k, 0])] + \
         [tri_at(-6, sy + 3, 1), tri_at(0, sy + 3, -1), tri_at(0, sy + 3, 1), tri_at(6, sy + 3, -1)]
@@ -142,12 +148,12 @@ level("valens", "Υδραγωγείο του Ουάλη", "AD 368", "two tiers o
 
 # Parthenon pediment: the two halves stand on the frieze either side of a square stone; acroteria on the frieze ends and on the square
 pth = next(l for l in L if l["key"] == "parthenon")
-fr_top = P0 + 3.7
+fr_top = P0 + 3.5
 gl, gr = Polygon(LEVEL_PIECES["gableL"]), Polygon(LEVEL_PIECES["gableR"])
 pth["sol"][-3] = ["gableL", "stone", round(-0.5 - gl.bounds[2], 4), round(fr_top - gl.bounds[1], 4), 0]
 pth["sol"][-2] = ["gableR", "stone", round(0.5 - gr.bounds[0], 4), round(fr_top - gr.bounds[1], 4), 0]
 pth["sol"][-1] = ["square", "stone", 0, fr_top + 0.5, 0]
-pth["load"] = [acroterion(-4.5, fr_top, 0.45), acroterion(4.5, fr_top, 0.45), acroterion(0, fr_top + 1.0, 0.8, 1.0)]
+pth["load"] = [acroterion(-5.3, fr_top, 0.45), acroterion(5.3, fr_top, 0.45), acroterion(0, fr_top + 1.0, 0.8, 1.0)]
 
 def parts(geom):
     return [g for g in ([geom] if geom.geom_type == "Polygon" else list(geom.geoms)) if g.area >= 0.05]

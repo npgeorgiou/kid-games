@@ -19,9 +19,9 @@ WRONG={0:[('wood top row','e=>e[3]===2.5&&"wood"')],
  1:[('mudbrick at the bottom','e=>e[3]===0.5?"mudbrick":e[3]>=3.5?"stone":0')],
  2:[('stone in the wood courses','e=>e[0]==="beam"&&"stone"')],
  3:[('mudbrick pillars','e=>e[0]==="block"&&e[4]!==0&&"mudbrick"')],
- 4:[('mudbrick base','e=>e[3]===0.5&&"mudbrick"'),('wooden lintel','e=>e[0]==="beam"&&e[2]===0&&"wood"')],
+ 4:[('mudbrick base','e=>e[3]===0.5&&"mudbrick"'),('mudbrick jambs','e=>e[0]==="block"&&e[4]!==0&&"mudbrick"')],
  6:[('mudbrick top step','e=>e[0]==="block"&&e[3]===2.5&&"mudbrick"')],
- 7:[('mudbrick podium top','e=>e[0]==="block"&&e[3]===2.5&&"mudbrick"')],
+ 7:[('mudbrick podium','e=>(e[0]==="block"||e[0]==="square")&&e[3]<2&&"mudbrick"')],
  8:[('mudbrick base','e=>e[3]===0.5&&"mudbrick"')],
  9:[('mudbrick piers','e=>e[0]==="block"&&e[3]===0.5&&"mudbrick"')]}
 PROBE='probe' in sys.argv

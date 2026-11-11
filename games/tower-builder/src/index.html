@@ -353,6 +353,8 @@
     beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 0.85, skin: "beam", half: "beam-half" },
     // capital (new, fourth standard size): a flat slab laid on a pillar; an upright block (2 m) plus a capital is one column high
     capital: { shape: "box", hx: 0.8, hy: 0.2, densityScale: 1.0, skin: "beam", half: "capital-half" },
+    // abacus (new): the small square top of a Parthenon column, narrower than the gap between columns
+    abacus: { shape: "box", hx: 0.5, hy: 0.15, densityScale: 1.0, skin: "beam" },
     // square (new, fifth standard size): half a block, for spandrels and staggered joints
     square: { shape: "box", hx: 0.5, hy: 0.5, densityScale: 1.0, skin: "block" },
     // pediment halves (new): right-angled triangles with a short flat tip for the top slab; shapes in src/levels.js
@@ -1756,7 +1758,7 @@
     mastaba: [["block", "wood", 4]],                            // light wooden blocks: the wind takes them
     ziggurat: [["beam", "stone", 3]],                           // stone in a wood course
     karnak: [["block", "mudbrick", 2]],                         // mudbrick pillars crumble under the roof
-    liongate: [["beam", "wood", 1], ["block", "mudbrick", 4]],  // a wooden lintel snaps; mudbrick low in the heavy wall crumbles
+    liongate: [["block", "mudbrick", 4]],                       // mudbrick jambs or low wall crumble under the great lintel
     ishtar: [["beam", "stone", 2]],                             // a flat lintel instead of an arch
     parthenon: [["block", "mudbrick", 5]],                      // a mudbrick top step crumbles under the columns
     mausoleum: [["block", "mudbrick", 6]],                      // a mudbrick podium crumbles under the roof and columns
