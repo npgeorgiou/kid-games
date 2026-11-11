@@ -973,7 +973,7 @@
 
     if (currentLevel != null) drawPile();
     for (const b of buttonLayout()) {
-      SKIN.button(ctx, b.def.icon, b.x, b.y, b.size, b.def.kind === "test" && !testReady());
+      SKIN.button(ctx, b.def.icon, b.x, b.y, b.size, b.def.kind === "test" && !testReady() && !tabHeld);
     }
   }
 
@@ -995,12 +995,17 @@
   let shake = 0;
   const lastImpact = new Map(); // body -> time, so one landing makes one thud
   const MUD_SHATTER_SPEED = 7; // m/s lost in one step that crumbles a mudbrick at once (about a 2.5 m fall); placeholder
-  world.on("post-solve", (contact, impulse) => {
+  // Also used by the sidebar pile (pile = true): same dust, chips and sounds, no shake, no breaking.
+  world.on("post-solve", (contact, impulse) => feelContact(contact, impulse, false));
+  function feelContact(contact, impulse, pile) {
     const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
     const n = Math.max(...impulse.normalImpulses.slice(0, contact.getManifold().pointCount));
+    const item = (b) => (pile ? b.pileItem : b.piece);
+    const isGround = (b) => (pile ? b.isStatic() : b === groundBody);
     let played = false; // one sound per collision, even when both pieces react
     for (const b of [bA, bB]) {
-      if (!b.piece) continue;
+      const it = item(b);
+      if (!it) continue;
       const dv = n / (b.getMass() || 1); // speed change this contact caused, m/s
       if (dv < 1.2) continue;
       const now = performance.now();
@@ -1010,29 +1015,29 @@
       const p0 = wm.points[0] || b.getPosition();
       const p1 = contact.getManifold().pointCount > 1 ? wm.points[1] : p0;
       const strength = Math.min(1, dv / 6);
-      const stone = b.piece.material === "stone";
+      const stone = it.material === "stone";
       const other = b === bA ? bB : bA;
       // dust where a piece hits the ground, stone chips where stone hits stone,
       // mud crumbs where mudbrick hits any piece, nothing otherwise
-      const mud = b.piece.material === "mudbrick";
-      const kind = other === groundBody ? "dust" : (mud && other.piece) ? "mudchip"
-        : (stone && other.piece && other.piece.material === "stone") ? "chip" : null;
+      const mud = it.material === "mudbrick";
+      const kind = isGround(other) ? "dust" : (mud && item(other)) ? "mudchip"
+        : (stone && item(other) && item(other).material === "stone") ? "chip" : null;
       const count = kind ? 4 + Math.round(strength * 6) + Math.round(Math.hypot(p1.x - p0.x, p1.y - p0.y) * 4) : 0;
       for (let i = 0; i < count; i++) {
         const t = count > 1 ? i / (count - 1) : 0.5; // spread over the whole contact edge
         const x = p0.x + (p1.x - p0.x) * t, y = p0.y + (p1.y - p0.y) * t;
-        if (kind === "dust") puffs.push({ kind, x, y, vx: (Math.random() - 0.5) * 2, vy: Math.random() * 0.8, r: 0.08 + Math.random() * 0.1, life: 1 });
-        else if (kind === "mudchip") puffs.push({ kind, x, y, vx: (Math.random() - 0.5) * 2.5, vy: 0.5 + Math.random() * 1.5, r: 0.04 + Math.random() * 0.05, a: Math.random() * 6, life: 1 });
-        else puffs.push({ kind, x, y, vx: (Math.random() - 0.5) * 3, vy: 1 + Math.random() * 2, r: 0.04 + Math.random() * 0.05, a: Math.random() * 6, life: 1 });
+        if (kind === "dust") puffs.push({ kind, pile, x, y, vx: (Math.random() - 0.5) * 2, vy: Math.random() * 0.8, r: 0.08 + Math.random() * 0.1, life: 1 });
+        else if (kind === "mudchip") puffs.push({ kind, pile, x, y, vx: (Math.random() - 0.5) * 2.5, vy: 0.5 + Math.random() * 1.5, r: 0.04 + Math.random() * 0.05, a: Math.random() * 6, life: 1 });
+        else puffs.push({ kind, pile, x, y, vx: (Math.random() - 0.5) * 3, vy: 1 + Math.random() * 2, r: 0.04 + Math.random() * 0.05, a: Math.random() * 6, life: 1 });
       }
       if (!played) {
         played = true;
-        const om = other === groundBody ? "ground" : other.piece ? other.piece.material : null;
-        if (om) playSound("hit-" + [b.piece.material, om].sort((x, y) => (x === "ground" ? -1 : y === "ground" ? 1 : x < y ? -1 : x > y ? 1 : 0)).join("-"), strength);
+        const om = isGround(other) ? "ground" : item(other) ? item(other).material : null;
+        if (om) playSound("hit-" + [it.material, om].sort((x, y) => (x === "ground" ? -1 : y === "ground" ? 1 : x < y ? -1 : x > y ? 1 : 0)).join("-"), strength);
       }
-      if (stone && kind) shake = Math.max(shake, strength * 11 * Math.min(1, b.getMass() / 10)); // px
+      if (stone && kind && !pile) shake = Math.max(shake, strength * 11 * Math.min(1, b.getMass() / 10)); // px
     }
-  });
+  }
   function updateFeel(dt) {
     for (let i = puffs.length - 1; i >= 0; i--) {
       const q = puffs[i];
@@ -1047,13 +1052,15 @@
   }
   function drawFeel() {
     for (const q of puffs) {
-      const s = worldToScreen(q.x, q.y);
-      if (q.kind === "dust") SKIN.dust(ctx, s.x, s.y, q.r * scale, q.life);
-      else if (q.kind === "wind") SKIN.wind(ctx, s.x, s.y, q.r * scale, q.life);
-      else if (q.kind === "mudchip") SKIN.mudChip(ctx, s.x, s.y, q.r * scale, q.a, q.life);
-      else if (q.kind === "splinter") SKIN.splinter(ctx, s.x, s.y, q.r * scale, q.a, q.life);
-      else if (q.kind === "petal") SKIN.petal(ctx, s.x, s.y, q.r * scale, q.a, Math.min(1, q.life * 2), q.hue);
-      else SKIN.chip(ctx, s.x, s.y, q.r * scale, q.a, q.life);
+      const r0 = pileBinRect, sc0 = q.pile ? pileScale : scale;
+      if (q.pile && !r0) continue;
+      const s = q.pile ? { x: r0.x + q.x * pileScale, y: r0.y + r0.h - q.y * pileScale } : worldToScreen(q.x, q.y);
+      if (q.kind === "dust") SKIN.dust(ctx, s.x, s.y, q.r * sc0, q.life);
+      else if (q.kind === "wind") SKIN.wind(ctx, s.x, s.y, q.r * sc0, q.life);
+      else if (q.kind === "mudchip") SKIN.mudChip(ctx, s.x, s.y, q.r * sc0, q.a, q.life);
+      else if (q.kind === "splinter") SKIN.splinter(ctx, s.x, s.y, q.r * sc0, q.a, q.life);
+      else if (q.kind === "petal") SKIN.petal(ctx, s.x, s.y, q.r * sc0, q.a, Math.min(1, q.life * 2), q.hue);
+      else SKIN.chip(ctx, s.x, s.y, q.r * sc0, q.a, q.life);
     }
   }
 
@@ -1220,6 +1227,7 @@
   // small. Dragging one out gives the real piece; dropping a piece back on
   // the sidebar returns it.
   const pileWorld = new planck.World({ gravity: planck.Vec2(0, -10) });
+  pileWorld.on("post-solve", (contact, impulse) => feelContact(contact, impulse, true)); // SECTION FEEL
   let pileScale = 20;      // px per metre in the sidebar
   let pileBinRect = null;  // px rect of the bin
 
@@ -1597,7 +1605,9 @@
   // step the building is checked; the first failure stops the test and is shown in red.
   function startTest() {
     if (currentLevel == null || test) return;
-    if (!testReady()) {
+    // Tab held (parent override): the test runs even when the building is not ready
+    const ready = testReady() || tabHeld;
+    if (!ready) {
       // grey button pressed: show why it is not ready yet
       if (pointers.size === 0) {
         check = runCheck();

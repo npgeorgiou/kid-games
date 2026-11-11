@@ -1,10 +1,10 @@
 <?php
 // Brings every .mp3 in a folder to the same loudness (EBU R128, two-pass ffmpeg loudnorm).
-// Usage: php normalize-sounds.php <input folder> [output folder]
+// Usage: php normalize-sounds.php [input folder, default current] [output folder]
 // Needs ffmpeg on the PATH. Originals are not touched; results go to <input>/normalized.
 
-$in = $argv[1] ?? null;
-if (!$in || !is_dir($in)) { fwrite(STDERR, "Usage: php normalize-sounds.php <input folder> [output folder]\n"); exit(1); }
+$in = $argv[1] ?? '.'; // default: the current folder
+if (!is_dir($in)) { fwrite(STDERR, "Usage: php normalize-sounds.php <input folder> [output folder]\n"); exit(1); }
 $out = $argv[2] ?? ($in . DIRECTORY_SEPARATOR . 'normalized');
 if (!is_dir($out)) mkdir($out, 0777, true);
 
