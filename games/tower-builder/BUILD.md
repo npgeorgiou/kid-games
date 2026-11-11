@@ -180,6 +180,7 @@ The owner's second fix list (18 items) is built and pushed. What changed:
 - Grip (supersedes the firm grip above): held off-centre the piece swings freely (grab point held, effective-mass impulse) but the hand's grip cancels spin up to GRIP 2.5 x weight x short side^2 per second: blocks, squares, wedges are carried steady; beams, columns, capitals held at an end hang and can be swung in circles. Sidebar pin doubled again (120 x own weight + 4 x pile weight).
 - Pile size: one size `pilePx` = clamp(screen height / 22, 28, 48) px per m; the sidebar widens (up to half the screen) until the level's full pile fits at that size.
 - Level redesign proposals (headpiece = important part, new shapes, history checked) are on branch `level-proposals` (make-levels.py, new piece `abacus`), all passing the harness. Not merged: waiting for the owner's verdict on the pictures.
+- Ground strip drawn with the owner's "ground_with_rocks_01" texture (`src/art/ground.jpg`: colour map times ambient occlusion, 512 px), one tile per 2 m, through `SKIN.ground`; plain sand colour until it loads. Licence of the texture not recorded.
 
 ## Task list
 
