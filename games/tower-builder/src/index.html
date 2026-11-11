@@ -1732,7 +1732,7 @@
   // ---------------------------------------------------------------------
   // All numbers in this section are placeholders to be tuned by play, not design decisions.
   const LEVEL_X0 = WORLD_WIDTH / 2; // level data is centred on x = 0
-  const CELL = 0.1, GX = 400, GY = 160; // check grid: 0.1 m cells over x 0..40 m, y 0..16 m
+  const CELL = 0.1, GX = 400, GY = 260; // check grid: 0.1 m cells over x 0..40 m, y 0..26 m
   const CHECK = {
     fill: 0.83,      // share of the outline that must be covered before the test
     fillAfter: 0.8,  // ... and still covered at each step of it
@@ -1769,7 +1769,7 @@
     liongate: [["block", "mudbrick", 4]],                       // mudbrick jambs or low wall crumble under the great lintel
     ishtar: [["beam", "stone", 2]],                             // a flat lintel instead of an arch
     parthenon: [["block", "mudbrick", 5]],                      // a mudbrick top step crumbles under the columns
-    mausoleum: [["block", "mudbrick", 6]],                      // a mudbrick podium crumbles under the roof and columns
+    mausoleum: [["block", "mudbrick", 6], ["beam", "wood", 3]],  // a mudbrick podium crumbles; wooden roof beams snap under the stepped roof
     pharos: [["block", "mudbrick", 4]],                         // mudbrick low in the tall tower crumbles
     valens: [["block", "mudbrick", 2]],                         // mudbrick piers
   };
