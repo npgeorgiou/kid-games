@@ -136,9 +136,39 @@ Next chat: read this section first. The owner play-tests and sends numbered fix 
 - 11 Nov update: suggested builds `SOLUTIONS` (SECTION LEVELS) for all ten levels; each passes the full test in a headless run (wind, load, stronger quake). The pile is made from them plus `LEVEL_EXTRA` (only the wrong choices a level is about). Quick build: hold Tab, a button appears on top of the pile: everything goes back to the pile, then the suggested build is flown in piece by piece (kinematic, see-through, 30 m/s). New fourth standard size `capital` (1.6 x 0.4, stone): Karnak middle pillars are an upright block plus a capital carrying the side beam and the upper column. Ishtar load narrowed to 7.6 m so it fits between the towers. Valens: suggested build fills 85%, so `CHECK.fill` is now 0.83.
 - Check: the load's place must stay clear (`CHECK.loadCells`); ready only after passing for 0.5 s with every piece at rest. Unfilled outline drawn from the real piece shapes (outline minus pieces widened by `SEAM`), not cells. A finished site reopens with its load on top.
 - Feel: hand speed capped only towards a piece within `NEAR_GAP` (planck Distance), not along or away; open/closed hand cursor; drumroll rate fitted to the lowering time; slide sound measured at the contact point (tipping is silent); quake 1.6x; pile: hand pin 10 x weight, knocked pieces capped at 4 m/s (2 m/s up), more damping and solver iterations; open sites red on the map.
-- 11 Nov owner feedback, split into parts, one chat each, in this order (owner's item numbers from that chat in brackets):
-  - Part A, feel and test: drumroll length must equal the real descent, and if a tall drop would squeeze the clip too much start it a little before the drop [2, 16]; quick build twice as fast and its sounds without lag [3]; with Tab latched the test runs 10x faster [4]; sidebar hand strength = half of the strength before the 11 Nov change (that was 60 x weight, so 30 x weight) [5]; a stone held near a top corner swings as if air holds it back, other materials less: find the damping in the hold [6]; pile pieces jitter and get stuck hitting each other, at the start of level 6 and on the Valens build during and after the test; reproduce it first, fifth report [10, 19]; wind stronger and its drawing clearly a strong wind [15].
-  - Part B, check: only the load's place should be red when the load did not land right; the other reds in that case are noise [8]; the load's place is the load's own shape (a triangle at the Lion Gate), not its bounding box, everywhere [9]; wooden supports in an opening must show as filling where none belongs (owner question open, see below) [11a].
-  - Part C, levels: one level-quality checklist agreed with the owner first; then every level gets a wrong choice that really fails (Lion Gate mudbrick base does not crumble today) [7]; half-size square block 1 x 1 as a new standard size, Ishtar spandrels rebuilt so the load also rests on the side pillars [11b]; Parthenon with pediment built, capitals on the columns, three acroteria as the final pieces (two corners, one on a short flat top) [12]; Mausoleum centred, its suggested build survives the quake, more complex, two corner acroteria plus the big middle piece [13, 14, 17]; Pharos harder [18].
-  - Part D, map: owner's boat picture (`src/art/boat-owner.jpg`, cut out the white) at 4/5 of today's size; boats never cross land; ten boats on fixed ports (Athens, Crete, Rhodes, Cyrene, Alexandria, Phoenicia, Cyprus, Lycia, one Red Sea port, one Black Sea port, two more); ten traveller groups of six walking characters (owner's sprite pack, craftpix licence, to be attached again in that chat) that ride boats, walk to finished sites at boat speed, and after at most three sites on foot board the next boat; finished sites semi-transparent green circles [map 1-6].
-- Not yet play-tested by the owner: these changes, levels 4-10, whether the wrong choices fail the way intended (not checked in the browser).
+- Tools: `tools/harness.py` runs every level's suggested build through the full test headless (one line per level: ready, fill, load cells, pass). Extend it in place.
+- Not yet play-tested by the owner:- Not yet play-tested by the owner: these changes, levels 4-10, whether the wrong choices fail the way intended (not checked in the browser).
+
+## Task list (owner feedback 11 Nov; do all of it in one chat, in this order)
+
+Owner decisions already made: level checklist below agreed; Parthenon capitals reuse `capital` (1.6 x 0.4); pediment = two new stone right-angled triangle pieces (each half the gable) plus a short flat slab on top; extra ports Corinth and Miletus; villager sprites approved (in repo); wooden supports count as an error in the check.
+
+Level checklist (agreed): looks like the real building, its famous parts actually built (pediment, capitals, acroteria), not left as gaps; one new idea per level, later levels combine known ideas; at least one tempting wrong choice that really fails the test, with the reason visible; nothing left over in the pile except the wrong choices; the load rests on the supports it should, not just the highest point; each level clearly longer than the one before (more pieces, materials, layers); buildable by hand without pixel precision.
+
+A. Feel and test
+1. Drumroll length must equal the real descent (today it is sped up far too much on level 1: the timing uses the wrong start or end). If a tall drop would squeeze the clip too much, start the drumroll a little before the load starts moving.
+2. Quick build twice as fast (AUTO_SPEED 60) and its material sounds must not lag behind the pieces.
+3. With the Tab latch on, the whole test runs 10x faster.
+4. Sidebar hand strength: half of what it was before 11 Nov (was 60 x weight, so 30 x weight).
+5. A stone held near a top corner swings as if the air holds it back; other materials less so. Find the damping or smoothing in the hold and make heavy pieces swing like heavy pieces.
+6. Pile pieces jitter and get stuck hitting each other (start of level 6; also the Valens build during and after the test). Fifth report: reproduce it in the harness first (measure speeds of pieces that should be resting), find the cause, fix it generically for the pile and the building.
+7. Wind stronger, and its drawing clearly a strong wind, not a breeze.
+
+B. Check
+8. When the load did not land right, only the load's place is red; no other reds then.
+9. The load's place everywhere is the load's own shape (triangle at the Lion Gate), not a rectangle.
+10. Wooden supports (any wood in an opening/hole or wood zone that the test would pull) count as an error in the check: the monument is not complete while they are there. Show them red like other wrong filling.
+
+C. Levels (apply the checklist to all ten; update SOLUTIONS and LEVEL_EXTRA, run the harness, every suggested build passes and every listed wrong choice fails)
+11. Every level has a wrong choice that really fails. Lion Gate: a mudbrick base does not crumble today; keep mudbrick strength fixed, add weight above (heavier stonework) instead.
+12. New standard size: half block 1 x 1 (square). Ishtar: rebuild the spandrels beside the arch with it, and the load must also rest on the side pillars, not only on the arch.
+13. Parthenon: pediment built (decisions above); capitals on all columns; final pieces = three acroteria, one on each corner and one on the short flat top of the pediment.
+14. Mausoleum: centred; suggested build survives the quake (today the mudbrick steps crumble); more complex; final pieces = two corner acroteria plus the big middle piece (chariot).
+15. Pharos: harder, fitting its place as level 9.
+
+D. World map
+16. Boats use the owner's picture `src/art/boat-owner.jpg` (cut out the white background), at 4/5 of today's size.
+17. Boats never cross land.
+18. Ten boats, each running between fixed ports: Athens, Crete, Rhodes, Cyrene, Alexandria, Phoenicia, Cyprus, Lycia, one Red Sea port, one Black Sea port, Corinth, Miletus.
+19. Ten traveller groups, each the six characters in `src/art/villagers/` (walk and idle strips, 48 px frames; craftpix free licence, `License.txt`). Groups start on boats; when a boat reaches port they get off and walk (boat speed) to a finished site, then on to another finished site by whatever is quicker, walking or waiting for a boat. After at most three sites on foot they must board the next boat and go where it goes.
+20. Finished sites on the map: semi-transparent green circles (like the locked yellow ones), not blue.

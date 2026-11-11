@@ -35,8 +35,15 @@ Authoritative brief: `docs/brief.txt` (full catalogue of 40 games, design princi
 - Answers: short plain prose, no recap, no offers, no command output. English only.
 - Talk like a person pitching a game to a friend. Plain everyday words, no design jargon (no "brief", "loop", "dynamics", "mechanic" in conversation), no undefined terms. Describe any game first as one concrete paragraph: who you are, what you do with your hands, what you are trying to achieve, what gets in the way. Example of the register: "You are a dwarf who can walk and jump; you cross dangerous moving ground and dodge enemies to reach the end of the level." Tables and frameworks come after that paragraph, never instead of it.
 - After every change: push, and give only the changed HTML files as downloads.
-- When a chat gets long, say so and give a short handoff.
-- Chat size: a chat holds one part of at most about five related items. A longer list is first split into parts written to the game's `BUILD.md`, one new chat per part. What makes chats long: reading big code sections instead of grepping for the one function, screenshots (each costs as much as a long file read; take one only when the picture is the question), repeated full harness runs, and long design reasoning done in the open instead of asking the owner one short question. One task per chat: finish, update Status and the game's `BUILD.md`, and tell the owner to start a new chat.
+- At the end of a chat: update Status and the game's `BUILD.md`.
+- One chat does the whole task list in the game's `BUILD.md`, however many items. Never split work across chats and never send the owner to start more chats for one list. To fit it all in one chat:
+  - Read only `BUILD.md` "Current state" and "Task list". Do not re-derive decisions recorded there; when an item is ambiguous, take the obvious reading and state it in one line in the reply.
+  - Map the code with `grep -n "SECTION:"`, then `grep -n` for the exact function or constant an item touches and read at most about 60 lines around it. Never read a whole section to "understand" it.
+  - Make all edits of the chat in as few Python patch scripts as possible (exact-string replacements that assert one match), not one tool call per edit.
+  - Keep thinking short: decide, edit, move on. No long design deliberation; a real open question goes to the owner in one line.
+  - No screenshots unless the item is about how something looks, and then one image covering several items.
+  - Verify once at the end with the game's existing harness (`tools/harness.py`, extended in place for new checks), output filtered to one line per level. Fix and rerun only what failed.
+  - Commit, push and reply once at the end.
 - Design decisions and tricky problems go to the strongest model; routine building from a `BUILD.md` goes to a cheaper one. Use helper agents only for reading a lot to return a little (research, large searches) or bulk repetitive work from an agreed pattern, and only when setting them up costs less than it saves.
 
 ## Product rules
