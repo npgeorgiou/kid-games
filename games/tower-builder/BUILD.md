@@ -100,7 +100,7 @@ Commit `src/index.html` and `tower-builder.html`, push, give `tower-builder.html
 
 ## World map (new)
 
-The page opens on a world map (Mediterranean and Middle East, coastline from `lib/map-land.js`, Natural Earth, see `lib/MAP-DATA-LICENSE.txt`). Ten site markers in chronological level order (`SITES` in the MAP section), placed approximately and nudged apart where close. Map crop 18-47.6E, 24.8-44N. Locked: pale dashed circle. Open (first level, or the one after a finished one): solid bright circle, tap to play. Finished: the player's own building drawn small inside the circle. Parent override: hold the map's top-left corner three seconds to open every site (again to re-lock; not saved). A big button bottom-right opens free play; a folded-map button in the sidebar returns to the map. Physics is paused on the map.
+The page opens on a world map (owner-supplied picture `src/art/map.jpg`, filling the screen, crop centred on the sites; a few boats `src/art/boat.png` sail slowly between shores). Ten site markers in chronological level order (`SITES` in the MAP section), placed by eye in map-picture pixels and nudged apart where close. Locked: pale dashed circle. Open (first level, or the one after a finished one): solid bright circle, tap to play. Finished: the player's own building drawn small inside the circle. Parent override: hold the map's top-left corner three seconds to open every site (again to re-lock; not saved). A big button bottom-right opens free play; a folded-map button in the sidebar returns to the map. Physics is paused on the map.
 
 ## Levels data (new)
 

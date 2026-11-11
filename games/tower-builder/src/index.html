@@ -26,7 +26,6 @@
 <body>
 <canvas id="c"></canvas>
 <script src="../lib/planck.min.js"></script>
-<script src="../lib/map-land.js"></script>
 <script src="levels.js"></script>
 <script>
 (function () {
@@ -59,12 +58,16 @@
       ctx.beginPath(); ctx.moveTo(-r, -r * 0.6); ctx.lineTo(r, -r * 0.3); ctx.lineTo(r * 0.3, r); ctx.closePath(); ctx.fill();
       ctx.restore();
     },
-    mapSea(ctx, x, y, w, h) {
-      ctx.fillStyle = "#9cc9d9"; ctx.fillRect(x, y, w, h);
+    mapImage(ctx, img, x, y, w, h) {
+      if (img.complete && img.naturalWidth) ctx.drawImage(img, x, y, w, h);
     },
-    mapLand(ctx, path) {
-      ctx.fillStyle = "#e3cf9e"; ctx.fill(path);
-      ctx.strokeStyle = "#a88f5c"; ctx.lineWidth = 1.5; ctx.stroke(path);
+    // A boat on the map, drawn centred at (x, y), `size` pixels wide, mirrored when sailing left.
+    mapBoat(ctx, img, x, y, size, flip, tilt) {
+      if (!img.complete || !img.naturalWidth) return;
+      const h = (size * img.naturalHeight) / img.naturalWidth;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(tilt); if (flip) ctx.scale(-1, 1);
+      ctx.drawImage(img, -size / 2, -h * 0.8, size, h);
+      ctx.restore();
     },
     // An empty building site: a pale dashed circle.
     mapSite(ctx, x, y, r) {
@@ -196,6 +199,11 @@
         ctx.fillRect(-w / 2, -h / 2, w, h);
         ctx.strokeRect(-w / 2, -h / 2, w, h);
       },
+      centering(ctx, w, h) {
+        const R = w / 2, c = (4 * R) / (3 * Math.PI);
+        ctx.fillStyle = "#c9a36b"; ctx.strokeStyle = "#5a4a36"; ctx.lineWidth = 0.06;
+        ctx.beginPath(); ctx.moveTo(R, -c); ctx.arc(0, -c, R, 0, Math.PI, false); ctx.closePath(); ctx.fill(); ctx.stroke();
+      },
       wedge(ctx, w, h) {
         ctx.fillStyle = "#c9b088";
         ctx.strokeStyle = "#5a4a36";
@@ -318,6 +326,10 @@
     drum:   { shape: "circle", r: 0.6, densityScale: 1.0, skin: "drum" },
     // arch stone: narrow end down; about ten make a half circle
     wedge:  { shape: "poly", verts: [[-0.3, -0.5], [0.3, -0.5], [0.45, 0.5], [-0.45, 0.5]], hx: 0.45, hy: 0.5, densityScale: 1.0, skin: "wedge" },
+    // arch centering (new): the wooden half-round form an arch is built on, flat side down,
+    // radius just under the arch's inner radius of 2 m; origin at its centre of mass
+    centering: { shape: "poly", verts: Array.from({ length: 11 }, (_, i) => { const t = (Math.PI * i) / 10, R = 1.95; return [R * Math.cos(t), R * Math.sin(t) - (4 * R) / (3 * Math.PI)]; }),
+                 hx: 1.95, hy: 0.975, densityScale: 1.0, skin: "centering" },
   };
 
   const BUTTONS = [
@@ -551,7 +563,7 @@
   }
 
 
-  function startHold(piece, worldPt, pointerId, clientX, clientY) {
+  function startHold(piece, worldPt, pointerId, clientX, clientY, centred = false) {
     if (pointers.has(pointerId) || piece.heldBy != null) return;
     piece.heldBy = pointerId;
 
@@ -565,7 +577,7 @@
     const shortSide = (h, o) => (h < o * 0.8 ? h * 0.8 : h / 3);
     const balanceX = piece.r != null ? piece.r / 3 : shortSide(piece.hx, piece.hy);
     const balanceY = piece.r != null ? piece.r / 3 : shortSide(piece.hy, piece.hx);
-    const inBalanceZone =
+    const inBalanceZone = centred ||
       (localGrab.x * localGrab.x) / (balanceX * balanceX) +
       (localGrab.y * localGrab.y) / (balanceY * balanceY) <= 1;
 
@@ -621,6 +633,7 @@
 
   function onPointerDown(e) {
     e.preventDefault();
+    startAudio();
     if (mode === "map") { onMapPointerDown(e); return; }
     if (e.pointerType === "mouse" && e.button !== 0) return;
     if (pointers.has(e.pointerId)) return;
@@ -661,7 +674,7 @@
     if (currentLevel != null) {
       const pb = hitPile(px, py);
       if (pb) { // held small inside the sidebar; becomes the real piece when dragged out
-        pointers.set(e.pointerId, { piece: null, pileBody: pb, pileGrab: pb.getLocalPoint(pilePoint(px, py)), pileTarget: pilePoint(px, py) });
+        pointers.set(e.pointerId, { piece: null, pileBody: pb, pileGrab: pb.getLocalCenter(), pileTarget: pilePoint(px, py) });
         return;
       }
     }
@@ -669,7 +682,7 @@
     if (px < buildingWidthPx && py < buildingHeightPx) {
       const worldPt = screenToWorld(px, py);
       const piece = hitPiece(worldPt);
-      if (piece) startHold(piece, worldPt, e.pointerId, px, py);
+      if (piece) { startHold(piece, worldPt, e.pointerId, px, py); const h = pointers.get(e.pointerId); if (h) { h.downAt = performance.now(); h.downX = px; h.downY = py; } }
     }
   }
 
@@ -701,6 +714,17 @@
     if (!hand) return;
     const piece = hand.piece;
     releaseHold(e.pointerId);
+    // three quick taps on a piece take it away: back into the pile (levels) or gone (free play)
+    if (piece && hand.downAt && performance.now() - hand.downAt < 350 && Math.hypot(e.clientX - hand.downX, e.clientY - hand.downY) < 15 && !test) {
+      const now = performance.now();
+      piece.taps = (piece.taps || []).filter((t) => now - t < 900);
+      piece.taps.push(now);
+      if (piece.taps.length >= 3 && pieces.includes(piece)) {
+        playSound("take-back", 1);
+        if (currentLevel != null) returnToPile(piece); else removePiece(piece);
+        return;
+      }
+    }
     // levels: let go over the sidebar and the piece goes back into the pile
     if (piece && currentLevel != null && !test && e.clientX >= buildingWidthPx && pieces.includes(piece)) returnToPile(piece);
   }
@@ -878,7 +902,7 @@
     ctx.save();
     ctx.translate(sx, sy);
     ctx.rotate(-angle);
-    ctx.scale(sc, sc);
+    ctx.scale(sc, -sc); // y up, same as the physics shape
     const fn = SKIN.piece[def.skin];
     if (piece.r != null) fn(ctx, piece.r);
     else fn(ctx, piece.hx * 2, piece.hy * 2, piece.material);
@@ -973,23 +997,103 @@
 
     if (currentLevel != null) drawPile();
     for (const b of buttonLayout()) {
-      SKIN.button(ctx, b.def.icon, b.x, b.y, b.size, b.def.kind === "test" && !testReady() && !tabHeld);
+      SKIN.button(ctx, b.def.icon, b.x, b.y, b.size, b.def.kind === "test" && !testReady() && !tabHeldNow());
     }
   }
 
   // ---------------------------------------------------------------------
   // SECTION: FEEL -- impact dust puffs, collision sound hooks, small screen shake
   // ---------------------------------------------------------------------
-  // Owner-supplied sounds: put an <audio id="snd-NAME"> in the page; playSound finds
-  // and plays it, silently does nothing if absent. Collision names, one per pair:
-  //   hit-ground-wood, hit-ground-mudbrick, hit-ground-stone,
-  //   hit-wood-wood, hit-mudbrick-wood, hit-stone-wood,
-  //   hit-mudbrick-mudbrick, hit-mudbrick-stone, hit-stone-stone
-  // Others: crumble, snap.
-  function playSound(name, volume) {
-    const el = document.getElementById("snd-" + name);
-    if (!el) return;
-    try { const c = el.cloneNode(); c.volume = Math.max(0, Math.min(1, volume)); c.play().catch(() => {}); } catch (err) { /* ignore */ }
+  // Sounds (owner-supplied, loudness-matched, in src/sounds; build.py embeds them).
+  // Each name plays one or more files; the number is that file's volume (0..1), set by ear.
+  const SOUNDS = {
+    "hit-ground-wood": [["sounds/hit-ground-wood.mp3", 0.8]],
+    "hit-ground-mudbrick": [["sounds/hit-ground-mudbrick.mp3", 0.8]],
+    "hit-ground-stone": [["sounds/hit-ground-stone.mp3", 0.9]],
+    "hit-wood-wood": [["sounds/hit-wood-wood.mp3", 0.8]],
+    "hit-mudbrick-wood": [["sounds/hit-mudbrick-wood.mp3", 0.8]],
+    "hit-stone-wood": [["sounds/hit-stone-wood.mp3", 0.8]],
+    "hit-mudbrick-mudbrick": [["sounds/hit-mudbrick-mudbrick.mp3", 0.8]],
+    "hit-mudbrick-stone": [["sounds/hit-mudbrick-mudbrick.mp3", 0.8]], // no own file: mudbrick on mudbrick
+    "hit-stone-stone": [["sounds/hit-stone-stone.mp3", 0.9]],
+    crumble: [["sounds/crumble.mp3", 1]],
+    snap: [["sounds/snap.mp3", 1]],
+    wind: [["sounds/wind.mp3", 0.7]],            // loops through the wind test
+    quake: [["sounds/quake.mp3", 0.9]],          // cut off when the shaking ends
+    cheer: [["sounds/victory.mp3", 0.8], ["sounds/crowd-cheer.mp3", 0.6]],
+    fail: [["sounds/loss.mp3", 0.8], ["sounds/crowd-disappointment.mp3", 0.6]],
+    "drag-stone": [["sounds/drag-stone.mp3", 0.6]], // loops; louder the faster stone or mudbrick slides
+    "drag-wood": [["sounds/drag-wood.mp3", 0.6]],   // same for wood
+    "music-map": [["sounds/music-map.mp3", 0.35]],
+    "music-level": [["sounds/music-level.mp3", 0.25]],
+    // collapse.mp3 is in src/sounds but not used yet
+  };
+  let actx = null;
+  const buffers = {};
+  // Browsers only allow sound after the first press; called from the pointer handlers.
+  function startAudio() {
+    if (actx) { if (actx.state === "suspended") actx.resume(); return; }
+    try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return; }
+    const files = new Set();
+    for (const list of Object.values(SOUNDS)) for (const [f] of list) files.add(f);
+    for (const f of files) {
+      fetch(f).then((r) => r.arrayBuffer()).then((b) => actx.decodeAudioData(b)).then((buf) => { buffers[f] = buf; updateMusic(true); }).catch(() => {});
+    }
+  }
+  // Plays a sound; returns a handle with stop(fadeSeconds) and setVolume(v), or null.
+  function playSound(name, volume, loop = false) {
+    const list = SOUNDS[name];
+    if (!actx || !list) return null;
+    const parts = [];
+    for (const [f, v] of list) {
+      if (!buffers[f]) continue;
+      const src = actx.createBufferSource(), gain = actx.createGain();
+      src.buffer = buffers[f]; src.loop = loop;
+      gain.gain.value = Math.max(0, Math.min(1, volume)) * v;
+      src.connect(gain).connect(actx.destination);
+      src.start();
+      parts.push({ src, gain, v });
+    }
+    if (!parts.length) return null;
+    return {
+      stop(fade = 0.3) { for (const p of parts) { const t = actx.currentTime; p.gain.gain.setTargetAtTime(0, t, fade / 3); p.src.stop(t + fade + 0.05); } },
+      setVolume(x) { for (const p of parts) p.gain.gain.setTargetAtTime(Math.max(0, Math.min(1, x)) * p.v, actx.currentTime, 0.05); },
+    };
+  }
+  // Music: one loop for the map, another while building.
+  let music = null, musicName = null;
+  function updateMusic(force) {
+    const want = mode === "map" ? "music-map" : "music-level";
+    if (want === musicName && music && !force) return;
+    if (want === musicName && music) return;
+    const next = playSound(want, 1, true);
+    if (!next) return;
+    if (music) music.stop(1);
+    music = next; musicName = want;
+  }
+  // Sliding: a quiet loop per material group, as loud as the fastest sliding piece.
+  const dragLoops = {};
+  function updateDragSounds() {
+    if (!actx) return;
+    const speed = { "drag-stone": 0, "drag-wood": 0 };
+    if (mode === "build") for (const p of pieces) {
+      if (p.ghost) continue;
+      const key = p.material === "wood" ? "drag-wood" : "drag-stone";
+      for (let ce = p.body.getContactList(); ce; ce = ce.next) {
+        const c = ce.contact;
+        if (!c.isTouching()) continue;
+        const wm = new planck.WorldManifold(); c.getWorldManifold(wm);
+        const n = wm.normal, va = p.body.getLinearVelocity(), vb = ce.other.getLinearVelocity();
+        const rx = va.x - vb.x, ry = va.y - vb.y, rn = rx * n.x + ry * n.y;
+        const slide = Math.hypot(rx - rn * n.x, ry - rn * n.y);
+        if (slide > speed[key]) speed[key] = slide;
+      }
+    }
+    for (const key of Object.keys(speed)) {
+      const v = speed[key] > 0.3 ? Math.min(1, speed[key] / 3) : 0;
+      if (!dragLoops[key] && v > 0) dragLoops[key] = playSound(key, 0, true);
+      if (dragLoops[key]) dragLoops[key].setVolume(v);
+    }
   }
   const puffs = [];
   let shake = 0;
@@ -1321,7 +1425,7 @@
     const w = screenToWorld(px, py), ca = Math.cos(a), sa = Math.sin(a);
     const piece = spawnPiece(it.defKey, w.x - (g.x * ca - g.y * sa), w.y - (g.x * sa + g.y * ca), a, it.material);
     setGhost(piece, true);
-    startHold(piece, w, pointerId, px, py);
+    startHold(piece, piece.body.getWorldCenter(), pointerId, px, py, true); // always carried by its centre of mass
   }
   // Dragged into the sidebar: the piece shrinks into the pile and stays in the hand.
   function worldToPile(pointerId, hand, px, py) {
@@ -1397,9 +1501,9 @@
     mastaba:   [["block", "mudbrick", 16]],                                                          // mudbrick only
     djoser:    [["block", "stone", 12], ["block", "mudbrick", 14]],                                  // + stone
     ziggurat:  [["block", "stone", 6], ["block", "mudbrick", 8], ["beam", "stone", 4], ["beam", "wood", 6]], // + wood, + beam
-    karnak:    [["column", "stone", 10], ["beam", "stone", 1], ["beam", "wood", 3], ["block", "stone", 2], ["block", "mudbrick", 2]], // + column
+    karnak:    [["column", "stone", 10], ["beam", "stone", 2], ["beam", "wood", 3], ["block", "stone", 2], ["block", "mudbrick", 2]], // + column
     liongate:  [["block", "stone", 14], ["block", "mudbrick", 10], ["beam", "stone", 2], ["beam", "wood", 3], ["column", "stone", 2]],
-    ishtar:    [["wedge", "stone", 12], ["block", "stone", 16], ["block", "mudbrick", 12], ["block", "wood", 6], ["column", "wood", 4],
+    ishtar:    [["centering", "wood", 1], ["wedge", "stone", 12], ["block", "stone", 16], ["block", "mudbrick", 12], ["block", "wood", 6], ["column", "wood", 4],
                 ["beam", "wood", 4], ["beam", "stone", 2], ["column", "stone", 2]],                  // + wedge, wood as supports
     parthenon: [["block", "stone", 10], ["block", "mudbrick", 6], ["column", "stone", 7], ["beam", "stone", 3], ["beam", "wood", 3],
                 ["wedge", "stone", 4], ["block", "wood", 2]],
@@ -1407,7 +1511,7 @@
                 ["wedge", "stone", 2], ["block", "wood", 2]],
     pharos:    [["block", "stone", 10], ["block", "mudbrick", 10], ["column", "stone", 3], ["beam", "stone", 2], ["beam", "wood", 2],
                 ["block", "wood", 2], ["wedge", "stone", 2]],
-    valens:    [["wedge", "stone", 40], ["block", "stone", 20], ["block", "mudbrick", 8], ["block", "wood", 8], ["column", "wood", 8],
+    valens:    [["centering", "wood", 4], ["wedge", "stone", 40], ["block", "stone", 20], ["block", "mudbrick", 8], ["block", "wood", 8], ["column", "wood", 8],
                 ["beam", "wood", 4], ["beam", "stone", 3], ["column", "stone", 2]],
   };
   function stockItems(i) {
@@ -1430,12 +1534,15 @@
   let cornerHold = null; // { id, t } while the map's top-left corner is held
 
   // Tab held down opens every site for as long as it is held (a second parent override).
-  let tabHeld = false;
-  window.addEventListener("keydown", (e) => { if (e.key === "Tab") { e.preventDefault(); tabHeld = true; } });
-  window.addEventListener("keyup", (e) => { if (e.key === "Tab") tabHeld = false; });
-  window.addEventListener("blur", () => { tabHeld = false; });
+  // It stays on for 3 seconds after Tab is let go: laptop touchpads ignore clicks while a key is held.
+  let tabDown = false, tabUpAt = -Infinity;
+  window.addEventListener("keydown", (e) => { if (e.key === "Tab") { e.preventDefault(); tabDown = true; } });
+  window.addEventListener("keyup", (e) => { if (e.key === "Tab") { tabDown = false; tabUpAt = performance.now(); } });
+  window.addEventListener("blur", () => { if (tabDown) { tabDown = false; tabUpAt = performance.now(); } });
+  const TAB_LATCH = 3000;
+  const tabHeldNow = () => tabDown || performance.now() - tabUpAt < TAB_LATCH;
   function levelOpen(i) {
-    return i >= 0 && (allOpen || tabHeld || i === 0 || !!progress.done[LEVELS[i - 1].key]);
+    return i >= 0 && (allOpen || tabHeldNow() || i === 0 || !!progress.done[LEVELS[i - 1].key]);
   }
 
   const toWorldRing = (ring) => { const out = []; for (let i = 0; i < ring.length; i += 2) out.push([ring[i] + LEVEL_X0, ring[i + 1]]); return out; };
@@ -1606,7 +1713,7 @@
   function startTest() {
     if (currentLevel == null || test) return;
     // Tab held (parent override): the test runs even when the building is not ready
-    const ready = testReady() || tabHeld;
+    const ready = testReady() || tabHeldNow();
     if (!ready) {
       // grey button pressed: show why it is not ready yet
       if (pointers.size === 0) {
@@ -1630,10 +1737,11 @@
     test = { phase: "supports", t: 0, snapshot, toPull, after: null };
   }
   function nextPhase(phase) {
+    if (test.loop) { test.loop.stop(0.6); test.loop = null; }
     test.phase = phase; test.t = 0;
-    if (phase === "wind") playSound("wind", 1);
+    if (phase === "wind") test.loop = playSound("wind", 1, true);
     if (phase === "load") spawnLoads();
-    if (phase === "quake") playSound("quake", 1);
+    if (phase === "quake") test.loop = playSound("quake", 1);
   }
   // Wait, then check; go on to `next` or stop with the reason shown.
   function settleThenCheck(next) { test.after = next; nextPhase("settle"); }
@@ -1731,6 +1839,7 @@
     groundBody.setPosition(planck.Vec2(WORLD_CENTER_X, -2));
   }
   function finishTest() {
+    if (test && test.loop) { test.loop.stop(0.6); test.loop = null; }
     for (const l of loads) world.destroyBody(l.body);
     loads = [];
     resetGround();
@@ -1826,65 +1935,85 @@
   // SECTION: MAP -- world map start screen, the ten sites (locked, open, finished), parent override
   // ---------------------------------------------------------------------
   let mode = "map"; // "map" | "build"
-  // Chronological = level order. lon/lat: approximate marker spot, nudged a
-  // little from the real place (comment) so markers don't overlap.
+  // Chronological = level order.
+  // Positions are pixels on the map picture (art/map.jpg, 2176 x 1408), placed by eye
+  // and nudged apart so finished sites do not overlap.
   const SITES = [
-    { key: "mastaba",   lon: 28.5,  lat: 29.0  }, // Saqqara 31.22E 29.87N, c. 3000 BC (moved apart from Djoser and Alexandria)
-    { key: "djoser",    lon: 31.4,  lat: 29.0  }, // Saqqara 31.22E 29.87N, c. 2650 BC
-    { key: "ziggurat",  lon: 45.0,  lat: 31.2  }, // Ur 46.10E 30.96N, c. 2100 BC (moved in from the edge)
-    { key: "karnak",    lon: 32.9,  lat: 26.9  }, // Karnak 32.66E 25.72N, c. 1290-1220 BC (moved in from the edge)
-    { key: "liongate",  lon: 22.2,  lat: 38.2  }, // Mycenae 22.76E 37.73N, c. 1250 BC
-    { key: "ishtar",    lon: 43.6,  lat: 33.3  }, // Babylon 44.42E 32.54N, c. 575 BC (moved in from the edge)
-    { key: "parthenon", lon: 24.5,  lat: 38.7  }, // Athens 23.73E 37.97N, 447-432 BC
-    { key: "mausoleum", lon: 27.42, lat: 37.04 }, // Halicarnassus (Bodrum), c. 350 BC
-    { key: "pharos",    lon: 29.6,  lat: 31.6  }, // Alexandria 29.88E 31.21N, c. 280 BC
-    { key: "valens",    lon: 28.96, lat: 41.01 }, // Constantinople, AD 368
+    { key: "mastaba",   x: 720,  y: 1060 }, // Saqqara, c. 3000 BC
+    { key: "djoser",    x: 880,  y: 1050 }, // Saqqara, c. 2650 BC
+    { key: "ziggurat",  x: 1960, y: 900  }, // Ur, c. 2100 BC
+    { key: "karnak",    x: 830,  y: 1300 }, // Karnak, c. 1290-1220 BC
+    { key: "liongate",  x: 200,  y: 530  }, // Mycenae, c. 1250 BC
+    { key: "ishtar",    x: 1720, y: 770  }, // Babylon, c. 575 BC
+    { key: "parthenon", x: 340,  y: 425  }, // Athens, 447-432 BC
+    { key: "mausoleum", x: 580,  y: 540  }, // Halicarnassus (Bodrum), c. 350 BC
+    { key: "pharos",    x: 700,  y: 900  }, // Alexandria, c. 280 BC
+    { key: "valens",    x: 720,  y: 180  }, // Constantinople, AD 368
   ];
-  const MAP_BOX = { lon0: 18.6, lon1: 46.4, lat0: 25.9, lat1: 43.4 };
-  const MAP_KX = Math.cos(34.4 * Math.PI / 180);
+  const MAP_W = 2176, MAP_H = 1408;
+  const mapImg = new Image(); mapImg.src = "art/map.jpg";
+  const boatImg = new Image(); boatImg.src = "art/boat.png";
+  // The picture fills the screen; where it is cropped, the crop is centred on the sites.
   function mapView() {
-    const wDeg = (MAP_BOX.lon1 - MAP_BOX.lon0) * MAP_KX, hDeg = MAP_BOX.lat1 - MAP_BOX.lat0;
-    const k = Math.min(cssWidth / wDeg, cssHeight / hDeg);
-    const ox = (cssWidth - wDeg * k) / 2, oy = (cssHeight - hDeg * k) / 2;
-    return {
-      k, ox, oy, w: wDeg * k, h: hDeg * k,
-      pt: (lon, lat) => ({ x: ox + (lon - MAP_BOX.lon0) * MAP_KX * k, y: oy + (MAP_BOX.lat1 - lat) * k }),
-    };
+    const k = Math.max(cssWidth / MAP_W, cssHeight / MAP_H);
+    const rImg = (siteRadius() * DONE_SIZE) / k;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const s of SITES) { x0 = Math.min(x0, s.x); x1 = Math.max(x1, s.x); y0 = Math.min(y0, s.y); y1 = Math.max(y1, s.y); }
+    const fit = (c, view, full) => Math.max(view - full * k, Math.min(0, view / 2 - c * k));
+    const ox = fit((x0 + x1) / 2, cssWidth, MAP_W), oy = fit((y0 - rImg + y1 + rImg) / 2, cssHeight, MAP_H);
+    return { k, ox, oy, w: MAP_W * k, h: MAP_H * k, pt: (x, y) => ({ x: ox + x * k, y: oy + y * k }) };
   }
-  let mapPath = null, mapPathKey = "";
-  function landPath(v) {
-    const key = v.k + "," + v.ox + "," + v.oy;
-    if (mapPath && key === mapPathKey) return mapPath;
-    mapPath = new Path2D();
-    for (const ring of MAP_LAND) {
-      for (let i = 0; i < ring.length; i += 2) {
-        const q = v.pt(ring[i] / 10, ring[i + 1] / 10);
-        if (i === 0) mapPath.moveTo(q.x, q.y); else mapPath.lineTo(q.x, q.y);
-      }
-      mapPath.closePath();
+  // Boats sail slowly from shore to shore and back. Routes in map pixels, through open sea.
+  const BOAT_ROUTES = [
+    [[370, 455], [470, 560], [610, 640], [660, 790], [705, 870]],   // Attica - past Crete - Alexandria
+    [[620, 575], [800, 640], [980, 715], [1150, 790]],              // Caria - south of Cyprus - Levant
+    [[780, 135], [1000, 90], [1300, 115]],                           // Black Sea coast
+    [[960, 1060], [1040, 1220], [1110, 1390]],                       // Red Sea
+    [[300, 690], [200, 790], [120, 850]],                            // Crete - Libya
+  ];
+  const BOAT_SPEED = 20; // map pixels per second
+  const boats = BOAT_ROUTES.map((route, i) => ({ route, d: (i * 157) % 300, dir: i % 2 ? -1 : 1, wait: 0 }));
+  function routeLength(r) { let L = 0; for (let i = 1; i < r.length; i++) L += Math.hypot(r[i][0] - r[i - 1][0], r[i][1] - r[i - 1][1]); return L; }
+  function routePoint(r, d) {
+    for (let i = 1; i < r.length; i++) {
+      const sl = Math.hypot(r[i][0] - r[i - 1][0], r[i][1] - r[i - 1][1]);
+      if (d <= sl || i === r.length - 1) { const t = Math.min(1, d / sl); return [r[i - 1][0] + (r[i][0] - r[i - 1][0]) * t, r[i - 1][1] + (r[i][1] - r[i - 1][1]) * t, r[i][0] - r[i - 1][0]]; }
+      d -= sl;
     }
-    mapPathKey = key;
-    return mapPath;
+    return r[0];
   }
-  function siteRadius(v) { return Math.max(22, Math.min(v.w, v.h) * 0.04); }
+  function updateBoats(dt) {
+    for (const b of boats) {
+      if (b.wait > 0) { b.wait -= dt; continue; }
+      const L = routeLength(b.route);
+      b.d += b.dir * BOAT_SPEED * dt;
+      if (b.d >= L || b.d <= 0) { b.d = Math.max(0, Math.min(L, b.d)); b.dir = -b.dir; b.wait = 3; } // rest in port
+    }
+  }
+  function drawBoats(v) {
+    const t = performance.now() / 1000;
+    boats.forEach((b, i) => {
+      const [x, y, dx] = routePoint(b.route, b.d), q = v.pt(x, y);
+      SKIN.mapBoat(ctx, boatImg, q.x, q.y, 70 * v.k, dx * b.dir < 0, Math.sin(t * 1.3 + i) * 0.05);
+    });
+  }
+  function siteRadius() { return Math.max(22, Math.min(cssWidth, cssHeight) * 0.04); }
   const DONE_SIZE = 1.6; // finished sites are drawn this much bigger
   // Marker centre and radius; markers near the edge are pushed in so they stay fully on screen.
   function siteMarker(v, site) {
-    const r = siteRadius(v) * (progress.done[site.key] ? DONE_SIZE : 1), m = v.pt(site.lon, site.lat);
+    const r = siteRadius() * (progress.done[site.key] ? DONE_SIZE : 1), m = v.pt(site.x, site.y);
     return { x: Math.max(r + 2, Math.min(cssWidth - r - 2, m.x)), y: Math.max(r + 2, Math.min(cssHeight - r - 2, m.y)), r };
   }
   function freePlayButton() {
     const size = Math.max(70, Math.min(cssWidth, cssHeight) * 0.14);
     return { x: cssWidth - size * 0.75, y: cssHeight - size * 0.75, size };
   }
-  function renderMap() {
-    ctx.fillStyle = "#6f9fb1"; ctx.fillRect(0, 0, cssWidth, cssHeight);
+  function renderMap(dt) {
+    ctx.fillStyle = "#4f9ad0"; ctx.fillRect(0, 0, cssWidth, cssHeight);
     const v = mapView();
-    ctx.save();
-    ctx.beginPath(); ctx.rect(v.ox, v.oy, v.w, v.h); ctx.clip();
-    SKIN.mapSea(ctx, v.ox, v.oy, v.w, v.h);
-    SKIN.mapLand(ctx, landPath(v));
-    ctx.restore();
+    SKIN.mapImage(ctx, mapImg, v.ox, v.oy, v.w, v.h);
+    updateBoats(dt);
+    drawBoats(v);
     for (const site of SITES) {
       const m = siteMarker(v, site), r = m.r;
       const i = LEVELS.findIndex((L) => L.key === site.key);
@@ -1919,8 +2048,10 @@
     if (lastTime == null) lastTime = time;
     const dt = Math.min(0.1, (time - lastTime) / 1000);
     lastTime = time;
+    updateMusic(false);
+    updateDragSounds();
     if (mode === "map") {
-      renderMap();
+      renderMap(dt);
       requestAnimationFrame(frame);
       return;
     }
