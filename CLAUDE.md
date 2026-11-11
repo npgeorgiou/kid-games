@@ -130,7 +130,7 @@ These override the brief where they differ.
 
 ## Status
 
-- Tower Builder: free play, world map and ten levels built, with mudbrick that crumbles, wood that snaps, a limited pile of pieces per level, and a test that stops at the first failure and shows why. Levels 1-2 verified; 3-10 untested. Next: play-test levels 3-10 and tune, then the test with the child.
+- Tower Builder: free play, picture world map with boats, ten levels with outlines sized to the pieces, owner sounds and music, breaking (mudbrick crumbles, wood snaps, also on impact), limited sidebar pile with smooth drag in and out, arch centering piece, and a test (supports, wind both ways, load lowered with drumroll, earthquake) that stops at the first failure and shows why. Handoff: `games/tower-builder/BUILD.md`, section "Current state". Next: play-test levels 4-10 and tune, then the test with the child.
 
 ## Decided
 

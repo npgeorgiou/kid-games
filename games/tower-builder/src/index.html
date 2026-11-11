@@ -95,7 +95,7 @@
     },
     // The load itself, drawn in metres with y up, centred on its body.
     load(ctx, verts, bad) {
-      ctx.fillStyle = bad ? "#c0503c" : "#8c6a3c"; ctx.strokeStyle = bad ? "#7a1a10" : "#4a3518"; ctx.lineWidth = 0.06;
+      ctx.fillStyle = bad ? "#c0503c" : "#e8902e"; ctx.strokeStyle = bad ? "#7a1a10" : "#8a4a12"; ctx.lineWidth = 0.06;
       ctx.beginPath(); verts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
       ctx.fill(); ctx.stroke();
     },
@@ -325,7 +325,8 @@
     "beam-half":   { shape: "box", hx: 0.8, hy: 0.25, densityScale: 0.85, skin: "beam" },
     drum:   { shape: "circle", r: 0.6, densityScale: 1.0, skin: "drum" },
     // arch stone: narrow end down; about ten make a half circle
-    wedge:  { shape: "poly", verts: [[-0.3, -0.5], [0.3, -0.5], [0.45, 0.5], [-0.45, 0.5]], hx: 0.45, hy: 0.5, densityScale: 1.0, skin: "wedge" },
+    // nine make a half circle (20 degrees each, a keystone in the middle): inner radius 2, outer 3
+    wedge:  { shape: "poly", verts: [[-0.35, -0.5], [0.35, -0.5], [0.525, 0.5], [-0.525, 0.5]], hx: 0.525, hy: 0.5, densityScale: 1.0, skin: "wedge" },
     // arch centering (new): the wooden half-round form an arch is built on, flat side down,
     // radius just under the arch's inner radius of 2 m; origin at its centre of mass
     centering: { shape: "poly", verts: Array.from({ length: 11 }, (_, i) => { const t = (Math.PI * i) / 10, R = 1.95; return [R * Math.cos(t), R * Math.sin(t) - (4 * R) / (3 * Math.PI)]; }),
@@ -588,7 +589,7 @@
     piece.holdAngle = piece.body.getAngle();
     piece.desired = { x: worldPt.x, y: worldPt.y };
     piece.controlMode = "hand";
-    if (piece.lever) piece.body.setAngularDamping(3);
+    if (piece.lever) piece.body.setAngularDamping(1); // held off-centre it swings freely, not sluggishly
 
     pointers.set(pointerId, {
       piece,
@@ -602,6 +603,7 @@
     const hand = pointers.get(pointerId);
     if (!hand) return;
     pointers.delete(pointerId);
+    if (hand.joint) { try { pileWorld.destroyJoint(hand.joint); } catch (err) { /* body already gone */ } }
     const piece = hand.piece;
     if (!piece) return;
     // let go while still passing through other pieces: it was never placed, so it goes back to the pile
@@ -674,7 +676,7 @@
     if (currentLevel != null) {
       const pb = hitPile(px, py);
       if (pb) { // held small inside the sidebar; becomes the real piece when dragged out
-        pointers.set(e.pointerId, { piece: null, pileBody: pb, pileGrab: pb.getLocalCenter(), pileTarget: pilePoint(px, py) });
+        startPileHold(e.pointerId, pb, pilePoint(px, py), false);
         return;
       }
     }
@@ -796,7 +798,18 @@
   // Hand strength for lifting beyond the piece's own weight, in newtons:
   // a stone block lifts with three more on top (slowly), not with four.
   const HAND_LIFT = 350;
-  const PUSH_ACCEL = 8; // m/s^2: hand force while touching = 0.8 x own weight
+  const PUSH_ACCEL = 8; // m/s^2: hand force while touching = 0.8 x own weight ...
+  const HAND_PUSH = 120; // N ... plus this much hand strength, so a mudbrick can shove another along the ground (stone only slowly)
+  const NEAR_GAP = 0.25, NEAR_SPEED = 1.5; // within this gap of another piece the held piece moves at most this fast (no sudden ramming)
+  function nearOtherPiece(body) {
+    let near = false;
+    for (let f = body.getFixtureList(); f && !near; f = f.getNext()) {
+      const bb = f.getAABB(0);
+      const box = planck.AABB(planck.Vec2(bb.lowerBound.x - NEAR_GAP, bb.lowerBound.y - NEAR_GAP), planck.Vec2(bb.upperBound.x + NEAR_GAP, bb.upperBound.y + NEAR_GAP));
+      world.queryAABB(box, (fx) => { const b = fx.getBody(); if (b !== body && (b.piece || b.isLoad) && !(b.piece && b.piece.ghost)) { near = true; return false; } return true; });
+    }
+    return near;
+  }
   function touchesOtherPiece(body) {
     if (body.piece && body.piece.ghost) return false;
     for (let ce = body.getContactList(); ce; ce = ce.next) {
@@ -833,13 +846,24 @@
       let vx = piece.uSmooth.x + (dist > 1e-6 ? (dx / dist) * corr : 0);
       let vy = piece.uSmooth.y + (dist > 1e-6 ? (dy / dist) * corr : 0);
       const vlen = Math.hypot(vx, vy);
-      if (vlen > material.maxLiftSpeed) { vx *= material.maxLiftSpeed / vlen; vy *= material.maxLiftSpeed / vlen; }
-      const lim = m * A * STEP;
-      const jx = Math.max(-lim, Math.min(lim, m * (vx - v.x)));
+      const vcap = !piece.ghost && (touching || nearOtherPiece(body)) ? Math.min(NEAR_SPEED, material.maxLiftSpeed) : material.maxLiftSpeed;
+      if (vlen > vcap) { vx *= vcap / vlen; vy *= vcap / vlen; }
+      const lim = (touching ? Math.min(m * material.maxAccel, m * PUSH_ACCEL + HAND_PUSH) : m * A) * STEP;
+      // Impulse that gives the grab point the wanted velocity change. Off-centre the piece
+      // also turns, so the grab point reacts with less than the full mass (effective mass
+      // K^-1); using the full mass there overshoots every tick and makes the piece tremble.
+      let dvx = vx - v.x, dvy = vy - v.y + GRAVITY * STEP, Px = m * dvx, Py = m * dvy;
+      if (piece.lever) {
+        const c = body.getWorldCenter(), lc = body.getLocalCenter(), rx = p.x - c.x, ry = p.y - c.y;
+        const Ic = Math.max(1e-6, body.getInertia() - m * (lc.x * lc.x + lc.y * lc.y));
+        const k11 = 1 / m + (ry * ry) / Ic, k22 = 1 / m + (rx * rx) / Ic, k12 = -(rx * ry) / Ic, det = k11 * k22 - k12 * k12;
+        Px = (k22 * dvx - k12 * dvy) / det; Py = (-k12 * dvx + k11 * dvy) / det;
+      }
+      const jx = Math.max(-lim, Math.min(lim, Px));
       const liftLim = m * GRAVITY * STEP + Math.max(m * material.maxAccel, HAND_LIFT) * STEP;
       // In free air the hand can also pull down (needed to swing a piece
       // round a curve); touching other pieces it never presses down.
-      const jy = Math.max(touching ? 0 : -lim, Math.min(liftLim, m * (vy - v.y) + m * GRAVITY * STEP));
+      const jy = Math.max(touching ? 0 : -lim, Math.min(liftLim, Py));
       if (piece.lever) {
         body.applyLinearImpulse(planck.Vec2(jx, jy), p, true);
       } else {
@@ -854,12 +878,14 @@
     }
   }
 
-  // Heavier material resists being spun around in the hand.
+  // Heavier material resists being spun around in the hand; a piece held off-centre
+  // swinging under its own weight may turn up to LEVER_SPIN.
+  const LEVER_SPIN = 5; // rad/s
   function clampHeldSpin() {
     for (const hand of pointers.values()) {
       const piece = hand.piece;
       if (!piece) continue;
-      const maxSpin = MATERIALS[piece.material].maxSpin;
+      const maxSpin = piece.lever ? Math.max(LEVER_SPIN, MATERIALS[piece.material].maxSpin) : MATERIALS[piece.material].maxSpin;
       const w = piece.body.getAngularVelocity();
       if (w > maxSpin) piece.body.setAngularVelocity(maxSpin);
       else if (w < -maxSpin) piece.body.setAngularVelocity(-maxSpin);
@@ -876,7 +902,7 @@
       clampHeldSpin();
       updateStrain();
       solidifyGhosts();
-      if (currentLevel != null) { drivePileHands(); pileWorld.step(STEP, 6, 2); }
+      if (currentLevel != null) { drivePileHands(); pileWorld.step(STEP, 6, 2); rescuePile(); }
       accumulator -= STEP;
       steps++;
     }
@@ -1018,14 +1044,15 @@
     "hit-stone-stone": [["sounds/hit-stone-stone.mp3", 0.9]],
     crumble: [["sounds/crumble.mp3", 1]],
     snap: [["sounds/snap.mp3", 1]],
-    wind: [["sounds/wind.mp3", 0.7]],            // loops through the wind test
-    quake: [["sounds/quake.mp3", 0.9]],          // cut off when the shaking ends
+    wind: [["sounds/wind.mp3", 0.35]],            // loops through the wind test
+    quake: [["sounds/quake.mp3", 1.6]],          // cut off when the shaking ends
     cheer: [["sounds/victory.mp3", 0.8], ["sounds/crowd-cheer.mp3", 0.6]],
     fail: [["sounds/loss.mp3", 0.8], ["sounds/crowd-disappointment.mp3", 0.6]],
     "drag-stone": [["sounds/drag-stone.mp3", 0.6]], // loops; louder the faster stone or mudbrick slides
     "drag-wood": [["sounds/drag-wood.mp3", 0.6]],   // same for wood
-    "music-map": [["sounds/music-map.mp3", 0.35]],
-    "music-level": [["sounds/music-level.mp3", 0.25]],
+    "music-map": [["sounds/music-map.mp3", 0.2]],
+    "music-level": [["sounds/music-level.mp3", 0.17]],
+    drumroll: [["sounds/drumroll.mp3", 0.8]],    // loops while the test load is lowered
     // collapse.mp3 is in src/sounds but not used yet
   };
   let actx = null;
@@ -1104,6 +1131,7 @@
   function feelContact(contact, impulse, pile) {
     const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
     const n = Math.max(...impulse.normalImpulses.slice(0, contact.getManifold().pointCount));
+    if (pile && performance.now() < pileQuietUntil) return; // pieces settling into a freshly filled pile
     const item = (b) => (pile ? b.pileItem : b.piece);
     const isGround = (b) => (pile ? b.isStatic() : b === groundBody);
     let played = false; // one sound per collision, even when both pieces react
@@ -1137,7 +1165,7 @@
       if (!played) {
         played = true;
         const om = isGround(other) ? "ground" : item(other) ? item(other).material : null;
-        if (om) playSound("hit-" + [it.material, om].sort((x, y) => (x === "ground" ? -1 : y === "ground" ? 1 : x < y ? -1 : x > y ? 1 : 0)).join("-"), strength);
+        if (om) playSound("hit-" + [it.material, om].sort((x, y) => (x === "ground" ? -1 : y === "ground" ? 1 : x < y ? -1 : x > y ? 1 : 0)).join("-"), pile ? strength * 0.5 : strength); // the sidebar plays at half volume
       }
       if (stone && kind && !pile) shake = Math.max(shake, strength * 11 * Math.min(1, b.getMass() / 10)); // px
     }
@@ -1331,6 +1359,7 @@
   // small. Dragging one out gives the real piece; dropping a piece back on
   // the sidebar returns it.
   const pileWorld = new planck.World({ gravity: planck.Vec2(0, -10) });
+  let pileWalls = null, pileQuietUntil = 0;
   pileWorld.on("post-solve", (contact, impulse) => feelContact(contact, impulse, true)); // SECTION FEEL
   let pileScale = 20;      // px per metre in the sidebar
   let pileBinRect = null;  // px rect of the bin
@@ -1363,7 +1392,8 @@
     const total = items.reduce((s, it) => s + pieceArea(it.defKey), 0) || 1;
     pileScale = Math.min(34, Math.sqrt((0.42 * r.w * r.h) / total));
     const W = r.w / pileScale, H = r.h / pileScale;
-    const walls = pileWorld.createBody({ type: "static" });
+    const walls = (pileWalls = pileWorld.createBody({ type: "static" }));
+    pileQuietUntil = performance.now() + 1500;
     walls.createFixture({ shape: planck.Box(W, 0.5, planck.Vec2(W / 2, -0.5), 0), friction: 0.8 });
     walls.createFixture({ shape: planck.Box(0.5, H * 3, planck.Vec2(-0.5, H * 1.5), 0), friction: 0.3 });
     walls.createFixture({ shape: planck.Box(0.5, H * 3, planck.Vec2(W + 0.5, H * 1.5), 0), friction: 0.3 });
@@ -1398,18 +1428,37 @@
     const r = pileBinRect;
     return planck.Vec2((px - r.x) / pileScale, (r.y + r.h - py) / pileScale);
   }
-  // A hand holding a small piece in the sidebar moves its grab point towards the pointer.
+  // A hand in the sidebar holds a small piece with a soft pin: grabbed in the middle it
+  // keeps its angle; grabbed near an end it hangs and swings, so it can be turned
+  // upright (or laid down) before it is dragged out.
+  function startPileHold(pointerId, body, pt, forceCentre) {
+    const d = PIECE_DEFS[body.pileItem.defKey], l = body.getLocalPoint(pt);
+    const short = (h, o) => (h < o * 0.8 ? h * 0.8 : h / 3);
+    const bx = d.r != null ? d.r / 3 : short(d.hx, d.hy), by = d.r != null ? d.r / 3 : short(d.hy, d.hx);
+    const centred = forceCentre || (l.x * l.x) / (bx * bx) + (l.y * l.y) / (by * by) <= 1;
+    const grab = centred ? body.getLocalCenter() : l;
+    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: 60 * body.getMass() * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
+    if (centred) body.setAngularVelocity(0);
+    pointers.set(pointerId, { piece: null, pileBody: body, pileGrab: planck.Vec2(grab.x, grab.y), pileTarget: pt, joint, centred });
+  }
   function drivePileHands() {
+    const r = pileBinRect, W = r.w / pileScale, H = r.h / pileScale;
     for (const hand of pointers.values()) {
       if (!hand.pileBody) continue;
-      const b = hand.pileBody, g = b.getWorldPoint(hand.pileGrab), r = pileBinRect;
-      const tx = Math.max(0, Math.min(r.w / pileScale, hand.pileTarget.x)), ty = Math.max(0, Math.min(r.h / pileScale, hand.pileTarget.y));
-      let vx = (tx - g.x) / (STEP * 4), vy = (ty - g.y) / (STEP * 4);
-      const vl = Math.hypot(vx, vy), cap = 25;
-      if (vl > cap) { vx *= cap / vl; vy *= cap / vl; }
-      b.setAwake(true);
-      b.setLinearVelocity(planck.Vec2(vx, vy));
-      b.setAngularVelocity(b.getAngularVelocity() * 0.8);
+      hand.joint.setTarget(planck.Vec2(Math.max(0, Math.min(W, hand.pileTarget.x)), Math.max(0, Math.min(H, hand.pileTarget.y))));
+      if (hand.centred) hand.pileBody.setAngularVelocity(hand.pileBody.getAngularVelocity() * 0.5);
+    }
+  }
+  // Safety net: a sidebar piece pushed out of the bin drops back in from the top.
+  function rescuePile() {
+    const r = pileBinRect;
+    if (!r) return;
+    const W = r.w / pileScale, H = r.h / pileScale;
+    for (const b of pileBodies()) {
+      const q = b.getPosition();
+      if (q.x < -0.6 || q.x > W + 0.6 || q.y < -0.6 || !Number.isFinite(q.x + q.y)) {
+        b.setTransform(planck.Vec2(W / 2, H + 1), 0); b.setLinearVelocity(planck.Vec2(0, 0)); b.setAngularVelocity(0);
+      }
     }
   }
   function setGhost(piece, on) {
@@ -1419,7 +1468,7 @@
   // Dragged out of the sidebar: the real piece appears under the finger, passing through
   // everything until it is clear of other pieces and the ground, so it cannot knock the building.
   function pileToWorld(pointerId, hand, px, py) {
-    const b = hand.pileBody, it = b.pileItem, a = b.getAngle(), g = hand.pileGrab;
+    const b = hand.pileBody, it = b.pileItem, a = b.getAngle(), g = b.getLocalCenter(); // comes out held by its centre
     pointers.delete(pointerId);
     pileWorld.destroyBody(b);
     const w = screenToWorld(px, py), ca = Math.cos(a), sa = Math.sin(a);
@@ -1429,15 +1478,17 @@
   }
   // Dragged into the sidebar: the piece shrinks into the pile and stays in the hand.
   function worldToPile(pointerId, hand, px, py) {
-    const piece = hand.piece, g = piece.grabLocal, a = piece.body.getAngle();
+    const piece = hand.piece, a = piece.body.getAngle();
     piece.ghost = false;
     releaseHold(pointerId);
     if (!pieces.includes(piece)) return;
     removePiece(piece);
-    const t = pilePoint(px, py), ca = Math.cos(a), sa = Math.sin(a);
-    const b = createPileBody({ defKey: piece.defKey, material: piece.material }, t.x - (g.x * ca - g.y * sa), t.y - (g.x * sa + g.y * ca));
+    // held by its middle, kept inside the bin
+    const r = pileBinRect, W = r.w / pileScale, H = r.h / pileScale, t = pilePoint(px, py);
+    const d = PIECE_DEFS[piece.defKey], e = d.r != null ? d.r : Math.max(d.hx, d.hy);
+    const b = createPileBody({ defKey: piece.defKey, material: piece.material }, Math.max(e, Math.min(W - e, t.x)), Math.max(e, Math.min(H + 2, t.y)));
     b.setTransform(b.getPosition(), a);
-    pointers.set(pointerId, { piece: null, pileBody: b, pileGrab: planck.Vec2(g.x, g.y), pileTarget: t });
+    startPileHold(pointerId, b, b.getWorldCenter(), true);
   }
   function solidifyGhosts() {
     for (const p of pieces) {
@@ -1483,7 +1534,7 @@
     loadTilt: 0.35,  // radians
   };
   const LOAD_DROP = 2; // metres above its place the load starts
-  const LOAD_SPEED = 0.8; // m/s lowering speed
+  const LOAD_SPEED = 1.2; // m/s lowering speed
   // N per metre of exposed height. Level 1: a top row of wooden blocks slides off, mudbrick holds.
   // From level 2 on, below what tips a lone stone column (0.6 x 2.4 m tips at about
   // 7.5 N/m here: weight x half-width against wind x half-height); level 1 has no columns.
@@ -1656,7 +1707,8 @@
     const woodBad = fillNeeded === CHECK.fill && g.L.woodRole === "courses" && c.wood < CHECK.woodMin;
     for (let k = 0; k < g.cov.length; k++) {
       const cv = g.cov[k];
-      if ((fillBad && g.inOutline[k] && !cv) || (farBad && cv && !g.near[k]) ||
+      if ((g.inOutline[k] && !cv) || // unfilled parts of the outline are always shown
+           (farBad && cv && !g.near[k]) ||
           (holeBad && g.inHole[k] && cv && !(support && cv === 1)) || (woodBad && g.inWood[k] && cv !== 1)) out.push(k);
     }
     return out;
@@ -1681,6 +1733,7 @@
     check = null; checkTimer = 0; failShow = null;
     mode = "build";
     layout();
+    if (!fresh) fillPile(pileItems()); // re-entering: what is left, tidied
     if (fresh) {
       const done = progress.done[LEVELS[i].key];
       if (!done) { fillPile(stockItems(i)); return; }
@@ -1740,7 +1793,7 @@
     if (test.loop) { test.loop.stop(0.6); test.loop = null; }
     test.phase = phase; test.t = 0;
     if (phase === "wind") test.loop = playSound("wind", 1, true);
-    if (phase === "load") spawnLoads();
+    if (phase === "load") { spawnLoads(); test.loop = playSound("drumroll", 1, true); }
     if (phase === "quake") test.loop = playSound("quake", 1);
   }
   // Wait, then check; go on to `next` or stop with the reason shown.
@@ -1790,6 +1843,7 @@
           l.body.setDynamic(); l.body.setAwake(true); l.released = true; test.t = 0;
         }
       }
+      if (all && test.loop) { test.loop.stop(0.4); test.loop = null; }
       if (all && T >= PHASE_TIME.loadSettle && checkpoint()) nextPhase("quake");
     } else if (test.phase === "quake") {
       const D = PHASE_TIME.quake, env = Math.sin((Math.PI * Math.min(T, D)) / D);
@@ -1823,7 +1877,9 @@
     loads = grid.load.map((ring) => {
       const [cx, cy] = ringCentre(ring);
       const verts = ring.map(([x, y]) => [x - cx, y - cy]);
-      const body = world.createBody({ type: "kinematic", position: planck.Vec2(cx, cy + LOAD_DROP) });
+      // starts just above the top of the screen and is lowered all the way
+      const top = screenToWorld(0, 0).y, low = Math.min(...verts.map((v) => v[1]));
+      const body = world.createBody({ type: "kinematic", position: planck.Vec2(cx, Math.max(cy + LOAD_DROP, top - low + 0.1)) });
       body.createFixture({ shape: planck.Polygon(verts.map(([x, y]) => planck.Vec2(x, y))), density: TEST_LOAD_DENSITY[currentLevel], friction: 0.6, restitution: 0 });
       body.isLoad = true;
       body.setLinearVelocity(planck.Vec2(0, -LOAD_SPEED));
@@ -2066,6 +2122,9 @@
     ctx.restore();
     requestAnimationFrame(frame);
   }
+  // Try sound right away (browsers may hold it until the first press or key; it then starts).
+  startAudio();
+  window.addEventListener("keydown", startAudio);
   requestAnimationFrame(frame);
 })();
 </script>
