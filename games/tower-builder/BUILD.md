@@ -157,7 +157,7 @@ A. Feel and test
 B. Check
 8. When the load did not land right, only the load's place is red; no other reds then.
 9. The load's place everywhere is the load's own shape (triangle at the Lion Gate), not a rectangle.
-10. Wooden supports (any wood in an opening/hole or wood zone that the test would pull) count as an error in the check: the monument is not complete while they are there. Show them red like other wrong filling.
+10. Wooden supports (any wood in an opening/hole or wood zone that the test would pull) count as an error in the check: the monument is not complete while they are there. Show them red like other wrong filling. Reading taken: the player takes the supports out himself once the arch stands; the test no longer pulls them, and the quick build removes them at the end.
 
 C. Levels (apply the checklist to all ten; update SOLUTIONS and LEVEL_EXTRA, run the harness, every suggested build passes and every listed wrong choice fails)
 11. Every level has a wrong choice that really fails. Lion Gate: a mudbrick base does not crumble today; keep mudbrick strength fixed, add weight above (heavier stonework) instead.
