@@ -86,12 +86,13 @@
       ctx.strokeStyle = "#9a6a3a"; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.stroke(path); ctx.setLineDash([]);
     },
     // Where the load will be lowered on.
-    loadGhost(ctx, path) {
-      ctx.strokeStyle = "rgba(90, 60, 30, 0.75)"; ctx.lineWidth = 2; ctx.setLineDash([3, 5]); ctx.stroke(path); ctx.setLineDash([]);
+    loadGhost(ctx, path, bad) {
+      if (bad) { ctx.fillStyle = "rgba(220, 40, 30, " + (0.25 + 0.2 * Math.sin(performance.now() / 120)) + ")"; ctx.fill(path); }
+      ctx.strokeStyle = bad ? "#c0281e" : "rgba(90, 60, 30, 0.75)"; ctx.lineWidth = bad ? 3 : 2; ctx.setLineDash([3, 5]); ctx.stroke(path); ctx.setLineDash([]);
     },
     // The load itself, drawn in metres with y up, centred on its body.
-    load(ctx, verts) {
-      ctx.fillStyle = "#8c6a3c"; ctx.strokeStyle = "#4a3518"; ctx.lineWidth = 0.06;
+    load(ctx, verts, bad) {
+      ctx.fillStyle = bad ? "#c0503c" : "#8c6a3c"; ctx.strokeStyle = bad ? "#7a1a10" : "#4a3518"; ctx.lineWidth = 0.06;
       ctx.beginPath(); verts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
       ctx.fill(); ctx.stroke();
     },
@@ -113,6 +114,42 @@
     mapSiteDone(ctx, x, y, r) {
       ctx.fillStyle = "#bfe3f0"; ctx.strokeStyle = "#8a6d3b"; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    },
+    // What broke a rule: red cells over the outline.
+    failCells(ctx, path, alpha) {
+      ctx.fillStyle = "rgba(220, 40, 30, " + alpha + ")"; ctx.fill(path);
+    },
+    // Cracks on an overloaded piece, in metres, centred, across its short side.
+    crack(ctx, hx, hy, strain, material) {
+      ctx.strokeStyle = "rgba(40, 25, 10, " + Math.min(1, strain * 1.3) + ")"; ctx.lineWidth = 0.05;
+      const n = material === "mudbrick" ? 3 : 1, along = hx >= hy;
+      for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 0 : (i - 1) * 0.55;
+        ctx.beginPath();
+        for (let k = 0; k <= 5; k++) {
+          const u = -1 + (2 * k) / 5, z = (k % 2 ? 0.12 : -0.12) * Math.min(1, strain + 0.3);
+          const x = along ? (t + z) * hx : u * hx, y = along ? u * hy : (t + z) * hy;
+          if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+        }
+        ctx.stroke();
+      }
+    },
+    mudChip(ctx, x, y, r, angle, alpha) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+      ctx.fillStyle = "rgba(140, 98, 60, " + alpha + ")";
+      ctx.beginPath(); ctx.moveTo(-r, -r * 0.6); ctx.lineTo(r, -r * 0.3); ctx.lineTo(r * 0.3, r); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    },
+    splinter(ctx, x, y, len, angle, alpha) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+      ctx.strokeStyle = "rgba(150, 105, 60, " + alpha + ")"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-len / 2, 0); ctx.lineTo(len / 2, 0); ctx.stroke();
+      ctx.restore();
+    },
+    // The sidebar bin that holds a level's pieces.
+    pileBin(ctx, x, y, w, h) {
+      ctx.fillStyle = "#3f362c"; ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = "#2a231c"; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
     },
     pile(ctx, w, h) {
       ctx.fillStyle = "#8a7560";
@@ -264,14 +301,20 @@
     // maxSpin: hard cap on angular velocity while held (rad/s) -- heavier
     // material resists being spun around in the hand more.
     wood:  { label: "WOOD",  density: 1.1,  friction: 0.5,  restitution: 0.015, maxLiftSpeed: 9,  maxSpin: 3.0, maxAccel: 30 },
+    // mudbrick: between wood and stone in weight; crumbles under heavy weight (SECTION BREAKING)
+    mudbrick: { label: "MUDBRICK", density: 3.2, friction: 0.7, restitution: 0.0, maxLiftSpeed: 7.5, maxSpin: 2.0, maxAccel: 26 },
     stone: { label: "STONE", density: 5.0,  friction: 0.6,  restitution: 0.0,  maxLiftSpeed: 6,  maxSpin: 1.3, maxAccel: 22 },
   };
   let selectedMaterial = "wood";
 
   const PIECE_DEFS = {
-    block:  { shape: "box", hx: 1.0, hy: 0.5, densityScale: 1.0, skin: "block" },
-    column: { shape: "box", hx: 0.3, hy: 1.2, densityScale: 1.0, skin: "column" },
-    beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 0.85, skin: "beam" },
+    block:  { shape: "box", hx: 1.0, hy: 0.5, densityScale: 1.0, skin: "block", half: "block-half" },
+    column: { shape: "box", hx: 0.3, hy: 1.2, densityScale: 1.0, skin: "column", half: "column-half" },
+    beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 0.85, skin: "beam", half: "beam-half" },
+    // what a snapped wooden piece breaks into (two halves along its length; they do not snap again)
+    "block-half":  { shape: "box", hx: 0.5, hy: 0.5, densityScale: 1.0, skin: "block" },
+    "column-half": { shape: "box", hx: 0.3, hy: 0.6, densityScale: 1.0, skin: "column" },
+    "beam-half":   { shape: "box", hx: 0.8, hy: 0.25, densityScale: 0.85, skin: "beam" },
     drum:   { shape: "circle", r: 0.6, densityScale: 1.0, skin: "drum" },
     // arch stone: narrow end down; about ten make a half circle
     wedge:  { shape: "poly", verts: [[-0.3, -0.5], [0.3, -0.5], [0.45, 0.5], [-0.45, 0.5]], hx: 0.45, hy: 0.5, densityScale: 1.0, skin: "wedge" },
@@ -357,6 +400,8 @@
       body.createFixture({ ...fixtureOptions, shape: planck.Circle(def.r) });
     }
     const piece = { id: nextPieceId++, defKey, material: materialKey, body, hx: def.hx, hy: def.hy, r: def.r, verts: def.verts };
+    piece.strain = 0; piece.crush = 0; piece.sup = []; piece.loads = []; // SECTION BREAKING
+    piece.canSnap = materialKey === "wood" && def.shape === "box" && !!def.half;
     body.piece = piece;
     pieces.push(piece);
     return piece;
@@ -405,12 +450,14 @@
 
     sidebarWidthPx = Math.min(156, Math.max(92, cssWidth * 0.23));
     if (cssWidth - sidebarWidthPx < 160) sidebarWidthPx = Math.max(72, cssWidth * 0.28);
+    if (currentLevel != null) sidebarWidthPx = Math.min(240, Math.max(130, cssWidth * 0.24)); // room for the pile
     buildingWidthPx = cssWidth - sidebarWidthPx;
     buildingHeightPx = cssHeight;
     scale = buildingWidthPx / WORLD_WIDTH;
     if (currentLevel != null) scale = Math.min(scale, buildingHeightPx / levelTop);
     worldWidth = buildingWidthPx / scale;
     rebuildBoundaries();
+    if (currentLevel != null) { pileBinRect = levelSidebar().bin; fillPile(pileItems()); }
   }
   layout();
   window.addEventListener("resize", layout);
@@ -428,15 +475,26 @@
   function materialLayout() {
     const pad = 7;
     const gap = 5;
-    const w = (sidebarWidthPx - pad * 2 - gap) / 2;
+    if (currentLevel != null) return []; // levels take their materials from the pile
+    const w = (sidebarWidthPx - pad * 2 - gap * 2) / 3;
     const h = Math.min(54, Math.max(38, cssHeight * 0.085));
-    return [
-      { key: "wood", x: buildingWidthPx + pad, y: 10, w, h },
-      { key: "stone", x: buildingWidthPx + pad + w + gap, y: 10, w, h },
-    ];
+    return ["wood", "mudbrick", "stone"].map((key, i) => ({ key, x: buildingWidthPx + pad + i * (w + gap), y: 10, w, h }));
+  }
+
+  // Levels: a row of map, broom and test buttons on top, the pile bin below.
+  function levelSidebar() {
+    const pad = 8, defs = BUTTONS.filter((b) => b.kind === "home" || b.kind === "broom" || b.kind === "test");
+    const size = Math.min(64, (sidebarWidthPx - pad * 4) / 3);
+    const total = defs.length * size + (defs.length - 1) * pad;
+    const x0 = buildingWidthPx + (sidebarWidthPx - total) / 2 + size / 2;
+    return {
+      buttons: defs.map((def, i) => ({ def, x: x0 + i * (size + pad), y: pad + size / 2, size })),
+      bin: { x: buildingWidthPx + pad, y: size + pad * 2, w: sidebarWidthPx - pad * 2, h: cssHeight - size - pad * 3 },
+    };
   }
 
   function buttonLayout() {
+    if (currentLevel != null) return levelSidebar().buttons;
     const defs = BUTTONS.filter((b) => b.kind !== "test" || currentLevel != null);
     const n = defs.length;
     const top = Math.max(76, Math.min(92, cssHeight * 0.16));
@@ -541,6 +599,21 @@
     piece.body.setAngularDamping(0.08);
   }
 
+  // The piece appears right at the sidebar edge, at the height of the finger,
+  // at its real size, already held, so it is visibly dragged out of the sidebar.
+  function spawnHeldAtEdge(defKey, angle, material, pointerId, px, py) {
+    const def = PIECE_DEFS[defKey];
+    const vertHalfExtent = def.shape === "circle" ? def.r : (angle === 0 ? def.hy : def.hx);
+    const horizHalfExtent = def.shape === "circle" ? def.r : (angle === 0 ? def.hx : def.hy);
+    const rawY = (buildingHeightPx - py) / scale;
+    const spawnPt = {
+      x: worldWidth - horizHalfExtent - 0.08,
+      y: Math.min(Math.max(rawY, vertHalfExtent + 0.05), buildingHeightPx / scale - vertHalfExtent - 0.05),
+    };
+    const piece = spawnPiece(defKey, spawnPt.x, spawnPt.y, angle, material);
+    startHold(piece, spawnPt, pointerId, px, py);
+  }
+
   function onPointerDown(e) {
     e.preventDefault();
     if (mode === "map") { onMapPointerDown(e); return; }
@@ -569,26 +642,26 @@
         return;
       }
       if (btn.kind === "broom") {
+        if (currentLevel != null) { // levels: everything goes back into the pile
+          const back = pieces.map((p) => ({ defKey: p.defKey, material: p.material }));
+          clearAllPieces();
+          fillPile(pileItems().concat(back));
+          return;
+        }
         clearAllPieces();
         return;
       }
-      const def = PIECE_DEFS[btn.def];
-      const vertHalfExtent = def.shape === "circle" ? def.r : (btn.angle === 0 ? def.hy : def.hx);
-      const horizHalfExtent = def.shape === "circle" ? def.r : (btn.angle === 0 ? def.hx : def.hy);
-      // The piece must appear right at the sidebar edge, at the same height
-      // as the finger, so it is visibly dragged out of the sidebar rather
-      // than materialising somewhere else in the building area.
-      const rawY = (buildingHeightPx - py) / scale;
-      const spawnPt = {
-        x: worldWidth - horizHalfExtent - 0.08,
-        y: Math.min(
-          Math.max(rawY, vertHalfExtent + 0.05),
-          buildingHeightPx / scale - vertHalfExtent - 0.05
-        ),
-      };
-      const piece = spawnPiece(btn.def, spawnPt.x, spawnPt.y, btn.angle, selectedMaterial);
-      startHold(piece, spawnPt, e.pointerId, px, py);
+      spawnHeldAtEdge(btn.def, btn.angle, selectedMaterial, e.pointerId, px, py);
       return;
+    }
+    if (currentLevel != null) {
+      const pb = hitPile(px, py);
+      if (pb) {
+        const it = pb.pileItem;
+        pileWorld.destroyBody(pb);
+        spawnHeldAtEdge(it.defKey, 0, it.material, e.pointerId, px, py);
+        return;
+      }
     }
 
     if (px < buildingWidthPx && py < buildingHeightPx) {
@@ -615,7 +688,10 @@
     if (cornerHold && cornerHold.id === e.pointerId) cornerHold = null;
     const hand = pointers.get(e.pointerId);
     if (!hand) return;
+    const piece = hand.piece;
     releaseHold(e.pointerId);
+    // levels: let go over the sidebar and the piece goes back into the pile
+    if (piece && currentLevel != null && !test && e.clientX >= buildingWidthPx && pieces.includes(piece)) returnToPile(piece);
   }
 
   function onPointerCancel(e) {
@@ -762,6 +838,8 @@
       testTick(STEP);
       world.step(STEP, 10, 5);
       clampHeldSpin();
+      updateStrain();
+      if (currentLevel != null) pileWorld.step(STEP, 6, 2);
       accumulator -= STEP;
       steps++;
     }
@@ -774,11 +852,12 @@
   function drawPiece(piece) {
     const pos = piece.body.getPosition();
     const s = worldToScreen(pos.x, pos.y);
-    drawPieceShape(piece.defKey, piece.material, s.x, s.y, piece.body.getAngle(), scale);
+    drawPieceShape(piece.defKey, piece.material, s.x, s.y, piece.body.getAngle(), scale, piece.strain);
   }
 
   // Draws one piece at a screen point and pixels-per-metre (also used for the map's small monuments).
-  function drawPieceShape(defKey, material, sx, sy, angle, sc) {
+  function drawPieceShape(defKey, material, sx, sy, angle, sc, strain = 0) {
+    const fillC = material === "mudbrick" ? "#ad7f52" : "#89939b", lineC = material === "mudbrick" ? "#5b3b20" : "#4d5962";
     const def = PIECE_DEFS[defKey];
     const piece = { material, r: def.r, hx: def.hx, hy: def.hy, verts: def.verts };
     ctx.save();
@@ -799,9 +878,9 @@
           ctx.beginPath(); ctx.moveTo(-half, y); ctx.lineTo(half, y); ctx.stroke();
         }
       } else {
-        ctx.fillStyle = "#89939b";
+        ctx.fillStyle = fillC;
         ctx.beginPath(); ctx.arc(0, 0, piece.r - 0.02, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#4d5962"; ctx.lineWidth = 0.06;
+        ctx.strokeStyle = lineC; ctx.lineWidth = 0.06;
         ctx.beginPath(); ctx.arc(0, 0, piece.r, 0, Math.PI * 2); ctx.stroke();
       }
     } else {
@@ -818,17 +897,18 @@
           ctx.stroke();
         }
       } else {
-        ctx.fillStyle = "#89939b";
+        ctx.fillStyle = fillC;
         ctx.fillRect(-piece.hx + 0.025, -piece.hy + 0.025, piece.hx * 2 - 0.05, piece.hy * 2 - 0.05);
-        ctx.strokeStyle = "#4d5962"; ctx.lineWidth = 0.06;
+        ctx.strokeStyle = lineC; ctx.lineWidth = 0.06;
         if (!piece.verts) ctx.strokeRect(-piece.hx, -piece.hy, piece.hx * 2, piece.hy * 2);
       }
       if (piece.verts) {
         ctx.restore(); poly();
-        ctx.strokeStyle = piece.material === "wood" ? "#5a4a36" : "#4d5962"; ctx.lineWidth = 0.06; ctx.stroke();
+        ctx.strokeStyle = piece.material === "wood" ? "#5a4a36" : lineC; ctx.lineWidth = 0.06; ctx.stroke();
       }
     }
 
+    if (strain > 0.05) SKIN.crack(ctx, piece.hx != null ? piece.hx : piece.r, piece.hy != null ? piece.hy : piece.r, strain, material);
     ctx.restore();
   }
 
@@ -841,8 +921,9 @@
     for (const piece of pieces) drawPiece(piece);
     for (const l of loads) {
       const q = l.body.getPosition(), s = worldToScreen(q.x, q.y);
-      drawLoadShape(l.verts, s.x, s.y, l.body.getAngle(), scale);
+      drawLoadShape(l.verts, s.x, s.y, l.body.getAngle(), scale, !!(failShow && failShow.loads.includes(l)));
     }
+    drawFailShow();
 
     // Right-side palette replaces the old bottom tray.
     ctx.fillStyle = "#514638";
@@ -865,16 +946,17 @@
           ctx.beginPath(); ctx.moveTo(b.x + 7, yy); ctx.lineTo(b.x + b.w - 7, yy); ctx.stroke();
         }
       } else {
-        ctx.fillStyle = "#89939b";
+        ctx.fillStyle = b.key === "mudbrick" ? "#ad7f52" : "#89939b";
         ctx.fillRect(b.x + 5, b.y + 5, b.w - 10, b.h - 10);
       }
       ctx.fillStyle = "#211c17";
       ctx.font = "bold 9px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "bottom";
-      ctx.fillText(b.key === "wood" ? "WOOD" : "STONE", b.x + b.w / 2, b.y + b.h - 2);
+      ctx.fillText({ wood: "ΞΥΛΟ", mudbrick: "ΠΛΙΝΘΟΣ", stone: "ΠΕΤΡΑ" }[b.key], b.x + b.w / 2, b.y + b.h - 2);
     }
 
+    if (currentLevel != null) drawPile();
     for (const b of buttonLayout()) {
       SKIN.button(ctx, b.def.icon, b.x, b.y, b.size, b.def.kind === "test" && !testReady());
     }
@@ -939,40 +1021,266 @@
       const s = worldToScreen(q.x, q.y);
       if (q.kind === "dust") SKIN.dust(ctx, s.x, s.y, q.r * scale, q.life);
       else if (q.kind === "wind") SKIN.wind(ctx, s.x, s.y, q.r * scale, q.life);
+      else if (q.kind === "mudchip") SKIN.mudChip(ctx, s.x, s.y, q.r * scale, q.a, q.life);
+      else if (q.kind === "splinter") SKIN.splinter(ctx, s.x, s.y, q.r * scale, q.a, q.life);
       else if (q.kind === "petal") SKIN.petal(ctx, s.x, s.y, q.r * scale, q.a, Math.min(1, q.life * 2), q.hue);
       else SKIN.chip(ctx, s.x, s.y, q.r * scale, q.a, q.life);
     }
   }
 
   // ---------------------------------------------------------------------
-  // SECTION: LEVELS -- outline, forgiving check, test (supports, wind, load, quake), pass/fail, saved progress
+  // SECTION: BREAKING -- mudbrick crumbles under heavy weight, wood snaps when loaded over a gap
+  // ---------------------------------------------------------------------
+  // Placeholders to tune by play. A mudbrick holds three stone blocks stacked on
+  // it, not four; a wooden beam over a gap holds one stone block, not two.
+  const CRUSH_FORCE = 320; // N pressing down on one mudbrick
+  const SNAP_MOMENT = 80;  // N*m bending a wood piece between (or beyond) its supports
+  const STRAIN_TIME = { crumble: 0.5, snap: 0.25 }; // seconds of overload before it gives
+
+  // Collect, per physics step, what presses on each mudbrick and where wood is held up and pushed down.
+  world.on("post-solve", (contact, impulse) => {
+    const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
+    const watch = (b) => b.piece && (b.piece.material === "mudbrick" || b.piece.canSnap);
+    if (!watch(bA) && !watch(bB)) return;
+    const wm = new planck.WorldManifold(); contact.getWorldManifold(wm);
+    const n = wm.normal, cnt = contact.getManifold().pointCount;
+    for (const [body, sign] of [[bA, -1], [bB, 1]]) {
+      if (!watch(body)) continue;
+      const piece = body.piece;
+      const pts = [];
+      for (let i = 0; i < cnt; i++) {
+        const j = impulse.normalImpulses[i] / STEP; // N
+        if (j > 0) pts.push([wm.points[i].x, wm.points[i].y, sign * n.x * j, sign * n.y * j]);
+      }
+      if (!pts.length) continue;
+      if (piece.material === "mudbrick") {
+        for (const p of pts) if (p[3] < 0) piece.crush -= p[3];
+        continue;
+      }
+      // wood: positions along the long axis, forces across it (towards up = holds it up)
+      const a = body.getAngle(), along = piece.hx >= piece.hy;
+      const ux = along ? Math.cos(a) : -Math.sin(a), uy = along ? Math.sin(a) : Math.cos(a);
+      let px = -uy, py = ux;
+      if (py < 0) { px = -px; py = -py; }
+      if (py < 0.5) continue; // standing too upright to bend
+      const c = body.getPosition();
+      let s0 = Infinity, s1 = -Infinity;
+      for (const [x, y, fx, fy] of pts) {
+        const s = (x - c.x) * ux + (y - c.y) * uy, f = fx * px + fy * py;
+        if (f > 0) { s0 = Math.min(s0, s); s1 = Math.max(s1, s); }
+        else piece.loads.push([s, -f]);
+      }
+      if (s1 >= s0) piece.sup.push([s0, s1]); // one support contact holds up the whole stretch between its points
+    }
+  });
+
+  // Bending: a load over a gap counts as if spread over that gap (P x gap / 4, so a
+  // stiff block sitting near the supports still loads the beam); a load beyond the
+  // last support bends by its distance from it. Loads right over a support count nothing.
+  function bendMoment(p) {
+    if (!p.sup.length || !p.loads.length) return 0;
+    let M = 0;
+    for (const [x, P] of p.loads) {
+      let l = -Infinity, r = Infinity, held = false;
+      for (const [a, b] of p.sup) {
+        if (x >= a - 0.05 && x <= b + 0.05) { held = true; break; }
+        if (b < x) l = Math.max(l, b);
+        if (a > x) r = Math.min(r, a);
+      }
+      if (held) continue;
+      if (Number.isFinite(l) && Number.isFinite(r)) M += (P * (r - l)) / 4;
+      else M += P * Math.min(Math.abs(x - l), Math.abs(r - x));
+    }
+    return M;
+  }
+
+  function updateStrain() {
+    for (const p of pieces.slice()) {
+      if (p.material !== "mudbrick" && !p.canSnap) continue;
+      let over = false, time = 1;
+      if (p.heldBy == null) {
+        if (p.material === "mudbrick") { over = p.crush > CRUSH_FORCE; time = STRAIN_TIME.crumble; }
+        else { over = bendMoment(p) > SNAP_MOMENT; time = STRAIN_TIME.snap; }
+      }
+      p.strain = over ? p.strain + STEP / time : Math.max(0, p.strain - STEP);
+      p.crush = 0; p.sup.length = 0; p.loads.length = 0;
+      if (p.strain >= 1) { if (p.material === "mudbrick") crumble(p); else snapWood(p); }
+    }
+  }
+
+  function crumble(p) {
+    const body = p.body, c = body.getPosition(), a = body.getAngle(), ca = Math.cos(a), sa = Math.sin(a);
+    const hx = p.hx != null ? p.hx : p.r, hy = p.hy != null ? p.hy : p.r;
+    for (let i = 0; i < 26; i++) {
+      const lx = (Math.random() * 2 - 1) * hx, ly = (Math.random() * 2 - 1) * hy;
+      const x = c.x + lx * ca - ly * sa, y = c.y + lx * sa + ly * ca;
+      if (i % 2) puffs.push({ kind: "dust", x, y, vx: (Math.random() - 0.5) * 1.5, vy: Math.random() * 0.6, r: 0.12 + Math.random() * 0.15, life: 1 });
+      else puffs.push({ kind: "mudchip", x, y, vx: (Math.random() - 0.5) * 2.5, vy: Math.random() * 1.5, r: 0.05 + Math.random() * 0.07, a: Math.random() * 6, life: 1 });
+    }
+    playSound("crumble", 1);
+    shake = Math.max(shake, 4);
+    removePiece(p);
+  }
+
+  function snapWood(p) {
+    const def = PIECE_DEFS[p.defKey];
+    const body = p.body, c = body.getPosition(), a = body.getAngle(), v = body.getLinearVelocity(), w = body.getAngularVelocity();
+    const along = p.hx >= p.hy, L = (along ? p.hx : p.hy) / 2;
+    const ux = along ? Math.cos(a) : -Math.sin(a), uy = along ? Math.sin(a) : Math.cos(a);
+    const vx = v.x, vy = v.y;
+    removePiece(p);
+    for (const s of [-1, 1]) {
+      const q = spawnPiece(def.half, c.x + s * ux * L, c.y + s * uy * L, a, "wood");
+      q.body.setLinearVelocity(planck.Vec2(vx, vy));
+      q.body.setAngularVelocity(w + s * 0.6); // the broken middle drops: the halves fold into a V
+    }
+    for (let i = 0; i < 12; i++) puffs.push({ kind: "splinter", x: c.x, y: c.y, vx: (Math.random() - 0.5) * 3, vy: Math.random() * 2.5, r: 0.12 + Math.random() * 0.1, a: Math.random() * 6, life: 1 });
+    playSound("snap", 1);
+  }
+
+  // ---------------------------------------------------------------------
+  // SECTION: PILE -- levels only: the sidebar holds the level's limited pieces as a small physics pile
+  // ---------------------------------------------------------------------
+  // Pieces keep their real sizes in this separate world; only the drawing is
+  // small. Dragging one out gives the real piece; dropping a piece back on
+  // the sidebar returns it.
+  const pileWorld = new planck.World({ gravity: planck.Vec2(0, -10) });
+  let pileScale = 20;      // px per metre in the sidebar
+  let pileBinRect = null;  // px rect of the bin
+
+  function pileBodies() {
+    const out = [];
+    for (let b = pileWorld.getBodyList(); b; b = b.getNext()) if (b.pileItem) out.push(b);
+    return out;
+  }
+  function pileItems() { return pileBodies().map((b) => b.pileItem); }
+  function pieceArea(defKey) {
+    const d = PIECE_DEFS[defKey];
+    return d.shape === "circle" ? Math.PI * d.r * d.r : d.shape === "poly" ? 4 * d.hx * d.hy * 0.83 : 4 * d.hx * d.hy;
+  }
+  function createPileBody(item, x, y) {
+    const def = PIECE_DEFS[item.defKey], mat = MATERIALS[item.material];
+    const body = pileWorld.createBody({ type: "dynamic", position: planck.Vec2(x, y), angularDamping: 0.6, linearDamping: 0.1 });
+    const fo = { density: mat.density * def.densityScale, friction: 0.7, restitution: 0 };
+    if (def.shape === "poly") body.createFixture({ ...fo, shape: planck.Polygon(def.verts.map(([vx, vy]) => planck.Vec2(vx, vy))) });
+    else if (def.shape === "box") body.createFixture({ ...fo, shape: planck.Box(def.hx, def.hy) });
+    else body.createFixture({ ...fo, shape: planck.Circle(def.r) });
+    body.pileItem = { defKey: item.defKey, material: item.material };
+    return body;
+  }
+  function fillPile(items) {
+    for (let b = pileWorld.getBodyList(); b; ) { const nb = b.getNext(); pileWorld.destroyBody(b); b = nb; }
+    const r = pileBinRect;
+    if (!r) return;
+    const total = items.reduce((s, it) => s + pieceArea(it.defKey), 0) || 1;
+    pileScale = Math.min(34, Math.sqrt((0.42 * r.w * r.h) / total));
+    const W = r.w / pileScale, H = r.h / pileScale;
+    const walls = pileWorld.createBody({ type: "static" });
+    walls.createFixture({ shape: planck.Box(W, 0.5, planck.Vec2(W / 2, -0.5), 0), friction: 0.8 });
+    walls.createFixture({ shape: planck.Box(0.5, H * 3, planck.Vec2(-0.5, H * 1.5), 0), friction: 0.3 });
+    walls.createFixture({ shape: planck.Box(0.5, H * 3, planck.Vec2(W + 0.5, H * 1.5), 0), friction: 0.3 });
+    // rows from the bottom up, in stock order, then a short settle
+    let x = 0.05, y = 0.02, rowH = 0;
+    for (const it of items) {
+      const d = PIECE_DEFS[it.defKey];
+      const w = d.r != null ? 2 * d.r : 2 * d.hx, h = d.r != null ? 2 * d.r : 2 * d.hy;
+      if (x + w > W - 0.05 && x > 0.05) { x = 0.05; y += rowH + 0.03; rowH = 0; }
+      createPileBody(it, x + w / 2, y + h / 2);
+      x += w + 0.05; rowH = Math.max(rowH, h);
+    }
+    for (let i = 0; i < 90; i++) pileWorld.step(STEP, 8, 3);
+  }
+  function hitPile(px, py) {
+    const r = pileBinRect;
+    if (!r || px < r.x || px > r.x + r.w || py < r.y || py > r.y + r.h) return null;
+    const p = planck.Vec2((px - r.x) / pileScale, (r.y + r.h - py) / pileScale);
+    const margin = Math.max(0.15, 10 / pileScale); // at least 10 px of slack around each piece
+    let best = null, bestD = Infinity;
+    for (const b of pileBodies()) {
+      const d = PIECE_DEFS[b.pileItem.defKey], l = b.getLocalPoint(p);
+      const dist = d.shape === "circle" ? Math.max(0, Math.hypot(l.x, l.y) - d.r)
+        : Math.hypot(Math.max(0, Math.abs(l.x) - d.hx), Math.max(0, Math.abs(l.y) - d.hy));
+      if (dist <= margin && dist < bestD) { best = b; bestD = dist; }
+    }
+    return best;
+  }
+  function returnToPile(piece) {
+    const item = { defKey: piece.defKey, material: piece.material };
+    removePiece(piece);
+    const r = pileBinRect, W = r.w / pileScale, H = r.h / pileScale, d = PIECE_DEFS[item.defKey];
+    const e = d.r != null ? d.r : d.hx;
+    createPileBody(item, e + Math.random() * Math.max(0.01, W - 2 * e), H + 1.5);
+  }
+  function drawPile() {
+    const r = pileBinRect;
+    SKIN.pileBin(ctx, r.x, r.y, r.w, r.h);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
+    for (const b of pileBodies()) {
+      const q = b.getPosition();
+      drawPieceShape(b.pileItem.defKey, b.pileItem.material, r.x + q.x * pileScale, r.y + r.h - q.y * pileScale, b.getAngle(), pileScale, 0);
+    }
+    ctx.restore();
+  }
+
+  // ---------------------------------------------------------------------
+  // SECTION: LEVELS -- stock per level, outline check, test (supports, wind, load, quake) stopping at the first failure, saved progress
   // ---------------------------------------------------------------------
   // All numbers in this section are placeholders to be tuned by play, not design decisions.
   const LEVEL_X0 = WORLD_WIDTH / 2; // level data is centred on x = 0
   const CELL = 0.1, GX = 400, GY = 160; // check grid: 0.1 m cells over x 0..40 m, y 0..16 m
   const CHECK = {
-    fill: 0.8,       // share of the outline that must be covered before the test
-    fillAfter: 0.7,  // ... and still covered after it
+    fill: 0.85,      // share of the outline that must be covered before the test
+    fillAfter: 0.8,  // ... and still covered at each step of it
     farReach: 0.5,   // metres outside the outline that still count as "inside"
     farCells: 5,     // allowed cells beyond that
-    holeMax: 0.05,   // share of an opening that may be blocked
+    holeMax: 0.03,   // share of an opening that may be blocked
     woodMin: 0.6,    // share of a wood-course zone that must be wood
     loadMove: 0.6,   // metres the load may shift and still be in place
     loadTilt: 0.35,  // radians
   };
   const LOAD_DROP = 2; // metres above its place the load starts
   const LOAD_SPEED = 0.8; // m/s lowering speed
-  const TEST_WIND = [20, 22, 24, 26, 28, 30, 32, 34, 60, 40]; // N per metre of exposed height, per level
+  // N per metre of exposed height. Level 1: a top row of wooden blocks slides off, mudbrick holds.
+  const TEST_WIND = [90, 45, 45, 40, 45, 45, 40, 45, 55, 45];
   const TEST_LOAD_DENSITY = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // kg/m^2, per level
   const TEST_QUAKE = [0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.32, 0.34, 0.36, 0.38]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
-  const PHASE_TIME = { wind: 3.5, loadSettle: 2, quake: 3, settle: 1.5, pass: 3.5, fail: 2 };
+  const PHASE_TIME = { settle: 1.2, wind: 3.5, loadSettle: 1.5, quake: 3, pass: 3.5, fail: 3, why: 2 };
+
+  // What the sidebar pile holds per level: [shape, material, count]. Each level adds
+  // one material or shape, and everything met before stays in the pile.
+  // The counts leave little spare, so the order of layers matters:
+  // stone low (mudbrick crumbles under it), wood only where fully held up.
+  const LEVEL_STOCK = {
+    mastaba:   [["block", "mudbrick", 16]],                                                          // mudbrick only
+    djoser:    [["block", "stone", 12], ["block", "mudbrick", 14]],                                  // + stone
+    ziggurat:  [["block", "stone", 6], ["block", "mudbrick", 8], ["beam", "stone", 4], ["beam", "wood", 6]], // + wood, + beam
+    karnak:    [["column", "stone", 10], ["beam", "stone", 1], ["beam", "wood", 3], ["block", "stone", 2], ["block", "mudbrick", 2]], // + column
+    liongate:  [["block", "stone", 14], ["block", "mudbrick", 10], ["beam", "stone", 2], ["beam", "wood", 3], ["column", "stone", 2]],
+    ishtar:    [["wedge", "stone", 12], ["block", "stone", 16], ["block", "mudbrick", 12], ["block", "wood", 6], ["column", "wood", 4],
+                ["beam", "wood", 4], ["beam", "stone", 2], ["column", "stone", 2]],                  // + wedge, wood as supports
+    parthenon: [["block", "stone", 10], ["block", "mudbrick", 6], ["column", "stone", 7], ["beam", "stone", 3], ["beam", "wood", 3],
+                ["wedge", "stone", 4], ["block", "wood", 2]],
+    mausoleum: [["block", "stone", 16], ["block", "mudbrick", 14], ["column", "stone", 7], ["beam", "stone", 3], ["beam", "wood", 3],
+                ["wedge", "stone", 2], ["block", "wood", 2]],
+    pharos:    [["block", "stone", 10], ["block", "mudbrick", 10], ["column", "stone", 3], ["beam", "stone", 2], ["beam", "wood", 2],
+                ["block", "wood", 2], ["wedge", "stone", 2]],
+    valens:    [["wedge", "stone", 40], ["block", "stone", 20], ["block", "mudbrick", 8], ["block", "wood", 8], ["column", "wood", 8],
+                ["beam", "wood", 4], ["beam", "stone", 3], ["column", "stone", 2]],
+  };
+  function stockItems(i) {
+    const out = [];
+    for (const [defKey, material, n] of LEVEL_STOCK[LEVELS[i].key] || []) for (let k = 0; k < n; k++) out.push({ defKey, material });
+    return out;
+  }
 
   let grid = null;   // current level geometry and check masks
   let check = null;  // latest check result
   let checkTimer = 0;
   let test = null;   // running test
   let loads = [];    // load bodies during a test
+  let failShow = null; // { cells, loads, until } what is drawn red to show why
 
   const SAVE_KEY = "tower-builder-progress-v1";
   const progress = (() => { try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch (err) { return {}; } })();
@@ -1076,10 +1384,23 @@
     return c.fill >= CHECK.fill && c.far <= CHECK.farCells && c.hole <= CHECK.holeMax &&
       (grid.L.woodRole !== "courses" || c.wood >= CHECK.woodMin);
   }
+  // The cells to paint red for each rule that fails (uses grid.cov from the last runCheck).
+  function failingCells(c, fillNeeded) {
+    const g = grid, support = g.L.woodRole === "support", out = [];
+    const fillBad = c.fill < fillNeeded, farBad = c.far > CHECK.farCells, holeBad = c.hole > CHECK.holeMax;
+    const woodBad = fillNeeded === CHECK.fill && g.L.woodRole === "courses" && c.wood < CHECK.woodMin;
+    for (let k = 0; k < g.cov.length; k++) {
+      const cv = g.cov[k];
+      if ((fillBad && g.inOutline[k] && !cv) || (farBad && cv && !g.near[k]) ||
+          (holeBad && g.inHole[k] && cv && !(support && cv === 1)) || (woodBad && g.inWood[k] && cv !== 1)) out.push(k);
+    }
+    return out;
+  }
   function testReady() {
     return currentLevel != null && !test && !!check && pointers.size === 0 && checkPasses(check);
   }
   function updateCheck(dt) {
+    if (failShow && failShow.until != null && performance.now() > failShow.until) failShow = null;
     if (currentLevel == null || test) return;
     checkTimer -= dt;
     if (checkTimer <= 0) { check = runCheck(); checkTimer = 0.25; }
@@ -1087,26 +1408,39 @@
 
   function startLevel(i) {
     releaseAllPointers();
-    if (currentLevel !== i) clearAllPieces();
+    const fresh = currentLevel !== i;
+    if (fresh) { clearAllPieces(); fillPile([]); }
     if (!grid || grid.L !== LEVELS[i]) grid = buildLevel(i);
     currentLevel = i;
     levelTop = grid.top;
-    check = null; checkTimer = 0;
+    check = null; checkTimer = 0; failShow = null;
     mode = "build";
     layout();
+    if (fresh) fillPile(stockItems(i));
   }
   function startFree() {
     releaseAllPointers();
     if (currentLevel != null) clearAllPieces();
-    currentLevel = null; grid = null; check = null;
+    currentLevel = null; grid = null; check = null; failShow = null;
     mode = "build";
     layout();
   }
 
-  // --- the test: supports pulled out, wind, load lowered on, earthquake, then judged
+  // --- the test: supports pulled out, wind, load lowered on, earthquake. After each
+  // step the building is checked; the first failure stops the test and is shown in red.
   function startTest() {
-    if (!testReady()) return;
+    if (currentLevel == null || test) return;
+    if (!testReady()) {
+      // grey button pressed: show why it is not ready yet
+      if (pointers.size === 0) {
+        check = runCheck();
+        failShow = { cells: failingCells(check, CHECK.fill), loads: [], until: performance.now() + PHASE_TIME.why * 1000 };
+        playSound("not-ready", 1);
+      }
+      return;
+    }
     releaseAllPointers();
+    failShow = null;
     const snapshot = pieces.map((p) => { const q = p.body.getPosition(); return { defKey: p.defKey, material: p.material, x: q.x, y: q.y, angle: p.body.getAngle() }; });
     let toPull = [];
     if (grid.L.woodRole === "support") {
@@ -1116,13 +1450,26 @@
         return k >= 0 && (grid.inWood[k] || grid.inHole[k]);
       });
     }
-    test = { phase: "supports", t: 0, snapshot, toPull, pulled: false };
+    test = { phase: "supports", t: 0, snapshot, toPull, after: null };
   }
   function nextPhase(phase) {
     test.phase = phase; test.t = 0;
     if (phase === "wind") playSound("wind", 1);
     if (phase === "load") spawnLoads();
     if (phase === "quake") playSound("quake", 1);
+  }
+  // Wait, then check; go on to `next` or stop with the reason shown.
+  function settleThenCheck(next) { test.after = next; nextPhase("settle"); }
+  function checkpoint() {
+    const c = runCheck();
+    const badLoads = loads.filter((l) => !loadInPlace(l));
+    if (c.fill < CHECK.fillAfter || badLoads.length) {
+      failShow = { cells: c.fill < CHECK.fillAfter ? failingCells(c, CHECK.fillAfter) : [], loads: badLoads, until: null };
+      nextPhase("fail");
+      playSound("fail", 1);
+      return false;
+    }
+    return true;
   }
   function testTick(dt) {
     if (!test) return;
@@ -1132,15 +1479,20 @@
       if (test.toPull.length) {
         if (T >= 0.25) {
           const p = test.toPull.shift();
-          if (pieces.includes(p)) { dustAt(p.body.getPosition()); removePiece(p); test.pulled = true; }
+          if (pieces.includes(p)) { dustAt(p.body.getPosition()); removePiece(p); }
           test.t = 0;
         }
-      } else if (T >= (test.pulled ? 1.5 : 0.3)) nextPhase("wind");
+      } else settleThenCheck("wind");
+    } else if (test.phase === "settle") {
+      if (T >= PHASE_TIME.settle && checkpoint()) {
+        if (test.after === "pass") { nextPhase("pass"); celebrate(); playSound("cheer", 1); }
+        else nextPhase(test.after);
+      }
     } else if (test.phase === "wind") {
       const D = PHASE_TIME.wind, ramp = Math.max(0, Math.min(1, T / 0.7, (D - T) / 0.7));
       applyWind(TEST_WIND[lv] * ramp);
       if (Math.random() < 0.6 * ramp) puffs.push({ kind: "wind", x: 0, y: Math.random() * levelTop, vx: 10, vy: 0, r: 0.6 + Math.random() * 0.9, life: 1 });
-      if (T >= D) nextPhase("load");
+      if (T >= D) settleThenCheck("load");
     } else if (test.phase === "load") {
       let all = true;
       for (const l of loads) {
@@ -1150,18 +1502,12 @@
           l.body.setDynamic(); l.body.setAwake(true); l.released = true; test.t = 0;
         }
       }
-      if (all && T >= PHASE_TIME.loadSettle) nextPhase("quake");
+      if (all && T >= PHASE_TIME.loadSettle && checkpoint()) nextPhase("quake");
     } else if (test.phase === "quake") {
       const D = PHASE_TIME.quake, env = Math.sin((Math.PI * Math.min(T, D)) / D);
       groundBody.setLinearVelocity(planck.Vec2(TEST_QUAKE[lv] * env * Math.sin(2 * Math.PI * QUAKE_HZ * T), 0));
       shake = Math.max(shake, 5 * env);
-      if (T >= D) { resetGround(); nextPhase("settle"); }
-    } else if (test.phase === "settle") {
-      if (T >= PHASE_TIME.settle) {
-        const pass = runCheck().fill >= CHECK.fillAfter && loads.every(loadInPlace);
-        nextPhase(pass ? "pass" : "fail");
-        if (pass) { celebrate(); playSound("cheer", 1); }
-      }
+      if (T >= D) { resetGround(); settleThenCheck("pass"); }
     } else if (test.phase === "pass") {
       if (T >= PHASE_TIME.pass) { saveMonument(); finishTest(); mode = "map"; }
     } else if (test.phase === "fail") {
@@ -1213,6 +1559,7 @@
   function restoreSnapshot() {
     const snap = test.snapshot;
     finishTest();
+    failShow = null;
     clearAllPieces();
     for (const s of snap) spawnPiece(s.defKey, s.x, s.y, s.angle, s.material);
   }
@@ -1243,9 +1590,9 @@
   }
 
   // --- drawing
-  function drawLoadShape(verts, sx, sy, angle, sc) {
+  function drawLoadShape(verts, sx, sy, angle, sc, bad) {
     ctx.save(); ctx.translate(sx, sy); ctx.rotate(-angle); ctx.scale(sc, -sc);
-    SKIN.load(ctx, verts);
+    SKIN.load(ctx, verts, bad);
     ctx.restore();
   }
   function screenPath(rings) {
@@ -1260,7 +1607,18 @@
     if (currentLevel == null || !grid) return;
     SKIN.outline(ctx, screenPath(grid.solid), screenPath(grid.holes));
     if (grid.wood.length) SKIN.woodZone(ctx, screenPath(grid.wood));
-    if (!loads.length) SKIN.loadGhost(ctx, screenPath(grid.load));
+    const badGhost = failShow && failShow.loads.length;
+    if (!loads.length || badGhost) SKIN.loadGhost(ctx, screenPath(grid.load), badGhost);
+  }
+  // Red, pulsing: the parts of the outline (or openings, or wood zones) that broke a rule.
+  function drawFailShow() {
+    if (!failShow || !failShow.cells.length) return;
+    const path = new Path2D(), px = CELL * scale;
+    for (const k of failShow.cells) {
+      const s = worldToScreen((k % GX) * CELL, (Math.floor(k / GX) + 1) * CELL);
+      path.rect(s.x, s.y, px + 0.5, px + 0.5);
+    }
+    SKIN.failCells(ctx, path, 0.35 + 0.2 * Math.sin(performance.now() / 120));
   }
   // The player's finished building, small, on its map site.
   function drawMonumentMini(done, cx, cy, r) {
@@ -1277,8 +1635,8 @@
     const at = (x, y) => [cx + (x - mx) * sc, cy + (my - y) * sc];
     ctx.save();
     ctx.beginPath(); ctx.arc(cx, cy, r - 1.5, 0, Math.PI * 2); ctx.clip();
-    for (const [d, m, x, y, a] of done.pieces) { const [sx, sy] = at(x, y); drawPieceShape(d, m, sx, sy, a, sc); }
-    for (const [x, y, a, verts] of done.loads) { const [sx, sy] = at(x, y); drawLoadShape(verts, sx, sy, a, sc); }
+    for (const [d, m, x, y, a] of done.pieces) { const [sx, sy] = at(x, y); drawPieceShape(d, m, sx, sy, a, sc, 0); }
+    for (const [x, y, a, verts] of done.loads) { const [sx, sy] = at(x, y); drawLoadShape(verts, sx, sy, a, sc, false); }
     ctx.restore();
   }
 

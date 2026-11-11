@@ -130,7 +130,7 @@ These override the brief where they differ.
 
 ## Status
 
-- Tower Builder: free play, world map and the ten levels built (outline check, test of supports, wind, load, earthquake, map unlock with parent override, saved monuments). Test strengths are placeholders. Next: test with the child and tune.
+- Tower Builder: free play, world map and ten levels built, with mudbrick that crumbles, wood that snaps, a limited pile of pieces per level, and a test that stops at the first failure and shows why. Levels 1-2 verified; 3-10 untested. Next: play-test levels 3-10 and tune, then the test with the child.
 
 ## Decided
 

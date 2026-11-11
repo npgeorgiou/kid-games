@@ -33,3 +33,12 @@ New, decided during prototype testing with the child (not from the brief):
 - Two materials, wood and stone, chosen per piece from two buttons above the tray. Stone is harder to pick up fast and harder to spin than wood — the weight has to be felt in the hand, not just read off a label.
 - Grabbing the middle third of a piece carries it with no tilt. Grabbing nearer an edge tilts it like a real lever.
 - A held piece tracks the hand exactly: no delay, no sliding start, no drift if the hand stops. It only tilts from an edge grab, never from being carried.
+
+New, decided by the owner after the levels were first built:
+
+- Three materials: mudbrick, stone, wood. Mudbrick crumbles (cracks, then falls apart in dust) under heavy weight; wood snaps in two when heavily loaded over a gap, and holds when fully supported underneath. Stone does not break.
+- Each level brings one new material or shape, and everything met before stays available: 1 mudbrick blocks; 2 + stone; 3 + wood and beams (wood courses); 4 + columns; 6 + wedge stones, wood as temporary supports.
+- From level 1 on, a level's pieces are limited: they lie as a small pile in the sidebar, shrink-drawn, and take their real size when dragged out. Dropping a piece on the sidebar returns it. The mix leaves little spare, so the order of layers matters (stone low, mudbrick high, wood only where supported).
+- The ready check is stricter (85% of the outline covered; 90% left some outlines barely possible with whole pieces). Pressing the grey test button paints in red what is missing or in the wrong place.
+- The test stops at the first failure and shows why in red (uncovered parts of the outline, or the load and its proper place); nothing further happens before the pieces return.
+- Wind on level 1 blows a building of wooden blocks apart; mudbrick holds.
