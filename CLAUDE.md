@@ -47,6 +47,19 @@ Authoritative brief: `docs/brief.txt` (full catalogue of 40 games, design princi
   - Commit, push and reply once at the end.
 - Design decisions and tricky problems go to the strongest model; routine building from a `BUILD.md` goes to a cheaper one. Use helper agents only for reading a lot to return a little (research, large searches) or bulk repetitive work from an agreed pattern, and only when setting them up costs less than it saves.
 
+## Mistakes made before; every chat must avoid them
+
+- Never call anything agreed, settled or done unless the owner said so in his words. A proposal stays a proposal until he answers; never write a proposal into a file as a decision.
+- Fix the rule, never the example. No per-level patches or exceptions; if a design does not satisfy a general rule, the design changes.
+- Do not reason from numbers when the owner reports what he did. Repeat his exact action in the game (his stack, his lift, his quick build + test) as a harness test, see it fail, fix, see it pass.
+- Never contradict what the owner says he did or saw. If the cause is unknown, say "unknown" and find it with a test; do not offer a guessed cause as an explanation.
+- The outline is the shape of the building (solid, with only its real openings), never the union of the suggested build's pieces.
+- Before replying, go through every point and every question in the owner's message, one by one, including questions inside a point, and make sure each is done or answered. Nothing silently dropped.
+- Handovers must stand alone: the owner's own words verbatim, his screenshots saved into the repo and named, no references to things that exist only in the chat (item numbers, "the image above").
+- Proposals must fit the player: a four-year-old placing pieces roughly. No precision demands.
+- Tests must cover what the owner does and sees, not only the suggested builds: hand-built stacks, lifting, re-entering levels, the map, the button, what is painted red.
+- Explain in game terms (pieces, hand, button, test, map), never internals (newtons, steps, sleeping bodies, function names), and never ask vague questions.
+
 ## Product rules
 
 - All player-facing text in natural, correct Modern Greek. Design docs and code comments in English.
