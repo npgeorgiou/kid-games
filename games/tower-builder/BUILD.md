@@ -179,6 +179,9 @@ The owner's second fix list (18 items) is built and pushed. What changed:
 - Every pile uses the same piece size: the largest at which every level's full pile fits the bin (`pileUniform`).
 - Grip (supersedes the firm grip above): held off-centre the piece swings freely (grab point held, effective-mass impulse) but the hand's grip cancels spin up to GRIP 2.5 x weight x short side^2 per second: blocks, squares, wedges are carried steady; beams, columns, capitals held at an end hang and can be swung in circles. Sidebar pin doubled again (120 x own weight + 4 x pile weight).
 - Pile size: one size `pilePx` = clamp(screen height / 22, 28, 48) px per m; the sidebar widens (up to half the screen) until the level's full pile fits at that size.
+- Hand, final (supersedes the grip lines above): held off-centre the piece turns smoothly (no rocking) towards the pull it feels = gravity + the hand's acceleration (smoothed 0.12 s, only the part above 14 m/s^2 counts), at up to 9 rad/s, gain 7/s; the hand moves its centre so the grab point stays under the finger. Lifted by one end it hangs; dragged it stays hanging straight; whirled (about 1 Hz) it goes round like a sling. Harness `probe` prints these as PASS/FAIL tests ("hand").
+- Sidebar: the pile bin is `PILE_BIN_W` 6.4 m wide (three blocks and a little); one piece size for every level, the largest at which every level's full pile fits the bin's height (about 25 px/m at 1280x800, 34 at 1920x1080); the sidebar width follows from it.
+- Ground: back to the plain strip (the textured ground commit was reverted at the owner's request).
 - Level redesign proposals (headpiece = important part, new shapes, history checked) are on branch `level-proposals` (make-levels.py, new piece `abacus`), all passing the harness. Not merged: waiting for the owner's verdict on the pictures.
 
 ## Task list

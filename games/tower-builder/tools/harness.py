@@ -69,15 +69,15 @@ with sync_playwright() as p:
           for(const [d,mat,lx] of [["block","stone",0.9],["beam","stone",1.5],["block","wood",0.9]]){const [p,g]=hold(d,mat,lx,0);const a0=p.body.getAngle();
             for(let k=0;k<60;k++){p.desired={x:g.x,y:g.y+k*1.5/60};run(1);} run(300); const turn=Math.abs(p.body.getAngle()-a0);
             res['hangs '+d+'/'+mat]=[+turn.toFixed(2), turn>1.3&&turn<1.85?'PASS':'FAIL']; T.releaseHold(98);}
-          // 2 circling the hand swings a held piece round (it turns more than half a turn)
-          for(const [d,mat,lx,hz] of [["block","stone",0.9,0.6],["beam","wood",1.5,0.4],["beam","stone",1.5,0.4]]){const [p,g]=hold(d,mat,lx,0);run(150);let a=p.body.getAngle(),tot=0;
-            for(let k=0;k<360;k++){const th=k/60*2*Math.PI*hz;p.desired={x:g.x+1.2*Math.sin(th),y:g.y+1.2*(1-Math.cos(th))};run(1);const b=p.body.getAngle();tot=Math.max(tot,Math.abs(b-a));}
-            res['swings in circles '+d+'/'+mat]=[+tot.toFixed(2), tot>1.2?'PASS':'FAIL']; T.releaseHold(98);}
-          // 3 carried sideways at steady speed, a hanging piece hangs straight; after stopping it settles
-          for(const [d,mat,lx] of [["block","stone",0.9],["block","mudbrick",0.9],["square","stone",0.4]]){const [p,g]=hold(d,mat,lx,0,3);run(240);const hang=p.body.getAngle();let x=g.x,v=0,steady=0,after=0;
-            for(let k=0;k<180;k++){v=Math.min(3,v+3/18);x+=v/60;p.desired={x,y:g.y};run(1);if(k>=120)steady=Math.max(steady,Math.abs(p.body.getAngle()-hang));}
-            for(let k=0;k<18;k++){v=Math.max(0,v-3/18);x+=v/60;p.desired={x,y:g.y};run(1);} run(120);for(let k=0;k<30;k++){run(1);after=Math.max(after,Math.abs(p.body.getAngle()-hang));}
-            res['steady carry '+d+'/'+mat]=[+steady.toFixed(2),+after.toFixed(2), steady<0.15&&after<0.15?'PASS':'FAIL']; T.releaseHold(98);}
+          // 2 whirling the hand in circles (1 Hz, 1 m) turns the piece round and round, smoothly (no jerks in its spin)
+          for(const [d,mat,lx] of [["block","stone",0.9],["beam","wood",1.5],["beam","stone",1.5]]){const [p,g]=hold(d,mat,lx,0);run(150);let prev=p.body.getAngle(),tot=0,jerk=0,w0=0;
+            for(let k=0;k<240;k++){const th=k/60*2*Math.PI*1.0;p.desired={x:g.x+1.0*Math.sin(th),y:g.y+1.0*(1-Math.cos(th))};run(1);const a=p.body.getAngle();tot+=a-prev;prev=a;const w=p.body.getAngularVelocity();if(k>60)jerk=Math.max(jerk,Math.abs(w-w0));w0=w;}
+            const turns=Math.abs(tot)/(2*Math.PI); res['whirls '+d+'/'+mat]=[+turns.toFixed(2)+' turns',+jerk.toFixed(2)+' max spin change per step', turns>2.5&&jerk<0.6?'PASS':'FAIL']; T.releaseHold(98);}
+          // 3 dragged through the air (speeding up to 4 m/s in 0.25 s, then stopping as fast), a hanging piece does not swing back
+          for(const [d,mat,lx] of [["block","stone",0.9],["block","mudbrick",0.9],["square","stone",0.4],["beam","stone",1.5]]){const [p,g]=hold(d,mat,lx,0,3);run(240);const hang=p.body.getAngle();let x=g.x,v=0,mx=0;
+            for(let k=0;k<120;k++){v=k<15?v+4/15:k>=105?Math.max(0,v-4/15):v;x+=v/60;p.desired={x,y:g.y};run(1);mx=Math.max(mx,Math.abs(p.body.getAngle()-hang));}
+            for(let k=0;k<60;k++){run(1);mx=Math.max(mx,Math.abs(p.body.getAngle()-hang));}
+            res['drag '+d+'/'+mat]=[+mx.toFixed(2)+' rad max tilt', mx<0.12?'PASS':'FAIL']; T.releaseHold(98);}
           return res;}'''))
         levels=[]
     for i in levels:
