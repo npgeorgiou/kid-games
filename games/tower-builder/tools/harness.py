@@ -7,7 +7,7 @@ import os, re
 HERE=os.path.dirname(os.path.abspath(__file__))
 src=open(os.path.join(HERE,'..','tower-builder.html')).read()
 hook='''window.__tb={TEST_LOAD_DENSITY,renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,testReady,stockItems,TEST_WIND,PIECE_DEFS,levelSidebar,pileLayout,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
-get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale},set failShow(v){failShow=v},worldToScreen,failingCells,CHECK,TEST_QUAKE,get doneSites(){return typeof doneSites!=='undefined'?doneSites:null},get goMap(){return typeof goMap!=='undefined'?goMap:null},get siteLook(){return typeof siteLook!=='undefined'?siteLook:null},get restartButton(){return typeof restartButton!=='undefined'?restartButton:null},get readySince(){return readySince},ageReady(){if(readySince!=null)readySince-=1000},get removePiece(){return removePiece},music(){return {ctx:actx&&actx.state,name:musicName,on:!!music}}};
+get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale},set failShow(v){failShow=v},worldToScreen,failingCells,CHECK,TEST_QUAKE,get doneSites(){return typeof doneSites!=='undefined'?doneSites:null},get goMap(){return typeof goMap!=='undefined'?goMap:null},get siteLook(){return typeof siteLook!=='undefined'?siteLook:null},get restartButton(){return typeof restartButton!=='undefined'?restartButton:null},get readySince(){return readySince},ageReady(){if(readySince!=null)readySince-=1000},get removePiece(){return removePiece},get hitPiece(){return hitPiece},music(){return {ctx:actx&&actx.state,name:musicName,on:!!music}}};
 window.requestAnimationFrame=()=>0;
 '''
 k=src.rindex('})();')
@@ -92,6 +92,20 @@ with sync_playwright() as p:
         names=[a for a in sys.argv[2:] if not a.isdigit()]
         for name,ok,det in pg.evaluate(open(os.path.join(HERE,'owner-tests.js')).read(),names):
             print('%-4s %-70s %s'%('PASS' if ok else 'FAIL',name,det[:200]),flush=True)
+        if not names or 'screens' in names:  # seventh list 2: the quick build and test give the same result on every screen size
+            JS=open(os.path.join(HERE,'owner-tests.js')).read()
+            allr={}
+            for (w,h,dpr) in [(1280,800,1),(1366,768,1),(1920,1080,1),(1536,864,1.25),(1024,768,1)]:
+                c=b.new_context(viewport={'width':w,'height':h},device_scale_factor=dpr); q=c.new_page(); q.goto('file:///tmp/tb.html'); q.wait_for_timeout(300)
+                allr['%dx%d'%(w,h)]=q.evaluate("""()=>{const T=__tb; const fr=(dt)=>{const f=T.test&&T.test.fast&&T.test.phase!=="fail"&&T.test.phase!=="pass"?10:1;T.stepPhysics(dt*f,5*f);T.cleanupOutOfBounds();T.updateCheck(dt);};
+                  return T.LEVELS.map((L,i)=>[1,1.3].map((m)=>{const q0=T.TEST_QUAKE[i],d0=T.TEST_LOAD_DENSITY[i]; T.TEST_QUAKE[i]=q0*m; T.TEST_LOAD_DENSITY[i]=d0*m;
+                    T.mode="build"; delete T.progress.done[L.key]; T.startLevel((i+1)%10); T.startLevel(i); T.quiet0(); T.startAutoBuild(); let n=0; while(T.auto&&n<20000){fr(1/60);n++;}
+                    T.setTab(true); T.startTest(); T.setTab(false); T.test.fast=true; let k=0; while(T.test&&k<20000){fr(1/60);k++;} T.TEST_QUAKE[i]=q0; T.TEST_LOAD_DENSITY[i]=d0;
+                    return T.progress.done[L.key]?"PASS":"FAIL";}).join("/"));}""")  # plain test / 30% stronger earthquake and headpiece
+                c.close()
+            for i in range(10):
+                rs={k:v[i] for k,v in allr.items()}
+                print('%-4s %-70s %s'%('PASS' if set(rs.values())=={'PASS/PASS'} else 'FAIL','7-2 same result on every screen size (also 1.3x): level %d'%(i+1),json.dumps(rs)),flush=True)
         if not names or 'restart' in names:  # 1: a real click on the restart button puts the whole map back to the beginning
             q=b.new_page(viewport={'width':1280,'height':800}); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(500)
             st=q.evaluate("""()=>{const T=__tb; T.progress.done.mastaba={pieces:[],loads:[]}; T.progress.done.djoser={pieces:[],loads:[]};

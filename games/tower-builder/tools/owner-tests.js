@@ -61,13 +61,72 @@
       return T.pieces.includes(base) ? "holds" : "crumbles";
     };
     for (const [n, list, exp] of [
-      ["4 mudbricks then 3 stones on a mudbrick", ["mudbrick", "mudbrick", "mudbrick", "mudbrick", "stone", "stone", "stone"], "crumbles"],
-      ["3 stones then 4 mudbricks on a mudbrick", ["stone", "stone", "stone", "mudbrick", "mudbrick", "mudbrick", "mudbrick"], "crumbles"],
-      ["5 mudbricks and 3 stones on a mudbrick (owner)", ["mudbrick", "mudbrick", "mudbrick", "mudbrick", "mudbrick", "stone", "stone", "stone"], "crumbles"],
-      ["3 mudbricks and 3 stones on a mudbrick", ["mudbrick", "mudbrick", "mudbrick", "stone", "stone", "stone"], "holds"],
-      ["4 mudbricks and 2 stones on a mudbrick", ["mudbrick", "mudbrick", "mudbrick", "mudbrick", "stone", "stone"], "holds"],
+      ["4 mudbricks then 2 stones on a mudbrick (owner, changed)", ["mudbrick", "mudbrick", "mudbrick", "mudbrick", "stone", "stone"], "crumbles"],
+      ["2 stones then 4 mudbricks on a mudbrick", ["stone", "stone", "mudbrick", "mudbrick", "mudbrick", "mudbrick"], "crumbles"],
+      ["4 mudbricks and 3 stones on a mudbrick", ["mudbrick", "mudbrick", "mudbrick", "mudbrick", "stone", "stone", "stone"], "crumbles"],
+      ["7 mudbricks on a mudbrick (lighter than 4 and 2)", ["mudbrick", "mudbrick", "mudbrick", "mudbrick", "mudbrick", "mudbrick", "mudbrick"], "holds"],
+      ["6 mudbricks on a mudbrick (owner, Ishtar)", ["mudbrick", "mudbrick", "mudbrick", "mudbrick", "mudbrick", "mudbrick"], "holds"],
+      ["3 mudbricks and 2 stones on a mudbrick", ["mudbrick", "mudbrick", "mudbrick", "stone", "stone"], "holds"],
     ]) for (const [how, rough, quick] of [["", false, false], [", placed roughly", true, false], [", placed quickly", false, true]]) {
       const r = stackOn(list, rough, quick); out.push(["12 mudbrick: " + n + how, r === exp, r + " (should " + (exp === "holds" ? "hold" : "crumble") + ")"]); }
+  }
+
+  // --- seventh list 1: a mudbrick falling one short side (1 m) does not break; from higher it does
+  if (want("fall")) {
+    T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
+    const drop = (h, angle, onto) => { T.clearAllPieces(); let base = 0;
+      if (onto) { T.spawnPiece("block", X, 0.503, 0, onto); run(1); base = 1.0; }
+      const p = T.spawnPiece("block", X, base + 0.5 + h + 0.01, angle, "mudbrick"); run(4); return T.pieces.includes(p) ? "whole" : "breaks"; };
+    // before: it broke falling from 2.75 m; owner: one block side (1 m) more without breaking, more than that breaks
+    for (const [h, a, onto, exp] of [[1.0, 0, null, "whole"], [2.75, 0, null, "whole"], [3.5, 0, null, "whole"], [3.5, 0.3, null, "whole"], [3.5, 0, "stone", "whole"], [3.5, 0, "mudbrick", "whole"],
+      [4.0, 0, null, "breaks"], [4.0, 0, "stone", "breaks"], [5.0, 0, null, "breaks"]]) {
+      const r = drop(h, a, onto); out.push(["7-1 mudbrick falling " + h + " m" + (a ? ", tilted" : "") + (onto ? " onto " + onto : " onto the ground"), r === exp, r + " (should " + (exp === "whole" ? "stay whole" : "break") + ")"]); }
+  }
+  // --- seventh list 5: a mudbrick standing upright (narrow) holds less; laid across a gap like a lintel, less still
+  if (want("shape")) {
+    T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
+    const column = (n) => { T.clearAllPieces(); const c = T.spawnPiece("column", X, 1.203, 0, "mudbrick"); run(1); let top = 2.4;
+      for (let k = 0; k < n; k++) { T.spawnPiece("block", X, top + 0.503, 0, "stone"); top += 1; run(1.5); } run(5); return T.pieces.includes(c) ? "holds" : "crumbles"; };
+    for (const [n, exp] of [[1, "holds"], [2, "crumbles"], [3, "crumbles"]]) { const r = column(n); out.push(["7-5 upright mudbrick column with " + n + " stone block(s) on it (owner's picture: 3)", r === exp, r]); }
+    const lintel = (d, m, load) => { T.clearAllPieces(); // two stone blocks 1 m apart, the piece across them, a stone block on its middle
+      T.spawnPiece("block", X - 1.5, 0.503, 0, "stone"); T.spawnPiece("block", X + 1.5, 0.503, 0, "stone"); run(1);
+      const hy = T.PIECE_DEFS[d].hy, L = T.spawnPiece(d, X, 1.0 + hy + 0.003, 0, m); run(1.5);
+      if (load) { T.spawnPiece(load, X, 1.0 + 2 * hy + T.PIECE_DEFS[load].hy + 0.003, 0, "stone"); } run(5);
+      return T.pieces.includes(L) ? "holds" : "breaks"; };
+    for (const [d, m, load, exp] of [["block", "mudbrick", null, "holds"], ["block", "mudbrick", "block", "breaks"], ["beam", "mudbrick", "square", "breaks"],
+      ["beam", "wood", "block", "holds"], ["block", "stone", "block", "holds"]]) {
+      const r = lintel(d, m, load); out.push(["7-5 " + m + " " + d + " across a 1 m gap" + (load ? " with a stone " + load + " on it" : ", nothing on it"), r === exp, r]); }
+  }
+  // --- seventh list 3: carrying goes by weight, compared with a stone block: the same weight carries the same in any material
+  if (want("carry")) {
+    T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
+    const carry = (d, m) => { T.clearAllPieces(); const p = T.spawnPiece(d, X - 4, 3, 0, m), c = p.body.getWorldCenter(), g = { x: c.x, y: c.y };
+      T.startHold(p, { x: g.x, y: g.y }, 94, 0, 0); run(0.5); let t = null;
+      for (let k = 0; k < 300; k++) { p.desired = { x: g.x + 4, y: g.y }; frame(1 / 60); if (t == null && p.body.getPosition().x > g.x + 3.9) t = k / 60; }
+      T.releaseHold(94); return t; };
+    const r = {}; for (const [d, m] of [["block", "stone"], ["abacus", "stone"], ["column", "wood"], ["square", "stone"], ["block", "mudbrick"], ["block", "wood"]]) r[d + "/" + m] = carry(d, m);
+    const close = (a, b) => Math.abs(a - b) <= 0.15 * Math.max(a, b);
+    out.push(["7-3 same weight, same carry: small oblong stone vs wooden column", close(r["abacus/stone"], r["column/wood"]), r["abacus/stone"] + " s vs " + r["column/wood"] + " s (4 m)"]);
+    out.push(["7-3 a stone block is heavy to carry (at least 1.4 s for 4 m)", r["block/stone"] >= 1.4, JSON.stringify(r)]);
+    out.push(["7-3 lighter is quicker: stone block > mudbrick block > stone square > wooden block", r["block/stone"] > r["block/mudbrick"] && r["block/mudbrick"] > r["square/stone"] && r["square/stone"] > r["block/wood"], JSON.stringify(r)]);
+  }
+
+  // --- eighth list 1: a triangle is grabbed only on itself, and slides along like any other piece
+  if (want("triangle")) {
+    T.mode = "build"; T.startLevel(5); T.clearAllPieces(); T.quiet0();
+    const t = T.spawnPiece("trib", X, 0.7, 0, "stone"); run(1); const q = t.body.getPosition(), d = T.PIECE_DEFS.trib;
+    let empty = 0, n = 0; // points in the box around the triangle but more than a finger's slack off its real shape
+    for (let a = -1; a <= 1; a += 0.1) for (let b = -1; b <= 1; b += 0.1) { const l = { x: a * d.hx, y: b * d.hy }, w = t.body.getWorldPoint(l);
+      let inside = false, best = 1e9; const vs = d.verts; // distance to the triangle's edges
+      for (let k = 0; k < vs.length; k++) { const [ax, ay] = vs[k], [bx, by] = vs[(k + 1) % vs.length], ex = bx - ax, ey = by - ay; const u = Math.max(0, Math.min(1, ((l.x - ax) * ex + (l.y - ay) * ey) / (ex * ex + ey * ey))); best = Math.min(best, Math.hypot(l.x - ax - u * ex, l.y - ay - u * ey)); }
+      inside = T.inRing(l.x, l.y, vs); if (inside || best < 0.2) continue; n++; if (T.hitPiece && T.hitPiece({ x: w.x, y: w.y }) === t) empty++; }
+    out.push(["8-1 a triangle is not grabbed on the empty part of its box", empty === 0, empty + " of " + n + " empty points grab it"]);
+    const drag = (def) => { T.clearAllPieces(); T.spawnPiece("block", X + 2, 0.503, 0, "stone"); const p = T.spawnPiece(def, X - 2, 0.9, 0, "stone"); run(1);
+      const c0 = p.body.getWorldCenter(), g = { x: c0.x, y: c0.y }; T.startHold(p, g, 95, 0, 0); let lag = 0;
+      for (let k = 0; k < 240; k++) { p.desired = { x: g.x + Math.min(4, k * 4 / 120), y: g.y + Math.min(1.2, k * 0.02) }; frame(1 / 60); const w = p.body.getWorldPoint(p.grabLocal); lag = Math.max(lag, k > 150 ? Math.hypot(w.x - p.desired.x, w.y - p.desired.y) : 0); }
+      T.releaseHold(95); run(1); return +lag.toFixed(2); };
+    const lt = drag("trib"), ls = drag("square");
+    out.push(["8-1 a triangle slid up and over a block follows the hand like a square", lt <= ls + 0.1, "triangle " + lt + " m behind, square " + ls + " m behind"]);
   }
 
   // helpers: quick build and test as the owner does it (Tab, the build button, the test button), real frame timing varied

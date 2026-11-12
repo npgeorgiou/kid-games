@@ -655,21 +655,27 @@
     return null;
   }
 
+  // How far a point (in the piece's own coordinates) is outside the piece's real shape (0 inside): triangles and
+  // other polygons are grabbed only on themselves, never on the empty part of the box around them.
+  function outsidePiece(d, l) {
+    if (d.shape === "circle") return Math.max(0, Math.hypot(l.x, l.y) - d.r);
+    if (d.shape !== "poly") return Math.hypot(Math.max(0, Math.abs(l.x) - d.hx), Math.max(0, Math.abs(l.y) - d.hy));
+    if (inRing(l.x, l.y, d.verts)) return 0;
+    let best = Infinity;
+    for (let i = 0; i < d.verts.length; i++) {
+      const [ax, ay] = d.verts[i], [bx, by] = d.verts[(i + 1) % d.verts.length], ex = bx - ax, ey = by - ay;
+      const t = Math.max(0, Math.min(1, ((l.x - ax) * ex + (l.y - ay) * ey) / (ex * ex + ey * ey)));
+      best = Math.min(best, Math.hypot(l.x - ax - t * ex, l.y - ay - t * ey));
+    }
+    return best;
+  }
   function hitPiece(worldPt) {
     // iterate from most-recently-added (likely on top) backwards
     for (let i = pieces.length - 1; i >= 0; i--) {
       const piece = pieces[i];
       if (piece.heldBy != null || piece.auto) continue;
       const local = piece.body.getLocalPoint(planck.Vec2(worldPt.x, worldPt.y));
-      if (piece.r != null) {
-        if (local.x * local.x + local.y * local.y <= (piece.r + PICK_MARGIN) * (piece.r + PICK_MARGIN)) {
-          return piece;
-        }
-      } else {
-        if (Math.abs(local.x) <= piece.hx + PICK_MARGIN && Math.abs(local.y) <= piece.hy + PICK_MARGIN) {
-          return piece;
-        }
-      }
+      if (outsidePiece(PIECE_DEFS[piece.defKey], local) <= PICK_MARGIN) return piece;
     }
     return null;
   }
@@ -965,6 +971,23 @@
     }
     return [vx, vy];
   }
+  // distance from a body down to the nearest piece under it, if closer than `reach`
+  function gapBelow(body, reach) {
+    let best = null;
+    for (let f = body.getFixtureList(); f; f = f.getNext()) {
+      const bb = f.getAABB(0);
+      world.queryAABB(planck.AABB(planck.Vec2(bb.lowerBound.x, bb.lowerBound.y - reach), planck.Vec2(bb.upperBound.x, bb.upperBound.y)), (fx) => {
+        const b = fx.getBody();
+        if (b === body || !b.piece || b.piece.ghost || b.piece.auto) return true;
+        dIn.proxyA.set(f.getShape(), 0); dIn.proxyB.set(fx.getShape(), 0);
+        dIn.transformA.set(body.getTransform()); dIn.transformB.set(b.getTransform());
+        dIn.useRadii = true; dCache.count = 0; planck.Distance(dOut, dCache, dIn);
+        if (dOut.distance < reach && dOut.pointB.y < dOut.pointA.y + 0.01 && (best == null || dOut.distance < best)) best = dOut.distance;
+        return true;
+      });
+    }
+    return best;
+  }
   function touchesOtherPiece(body) {
     if (body.piece && body.piece.ghost) return false;
     for (let ce = body.getContactList(); ce; ce = ce.next) {
@@ -980,9 +1003,9 @@
   // grab point, and while touching another piece never goes below the grab point (no pressing down).
   const HOLD_HZ = 10, HOLD_DAMP = 0.9, HOLD_LEAD = 0.5; // Hz, -, s, m
   const FREE_AIR_ACCEL = 400; // m/s^2: the hand keeps hold of a piece touching nothing however it is swung (its speed stays capped)
-  // per material: the hand eases to the pointer over HOLD_SMOOTH (wood quick and light, stone slow and heavy),
+  // the hand eases to the pointer and carries by weight (CARRY_*, compared with a stone block),
   // and the grip on an off-centre piece is firmest for stone, so it swings least
-  const HOLD_SMOOTH = { wood: 0.015, mudbrick: 0.03, stone: 0.05 }; // s
+  const CARRY_REF_MASS = 2 * 5.0, CARRY_EASE = 0.1, CARRY_SPEED = 2.7; // a stone block: kg, s, m/s (owner: stone heavy to carry)
   const GRIP_DAMP = { wood: 4, mudbrick: 4, stone: 7 }, GRIP_MAX = { wood: 0.4, mudbrick: 0.4, stone: 0.7 }, HELD_EXTRA_G = 0.8; // HELD_EXTRA_G: held off-centre in free air it weighs 1.8x, so it swings less and settles faster // 1/s: the grip's friction, so a piece held off-centre swings and settles (amplitude halves in about 0.55 s)
   function advanceHeldTargets() {
     for (const hand of pointers.values()) {
@@ -996,12 +1019,12 @@
       const T = piece.handT;
       // what the hand carries: the piece and everything resting on it
       const Wt = m * GRAVITY + (touching ? weightOnTop(body) : 0), mt = Wt / GRAVITY;
-      // HOLD_SMOOTH and maxLiftSpeed are for a block (2 m^2) of the material; a piece eases in proportion to the mass
-      // carried and its carry speed goes with 1/sqrt(mass), so a small stone follows the hand quicker than a big one
-      const mr = Math.min(3.5, Math.max(0.25, mt / (2 * material.density)));
-      const k = Math.min(1, STEP / (HOLD_SMOOTH[piece.material] * mr));
+      // owner: carrying goes by the weight carried compared with a stone block, whatever the material: the hand eases
+      // in proportion to it and its carry speed goes with 1/sqrt(it), so the same weight carries the same
+      const mr = Math.min(3.5, Math.max(0.1, mt / CARRY_REF_MASS));
+      const k = Math.min(1, STEP / (CARRY_EASE * mr));
       let vx = ((piece.desired.x - T.x) * k) / STEP, vy = ((piece.desired.y - T.y) * k) / STEP;
-      const vlen = Math.hypot(vx, vy), vcap = material.maxLiftSpeed / Math.sqrt(mr);
+      const vlen = Math.hypot(vx, vy), vcap = CARRY_SPEED / Math.sqrt(mr);
       if (vlen > vcap) { vx *= vcap / vlen; vy *= vcap / vlen; }
       if (!piece.ghost) [vx, vy] = capApproach(body, vx, vy, Math.min(NEAR_SPEED, vcap));
       T.x += vx * STEP; T.y += vy * STEP;
@@ -1318,7 +1341,7 @@
   let shake = 0;
   const feelHits = [0, 0];
   const lastImpact = new Map(); // body -> time, so one landing makes one thud
-  const MUD_SHATTER_SPEED = 7; // m/s lost in one step that crumbles a mudbrick at once (about a 2.5 m fall); placeholder
+  const MUD_SHATTER_SPEED = 8.3; // m/s lost in one step that crumbles a mudbrick at once; owner: survives a fall one block side (1 m) higher than before (2.75 -> 3.75 m)
   // Also used by the sidebar pile (pile = true): same dust, chips and sounds, no shake, no breaking.
   onWorld("post-solve", (contact, impulse) => feelContact(contact, impulse, false));
   // How fast the two bodies were closing at the contact before the solver ran (m/s).
@@ -1410,9 +1433,21 @@
   // ---------------------------------------------------------------------
   // SECTION: BREAKING -- mudbrick crumbles under heavy weight, wood snaps when loaded over a gap
   // ---------------------------------------------------------------------
-  // Owner: a mudbrick crumbles under four mudbrick blocks and three stone blocks (about 545 N), not under three and three (480 N).
+  // Owner (12 Nov, changed): a mudbrick block crumbles under four mudbrick blocks and two stone blocks (about 449 N as built), holds anything lighter (seven mudbricks: 441 N).
   // A wooden beam over a gap holds one stone block, not two (placeholder).
-  const CRUSH_FORCE = 515; // N pressing down on one mudbrick
+  const CRUSH_FORCE = 445; // N pressing down on one mudbrick block lying flat (2 m wide)
+  // owner: a narrow mudbrick (a column standing up) holds less: what it holds goes with the width it stands on
+  function crushLimit(p) {
+    let x0 = Infinity, x1 = -Infinity;
+    for (let f = p.body.getFixtureList(); f; f = f.getNext()) { // the drawn shape's width as it lies (not the physics' padded box)
+      const sh = f.getShape();
+      if (sh.getType() === "circle") { const c = p.body.getPosition(); x0 = Math.min(x0, c.x - sh.getRadius()); x1 = Math.max(x1, c.x + sh.getRadius()); }
+      else for (const v of sh.m_vertices) { const q = p.body.getWorldPoint(v); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); }
+    }
+    return CRUSH_FORCE * (x1 - x0 + 2 * SKIN_GAP) / 2;
+  }
+  const MUD_SPAN_MIN = 0.3; // m
+  const MUD_SNAP_MOMENT = 10; // N*m: mudbrick across a gap breaks under far less than wood (a stone block over a 1 m gap breaks it)
   const SNAP_MOMENT = 150;  // N*m bending a wood piece between (or beyond) its supports
   const STRAIN_TIME = { crumble: 0.5, snap: 0.25 }; // seconds of overload before it gives
 
@@ -1432,10 +1467,9 @@
         if (j > 0) pts.push([wm.points[i].x, wm.points[i].y, sign * n.x * j, sign * n.y * j]);
       }
       if (!pts.length) continue;
-      if (piece.material === "mudbrick") { // weight pressing from above: contacts facing up or down only, not side pushes
-        if (Math.abs(n.y) > 0.7) for (const p of pts) if (p[3] < 0) piece.crush -= p[3];
-        continue;
-      }
+      if (piece.material === "mudbrick" && Math.abs(n.y) > 0.7) // weight pressing from above: contacts facing up or down only, not side pushes
+        for (const p of pts) if (p[3] < 0) piece.crush -= p[3];
+      // wood and mudbrick (owner: mudbrick laid across a gap like a lintel breaks easily) bend over gaps
       // wood: positions along the long axis, forces across it (towards up = holds it up)
       const a = body.getAngle(), along = piece.hx >= piece.hy;
       const ux = along ? Math.cos(a) : -Math.sin(a), uy = along ? Math.sin(a) : Math.cos(a);
@@ -1458,7 +1492,7 @@
       } else for (const d of down) piece.loads.push(d);
       // what hit it: kinetic energy it brought in = J^2 / 2m (J = the impulse that stopped it this step)
       const other = body === bA ? bB : bA, mo = other.isDynamic() ? other.getMass() : 0;
-      if (nl && mo > 0) {
+      if (nl && mo > 0 && piece.canSnap) {
         let J = 0;
         for (let i = 0; i < cnt; i++) J += impulse.normalImpulses[i];
         const hv = Math.min(J / mo, contact.tbVn || 0); // closing speed: resting weight is not a hit
@@ -1467,7 +1501,13 @@
       if (s1 >= s0) { // one support contact holds up the whole stretch it touches: all its manifold points count,
         // also those carrying no force this step (a slightly tilted piece rests on one corner at a time)
         for (let i = 0; i < cnt; i++) { const q = wm.points[i], sq = (q.x - c.x) * ux + (q.y - c.y) * uy; s0 = Math.min(s0, sq); s1 = Math.max(s1, sq); }
-        piece.sup.push([s0, s1]);
+        // ... and the whole stretch where the piece lies over what holds it up (a piece tilted a little rests on corners)
+        const of = body === bA ? contact.getFixtureB() : contact.getFixtureA(), ob = of.getBody(), sh = of.getShape(), ext = along ? piece.hx : piece.hy;
+        let a = Infinity, b = -Infinity;
+        if (sh.getType() === "circle") { const q = ob.getPosition(), sq = (q.x - c.x) * ux + (q.y - c.y) * uy; a = sq - sh.getRadius(); b = sq + sh.getRadius(); }
+        else for (const v of sh.m_vertices) { const q = ob.getWorldPoint(v), sq = (q.x - c.x) * ux + (q.y - c.y) * uy; a = Math.min(a, sq); b = Math.max(b, sq); }
+        a = Math.max(a, -ext); b = Math.min(b, ext);
+        piece.sup.push(b > a ? [Math.min(a, s0), Math.max(b, s1)] : [s0, s1]);
       }
     }
   });
@@ -1475,7 +1515,9 @@
   // Bending: a load over a gap counts as if spread over that gap (P x gap / 4, so a
   // stiff block sitting near the supports still loads the beam); a load beyond the
   // last support bends by its distance from it. Loads right over a support count nothing.
-  function bendMoment(p) {
+  // minSpan (mudbrick): only a real lintel counts, a load over a gap at least that wide between two supports, not a
+  // brick sticking out a little or the hair gaps of rough placing
+  function bendMoment(p, minSpan = 0) {
     if (!p.sup.length || !p.loads.length) return 0;
     let M = 0;
     for (const [x, P] of p.loads) {
@@ -1486,8 +1528,8 @@
         if (a > x) r = Math.min(r, a);
       }
       if (held) continue;
-      if (Number.isFinite(l) && Number.isFinite(r)) M += (P * (r - l)) / 4;
-      else M += P * Math.min(Math.abs(x - l), Math.abs(r - x));
+      if (Number.isFinite(l) && Number.isFinite(r)) { if (r - l >= minSpan) M += (P * (r - l)) / 4; }
+      else if (!minSpan) M += P * Math.min(Math.abs(x - l), Math.abs(r - x));
     }
     return M;
   }
@@ -1536,9 +1578,14 @@
       p.impacts.length = 0;
       let over = false, time = 1;
       if (p.heldBy == null) {
+        if (p.material === "mudbrick") { // the weight resting on it (read from its contacts, also while the stack sleeps), smoothed
+          // over a few steps: the contacts jitter by more than the gap between holding and crumbling (seven mudbricks against four and two stones)
+          const w = weightOnTop(p.body);
+          p.crushAvg = p.crushAvg == null ? w : p.crushAvg + (w - p.crushAvg) * 0.15;
+          const bend = p.body.isAwake() ? bendMoment(p, MUD_SPAN_MIN) > MUD_SNAP_MOMENT : !!p.wasBent; p.wasBent = bend;
+          over = p.crushAvg > crushLimit(p) || bend; time = STRAIN_TIME.crumble; }
         // a resting stack falls asleep and its contacts stop reporting: keep the last verdict until it wakes
-        if (!p.body.isAwake()) { over = !!p.wasOver; time = p.material === "mudbrick" ? STRAIN_TIME.crumble : STRAIN_TIME.snap; }
-        else if (p.material === "mudbrick") { over = p.crush > CRUSH_FORCE; time = STRAIN_TIME.crumble; }
+        else if (!p.body.isAwake()) { over = !!p.wasOver; time = STRAIN_TIME.snap; }
         else { over = bendMoment(p) > SNAP_MOMENT; time = STRAIN_TIME.snap; }
       }
       p.wasOver = over;
@@ -1722,8 +1769,7 @@
     let best = null, bestD = Infinity;
     for (const b of pileBodies()) {
       const d = PIECE_DEFS[b.pileItem.defKey], l = b.getLocalPoint(p);
-      const dist = d.shape === "circle" ? Math.max(0, Math.hypot(l.x, l.y) - d.r)
-        : Math.hypot(Math.max(0, Math.abs(l.x) - d.hx), Math.max(0, Math.abs(l.y) - d.hy));
+      const dist = outsidePiece(d, l);
       if (dist <= margin && dist < bestD) { best = b; bestD = dist; }
     }
     return best;
@@ -1914,11 +1960,12 @@
   };
   const LOAD_DROP = 2; // metres above its place the load starts
   const LOAD_SPEED = 1.2; // m/s lowering speed
+  const LOAD_LAND = 1.0; // m: the last stretch above its place, always lowered at LOAD_SPEED
   // N per metre of exposed height. Level 1: a top row of wooden blocks slides off, mudbrick holds.
   // From level 2 on, below what tips a lone stone column (0.6 x 2.4 m tips at about
   // 7.5 N/m here: weight x half-width against wind x half-height); level 1 has no columns.
   const TEST_WIND = [110, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 18, 6.5]; // Lighthouse: the strongest wind; walls not tied together fall in it
-  const TEST_LOAD_DENSITY = [5, 33, 20, 75, 25, 23.5, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
+  const TEST_LOAD_DENSITY = [5, 16, 12, 75, 25, 18.3, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
   const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
   const TEST_FAST = 10, DRUM_LEAD = 1.5; // Tab test speed-up; seconds the drumroll may start before the load moves
@@ -2329,6 +2376,12 @@
       let rate = R ? Math.max(0.9, Math.min(1.1, R / T)) : 1, lead = 0;
       if (R / rate > T) { lead = Math.min(DRUM_LEAD / sp, R / rate - T); rate = Math.max(rate, R / (T + lead)); }
       test.loadSpeed = R && R / rate < T ? (drop / sp) / (R / rate) : LOAD_SPEED; // m/s, game time
+      // the last LOAD_LAND metres always at LOAD_SPEED, so the load lands the same on every screen (the drop above
+      // it depends on the screen's height); the part above goes that much faster to keep the drumroll's length
+      if (test.loadSpeed > LOAD_SPEED && drop > LOAD_LAND) {
+        const tot = drop / test.loadSpeed, rest = tot - LOAD_LAND / LOAD_SPEED;
+        test.loadSpeed = rest > 0.05 ? (drop - LOAD_LAND) / rest : test.loadSpeed;
+      }
       test.lead = lead * sp; // game seconds the load waits before it starts down
       for (const l of loads) l.body.setLinearVelocity(planck.Vec2(0, lead > 0 ? 0 : -test.loadSpeed));
       test.loop = playSound("drumroll", 1, false, 0, { rate });
@@ -2389,6 +2442,12 @@
       for (const l of loads) {
         if (l.released) continue;
         all = false;
+        if (l.body.getPosition().y - l.ty <= LOAD_LAND) {
+          l.body.setLinearVelocity(planck.Vec2(0, -LOAD_SPEED));
+          // set down exactly onto what it meets, whatever height it started from (the screen's height decides that)
+          const gap = gapBelow(l.body, LOAD_SPEED * STEP * 1.5);
+          if (gap != null) { const q = l.body.getPosition(); l.body.setTransform(planck.Vec2(q.x, q.y - Math.max(0, gap - 0.002)), l.body.getAngle()); }
+        }
         if (touchesOtherPiece(l.body) || l.body.getPosition().y <= l.ty - 0.2) {
           l.body.setDynamic(); l.body.setAwake(true); l.released = true; test.t = 0;
           playSound("hit-stone-stone", 0.9); // the load lands with the stone thud

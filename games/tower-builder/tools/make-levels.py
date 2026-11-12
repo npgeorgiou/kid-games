@@ -5,12 +5,14 @@ declares on purpose (doors, arches, spaces between columns, shafts). Needs numpy
 Usage: python3 tools/make-levels.py"""
 import json, math, pathlib
 import sys, cv2
+import numpy as np
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from geom import Polygon, box, affinity, Frame
 
 HERE = pathlib.Path(__file__).resolve().parent.parent
 RES_SEAM = 0.006  # gaps this narrow between touching pieces are seams, closed
-NOTCH = 0.3  # a notch in the building's edge narrower than 2 x NOTCH (the dips beside an arch top) is inside its shape
+NOTCH = 0.3  # a notch in the building's edge narrower than 2 x NOTCH is inside its shape
+DIP = 0.12  # so is a dip in the edge shallower than this, however wide (beside the arch tops)
 UP = math.pi / 2
 
 # --- piece shapes (must match PIECE_DEFS in src/index.html; polygons not listed there come from LEVEL_PIECES)
@@ -131,6 +133,9 @@ level("karnak", "Υπόστυλη αίθουσα του Καρνάκ", "c. 1290-
       "cut through the hall on a platform: four columns with capitals carry the side beams; the middle nave is taller, on square pillars with capitals over the beam ends (University of Memphis: central nave taller)",
       s, [rect(-1.6, 6.5, 1.6, 7.0)], [rect(-3.4, 1, -1.6, 4.2), rect(1.6, 1, 3.4, 4.2)],  # the aisles between the columns, up to the beams
       wrong=[W("mudbrick pillars under the middle roof", "material", recolour(s, lambda e: e[0] == "square", "mudbrick")),
+             W("mudbrick capitals", "material", recolour(s, lambda e: e[0] == "abacus", "mudbrick")),
+             W("a mudbrick platform", "material", recolour(s, lambda e: e[0] == "block", "mudbrick")),
+             W("wooden planks as the side beams", "material", recolour(s, lambda e: e[0] == "beam", "wood")),
              W("mudbrick middle columns", "material", recolour(s, lambda e: e[0] == "column" and abs(e[2]) < 2, "mudbrick")),
              W("a middle column too far in for the beam", "build", moved(s, lambda e: near(e[2], -1.3) and e[3] < 4.3, dx=1.0))])
 # 5 Lion Gate: the lion triangle (headpiece) is lowered onto the lintel between the stepped-in stones
@@ -138,7 +143,8 @@ gate = rect(-1, 0, 1, 2)
 s = (mirror([["block", "stone", -5, 0.5, 0], ["block", "stone", -3, 0.5, 0], ["square", "stone", -5.5, 1.5, 0], ["block", "stone", -4, 1.5, 0], ["square", "stone", -2.5, 1.5, 0],
              ["block", "stone", -1.5, 1.0, UP]]) +
      [["beam", "stone", x, 2.25, 0] for x in (-3.2, 0, 3.2)] +
-     mirror([["block", "stone", -4.0, 3.0, 0], ["square", "stone", -2.0, 3.0, 0]]) + mirror([["beam", "wood", -2.75, 4.1, UP]]))  # flagpoles held between two stones
+     mirror([["block", "stone", -4.0, 3.0, 0], ["square", "stone", -2.0, 3.0, 0]]) + mirror([["block", "stone", -4.0, 4.0, 0], ["square", "stone", -2.0, 4.0, 0]]) +  # owner: one course taller
+     mirror([["beam", "wood", -2.75, 4.1, UP]]))  # flagpoles held between two stones
 level("liongate", "Πύλη των Λεόντων", "c. 1250 BC", "jambs, a stone lintel, flagpoles held between stones, and the lion triangle lowered onto the lintel",
       "two monolith jambs and a great lintel (4.5 x 2.0 x 0.8 m, about 20 t); the lion relief, a triangle, stands on the lintel in the relieving triangle (Wikipedia); "
       "the real corbelled courses close over the relief, which a slab lowered from above cannot pass, so the relief stands free on the lintel; the flagpoles are the owner's addition (no source found for them)",
@@ -178,7 +184,7 @@ level("parthenon", "Παρθενώνας", "447-432 BC", "columns built drum by 
 # 8 Mausoleum: solid core, columns, the walkway ceiling beams reach out from the core further than they hold alone:
 # wooden posts hold them while the roof steps go on, then come out
 s = (row("stone", -6, 6, 0.5) +
-     [["block", "stone", 0, 2.5, 0], ["block", "stone", 0, 3.5, 0], ["capital", "stone", 0, 4.2, 0]] +
+     [["block", "stone", 0, 2.5, 0], ["block", "stone", 0, 3.5, 0], ["capital", "stone", -0.8, 4.2, 0], ["capital", "stone", 0.8, 4.2, 0]] +  # owner: two capitals on the middle column
      [p for x in (-5.0, 5.0) for p in (["square", "stone", x, 2.5, 0], ["square", "stone", x, 3.5, 0], ["capital", "stone", x, 4.2, 0])] +
      [["column", "wood", x, 3.2, 0] for x in (-2.6, 2.6)] +   # temporary posts
      [["beam", "stone", x, 4.65, 0] for x in (-4.8, -1.6, 1.6, 4.8)] +   # owner: the lintels meet, no gap between them
@@ -207,14 +213,17 @@ def pharos(tied=True, cap="stone"):
     for part in ("w", "t", "w", "t", "w"):
         if part == "t": out.append(["beam", "wood", 0, y + 0.25, 0]); y += 0.5
         else: out += [["square", "stone", -1.1, y + 0.5, 0], ["square", "stone", 1.1, y + 0.5, 0]]; y += 1
-    out += [["block", cap, 0, y + 0.5, 0], ["square", "stone", 0, y + 1.5, 0]]  # the round top: a stone over the shaft, a drum
+    out += [["block", cap, 0, y + 0.5, 0]]  # a stone over the shaft (owner: the top square removed)
     return out
 s = pha = pharos()
 level("pharos", "Φάρος της Αλεξάνδρειας", "c. 280 BC", "a tall hollow tower: two walls tied by wooden beams, a narrower hollow tier, a round top",
       "square, octagonal and round tiers (Wikipedia); a spiral ramp inside the lowest tier and a shaft in the upper ones (Balawi via Wikipedia; mfn.li); statue on top and Tritons on the corners (Roman coins). Walls laced with timber are an old Greek technique; for the Pharos the sources name lead between the base blocks",
-      s, [rect(-0.4, 13.1, 0.4, 14.4), acroterion(-2.1, 7, 0.4, 0.8), acroterion(2.1, 7, 0.4, 0.8)],
+      s, [rect(-1, 12, 1, 13), acroterion(-2.1, 7, 0.4, 0.8), acroterion(2.1, 7, 0.4, 0.8)],  # owner: the top headpiece as big as a block lying down
       [rect(-0.6, k, 0.6, k + 1) for k in (0, 2, 4)] + [rect(-0.6, 6, 0.6, 7)] + [rect(-0.6, 7, 0.6, 8), rect(-0.6, 8.5, 0.6, 9.5), rect(-0.6, 10, 0.6, 11)],
       wrong=[W("mudbrick at the base", "material", recolour(s, lambda e: e[0] == "block" and e[3] < 2, "mudbrick")),
+             W("mudbrick ties instead of wood", "material", recolour(s, lambda e: e[0] == "beam", "mudbrick")),
+             W("mudbrick walls in the upper tier", "material", recolour(s, lambda e: e[0] == "square" and e[3] > 7, "mudbrick")),
+             W("a mudbrick stone over the shaft", "material", pharos(cap="mudbrick")),
              W("no wooden ties (the walls stacked straight up)", "build", pharos(tied=False)),
              W("the upper tier set off centre", "build", moved(s, lambda e: e[3] > 7, dx=1.0))])
 # 10 Valens: two forms for four arches, moved from the lower to the upper arches
@@ -246,12 +255,19 @@ for l in L:
     # notches inside it), minus only the openings the level declares; openings that touch are one opening
     u = F.disk(F.mask(shapes), RES_SEAM, cv2.MORPH_CLOSE)
     hm = F.mask(holes)
-    sil = F.mask(F.rings(F.square(u | hm, NOTCH, cv2.MORPH_CLOSE)))
+    sil = F.square(u | hm, NOTCH, cv2.MORPH_CLOSE)
+    for kw, kh in ((3.0, 0.02), (0.02, 3.0)):  # shallow dips along flat edges: filled where the gap left is thinner than DIP
+        k = (max(1, int(kw / 0.005)) | 1, max(1, int(kh / 0.005)) | 1)
+        add = cv2.morphologyEx(sil, cv2.MORPH_CLOSE, np.ones((k[1], k[0]), np.uint8)) & (1 - sil)
+        n, lab, st, _ = cv2.connectedComponentsWithStats(add, connectivity=8)
+        for c in range(1, n):
+            if min(st[c, cv2.CC_STAT_WIDTH], st[c, cv2.CC_STAT_HEIGHT]) * 0.005 <= DIP: sil[lab == c] = 1
+    sil = F.mask(F.rings(sil))
     opening = F.keep(F.disk(hm & (1 - u), RES_SEAM, cv2.MORPH_CLOSE), 0.05)  # a declared opening less what the build's pieces fill
     ext, ints = F.rings(sil), F.rings(opening)
     wedges = [placed(d, x, y, a) for d, m, x, y, a in l["sol"] if d == "wedge"]  # the wedges get thin guide lines
     wood = []
-    if sup: wood = holes
+    if sup: wood = ints  # temporary supports stand in the openings (as drawn, less what the build's pieces fill)
     elif l["woodRole"] == "courses":  # the wood zone is where the build's wooden pieces lie
         wood = F.rings(F.disk(F.mask([placed(d, x, y, a) for d, m, x, y, a in l["sol"] if d != "pull" and m == "wood"]), RES_SEAM, cv2.MORPH_CLOSE))
     out.append(dict(key=l["key"], nameEl=l["nameEl"], date=l["date"], newDemand=l["newDemand"],
