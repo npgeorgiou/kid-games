@@ -38,7 +38,7 @@ Run from `games/tower-builder/tools`: `python3 harness.py spec` (tests 1, 2, 3, 
 7. Lighthouse: without its wooden ties the walls fall in the wind.
 8. Outline matches the build: the exactly placed build, once settled, has every piece within 5 cm of its place, covers at least 85% of the outline (the building's shape; its uncovered slivers must still light the button) and has at most 2.5% of its pieces outside the outline.
 
-Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density 5, 8, 5, 75, 25, 8, 60, 12, 13, 14 (heavy enough that wrong-material mudbrick crumbles, light enough that the suggested build holds 30% more on every screen size; set again 12 Nov for the new mudbrick strength); earthquake 0.32 rising to 0.61. Each arch stone has a thin guide line in the outline (owner).
+Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density 5, 8, 5, 75, 25, 4, 60, 12, 13, 14 (heavy enough that wrong-material mudbrick crumbles, light enough that the suggested build holds 30% more on every screen size; set again 12 Nov for the new mudbrick strength); earthquake 0.32 rising to 0.61. Each arch stone has a thin guide line in the outline (owner).
 
 ## 1. Mastaba, Saqqara (c. 3000 BC)
 
@@ -53,7 +53,7 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 2. Step pyramid of Djoser, Saqqara (c. 2650 BC)
 
 - Headpiece: the top (sixth) step, lowered onto the fifth (the pyramid has six steps). LOCKED.
-- Pieces (13 Nov, for the owner's mudbrick strength): 15 stone blocks (the first three layers), 5 mudbrick blocks; pile adds 6 mudbrick blocks and 14 stone blocks (the wrong choice swaps every course).
+- Pieces (owner, 13 Nov): 11 stone blocks (the first two layers), 9 mudbrick blocks (the top three layers); pile adds 6 mudbrick blocks and 14 stone blocks (the wrong choice swaps every course).
 - New: stone. Technique: heavy low, light high.
 - Hard: stone only where the weight is greatest.
 - Wrong material: mudbrick at the bottom, stone above it: the bottom crumbles under the stone and the top step.
@@ -98,7 +98,7 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 6. Ishtar Gate, Babylon (c. 575 BC)
 
 - Headpiece: the cedar roof over the passage (worldhistory.org: door and roof of cedar), and (owner, 12 Nov) a headpiece as thick as the roof lowered onto each tower. LOCKED.
-- Pieces: 14 stone blocks (8 in the base, the towers' three lowest courses), 4 mudbrick blocks (the towers' top two courses; owner: the towers one course taller), 9 wedges, 6 stone half-blocks and 2 big triangles beside the arch, 1 wooden arch form on 4 wooden blocks; pile adds 4 mudbrick blocks. Stone exactly as much as the build needs, mudbrick more than it needs (owner).
+- Pieces: 12 stone blocks (8 in the base, the towers' two lowest courses), 6 mudbrick blocks (the towers' top three courses; owner: the towers one course taller), 9 wedges, 6 stone half-blocks and 2 big triangles beside the arch, 1 wooden arch form on 4 wooden blocks; pile adds 4 mudbrick blocks. Stone exactly as much as the build needs, mudbrick more than it needs (owner).
 - Openings: the arch.
 - New: wedges and the wooden arch form. Technique: the arch built on the form, the form taken out once the last wedge is in. The squares beside the arch stand right at its feet; the triangles rest on the arch and come exactly to its top.
 - Hard: the wedges only stand once the last one is in.

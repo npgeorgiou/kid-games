@@ -111,7 +111,7 @@ level("mastaba", "Μαστάμπα", "c. 3000 BC", "stack a wide, solid mass", "
       wrong=[W("wooden blocks in the top row", "material", recolour(s, lambda e: near(e[3], 2.5), "wood")),
              W("the middle of the top row left open under the roof", "build", without(s, lambda e: abs(e[2]) < 1.5 and near(e[3], 2.5)))])
 # 2 Djoser: five steps built, the sixth step is the load
-s = [p for r in range(5) for p in row("stone" if r < 3 else "mudbrick", -(6 - r), 6 - r, r + 0.5)]  # owner's mudbrick strength (13 Nov): stone in the first three layers
+s = [p for r in range(5) for p in row("stone" if r < 2 else "mudbrick", -(6 - r), 6 - r, r + 0.5)]  # owner (13 Nov): two stone layers, three mudbrick
 level("djoser", "Πυραμίδα του Ζοζέρ", "c. 2650 BC", "build tall in steps; the sixth step goes on last", "six steps (Djoser's pyramid has six); the load is the top step",
       s, [rect(-1, 5, 1, 6)],
       wrong=[W("mudbrick at the bottom, stone on top", "material", [[e[0], "mudbrick" if e[3] < 1 else "stone", e[2], e[3], e[4]] for e in s]),
@@ -155,7 +155,7 @@ level("liongate", "Πύλη των Λεόντων", "c. 1250 BC", "jambs, a ston
              W("one jamb left out", "build", without(s, lambda e: e[0] == "block" and e[4] != 0 and e[2] < 0))])
 # 6 Ishtar Gate
 s = ([p for y in (0.5, 1.5) for p in row("stone", -6, 2, y) + row("stone", 2, 2, y)] +
-     [p for y in (2.5, 3.5, 4.5, 5.5, 6.5) for p in (["block", "stone" if y < 5 else "mudbrick", -(ARCH_X + 2), y, 0], ["block", "stone" if y < 5 else "mudbrick", ARCH_X + 2, y, 0])] +
+     [p for y in (2.5, 3.5, 4.5, 5.5, 6.5) for p in (["block", "stone" if y < 4 else "mudbrick", -(ARCH_X + 2), y, 0], ["block", "stone" if y < 4 else "mudbrick", ARCH_X + 2, y, 0])] +
      arch(0, 2, 2) + [p for y in (2.5, 3.5, 4.5) for p in (["square", "stone", -(ARCH_X + 0.5), y, 0], ["square", "stone", ARCH_X + 0.5, y, 0])] +
      [tri_at(-ARCH_X, 5, 1, kind="trib"), tri_at(ARCH_X, 5, -1, kind="trib")])
 ish = s

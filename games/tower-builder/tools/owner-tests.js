@@ -103,10 +103,16 @@
       T.startHold(p, { x: g.x, y: g.y }, 94, 0, 0); run(0.5); let t = null;
       for (let k = 0; k < 300; k++) { p.desired = { x: g.x + 4, y: g.y }; frame(1 / 60); if (t == null && p.body.getPosition().x > g.x + 3.9) t = k / 60; }
       T.releaseHold(94); return t; };
+    // tenth list: a stone block held at one end can be swung round in circles (1 m circles, once a second)
+    { T.clearAllPieces(); const p = T.spawnPiece("block", X, 6, 0, "stone"); run(0.1); const g0 = p.body.getWorldPoint({ x: 0.9, y: 0 }), g = { x: g0.x, y: g0.y };
+      T.startHold(p, g, 97, 0, 0); p.desired = { x: g.x, y: g.y }; run(2.5); let prev = p.body.getAngle(), tot = 0;
+      for (let k = 0; k < 240; k++) { const th = k / 60 * 2 * Math.PI; p.desired = { x: g.x + Math.sin(th), y: g.y + 1 - Math.cos(th) }; frame(1 / 60); const a = p.body.getAngle(); tot += a - prev; prev = a; }
+      T.releaseHold(97); const turns = Math.abs(tot) / (2 * Math.PI);
+      out.push(["10 a stone block held at one end swings round in circles", turns >= 1, turns.toFixed(2) + " turns in 4 circles of the hand (the earlier game: 1.45)"]); }
     const r = {}; for (const [d, m] of [["block", "stone"], ["abacus", "stone"], ["column", "wood"], ["square", "stone"], ["block", "mudbrick"], ["block", "wood"]]) r[d + "/" + m] = carry(d, m);
     const close = (a, b) => Math.abs(a - b) <= 0.15 * Math.max(a, b);
     out.push(["7-3 same weight, same carry: small oblong stone vs wooden column", close(r["abacus/stone"], r["column/wood"]), r["abacus/stone"] + " s vs " + r["column/wood"] + " s (4 m)"]);
-    out.push(["7-3 a stone block is heavy to carry (at least 1.4 s for 4 m)", r["block/stone"] >= 1.4, JSON.stringify(r)]);
+    out.push(["7-3/10 a stone block carries halfway between too light (0.8 s for 4 m) and too slow (1.45 s)", r["block/stone"] > 0.8 && r["block/stone"] < 1.45, JSON.stringify(r)]);
     out.push(["7-3 lighter is quicker: stone block > mudbrick block > stone square > wooden block", r["block/stone"] > r["block/mudbrick"] && r["block/mudbrick"] > r["square/stone"] && r["square/stone"] > r["block/wood"], JSON.stringify(r)]);
   }
 

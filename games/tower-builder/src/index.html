@@ -684,6 +684,7 @@
   function startHold(piece, worldPt, pointerId, clientX, clientY, centred = false) {
     if (pointers.has(pointerId) || piece.heldBy != null) return;
     piece.heldBy = pointerId;
+    piece.wtSlow = null;
 
     // A generous central balance zone avoids accidental tipping. Outside it,
     // the real grab point is used as a lever arm and produces torque.
@@ -1007,7 +1008,7 @@
   const FREE_AIR_ACCEL = 400; // m/s^2: the hand keeps hold of a piece touching nothing however it is swung (its speed stays capped)
   // the hand eases to the pointer and carries by weight (CARRY_*, compared with a stone block),
   // and the grip on an off-centre piece is firmest for stone, so it swings least
-  const CARRY_REF_MASS = 2 * 5.0, CARRY_EASE = 0.1, CARRY_SPEED = 2.7; // a stone block: kg, s, m/s (owner: stone heavy to carry)
+  const CARRY_REF_MASS = 2 * 5.0, CARRY_EASE = 0.07, CARRY_SPEED = 4.6; // a stone block: kg, s, m/s (owner: stone heavy to carry)
   const GRIP_DAMP = { wood: 4, mudbrick: 4, stone: 7 }, GRIP_MAX = { wood: 0.4, mudbrick: 0.4, stone: 0.7 }, HELD_EXTRA_G = 0.8; // HELD_EXTRA_G: held off-centre in free air it weighs 1.8x, so it swings less and settles faster // 1/s: the grip's friction, so a piece held off-centre swings and settles (amplitude halves in about 0.55 s)
   function advanceHeldTargets() {
     for (const hand of pointers.values()) {
@@ -1021,6 +1022,8 @@
       const T = piece.handT;
       // what the hand carries: the piece and everything resting on it
       const Wt = m * GRAVITY + (touching ? weightOnTop(body) : 0), mt = Wt / GRAVITY;
+      // too heavy or not: judged on the weight over the last half second, not the extra push of the pieces on top while it rises
+      piece.wtSlow = piece.wtSlow == null ? Wt : piece.wtSlow + (Wt - piece.wtSlow) * (STEP / 0.5);
       // owner: carrying goes by the weight carried compared with a stone block, whatever the material: the hand eases
       // in proportion to it and its carry speed goes with 1/sqrt(it), so the same weight carries the same
       const mr = Math.min(3.5, Math.max(0.1, mt / CARRY_REF_MASS));
@@ -1046,7 +1049,7 @@
       if (extra) body.applyForceToCenter(planck.Vec2(0, -extra), true);
       // every part of the hand's strength goes with the weight it holds (owner: a small stone must not shove big ones away)
       piece.joint.setMaxForce(!close ? W + extra + m * FREE_AIR_ACCEL
-        : Wt > HAND_MAX_WEIGHT ? HAND_MAX_WEIGHT // too heavy: it cannot lift it
+        : piece.wtSlow > HAND_MAX_WEIGHT ? HAND_MAX_WEIGHT // too heavy: it cannot lift it
         : Math.hypot(Wt * (1 + HAND_LIFT_EXTRA), mt * Math.min(material.maxAccel, PUSH_ACCEL)));
       if (piece.lever) {
         // grip friction: a torque against the swing, scaled by the inertia about the grab point (a body's own
@@ -1971,7 +1974,7 @@
   // From level 2 on, below what tips a lone stone column (0.6 x 2.4 m tips at about
   // 7.5 N/m here: weight x half-width against wind x half-height); level 1 has no columns.
   const TEST_WIND = [110, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 18, 6.5]; // Lighthouse: the strongest wind; walls not tied together fall in it
-  const TEST_LOAD_DENSITY = [5, 8, 5, 75, 25, 8, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
+  const TEST_LOAD_DENSITY = [5, 8, 5, 75, 25, 4, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
   const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
   const TEST_FAST = 10, DRUM_LEAD = 1.5; // Tab test speed-up; seconds the drumroll may start before the load moves
