@@ -342,8 +342,8 @@
     // material resists being spun around in the hand more.
     wood:  { label: "WOOD",  density: 1.1,  friction: 0.5,  restitution: 0.015, maxLiftSpeed: 13, maxSpin: 3.0, maxAccel: 30 },
     // mudbrick: between wood and stone in weight; crumbles under heavy weight (SECTION BREAKING)
-    mudbrick: { label: "MUDBRICK", density: 3.2, friction: 0.7, restitution: 0.0, maxLiftSpeed: 7.5, maxSpin: 2.0, maxAccel: 26 },
-    stone: { label: "STONE", density: 5.0,  friction: 0.6,  restitution: 0.0,  maxLiftSpeed: 6,  maxSpin: 1.3, maxAccel: 22 },
+    mudbrick: { label: "MUDBRICK", density: 3.2, friction: 0.7, restitution: 0.0, maxLiftSpeed: 6.3, maxSpin: 1.7, maxAccel: 21 },
+    stone: { label: "STONE", density: 5.0,  friction: 0.6,  restitution: 0.0,  maxLiftSpeed: 5,  maxSpin: 1.1, maxAccel: 17 },
   };
   let selectedMaterial = "wood";
 
@@ -370,12 +370,19 @@
     drum:   { shape: "circle", r: 0.6, densityScale: 1.0, skin: "drum" },
     // arch stone: narrow end down; about ten make a half circle
     // nine make a half circle (20 degrees each, a keystone in the middle): inner radius 2, outer 3
-    wedge:  { shape: "poly", verts: [[-0.35, -0.5], [0.35, -0.5], [0.525, 0.5], [-0.525, 0.5]], hx: 0.525, hy: 0.5, densityScale: 1.0, skin: "wedge" },
+    // wedge: 9 make a half circle (20 degrees each), faces 2.0 and 3.0 m from the centre: the arch top is exactly 3 m above its springing
+    wedge:  { shape: "poly", verts: [[-0.3527, -0.5], [0.3527, -0.5], [0.529, 0.5], [-0.529, 0.5]], hx: 0.529, hy: 0.5, densityScale: 1.0, skin: "wedge" },
     // arch centering (new): the wooden half-round form an arch is built on, flat side down,
     // radius just under the arch's inner radius of 2 m; origin at its centre of mass
-    centering: { shape: "poly", verts: Array.from({ length: 11 }, (_, i) => { const t = (Math.PI * i) / 10, R = 1.95; return [R * Math.cos(t), R * Math.sin(t) - (4 * R) / (3 * Math.PI)]; }),
-                 hx: 1.95, hy: 0.975, densityScale: 1.0, skin: "centering" },
+    centering: { shape: "poly", verts: Array.from({ length: 11 }, (_, i) => { const t = (Math.PI * i) / 10, R = 2.0; return [R * Math.cos(t), R * Math.sin(t) - (4 * R) / (3 * Math.PI)]; }),
+                 hx: 2.0, hy: 1.0, densityScale: 1.0, skin: "centering" },
   };
+  // Level polygon pieces (tools/make-levels.py): the arch stones, and the wooden form, which is exactly the arch's opening.
+  for (const [k, verts] of Object.entries(LEVEL_PIECES)) {
+    const hx = Math.max(...verts.map((v) => Math.abs(v[0]))), hy = Math.max(...verts.map((v) => Math.abs(v[1])));
+    if (k === "centering") Object.assign(PIECE_DEFS.centering, { verts, hx, hy });
+    else if (!PIECE_DEFS[k]) PIECE_DEFS[k] = { shape: "poly", verts, hx, hy, densityScale: 1.0, skin: "wedge" };
+  }
 
   const BUTTONS = [
     { kind: "piece", def: "block", angle: 0, icon: "block" },
@@ -519,7 +526,7 @@
       // level: the largest at which every level's full pile fits in the bin's height (the sidebar follows from it)
       for (pilePx = 60; pilePx > 8; pilePx *= 0.97) {
         const w = PILE_BIN_W * pilePx + 16, size = Math.min(64, (w - 32) / 3), bin = { w: w - 16, h: cssHeight - size - 24 };
-        if (w <= cssWidth * 0.45 && LEVELS.every((L, i) => pileLayout(stockItems(i), bin, pilePx)[2]) && pileLayout(PILE_SIZE_REF, bin, pilePx)[2]) break;
+        if (w <= cssWidth * 0.45 && LEVELS.every((L, i) => pileLayout(stockItems(i), bin, pilePx)[2]) && (bin.h / pilePx) * 0.95 >= PILE_REF_HEIGHT) break;
       }
       pilePx *= 1.5; // owner: sidebar and its pieces one and a half times bigger
       sidebarWidthPx = PILE_BIN_W * pilePx + 16;
@@ -1346,7 +1353,7 @@
   // Placeholders to tune by play. A mudbrick holds three stone blocks stacked on
   // it, not four; a wooden beam over a gap holds one stone block, not two.
   const CRUSH_FORCE = 320; // N pressing down on one mudbrick
-  const SNAP_MOMENT = 120;  // N*m bending a wood piece between (or beyond) its supports
+  const SNAP_MOMENT = 150;  // N*m bending a wood piece between (or beyond) its supports
   const STRAIN_TIME = { crumble: 0.5, snap: 0.25 }; // seconds of overload before it gives
 
   // Collect, per physics step, what presses on each mudbrick and where wood is held up and pushed down.
@@ -1578,22 +1585,46 @@
     // with like, packed in rows; as big as the bin allows with every row inside it.
     const STURDY = { stone: 0, wood: 1, mudbrick: 2 };
     const lying = (it) => it.defKey === "column"; // columns lie down in the pile (held near an end they swing upright)
-    const size = (it) => { const d = PIECE_DEFS[it.defKey]; return d.r != null ? [2 * d.r, 2 * d.r] : lying(it) ? [2 * d.hy, 2 * d.hx] : [2 * d.hx, 2 * d.hy]; };
+    // other polygons (arch stones, form, pediment) take their real extent; ext gives it and where the centre sits in it
+    const ext = (d) => { const xs = d.verts.map((v) => v[0]), ys = d.verts.map((v) => v[1]); return [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]; };
+    const own = (it) => { const d = PIECE_DEFS[it.defKey]; return d.shape === "poly" && it.defKey !== "wedge" && it.defKey !== "tri"; };
+    const size = (it) => { const d = PIECE_DEFS[it.defKey]; if (own(it)) { const [a, b, c, e] = ext(d); return [b - a, e - c]; }
+      return d.r != null ? [2 * d.r, 2 * d.r] : lying(it) ? [2 * d.hy, 2 * d.hx] : [2 * d.hx, 2 * d.hy]; };
     // One kind of piece per row, so every row has a flat top. Wedges and triangles alternate up and
     // down and nest into a flat band; the curved forms and the pediment halves go on top, where nothing rests on them.
     const curved = (it) => (it.defKey === "centering" || /^gable/.test(it.defKey) ? 1 : 0); // sloped or round tops
     items = items.slice().sort((a, b) => curved(a) - curved(b) || STURDY[a.material] - STURDY[b.material] || size(b)[1] - size(a)[1] || size(b)[0] - size(a)[0] || (a.defKey < b.defKey ? -1 : a.defKey > b.defKey ? 1 : 0));
     const GAP = 0.08;
     const pack = (W) => {
-      const out = []; let x = GAP, y = 0.02, rowH = 0, rowKey = null, k = 0;
-      for (const it of items) {
+      const out = [], used = new Array(items.length).fill(false); let x = GAP, y = 0.02, rowH = 0, rowKey = null, k = 0;
+      // the room left at the end of a row is filled with smaller plain pieces from further down the list, stacked no
+      // higher than the row, so tall rows (arch stones, columns) do not waste the sidebar's width
+      const plain = (it) => !(it.defKey === "wedge" || it.defKey === "tri" || curved(it));
+      const fillGap = (from) => {
+        let cx = x, cw = 0, cy = y;
+        for (let j = from; j < items.length; j++) {
+          if (used[j] || !plain(items[j])) continue;
+          const [w2, h2] = size(items[j]);
+          if (h2 > rowH + 1e-6) continue;
+          if (cy + h2 > y + rowH + 1e-6) { cx += cw + GAP; cw = 0; cy = y; }
+          if (cx + w2 > W - GAP) continue;
+          let px = cx + w2 / 2, py = cy + h2 / 2;
+          if (own(items[j])) { const [a0, , c0] = ext(PIECE_DEFS[items[j].defKey]); px = cx - a0; py = cy - c0; }
+          out.push([items[j], px, py, lying(items[j]) ? Math.PI / 2 : 0]); used[j] = true;
+          cy += h2 + 0.02; cw = Math.max(cw, w2);
+        }
+      };
+      for (let i = 0; i < items.length; i++) {
+        if (used[i]) continue;
+        const it = items[i];
         const [w, h] = size(it), nested = it.defKey === "wedge" || it.defKey === "tri";
-        const key = (nested || curved(it) ? it.defKey + "/" + it.material : h.toFixed(2)); // a row holds one height (blocks and squares of any material share)
+        const key = nested ? it.defKey + "/" + it.material : curved(it) ? "c" + h.toFixed(2) + "/" + it.material : h.toFixed(2); // a row holds one height (blocks and squares of any material share)
         const pairW = it.defKey === "wedge" ? 1.95 : it.defKey === "tri" ? w + 0.03 : w; // a nested pair's width
         const second = (it.defKey === "wedge" || it.defKey === "tri") && key === rowKey && k % 2 === 1;
         if (key !== rowKey) k = 0;
-        if (!second && rowH > 0 && (key !== rowKey || x + pairW > W - GAP)) { x = GAP; y += rowH + 0.03; rowH = 0; k = 0; }
+        if (!second && rowH > 0 && (key !== rowKey || x + pairW > W - GAP)) { if (rowH >= 1.2) fillGap(i); x = GAP; y += rowH + 0.03; rowH = 0; k = 0; if (used[i]) { i--; continue; } }
         let px = x + w / 2, py = y + h / 2, a = lying(it) ? Math.PI / 2 : 0;
+        if (own(it)) { const [a0, , c0] = ext(PIECE_DEFS[it.defKey]); px = x - a0; py = y - c0; }
         if (it.defKey === "wedge") { px = x + 0.525 + (second ? 0.9 : 0); a = second ? Math.PI : 0; } // narrow end down, then wide end down beside it
         if (it.defKey === "tri") { const c = PIECE_DEFS.tri.verts; // two make a square: right angle bottom left, then top right
           const lx = -Math.min(...c.map((v) => v[0])), ly = -Math.min(...c.map((v) => v[1]));
@@ -1830,9 +1861,8 @@
   // The pile = the suggested build (wooden supports used again after a 'pull' step counted once) plus the level's
   // wrong-material pieces (LEVELS[i].extra, from tools/make-levels.py); nothing else is left over.
   // Owner: piece size in the sidebar stays as it is. It was set by the largest pile when he fixed it (the old aqueduct
-  // pile); that pile is kept here as the size reference, so changing levels never changes the piece size.
-  const PILE_SIZE_REF = Object.entries({ "block/stone": 10, "block/wood": 4, "centering/wood": 4, "wedge/stone": 36, "square/stone": 12, "tri/stone": 8, "block/mudbrick": 2 })
-    .flatMap(([k, n]) => Array.from({ length: n }, () => ({ defKey: k.split("/")[0], material: k.split("/")[1] })));
+  // pile, 27.6 m tall when packed); that height is kept as the size reference, so changing levels never changes the piece size.
+  const PILE_REF_HEIGHT = 27.6;
   function stockItems(i) {
     const key = LEVELS[i].key, out = [];
     let pulled = false;

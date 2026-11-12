@@ -14,19 +14,43 @@ UP = math.pi / 2
 def centred(pts):
     c = Polygon(pts).centroid
     return [[round(x - c.x, 4), round(y - c.y, 4)] for x, y in pts]
-# pediment (new shapes): each half is an outer tip and an inner part, 4 m each, slope 1:8; the inner parts meet in the
-# middle with a flat top 0.8 wide where the middle acroterion stands. Absolute shapes (right half; left is the mirror):
-GABLE_ABS = {"gableR": [(4, 0), (8, 0), (4, 0.5)], "gableRi": [(0, 0), (4, 0), (4, 0.5), (0.4, 0.95), (0, 0.95)]}
+# pediment (four stones): each half is an inner part (4 m) and an outer tip (3 m); the inner parts meet in the middle with a
+# flat top 0.8 wide where the middle acroterion stands; the ends stop 1 m short of the frieze ends, where the corner
+# acroteria stand level. Absolute shapes (right half; left is the mirror):
+GH, GE = 1.33, 7.0  # pediment height and half-width; flat top 0.8 wide; slope GH / (GE - 0.4)
+GS = GH / (GE - 0.4)
+GABLE_ABS = {"gableR": [(4, 0), (GE, 0), (4, round((GE - 4) * GS, 4))], "gableRi": [(0, 0), (4, 0), (4, round((GE - 4) * GS, 4)), (0.4, GH), (0, GH)]}
 GABLE_ABS["gableL"] = [(-x, y) for x, y in reversed(GABLE_ABS["gableR"])]
 GABLE_ABS["gableLi"] = [(-x, y) for x, y in reversed(GABLE_ABS["gableRi"])]
-TRI = 1.5  # triangle (new): right-angled, both short sides 1.5; fills the corner between an arch and the wall beside it
-LEVEL_PIECES = {**{k: centred(v) for k, v in GABLE_ABS.items()}, "tri": centred([(0, 0), (TRI, 0), (0, TRI)])}
-R_C = 1.95
+TRI = 1.0  # triangle: right-angled, both short sides 1 m (a half square); fills the corner beside an arch, slopes a roof
+# arch (new): five stones cut along rays at 0, 40, 70, 110, 140 and 180 degrees, inner faces on a circle of radius 2, outer faces on the
+# 6 x 3 m rectangle round the arch, so the arch's sides and top are flush with square blocks; the wooden form is exactly the opening
+def ray_box(t):  # where a ray from the arch centre leaves the rectangle x in [-3, 3], y in [0, 3]
+    c, s_ = math.cos(t), math.sin(t)
+    return (3.0 if c > 0 else -3.0, round(3.0 * s_ / abs(c), 4)) if abs(c) * 3 >= s_ * 3 - 1e-9 and abs(s_ / max(abs(c), 1e-9)) <= 1 else (round(3.0 * c / s_, 4), 3.0)
+CUTS = [0, 40, 70, 110, 140, 180]
+def vous_abs(k):
+    a, b = math.radians(CUTS[k]), math.radians(CUTS[k + 1])
+    pts = [(round(2 * math.cos(a), 4), round(2 * math.sin(a), 4)), ray_box(a)]
+    for cx_, cy_, ang in ((3.0, 3.0, 45), (-3.0, 3.0, 135)):
+        if math.degrees(a) < ang < math.degrees(b): pts.append((cx_, cy_))
+    pts += [ray_box(b), (round(2 * math.cos(b), 4), round(2 * math.sin(b), 4))]
+    out = []
+    for q in pts:
+        if not out or (abs(q[0] - out[-1][0]) > 1e-6 or abs(q[1] - out[-1][1]) > 1e-6): out.append(q)
+    return out
+VOUS = ["arch0", "arch1", "archK", "arch1m", "arch0m"]  # springing, haunch, keystone, and the mirrored haunch and springing
+ARCH_ABS = {VOUS[k]: vous_abs(k) for k in range(5)}
+FORM_ABS = [(round(2 * math.cos(math.radians(c)), 4), round(2 * math.sin(math.radians(c)), 4)) for c in CUTS]
+LEVEL_PIECES = {**{k: centred(v) for k, v in GABLE_ABS.items()}, "tri": centred([(0, 0), (TRI, 0), (0, TRI)]),
+                **{k: centred(v) for k, v in ARCH_ABS.items()}, "centering": centred(FORM_ABS)}
+WT = math.tan(math.radians(10))  # 9 wedges, 20 degrees each; faces 2.0 and 3.0 m from the centre, so the arch top is exactly 3 m above its springing
+WEDGE = [(-2 * WT, -0.5), (2 * WT, -0.5), (3 * WT, 0.5), (-3 * WT, 0.5)]
+R_C = 2.0  # arch form: the wedges' inner faces lie 2.0 m from the centre
 SHAPES = {
     "block": box(-1, -0.5, 1, 0.5), "square": box(-0.5, -0.5, 0.5, 0.5), "column": box(-0.3, -1.2, 0.3, 1.2),
     "beam": box(-1.6, -0.25, 1.6, 0.25), "capital": box(-0.8, -0.2, 0.8, 0.2),
-    "wedge": Polygon([(-0.35, -0.5), (0.35, -0.5), (0.525, 0.5), (-0.525, 0.5)]),
-    "centering": Polygon([(R_C * math.cos(math.pi * i / 10), R_C * math.sin(math.pi * i / 10) - 4 * R_C / (3 * math.pi)) for i in range(11)]),
+    "wedge": Polygon(WEDGE),
     **{k: Polygon(v) for k, v in LEVEL_PIECES.items()},
 }
 # a triangle with its right angle at corner (cx, cy), the short sides along the wall and the top,
@@ -59,13 +83,15 @@ def arch(cx, sy, support_rows, single=False):
     else:
         for r in range(support_rows):
             out += [["block", "wood", cx - 1, sy - support_rows + r + 0.5, 0], ["block", "wood", cx + 1, sy - support_rows + r + 0.5, 0]]
-    out.append(["centering", "wood", cx, sy + 4 * 1.95 / (3 * math.pi) + 0.01, 0])
-    for i in [0, 8, 1, 7, 2, 6, 3, 5, 4]:
-        t = math.radians(10 + 20 * i)
-        out.append(["wedge", "stone", cx + 2.51 * math.cos(t), sy + 2.51 * math.sin(t), t - math.pi / 2])
+    fc = Polygon(FORM_ABS).centroid
+    out.append(["centering", "wood", round(cx + fc.x, 4), round(sy + fc.y, 4), 0])
+    for k in ("arch0", "arch0m", "arch1", "arch1m", "archK"):
+        c = Polygon(ARCH_ABS[k]).centroid
+        out.append([k, "stone", round(cx + c.x, 4), round(sy + c.y, 4), 0])
     return out
-def arch_hole(cx, sy, base=0, r=2.0):
-    pts = [(cx - r, base)] + [(cx + r * math.cos(math.pi - math.pi * i / 10), sy + r * math.sin(math.pi - math.pi * i / 10)) for i in range(11)] + [(cx + r, base)]
+def arch_hole(cx, sy, base=None):  # the opening under an arch: exactly the form's shape, down to base
+    base = sy if base is None else base
+    return Polygon([(cx - 2, base)] + [(cx + x, sy + y) for x, y in reversed(FORM_ABS)] + [(cx + 2, base)])
     return Polygon(pts)
 def acroterion(x, y, w=0.5, h=0.8):  # a palmette-topped ornament standing on a flat place
     return Polygon([(x - w / 2, y), (x + w / 2, y), (x + w * 0.6, y + h * 0.6), (x, y + h), (x - w * 0.6, y + h * 0.6)])
@@ -118,97 +144,97 @@ level("karnak", "Υπόστυλη αίθουσα του Καρνάκ", "c. 1290-
       "cut through the hall on a platform: middle pillars are an upright block and a capital carrying the side beams and the upper columns; side roofs are stone slabs; the central nave is taller (University of Memphis)",
       s, [rect(-1.6, 5.8, 1.6, 6.3)],
       wrong=[W("mudbrick pillars", "material", recolour(s, lambda e: e[0] == "block" and e[4] != 0, "mudbrick")),
+             W("wooden upper pillars", "material", recolour(s, lambda e: e[0] == "column" and abs(e[2]) < 1, "wood")),
              W("a middle pillar too far out for the beam", "build", moved(s, lambda e: near(e[2], -1.3) and e[3] < 3.5, dx=1.0))])
 # 5 Lion Gate: the lion triangle (headpiece) is lowered onto the lintel between the stepped-in stones
 gate = rect(-1, 0, 1, 2)
 s = (mirror([["block", "stone", -5, 0.5, 0], ["block", "stone", -3, 0.5, 0], ["square", "stone", -5.5, 1.5, 0], ["block", "stone", -4, 1.5, 0], ["square", "stone", -2.5, 1.5, 0],
              ["block", "stone", -1.5, 1.0, UP]]) +
      [["beam", "stone", x, 2.25, 0] for x in (-3.2, 0, 3.2)] +
-     mirror([["block", "stone", -3.5, 3.0, 0], ["square", "stone", -2.0, 3.0, 0]]) + [tri_rest(-1.5, 3.5, "right", "stone"), tri_rest(1.5, 3.5, "left", "stone")])
-level("liongate", "Πύλη των Λεόντων", "c. 1250 BC", "jambs, a stone lintel, and the lion triangle lowered onto it",
+     mirror([["block", "stone", -4.0, 3.0, 0], ["square", "stone", -2.0, 3.0, 0]]) + mirror([["beam", "wood", -2.75, 4.1, UP]]))  # flagpoles held between two stones
+level("liongate", "Πύλη των Λεόντων", "c. 1250 BC", "jambs, a stone lintel, flagpoles held between stones, and the lion triangle lowered onto the lintel",
       "two monolith jambs and a great lintel (4.5 x 2.0 x 0.8 m, about 20 t); the lion relief, a triangle, stands on the lintel in the relieving triangle (Wikipedia); "
-      "the real corbelled courses close over the relief, which a slab lowered from above cannot pass, so the slot above the lintel is upright-sided and the stone triangles slope down from it",
+      "the real corbelled courses close over the relief, which a slab lowered from above cannot pass, so the relief stands free on the lintel; the flagpoles are the owner's addition (no source found for them)",
       s, [Polygon([(-1.45, 2.52), (1.45, 2.52), (0, 5.1)])], [gate],
       wrong=[W("mudbrick jambs", "material", recolour(s, lambda e: e[0] == "block" and e[4] != 0, "mudbrick")),
-             W("mudbrick in the bottom course", "material", recolour(s, lambda e: near(e[3], 0.5), "mudbrick")),
-             W("no stones behind the stepped-in triangles", "build", without(s, lambda e: near(e[3], 3.0)))])
+             W("flagpoles standing on top of the stones, not between them", "build", moved(s, lambda e: e[1] == "wood", dx=0, dy=1.0))])
 # 6 Ishtar Gate
 s = ([p for y in (0.5, 1.5) for p in row("stone", -6, 2, y) + row("stone", 2, 2, y)] +
      [p for y in (2.5, 3.5, 4.5, 5.5) for p in (["block", "mudbrick", -5, y, 0], ["block", "mudbrick", 5, y, 0])] +
-     arch(0, 2, 2) + [p for y in (2.5, 3.5, 4.5) for p in (["square", "stone", -3.5, y, 0], ["square", "stone", 3.5, y, 0])] +
-     [tri_at(-3, 5, 1), tri_at(3, 5, -1)])
+     arch(0, 2, 2) + [p for y in (2.5, 3.5, 4.5) for p in (["square", "stone", -3.5, y, 0], ["square", "stone", 3.5, y, 0])])
 ish = s
-level("ishtar", "Πύλη της Ιστάρ", "c. 575 BC", "wedge-stone arch on a wooden form",
-      "spandrels beside the arch are square blocks and two triangles; small curved slivers along the arch cannot be filled; roof of cedar (worldhistory.org)",
-      s, [rect(-3.8, 5, 3.8, 5.6)], [arch_hole(0, 2)], "support",
-      wrong=[W("mudbrick under the arch's feet", "material", recolour(s, lambda e: e[3] < 2 and e[1] == "stone", "mudbrick")),
-             W("the form pulled out before the last wedge", "build", (lambda i: s[:i] + [PULL] + s[i:])(max(k for k, e in enumerate(s) if e[0] == "wedge")))])
+level("ishtar", "Πύλη της Ιστάρ", "c. 575 BC", "a stone arch on a wooden form",
+      "the arch is five stones filling a 6 x 3 m block, flush with the square blocks beside it; roof of cedar (worldhistory.org)",
+      s, [rect(-3.8, 5, 3.8, 5.6)], [arch_hole(0, 2, 0)], "support",
+      wrong=[W("mudbrick under the arch's feet", "material", recolour(s, lambda e: e[3] < 2 and e[1] == "stone" and abs(abs(e[2]) - 3) < 0.01, "mudbrick")),
+             W("the form pulled out before the keystone", "build", (lambda i: s[:i] + [PULL] + s[i:])(max(k for k, e in enumerate(s) if e[0] == "archK")))])
 # 7 Parthenon: six columns of square drums with capitals, architrave, frieze, pediment; the three acroteria are the load
 P0, DR = 2, 3  # top of the steps; drums per column
 COLS = [-8.0, -4.8, -1.6, 1.6, 4.8, 8.0]
-s = ([["beam", "stone", x, 0.25, 0] for x in (-9.6, -6.4, -3.2, 0, 3.2, 6.4, 9.6)] + [["beam", "stone", x, 0.75, 0] for x in (-8, -4.8, -1.6, 1.6, 4.8, 8)] +
-     staggered("stone", -9, 9, 1.5) +
+s = (row("stone", -10, 10, 0.5) + staggered("stone", -9, 9, 1.5) +
      [["square", "stone", x, P0 + 0.5 + k, 0] for x in COLS for k in range(DR)] + [["capital", "stone", x, P0 + DR + 0.2, 0] for x in COLS] +
-     [["beam", "stone", x, P0 + DR + 0.65, 0] for x in (-6.4, -3.2, 0, 3.2, 6.4)] + [["beam", "stone", x, P0 + DR + 1.15, 0] for x in (-6.4, -3.2, 0, 3.2, 6.4)])
-fr_top = P0 + DR + 1.4
+     [["beam", "stone", x, P0 + DR + 0.65, 0] for x in (-6.4, -3.2, 0, 3.2, 6.4)])
+fr_top = P0 + DR + 0.9  # top of the architrave: the pediment stands on it
 s += [[k, "stone", round(Polygon(GABLE_ABS[k]).centroid.x, 4), round(fr_top + Polygon(GABLE_ABS[k]).centroid.y, 4), 0] for k in ("gableL", "gableLi", "gableRi", "gableR")]
-level("parthenon", "Παρθενώνας", "447-432 BC", "columns built drum by drum, architrave, frieze, pediment, acroteria",
-      "the real front has eight columns (octastyle) built of drums; six here; three steps (the lower two thinner); pediment lower than the real one (slope 1:8, real about 1:4.5) and made of four stones; the three acroteria (corners and peak) are the load",
-      s, [acroterion(-7.75, fr_top + 0.02, 0.45), acroterion(7.75, fr_top + 0.02, 0.45), acroterion(0, fr_top + 0.95, 0.8, 1.0)],
-      wrong=[W("a wooden architrave stone over the middle", "material", recolour(s, lambda e: e[0] == "beam" and near(e[3], P0 + DR + 0.65) and near(e[2], 0), "wood")),
-             W("mudbrick drums at the foot of the middle columns", "material", recolour(s, lambda e: e[0] == "square" and near(e[3], P0 + 0.5) and abs(e[2]) < 2, "mudbrick")),
+level("parthenon", "Παρθενώνας", "447-432 BC", "columns built drum by drum, architrave, pediment, acroteria",
+      "the real front has eight columns (octastyle) built of drums; six here; three steps; pediment lower than the real one (slope about 1:5, real about 1:4.5), made of four stones, ending 1 m in from the frieze ends; the three acroteria (corners and peak) are the load",
+      s, [acroterion(-7.5, fr_top, 0.45), acroterion(7.5, fr_top, 0.45), acroterion(0, fr_top + GH, 0.8, 1.0)],
+      wrong=[W("a mudbrick stone under a middle column", "material", recolour(s, lambda e: e[0] == "block" and near(e[2], -1) and near(e[3], P0 - 0.5), "mudbrick")),
              W("drums stacked off line", "build", moved(s, lambda e: e[0] == "square" and near(e[3], P0 + 1.5) and near(e[2], 4.8), dx=0.6)),
              W("an end column too far out for the architrave", "build", moved(s, lambda e: e[0] in ("square", "capital") and near(e[2], 8.0) and e[3] > P0, dx=1.4))])
 # 8 Mausoleum: solid core, columns, the walkway ceiling beams reach out from the core further than they hold alone:
 # wooden posts hold them while the roof steps go on, then come out
-s = (row("stone", -6, 6, 0.5) + staggered("stone", -6, 6, 1.5) +
+s = (row("stone", -6, 6, 0.5) +
      [["block", "stone", 0, 2.5, 0], ["block", "stone", 0, 3.5, 0], ["capital", "stone", 0, 4.2, 0]] +
      [p for x in (-5.0, 5.0) for p in (["square", "stone", x, 2.5, 0], ["square", "stone", x, 3.5, 0], ["capital", "stone", x, 4.2, 0])] +
      [["column", "wood", x, 3.2, 0] for x in (-2.6, 2.6)] +   # temporary posts
-     [["beam", "stone", x, 4.65, 0] for x in (-5.0, -1.6, 1.6, 5.0)] +
-     row("stone", -6, 6, 5.4) + row("stone", -4, 4, 6.4) + row("stone", -2, 2, 7.4) + [["block", "stone", 0, 8.4, 0]])
+     [["beam", "stone", x, 4.65, 0] for x in (-5.4, -1.6, 1.6, 5.4)] +
+     [p for k in range(6) for p in row("stone", -(6 - k), 6 - k, 5.4 + k)] +
+     [t for k in range(1, 6) for t in (tri_rest(6 - k, 4.9 + k, "left", "stone"), tri_rest(-(6 - k), 4.9 + k, "right", "stone"))])  # roof sloped by triangles
+s = [e if e[3] < 1 else [e[0], e[1], e[2], round(e[3] - 1, 4), e[4]] for e in s]  # one podium course
 maus = s
-level("mausoleum", "Μαυσωλείο της Αλικαρνασσού", "c. 350 BC", "beams reaching out from the core, held on wooden posts until the roof steps weigh them down",
+level("mausoleum", "Μαυσωλείο της Αλικαρνασσού", "c. 350 BC", "beams reaching out from the core, held on wooden posts until the roof weighs them down; a sloped roof",
       "Pliny: podium, 36 columns, a pyramid of 24 steps, a four-horse chariot on top (corroborated by excavation, worldhistory.org); a solid core behind the columns carried the roof (Wikipedia); ceiling beams of the walkway were found (AJA). Cut through: core in the middle, a column each side; the wooden posts are the game's way of building it",
-      s, [Polygon([(-0.9, 8.9), (0.9, 8.9), (1.0, 9.4), (0.5, 10.0), (-0.6, 10.0), (-1.0, 9.4)])], [], "support",
-      wrong=[W("mudbrick in the podium", "material", recolour(s, lambda e: e[3] < 2, "mudbrick")),
-             W("wooden walkway beams", "material", recolour(s, lambda e: e[0] == "beam", "wood")),
+      s, [Polygon([(-0.9, 9.9), (0.9, 9.9), (1.0, 10.4), (0.5, 11.0), (-0.6, 11.0), (-1.0, 10.4)]), acroterion(-6.5, 3.9, 0.45), acroterion(6.5, 3.9, 0.45)], [], "support",
+      wrong=[W("mudbrick in the core", "material", recolour(s, lambda e: e[0] == "block" and near(e[2], 0) and 1 < e[3] < 3, "mudbrick")),
              W("no wooden posts", "build", without(s, lambda e: e[1] == "wood")),
-             W("posts pulled out before the roof steps are on", "build", (lambda i: s[:i] + [PULL] + s[i:])(next(k for k, e in enumerate(s) if e[3] > 5)))])
+             W("posts pulled out before the roof steps are on", "build", (lambda i: s[:i] + [PULL] + s[i:])(next(k for k, e in enumerate(s) if e[3] > 4)))])
 # 9 Lighthouse: tall hollow lowest tier, two thin walls round a shaft tied by wooden beams, a stone cap, a narrower tier, a round top, statue and Tritons
 def pharos(tied=True, cap="stone"):
     out = []
-    for k in range(9):
+    for k in range(10):  # lowest tier: walls of blocks round the shaft; every other course two wooden beams tie them
         y = k + 0.5
-        if k % 2 == 1:  # tie course: two wooden beams across the shaft, a square on each wall's outer part
+        if k % 2 == 1 and k < 9:
             out += ([["beam", "wood", 0, k + 0.25, 0], ["beam", "wood", 0, k + 0.75, 0]] if tied else [["square", "stone", -1.1, y, 0], ["square", "stone", 1.1, y, 0]]) + \
                    [["square", "stone", -2.1, y, 0], ["square", "stone", 2.1, y, 0]]
         else:
             out += [["block", "stone", -1.6, y, 0], ["block", "stone", 1.6, y, 0]]
-    out += [["block", cap, 0, 9.5, 0]] + [["block", "stone", 0, 10.5 + k, 0] for k in range(3)]  # the narrower tier; its first stone bridges the shaft
-    out += [["square", "stone", 0, 13.5, 0], ["square", "stone", 0, 14.5, 0]]  # the round top, narrower again
+    y = 10.0  # second tier: hollow too, walls one square thick, tied by one wooden beam between courses
+    for part in ("w", "t", "w", "t", "w"):
+        if part == "t": out.append(["beam", "wood", 0, y + 0.25, 0]); y += 0.5
+        else: out += [["square", "stone", -1.1, y + 0.5, 0], ["square", "stone", 1.1, y + 0.5, 0]]; y += 1
+    out += [["block", cap, 0, y + 0.5, 0], ["square", "stone", 0, y + 1.5, 0]]  # the round top: a stone over the shaft, a drum
     return out
 s = pha = pharos()
-level("pharos", "Φάρος της Αλεξάνδρειας", "c. 280 BC", "a tall hollow tower: two walls tied by wooden beams, a narrower tier, a round top",
+level("pharos", "Φάρος της Αλεξάνδρειας", "c. 280 BC", "a tall hollow tower: two walls tied by wooden beams, a narrower hollow tier, a round top",
       "square, octagonal and round tiers (Wikipedia); a spiral ramp inside the lowest tier and a shaft in the upper ones (Balawi via Wikipedia; mfn.li); statue on top and Tritons on the corners (Roman coins). Walls laced with timber are an old Greek technique; for the Pharos the sources name lead between the base blocks",
-      s, [rect(-0.4, 15.1, 0.4, 16.4), acroterion(-1.8, 9, 0.4, 0.8), acroterion(1.8, 9, 0.4, 0.8)],
-      [rect(-0.6, k, 0.6, k + 1) for k in (0, 2, 4, 6, 8)],
+      s, [rect(-0.4, 16.1, 0.4, 17.4), acroterion(-2.1, 10, 0.4, 0.8), acroterion(2.1, 10, 0.4, 0.8)],
+      [rect(-0.6, k, 0.6, k + 1) for k in (0, 2, 4, 6)] + [rect(-0.6, 8, 0.6, 10)] + [rect(-0.6, 10, 0.6, 11), rect(-0.6, 11.5, 0.6, 12.5), rect(-0.6, 13, 0.6, 14)],
       wrong=[W("mudbrick at the base", "material", recolour(s, lambda e: e[0] == "block" and e[3] < 2, "mudbrick")),
-             W("wood in the course over the shaft", "material", pharos(cap="wood")),
              W("no wooden ties (the walls stacked straight up)", "build", pharos(tied=False)),
-             W("the upper tier set off centre", "build", moved(s, lambda e: e[3] > 9, dx=1.2))])
+             W("the upper tier set off centre", "build", moved(s, lambda e: e[3] > 10, dx=1.0))])
 # 10 Valens: two forms for four arches, moved from the lower to the upper arches
 def tier(sy):
     return [p for k in range(3) for p in (["square", "stone", -6.5, sy + 0.5 + k, 0], ["square", "stone", 6.5, sy + 0.5 + k, 0])] + \
-        [tri_at(-6, sy + 3, 1), tri_at(0, sy + 3, -1), tri_at(0, sy + 3, 1), tri_at(6, sy + 3, -1)]
-UPPER = 5.02
-lower = [["block", "stone", -6, 0.5, 0], ["block", "stone", 0, 0.5, 0], ["block", "stone", 6, 0.5, 0]] + arch(-3, 1, 1) + arch(3, 1, 1) + tier(1) + row("stone", -7, 7, UPPER - 0.5)
+        []  # the arches fill their 6 x 3 m blocks: nothing goes between them
+UPPER = 4.0
+lower = [["block", "stone", -6, 0.5, 0], ["block", "stone", 0, 0.5, 0], ["block", "stone", 6, 0.5, 0]] + arch(-3, 1, 1) + arch(3, 1, 1) + tier(1)
 s = lower + [PULL] + arch(-3, UPPER, 0) + arch(3, UPPER, 0) + tier(UPPER)
 level("valens", "Υδραγωγείο του Ουάλη", "AD 368", "two tiers of arches, two forms moved from arch to arch",
-      "real upper arches are smaller; same size here because there is one wedge size; a full course between the tiers",
-      s, [rect(-7, UPPER + 3.05, 7, UPPER + 3.65)], [arch_hole(-3, 1), arch_hole(3, 1), arch_hole(-3, UPPER, UPPER), arch_hole(3, UPPER, UPPER)], "support",
-      wrong=[W("mudbrick piers", "material", recolour(s, lambda e: e[3] < 1, "mudbrick")),
-             W("a form pulled out before the last wedge", "build", (lambda i: s[:i] + [PULL] + s[i:])(max(k for k, e in enumerate(lower) if e[0] == "wedge")))])
+      "real upper arches are smaller; same size here because there is one arch size; the upper arches stand on the lower ones",
+      s, [rect(-7, UPPER + 3, 7, UPPER + 3.6)], [arch_hole(-3, 1, 0), arch_hole(3, 1, 0), arch_hole(-3, UPPER), arch_hole(3, UPPER)], "support",
+      wrong=[W("a mudbrick middle pier", "material", recolour(s, lambda e: e[3] < 1 and e[1] == "stone" and near(e[2], 0), "mudbrick")),
+             W("the end pier under an arch left out", "build", without(s, lambda e: e[0] == "block" and e[1] == "stone" and near(e[2], 6) and near(e[3], 0.5)))])
 
 def parts(geom):
     return [g for g in ([geom] if geom.geom_type == "Polygon" else list(geom.geoms)) if g.area >= 0.05]
@@ -237,7 +263,7 @@ for l in L:
     shapes = [placed(d, x, y, a) for d, m, x, y, a in l["sol"] if d != "pull" and not (sup and m == "wood")]
     # closed over gaps narrower than 0.7 m (pockets and slivers no piece can fill are part of the
     # outline, not lace-like openings); real openings come from the level's holes
-    u = unary_union([s.buffer(0.35, join_style=2, mitre_limit=10) for s in shapes]).buffer(-0.35, join_style=2, mitre_limit=10)
+    u = unary_union([s.buffer(0.003, join_style=2, mitre_limit=10) for s in shapes]).buffer(-0.003, join_style=2, mitre_limit=10)  # exactly the build
     holes = list(l["holes"])
     if holes: u = u.difference(unary_union(holes))
     u = u.simplify(0.004)
