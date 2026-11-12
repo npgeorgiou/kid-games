@@ -11,7 +11,8 @@ The single source for what each level is. Code, suggested builds and piles follo
 - Middle and higher levels (4 on) are not a solid wall: openings, columns, arches or overhangs.
 - The headpiece is an important part of that building, lowered from above onto a place the player must leave the right shape for.
 - Owner: piece size in the sidebar never changes (`PILE_REF_HEIGHT` in the PILE section pins it). Every level's pile must fit the sidebar at that size; the pile packer fills the room beside tall rows with smaller pieces.
-- Pieces fit like toy bricks: square blocks are the unit; arches fill exact 6 x 3 m blocks; triangles are half a square (1 x 1 m).
+- Pieces fit like toy bricks: square blocks are the unit. The arch is nine equal wedges on a wooden form, its top exactly 3 m (three squares) above its feet. The big triangle (short sides 1.75 m) sits in the corner beside an arch, resting on the arch, flush with its top. The small triangle (half a square) slopes the ziggurat stairway and the mausoleum roof; one level uses only one triangle size.
+- Levels are not shrunk on screen unless they must be: the building fills the height and the headpiece comes down from above the top edge (only the Lighthouse is tall enough to shrink; the aqueduct by 3% for width).
 
 ## Process (in this order, every time)
 
@@ -20,7 +21,7 @@ The single source for what each level is. Code, suggested builds and piles follo
 3. The suggested build and the wrong choices are written in `tools/make-levels.py` (which writes `src/levels.js` and `tools/level-tests.json`) until the tests below pass.
 4. `python3 tools/level-pictures.py` makes `levels.png` for the owner. Only after his OK does a level change count as done.
 
-## Tests (12 Nov 2026: all pass except the aqueduct's pile size, see level 10)
+## Tests (12 Nov 2026: all pass)
 
 Run from `games/tower-builder/tools`: `python3 harness.py spec` (tests 1, 2, 3, 4; one line each) and `python3 harness.py real` (test 2, real game loop). `NJ=n` sets the number of placement runs (default 6).
 
@@ -88,29 +89,29 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 6. Ishtar Gate, Babylon (c. 575 BC)
 
 - Headpiece: the cedar roof over the passage (worldhistory.org: door and roof of cedar). LOCKED.
-- Pieces: 8 stone blocks, 8 mudbrick blocks (the side towers), the arch (five stones), 6 stone half-blocks beside it, 1 wooden arch form on 4 wooden blocks; pile adds 4 mudbrick blocks.
-- New: the arch and its wooden form. The arch is five stones cut along rays at 0, 40, 70, 110, 140 and 180 degrees: two springers, two haunch stones and a keystone. Together they fill a 6 x 3 m block exactly, so the arch's sides and top are flush with square blocks; the form is exactly the opening. Technique: the arch built on the form, the form taken out once the keystone is in.
-- Hard: the haunch stones slide in without the keystone or the form.
+- Pieces: 8 stone blocks, 8 mudbrick blocks (the side towers), 9 wedges, 6 stone half-blocks and 2 big triangles beside the arch, 1 wooden arch form on 4 wooden blocks; pile adds 4 mudbrick blocks.
+- New: wedges and the wooden arch form. Technique: the arch built on the form, the form taken out once the last wedge is in. The squares beside the arch stand right at its feet; the triangles rest on the arch and come exactly to its top.
+- Hard: the wedges only stand once the last one is in.
 - Wrong material: mudbrick under the arch's feet crumbles.
-- Wrong build: the form pulled out before the keystone: the arch falls.
+- Wrong build: the form pulled out before the last wedge: the arch falls.
 - Temporary wood: one arch form on four blocks.
 
 ## 7. Parthenon front, Athens (447-432 BC)
 
 - Headpiece: the three acroteria: one on each end of the architrave beside the pediment, standing level, and one on the pediment's flat top. LOCKED. The player builds the pediment.
-- Pieces: two steps (10 blocks, then 8 blocks and 2 half-blocks), 6 columns of 3 square drums each with a capital, 5 architrave beams, the pediment of four stones; pile adds 1 mudbrick block.
-- New: the pediment stones. Technique: columns built drum by drum (σπόνδυλοι), stacked straight; every architrave stone has both ends on a capital.
+- Pieces: two steps (7 blocks, then 5 blocks and 2 half-blocks), 6 columns of 3 square drums each with a capital, 2 m apart, an architrave of 5 blocks, a pediment of two stones; pile adds 7 mudbrick blocks and 2 mudbrick half-blocks.
+- New: the pediment stones. Technique: columns built drum by drum (σπόνδυλοι), stacked straight; every architrave block has both ends on a capital.
 - Hard: loose drums wobble until the architrave ties their tops; a column off its spot leaves an architrave end hanging.
-- Wrong material: a mudbrick stone under a middle column crumbles.
+- Wrong material: mudbrick in the top step crumbles under the temple.
 - Wrong build: drums stacked off line: the column falls; an end column too far out: the architrave end falls.
 - Temporary wood: none.
-- Historical: the real front has eight columns (octastyle) built of drums; six here (owner). The real temple has three steps and a frieze; two steps and no frieze here so the pile fits the sidebar. The pediment stops 1 m short of each end (owner, so the corner acroteria stand level) and rises 1.33 m (slope about 1:5; real about 1:4.5).
+- Historical: the real front has eight columns (octastyle) built of drums, about 1.25 column widths apart; six here (owner), one column width apart, so the temple fits the screen without shrinking. The real temple has three steps and a frieze; two steps and no frieze here. The pediment stops 1 m short of each end (owner) and rises 1.33 m.
 
 ## 8. Mausoleum of Halicarnassus (c. 350 BC): the wooden-post level
 
 - Headpiece: the four-horse chariot on top, and two acroteria on the beam ends beside the roof (owner). LOCKED.
-- Pieces: 29 stone blocks (podium, core, six roof steps), 10 stone triangles (the roof's slope), 4 square drums and 3 capitals, 4 stone beams, 2 wooden posts; pile adds 2 mudbrick blocks.
-- New: wooden posts as temporary props. Technique: the walkway beams reach out from the solid core further than they can hold alone; they rest on wooden posts while the roof goes on, and hold once its weight (six steps over the core) presses their inner ends down. The posts then come out.
+- Pieces: 26 stone blocks (podium, core, five roof steps), 8 small triangles (the roof's slope), 4 square drums and 3 capitals, 4 stone beams, 2 wooden posts; pile adds 2 mudbrick blocks.
+- New: wooden posts as temporary props. Technique: the walkway beams reach out from the solid core further than they can hold alone; they rest on wooden posts while the roof goes on, and hold once its weight (five steps over the core) presses their inner ends down. The posts then come out.
 - Hard: the posts must stand before the beams go on and stay until the roof is on.
 - Wrong material: mudbrick in the core crumbles.
 - Wrong build: no posts: the beams tip and the roof falls; posts pulled out before the roof is on: the same.
@@ -131,20 +132,22 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 10. Valens Aqueduct, Constantinople (AD 368)
 
 - Headpiece: the water channel along the top. LOCKED.
-- Pieces: 3 stone piers, 4 arches of five stones, 12 square blocks as side walls, 2 wooden arch forms on 4 wooden blocks; pile adds 1 mudbrick block.
-- New: nothing new. Technique: two forms for four arches. Build the lower arches on them, take them out, use them again for the upper arches, which stand straight on the lower ones (their tops are flat, flush with the side walls).
-- Wrong material: a mudbrick middle pier crumbles.
-- Wrong build: the end pier under an arch left out: the arch falls.
+- Pieces: 4 arches of 9 wedges, 8 big triangles, side walls (6 stone blocks below, 6 half-blocks above), 2 wooden arch forms; pile adds 2 mudbrick blocks.
+- New: nothing new. Technique: two forms for four arches. The lower arches and their forms stand on the ground; take the forms out, use them again for the upper arches, which stand on the lower tier (its top is flat: wedge tops, triangles and walls all exactly 3 m up).
+- Hard: the side walls take the arches' push; the lower ones are a block wide.
+- Wrong material: mudbrick at the foot of the side walls crumbles.
+- Wrong build: a form pulled out before the last wedge: the arch falls.
 - Temporary wood: two forms, no more.
-- Open: the pile does not fit the sidebar (122% of its height at 1280 x 800; it did not fit before either). Four arches of these stones are too much for the sidebar at the fixed piece size. Owner to choose: fewer arches, or the upper tier's stones arriving in the pile once the lower tier stands.
+- Historical: the real aqueduct stands on tall piers and its upper arches are smaller; here the arches stand on the ground and are all one size, so the pile fits the sidebar.
 
 ## Game changes made for these levels (12 Nov 2026)
 
-- Level data is centred in the middle of the check grid (x 0..40 m, y 0..22 m); a level wider than the screen zooms out to fit, as tall ones already did.
+- Level data is centred in the middle of the check grid (x 0..40 m, y 0..22 m); a level wider than the screen zooms out to fit, as tall ones do.
+- The view fits the building and its headpiece with 0.6 m to spare; the headpiece starts above the top edge and comes down into view.
 - Quick build: a `pull` step takes the temporary supports out (they go back to the pile to be used again); the pile counts reused supports once.
 - Wrong-material pieces in each pile come from `make-levels.py` (`extra` per level), not a hand list.
 - Wood: a support holds a beam along the whole stretch it touches, not just where it pushed this step; wood snaps at 150 (was 80).
 - Mudbrick: only weight from above counts towards crumbling, not side pushes.
-- Arch pieces: the five arch stones and an exact form replace the wedges in levels; triangles are 1 x 1 m.
+- Wedge trimmed so nine make an arch whose top is exactly 3 m above its feet; arch form radius 2.0; big triangle (1.75 m) for arch corners, small triangle (1 m) elsewhere.
 - Stone and mudbrick are slower and stiffer in the hand (lift speed, acceleration, turning); weights and all building physics are unchanged.
-- Pile: polygons take their real size, rows of tall pieces are topped up with smaller ones beside them, sloped pieces of one height share a row.
+- Pile: polygons take their real size, rows of tall pieces are topped up with smaller ones beside them, triangles of either size nest in pairs.

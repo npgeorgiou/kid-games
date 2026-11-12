@@ -358,10 +358,9 @@
     // pediment halves (new): right-angled triangles with a short flat tip for the top slab; shapes in src/levels.js
     gableL: { shape: "poly", verts: LEVEL_PIECES.gableL, hx: Math.max(...LEVEL_PIECES.gableL.map((v) => Math.abs(v[0]))), hy: Math.max(...LEVEL_PIECES.gableL.map((v) => Math.abs(v[1]))), densityScale: 1.0, skin: "gable" },
     gableR: { shape: "poly", verts: LEVEL_PIECES.gableR, hx: Math.max(...LEVEL_PIECES.gableR.map((v) => Math.abs(v[0]))), hy: Math.max(...LEVEL_PIECES.gableR.map((v) => Math.abs(v[1]))), densityScale: 1.0, skin: "gable" },
-    gableRi: { shape: "poly", verts: LEVEL_PIECES.gableRi, hx: Math.max(...LEVEL_PIECES.gableRi.map((v) => Math.abs(v[0]))), hy: Math.max(...LEVEL_PIECES.gableRi.map((v) => Math.abs(v[1]))), densityScale: 1.0, skin: "gable" },
-    gableLi: { shape: "poly", verts: LEVEL_PIECES.gableLi, hx: Math.max(...LEVEL_PIECES.gableLi.map((v) => Math.abs(v[0]))), hy: Math.max(...LEVEL_PIECES.gableLi.map((v) => Math.abs(v[1]))), densityScale: 1.0, skin: "gable" },
     // triangle (new): right-angled, short sides 1.5 m; fills the corner between an arch and the wall beside it (Lion Gate, Ishtar, Valens)
     tri: { shape: "poly", verts: LEVEL_PIECES.tri, hx: Math.max(...LEVEL_PIECES.tri.map((v) => Math.abs(v[0]))), hy: Math.max(...LEVEL_PIECES.tri.map((v) => Math.abs(v[1]))), densityScale: 1.0, skin: "gable" },
+    trib: { shape: "poly", verts: LEVEL_PIECES.trib, hx: Math.max(...LEVEL_PIECES.trib.map((v) => Math.abs(v[0]))), hy: Math.max(...LEVEL_PIECES.trib.map((v) => Math.abs(v[1]))), densityScale: 1.0, skin: "gable" },
     // what a snapped wooden piece breaks into (two halves along its length; they do not snap again)
     "block-half":  { shape: "box", hx: 0.5, hy: 0.5, densityScale: 1.0, skin: "block" },
     "column-half": { shape: "box", hx: 0.3, hy: 0.6, densityScale: 1.0, skin: "column" },
@@ -377,11 +376,10 @@
     centering: { shape: "poly", verts: Array.from({ length: 11 }, (_, i) => { const t = (Math.PI * i) / 10, R = 2.0; return [R * Math.cos(t), R * Math.sin(t) - (4 * R) / (3 * Math.PI)]; }),
                  hx: 2.0, hy: 1.0, densityScale: 1.0, skin: "centering" },
   };
-  // Level polygon pieces (tools/make-levels.py): the arch stones, and the wooden form, which is exactly the arch's opening.
+  // Level polygon pieces from tools/make-levels.py not defined above (the big triangle beside arches).
   for (const [k, verts] of Object.entries(LEVEL_PIECES)) {
     const hx = Math.max(...verts.map((v) => Math.abs(v[0]))), hy = Math.max(...verts.map((v) => Math.abs(v[1])));
-    if (k === "centering") Object.assign(PIECE_DEFS.centering, { verts, hx, hy });
-    else if (!PIECE_DEFS[k]) PIECE_DEFS[k] = { shape: "poly", verts, hx, hy, densityScale: 1.0, skin: "wedge" };
+    if (!PIECE_DEFS[k]) PIECE_DEFS[k] = { shape: "poly", verts, hx, hy, densityScale: 1.0, skin: "wedge" };
   }
 
   const BUTTONS = [
@@ -1587,7 +1585,7 @@
     const lying = (it) => it.defKey === "column"; // columns lie down in the pile (held near an end they swing upright)
     // other polygons (arch stones, form, pediment) take their real extent; ext gives it and where the centre sits in it
     const ext = (d) => { const xs = d.verts.map((v) => v[0]), ys = d.verts.map((v) => v[1]); return [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]; };
-    const own = (it) => { const d = PIECE_DEFS[it.defKey]; return d.shape === "poly" && it.defKey !== "wedge" && it.defKey !== "tri"; };
+    const own = (it) => { const d = PIECE_DEFS[it.defKey]; return d.shape === "poly" && it.defKey !== "wedge" && !/^tri/.test(it.defKey); };
     const size = (it) => { const d = PIECE_DEFS[it.defKey]; if (own(it)) { const [a, b, c, e] = ext(d); return [b - a, e - c]; }
       return d.r != null ? [2 * d.r, 2 * d.r] : lying(it) ? [2 * d.hy, 2 * d.hx] : [2 * d.hx, 2 * d.hy]; };
     // One kind of piece per row, so every row has a flat top. Wedges and triangles alternate up and
@@ -1599,7 +1597,7 @@
       const out = [], used = new Array(items.length).fill(false); let x = GAP, y = 0.02, rowH = 0, rowKey = null, k = 0;
       // the room left at the end of a row is filled with smaller plain pieces from further down the list, stacked no
       // higher than the row, so tall rows (arch stones, columns) do not waste the sidebar's width
-      const plain = (it) => !(it.defKey === "wedge" || it.defKey === "tri" || curved(it));
+      const plain = (it) => !(it.defKey === "wedge" || /^tri/.test(it.defKey) || curved(it));
       const fillGap = (from) => {
         let cx = x, cw = 0, cy = y;
         for (let j = from; j < items.length; j++) {
@@ -1617,20 +1615,20 @@
       for (let i = 0; i < items.length; i++) {
         if (used[i]) continue;
         const it = items[i];
-        const [w, h] = size(it), nested = it.defKey === "wedge" || it.defKey === "tri";
+        const [w, h] = size(it), nested = it.defKey === "wedge" || /^tri/.test(it.defKey);
         const key = nested ? it.defKey + "/" + it.material : curved(it) ? "c" + h.toFixed(2) + "/" + it.material : h.toFixed(2); // a row holds one height (blocks and squares of any material share)
-        const pairW = it.defKey === "wedge" ? 1.95 : it.defKey === "tri" ? w + 0.03 : w; // a nested pair's width
-        const second = (it.defKey === "wedge" || it.defKey === "tri") && key === rowKey && k % 2 === 1;
+        const pairW = it.defKey === "wedge" ? 1.95 : /^tri/.test(it.defKey) ? w + 0.03 : w; // a nested pair's width
+        const second = (it.defKey === "wedge" || /^tri/.test(it.defKey)) && key === rowKey && k % 2 === 1;
         if (key !== rowKey) k = 0;
         if (!second && rowH > 0 && (key !== rowKey || x + pairW > W - GAP)) { if (rowH >= 1.2) fillGap(i); x = GAP; y += rowH + 0.03; rowH = 0; k = 0; if (used[i]) { i--; continue; } }
         let px = x + w / 2, py = y + h / 2, a = lying(it) ? Math.PI / 2 : 0;
         if (own(it)) { const [a0, , c0] = ext(PIECE_DEFS[it.defKey]); px = x - a0; py = y - c0; }
         if (it.defKey === "wedge") { px = x + 0.525 + (second ? 0.9 : 0); a = second ? Math.PI : 0; } // narrow end down, then wide end down beside it
-        if (it.defKey === "tri") { const c = PIECE_DEFS.tri.verts; // two make a square: right angle bottom left, then top right
+        if (/^tri/.test(it.defKey)) { const c = PIECE_DEFS[it.defKey].verts; // two make a square: right angle bottom left, then top right
           const lx = -Math.min(...c.map((v) => v[0])), ly = -Math.min(...c.map((v) => v[1]));
           px = x + (second ? w - lx + 0.03 : lx); py = y + (second ? h - ly + 0.03 : ly); a = second ? Math.PI : 0; }
         out.push([it, px, py, a]); rowH = Math.max(rowH, h); rowKey = key; k++;
-        if (second || !(it.defKey === "wedge" || it.defKey === "tri")) x += pairW + GAP;
+        if (second || !(it.defKey === "wedge" || /^tri/.test(it.defKey))) x += pairW + GAP;
       }
       return [out, y + rowH];
     };
@@ -1921,8 +1919,8 @@
     };
     let x0 = Infinity, x1 = -Infinity, y1 = 0;
     for (const r of [...g.solid, ...g.holes, ...g.wood, ...g.load]) for (const [x, y] of r) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
-    g.top = y1 + LOAD_DROP + 1;
-    g.width = Math.max(x0 < Infinity ? 2 * Math.max(LEVEL_X0 - x0, x1 - LEVEL_X0) + 1.5 : 0, WORLD_WIDTH);
+    g.top = y1 + 0.6; // the building fills the height; the headpiece comes down from above the top edge
+    g.width = Math.max(x0 < Infinity ? 2 * Math.max(LEVEL_X0 - x0, x1 - LEVEL_X0) + 0.3 : 0, WORLD_WIDTH);
     const ix0 = Math.max(0, Math.floor(x0 / CELL)), ix1 = Math.min(GX - 1, Math.ceil(x1 / CELL));
     const iy1 = Math.min(GY - 1, Math.ceil(y1 / CELL));
     // the load's place, less a 0.15 m margin (pieces stacked to the top stand a few mm into it)
