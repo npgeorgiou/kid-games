@@ -28,6 +28,7 @@ Every level lists: the building, the headpiece (the load lowered in the test), w
 4. Pile: it contains the level's new pieces, every piece the suggested build uses, the listed wrong-choice extras, and the listed number of wooden supports (no more).
 5. Wood-support levels: the same build with the supports taken out before the build is complete falls. This proves the supports are needed.
 6. Reuse (Valens): the suggested build is done with the listed number of forms, moved from arch to arch, and passes.
+7. Lighthouse: the suggested build with its wooden ties taken out falls in the wind.
 
 ## 1. Mastaba, Saqqara (c. 3000 BC) — approved
 
@@ -73,7 +74,7 @@ Every level lists: the building, the headpiece (the load lowered in the test), w
 - Wrong material: a wooden lintel must snap when the lion lands (load); today it does not (see open question); mudbrick in the jambs or base crumbles (settle or load).
 - Wrong build: side courses too light behind the stepped-in stones: they tip into the slot (settle or load); jambs too far apart for the lintel: it falls between them.
 - Temporary wood: none.
-- Open: the wooden lintel. In the current build it does not snap when the lion lands; it only fails the final check after the earthquake. Whether a real timber lintel of that span would break under the relief: unverified. If the game's wood rule does not snap it under the lion, it is replaced by a wrong material that does fail.
+- Wooden lintel: the real lintel is one stone, 4.5 x 2.0 x 0.8 m (Wikipedia), about 20 tons (theplaka.com); the triangle was left open above it so it would not break under the wall (ancient-greece.org), so a lintel breaking under the load is the real way such a gate fails. In the current game build the wooden lintel does not snap when the lion lands; test 3 requires that it does, and the wood snapping strength is set so it does.
 - Reported: the current game build collapsed in the owner's play. Not reproduced yet in the headless test (passes, also with pieces 3 cm off). Test 2 adds the real game loop and ready gate, which the old harness skipped.
 
 ## 6. Ishtar Gate, Babylon (c. 575 BC) — approved
@@ -85,32 +86,33 @@ Every level lists: the building, the headpiece (the load lowered in the test), w
 - Wrong build: the corners beside the arch left empty: the arch spreads and falls when the form comes out (supports); the form pulled before the last wedge is in drops the wedges (during building).
 - Temporary wood: one arch form.
 
-## 7. Parthenon front, Athens (447-432 BC) — proposed
+## 7. Parthenon front, Athens (447-432 BC) — approved
 
-- Headpiece: the pediment (the triangle with its sculptures), lowered onto the frieze. Currently the acroteria are the load; the previous chat noted the pediment is the more important part. Open, owner's choice pending.
-- New pieces: abacus (square column top). Technique: eight evenly spaced columns (as on the real front); every architrave stone has both ends on a column top.
-- Hard: a long even row; a column placed off its spot leaves an architrave end hanging.
-- Wrong material: a wooden architrave snaps under the headpiece (load); mudbrick in the top step crumbles (settle or load).
-- Wrong build: a column off its spot leaves an architrave end between columns: it tips (settle or load).
+- Headpiece: the three acroteria, one on each end of the pediment and one on its peak. LOCKED. The player builds the pediment.
+- New pieces: abacus (square column top). Technique: six columns, each built drum by drum (σπόνδυλοι) from square stones stacked straight, with the capital on top; every architrave stone has both ends on a column top. The real front has eight columns; the real columns are built of drums.
+- Hard: tall columns of loose drums wobble until the architrave ties their tops; a column placed off its spot leaves an architrave end hanging.
+- Wrong material: a wooden architrave snaps under the pediment (settle or load); a mudbrick drum crumbles under the column above (settle or load); mudbrick in the top step crumbles (settle or load).
+- Wrong build: drums stacked off line: the column tips (wind or quake); a column off its spot leaves an architrave end between columns: it tips (settle or load).
 - Temporary wood: none.
 
 ## 8. Mausoleum of Halicarnassus (c. 350 BC) — approved. The wooden-beam support level
 
 - Headpiece: the four-horse chariot on top of the stepped roof (Pliny via worldhistory.org). LOCKED.
-- New: wooden posts and beams as temporary scaffolding. Technique: the stepped roof courses reach in over the hall further than they can hold alone; they rest on wooden beams on wooden posts while being built, and hold by the weight of the outer courses once complete. The scaffolding is pulled out in the test.
+- New: wooden posts and beams as temporary scaffolding. Technique: the lowest roof steps reach out over the colonnade walkway further than they can hold alone; they rest on wooden beams on wooden posts while being built, and hold once the steps above weigh down their inner ends on the solid core. The scaffolding is pulled out in the test.
 - Hard: the props must be placed before the overhanging courses, the outer courses must be heavy enough, and nothing may rest on the posts except the roof.
 - Wrong material: mudbrick in the podium crumbles (settle or load); wooden roof beams from column to chamber snap under the roof (supports or load).
-- Wrong build: too few outer courses (light counterweight): the roof falls into the hall when the props come out (supports); props left out while building: the overhanging course falls (during building).
+- Wrong build: too few outer courses (light counterweight): the overhanging steps tip into the walkway when the props come out (supports); props left out while building: the overhanging course falls (during building).
 - Temporary wood: posts and beams, count set by the suggested build.
-- Historical: podium, 36 columns, pyramid of 24 steps, chariot (Pliny). How the roof was carried over the colonnade walkway: unverified. Building on timber scaffolding is a game simplification.
+- Historical: podium, 36 columns, pyramid of 24 steps, chariot (Pliny; corroborated by excavation, worldhistory.org). A solid core behind the columns carried the roof (Wikipedia); stone ceiling beams of the walkway between columns and core were found (American Journal of Archaeology). The sources describe the finished building, not how it was built: the wooden props are the game's way of building it.
 
 ## 9. Lighthouse of Alexandria (c. 280 BC) — approved
 
 - Headpiece: the statue on top (Zeus or Poseidon, from Roman coins; Wikipedia) and the Tritons on the corners of the lowest tier. LOCKED.
-- New: a hollow tower. Technique: two thin walls around the inner shaft (Wikipedia: inner ramp), tied together by stone beams every few courses so they stand as one; each tier narrower and centred on the one below.
-- Hard: the tallest level and the strongest wind; a wall left untied tips on its own; an off-centre tier tips the tower; the pile has no spare stone.
-- Wrong material: wooden tie beams snap under the upper tiers (load or quake); mudbrick at the base crumbles (settle).
-- Wrong build: walls left untied tip apart (wind); a tier set off centre tips the tower (wind).
+- New: a hollow tower. Technique: two thin walls around the inner shaft (a spiral ramp inside the lowest tier and a shaft in the upper ones: Balawi via Wikipedia; mfn.li), tied together by wooden beams every few courses so they stand as one; each tier narrower and centred on the one below.
+- Timber ties: walls laced with horizontal timbers are an old Greek technique (ξυλοδεσιά, ancient ιμάντωσις; tests show ties raise masonry strength two to five times, Bulletin of Earthquake Engineering 2017). For the Pharos itself the sources name lead between the base blocks (Al-Idrisi via Wikipedia), not timber.
+- Hard: the tallest level and the strongest wind; a wall left untied falls; an off-centre tier tips the tower; the pile has no spare stone.
+- Wrong material: mudbrick at the base crumbles under the upper tiers (settle); mudbrick in the tie course crumbles where the walls press on it (settle or load).
+- Wrong build: walls left untied fall in the wind (wind; checked by test 7); a tier set off centre tips the tower (wind).
 - Temporary wood: none.
 
 ## 10. Valens Aqueduct, Constantinople (AD 368) — approved
