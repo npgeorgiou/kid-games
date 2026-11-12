@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """One picture of all ten levels, top to bottom: left the outline the player gets (orange = the headpiece lowered
-in the test), right the suggested build. Reads src/levels.js. Needs shapely and Pillow.
+in the test), right the suggested build. Reads src/levels.js. Needs Pillow, numpy and OpenCV (tools/geom.py).
 Usage: python3 tools/level-pictures.py  ->  levels.png"""
 import json, math, pathlib
 from PIL import Image, ImageDraw, ImageFont
-from shapely.geometry import Polygon
-from shapely import affinity
+import sys
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from geom import Polygon, affinity
 
 HERE = pathlib.Path(__file__).resolve().parent.parent
 js = (HERE / "src" / "levels.js").read_text(encoding="utf-8")
@@ -15,7 +16,7 @@ R_C = 1.95
 SHAPES = {
     "block": [(-1, -.5), (1, -.5), (1, .5), (-1, .5)], "square": [(-.5, -.5), (.5, -.5), (.5, .5), (-.5, .5)],
     "column": [(-.3, -1.2), (.3, -1.2), (.3, 1.2), (-.3, 1.2)], "beam": [(-1.6, -.25), (1.6, -.25), (1.6, .25), (-1.6, .25)],
-    "capital": [(-.8, -.2), (.8, -.2), (.8, .2), (-.8, .2)], "wedge": [(-.35, -.5), (.35, -.5), (.525, .5), (-.525, .5)],
+    "capital": [(-.8, -.2), (.8, -.2), (.8, .2), (-.8, .2)], "abacus": [(-.4, -.2), (.4, -.2), (.4, .2), (-.4, .2)], "wedge": [(-.35, -.5), (.35, -.5), (.525, .5), (-.525, .5)],
     "centering": [(R_C * math.cos(math.pi * i / 10), R_C * math.sin(math.pi * i / 10) - 4 * R_C / (3 * math.pi)) for i in range(11)],
     **{k: [tuple(v) for v in vs] for k, vs in PIECES.items()},
 }
@@ -53,6 +54,7 @@ for n, (L, h) in enumerate(zip(LEVELS, rows)):
     # left: the outline (solid minus openings), wood zones, the headpiece
     for r in L["solid"]: d.polygon([P(x, y, 0) for x, y in ring(r)], fill=(214, 224, 236), outline=(70, 100, 140))
     for r in L["holes"]: d.polygon([P(x, y, 0) for x, y in ring(r)], fill=(250, 249, 245), outline=(70, 100, 140))
+    for r in L.get("guides", []): d.polygon([P(x, y, 0) for x, y in ring(r)], outline=(70, 100, 140))
     if L["woodRole"] == "courses":
         for r in L["wood"]: d.polygon([P(x, y, 0) for x, y in ring(r)], fill=(150, 100, 55, 90))
     # right: the build; temporary wood see-through, forms used twice (after a 'pull') drawn at both places

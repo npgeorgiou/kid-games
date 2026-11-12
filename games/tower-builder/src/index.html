@@ -78,11 +78,12 @@
       ctx.setLineDash([6, 5]); ctx.stroke(); ctx.setLineDash([]);
     },
     // Level outline (screen-pixel paths): the building's shape, its openings kept clear.
-    outline(ctx, solid, holes) {
+    outline(ctx, solid, holes, guides) {
       ctx.fillStyle = "rgba(255, 244, 214, 0.6)"; ctx.fill(solid);
       ctx.fillStyle = "#bfe3f0"; ctx.fill(holes);
       ctx.strokeStyle = "#8a6d3b"; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
       ctx.stroke(solid); ctx.stroke(holes); ctx.setLineDash([]);
+      if (guides) { ctx.lineWidth = 1; ctx.strokeStyle = "rgba(138, 109, 59, 0.6)"; ctx.stroke(guides); } // thin lines: where the arch stones go
     },
     // Where wood goes (wood courses, or temporary wooden supports).
     woodZone(ctx, path) {
@@ -353,6 +354,8 @@
     beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 0.85, skin: "beam", half: "beam-half" },
     // capital (new, fourth standard size): a flat slab laid on a pillar; an upright block (2 m) plus a capital is one column high
     capital: { shape: "box", hx: 0.8, hy: 0.2, densityScale: 1.0, skin: "beam", half: "capital-half" },
+    // abacus (new): a small oblong block, half a capital; two stacked make a column's capital (Karnak)
+    abacus: { shape: "box", hx: 0.4, hy: 0.2, densityScale: 1.0, skin: "beam" },
     // square (new, fifth standard size): half a block, for spandrels and staggered joints
     square: { shape: "box", hx: 0.5, hy: 0.5, densityScale: 1.0, skin: "block" },
     // pediment halves (new): right-angled triangles with a short flat tip for the top slab; shapes in src/levels.js
@@ -376,6 +379,17 @@
     centering: { shape: "poly", verts: Array.from({ length: 11 }, (_, i) => { const t = (Math.PI * i) / 10, R = 2.0; return [R * Math.cos(t), R * Math.sin(t) - (4 * R) / (3 * Math.PI)]; }),
                  hx: 2.0, hy: 1.0, densityScale: 1.0, skin: "centering" },
   };
+  // Planck keeps touching shapes apart by its polygon skin; each piece's physical shape is this much
+  // smaller on every side than drawn, so pieces sit on each other where they are drawn (measured: 1.4 cm per course)
+  const SKIN_GAP = 0.005;
+  function insetPoly(verts, d) { // convex polygon, every edge moved in by d
+    const n = verts.length, ccw = verts.reduce((a, [x, y], i) => a + x * verts[(i + 1) % n][1] - verts[(i + 1) % n][0] * y, 0) > 0 ? 1 : -1;
+    const lines = verts.map(([x0, y0], i) => { const [x1, y1] = verts[(i + 1) % n], L = Math.hypot(x1 - x0, y1 - y0), nx = (-(y1 - y0) / L) * ccw, ny = ((x1 - x0) / L) * ccw;
+      return [x0 + nx * d, y0 + ny * d, x1 - x0, y1 - y0]; });
+    return lines.map((a, i) => { const b = lines[(i + n - 1) % n], den = b[2] * a[3] - b[3] * a[2];
+      if (Math.abs(den) < 1e-12) return [a[0], a[1]];
+      const t = ((a[0] - b[0]) * a[3] - (a[1] - b[1]) * a[2]) / den; return [b[0] + t * b[2], b[1] + t * b[3]]; });
+  }
   // Level polygon pieces from tools/make-levels.py not defined above (the big triangle beside arches).
   for (const [k, verts] of Object.entries(LEVEL_PIECES)) {
     const hx = Math.max(...verts.map((v) => Math.abs(v[0]))), hy = Math.max(...verts.map((v) => Math.abs(v[1])));
@@ -460,11 +474,11 @@
       restitution: material.restitution,
     };
     if (def.shape === "poly") {
-      body.createFixture({ ...fixtureOptions, shape: planck.Polygon(def.verts.map(([x, y]) => planck.Vec2(x, y))) });
+      body.createFixture({ ...fixtureOptions, shape: planck.Polygon(insetPoly(def.verts, SKIN_GAP).map(([x, y]) => planck.Vec2(x, y))) });
     } else if (def.shape === "box") {
-      body.createFixture({ ...fixtureOptions, shape: planck.Box(def.hx, def.hy) });
+      body.createFixture({ ...fixtureOptions, shape: planck.Box(def.hx - SKIN_GAP, def.hy - SKIN_GAP) });
     } else {
-      body.createFixture({ ...fixtureOptions, shape: planck.Circle(def.r) });
+      body.createFixture({ ...fixtureOptions, shape: planck.Circle(def.r - SKIN_GAP) });
     }
     const piece = { id: nextPieceId++, defKey, material: materialKey, body, hx: def.hx, hy: def.hy, r: def.r, verts: def.verts };
     piece.strain = 0; piece.crush = 0; piece.sup = []; piece.loads = []; piece.impacts = []; // SECTION BREAKING
@@ -939,9 +953,12 @@
       const touching = touchesOtherPiece(body);
       const p = body.getWorldPoint(piece.grabLocal);
       const T = piece.handT;
-      const k = Math.min(1, STEP / HOLD_SMOOTH[piece.material]);
+      // HOLD_SMOOTH and maxLiftSpeed are for a block (2 m^2) of the material; a piece eases in proportion to its mass
+      // and its carry speed goes with 1/sqrt(mass), so a small stone follows the hand quicker than a big one
+      const mr = Math.min(3.5, Math.max(0.25, m / (2 * material.density)));
+      const k = Math.min(1, STEP / (HOLD_SMOOTH[piece.material] * mr));
       let vx = ((piece.desired.x - T.x) * k) / STEP, vy = ((piece.desired.y - T.y) * k) / STEP;
-      const vlen = Math.hypot(vx, vy), vcap = material.maxLiftSpeed;
+      const vlen = Math.hypot(vx, vy), vcap = material.maxLiftSpeed / Math.sqrt(mr);
       if (vlen > vcap) { vx *= vcap / vlen; vy *= vcap / vlen; }
       if (!piece.ghost) [vx, vy] = capApproach(body, vx, vy, Math.min(NEAR_SPEED, vcap));
       T.x += vx * STEP; T.y += vy * STEP;
@@ -1348,9 +1365,9 @@
   // ---------------------------------------------------------------------
   // SECTION: BREAKING -- mudbrick crumbles under heavy weight, wood snaps when loaded over a gap
   // ---------------------------------------------------------------------
-  // Placeholders to tune by play. A mudbrick holds three stone blocks stacked on
-  // it, not four; a wooden beam over a gap holds one stone block, not two.
-  const CRUSH_FORCE = 320; // N pressing down on one mudbrick
+  // Owner: a mudbrick crumbles under four mudbrick blocks and three stone blocks (about 545 N), not under three and three (480 N).
+  // A wooden beam over a gap holds one stone block, not two (placeholder).
+  const CRUSH_FORCE = 515; // N pressing down on one mudbrick
   const SNAP_MOMENT = 150;  // N*m bending a wood piece between (or beyond) its supports
   const STRAIN_TIME = { crumble: 0.5, snap: 0.25 }; // seconds of overload before it gives
 
@@ -1467,9 +1484,12 @@
       p.impacts.length = 0;
       let over = false, time = 1;
       if (p.heldBy == null) {
-        if (p.material === "mudbrick") { over = p.crush > CRUSH_FORCE; time = STRAIN_TIME.crumble; }
+        // a resting stack falls asleep and its contacts stop reporting: keep the last verdict until it wakes
+        if (!p.body.isAwake()) { over = !!p.wasOver; time = p.material === "mudbrick" ? STRAIN_TIME.crumble : STRAIN_TIME.snap; }
+        else if (p.material === "mudbrick") { over = p.crush > CRUSH_FORCE; time = STRAIN_TIME.crumble; }
         else { over = bendMoment(p) > SNAP_MOMENT; time = STRAIN_TIME.snap; }
       }
+      p.wasOver = over;
       p.strain = over ? p.strain + STEP / time : Math.max(0, p.strain - STEP);
       p.crush = 0; p.sup.length = 0; p.loads.length = 0;
       if (p.strain >= 1) { if (p.material === "mudbrick") crumble(p); else snapWood(p); }
@@ -1846,7 +1866,7 @@
   // From level 2 on, below what tips a lone stone column (0.6 x 2.4 m tips at about
   // 7.5 N/m here: weight x half-width against wind x half-height); level 1 has no columns.
   const TEST_WIND = [110, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 18, 6.5]; // Lighthouse: the strongest wind; walls not tied together fall in it
-  const TEST_LOAD_DENSITY = [5, 6, 7, 20, 25, 10, 11, 12, 13, 14]; // kg/m^2, per level (Karnak roof beam and Lion Gate slab are heavy stone)
+  const TEST_LOAD_DENSITY = [5, 42, 20, 75, 25, 10, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
   const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
   const TEST_FAST = 10, DRUM_LEAD = 1.5; // Tab test speed-up; seconds the drumroll may start before the load moves
@@ -1914,6 +1934,7 @@
     const L = LEVELS[i], n = GX * GY;
     const g = {
       L, solid: L.solid.map(toWorldRing), holes: L.holes.map(toWorldRing), wood: L.wood.map(toWorldRing), load: L.load.map(toWorldRing),
+      pockets: (L.pockets || []).map(toWorldRing), guides: (L.guides || []).map(toWorldRing),
       inOutline: new Uint8Array(n), inHole: new Uint8Array(n), inWood: new Uint8Array(n), inLoad: new Uint8Array(n), near: new Uint8Array(n), cov: new Uint8Array(n),
       solidCells: 0, holeCells: 0, woodCells: 0,
     };
@@ -1937,7 +1958,7 @@
         // otherwise fail on their rim; the rim itself is neither outline nor opening
         const deep = hole && [[LM, 0], [-LM, 0], [0, LM], [0, -LM]].every(([dx, dy]) => g.holes.some((r) => inRing(x + dx, y + dy, r)));
         if (deep) { g.inHole[k] = 1; g.holeCells++; }
-        else if (!hole && g.solid.some((r) => inRing(x, y, r))) { g.inOutline[k] = 1; g.solidCells++; }
+        else if (!hole && g.solid.some((r) => inRing(x, y, r)) && !g.pockets.some((r) => inRing(x, y, r))) { g.inOutline[k] = 1; g.solidCells++; } // slivers beside arch stones: drawn solid, not checked
         if (g.wood.some((r) => inRing(x, y, r))) { g.inWood[k] = 1; g.woodCells++; }
       }
     }
@@ -1968,6 +1989,13 @@
     return lowest < 1.2; // lying low in a heap on the floor
   }
   // Which cells the pieces cover, and how that compares with the outline.
+  // the piece as drawn (its physical shape is SKIN_GAP smaller, so seams between pieces count as covered)
+  function drawnHas(p, v) {
+    const q = p.body.getLocalPoint(v), d = PIECE_DEFS[p.defKey];
+    if (d.shape === "box") return Math.abs(q.x) <= d.hx && Math.abs(q.y) <= d.hy;
+    if (d.shape === "circle") return q.x * q.x + q.y * q.y <= d.r * d.r;
+    return inRing(q.x, q.y, d.verts);
+  }
   function runCheck() {
     const g = grid, cov = g.cov, v = planck.Vec2(0, 0);
     cov.fill(0);
@@ -1983,7 +2011,7 @@
         const ay = Math.max(0, Math.floor(bb.lowerBound.y / CELL)), by = Math.min(GY - 1, Math.floor(bb.upperBound.y / CELL));
         for (let iy = ay; iy <= by; iy++) for (let ix = ax; ix <= bx; ix++) {
           v.x = (ix + 0.5) * CELL; v.y = (iy + 0.5) * CELL;
-          if (f.testPoint(v)) { const k = iy * GX + ix; cells.push(k); if (g.near[k]) touchesSite = true; }
+          if (drawnHas(p, v)) { const k = iy * GX + ix; cells.push(k); if (g.near[k]) touchesSite = true; }
         }
       }
       // a piece lying on the ground away from the building is just left-over material: it does not count
@@ -2393,7 +2421,7 @@
   }
   function drawLevelBackdrop() {
     if (currentLevel == null || !grid) return;
-    SKIN.outline(ctx, screenPath(grid.solid), screenPath(grid.holes));
+    SKIN.outline(ctx, screenPath(grid.solid), screenPath(grid.holes), grid.guides.length ? screenPath(grid.guides) : null);
     if (grid.wood.length) SKIN.woodZone(ctx, screenPath(grid.wood));
     const badGhost = failShow && (failShow.loads.length || failShow.loadZone);
     if (!loads.length || badGhost) SKIN.loadGhost(ctx, screenPath(grid.load), badGhost);

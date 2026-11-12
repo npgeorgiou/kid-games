@@ -32,8 +32,9 @@ Run from `games/tower-builder/tools`: `python3 harness.py spec` (tests 1, 2, 3, 
 5. Wood-support levels: the build without the supports, or with them taken out too early, falls (wrong builds of Ishtar, Mausoleum and Valens).
 6. Reuse (Valens): built with two forms, moved from the lower to the upper arches.
 7. Lighthouse: without its wooden ties the walls fall in the wind.
+8. Outline matches the build: the exactly placed build, once settled, has every piece within 5 cm of its place, and the outline and the pieces differ by at most 2.5% of the outline (owner, 12 Nov: outlines and builds did not match).
 
-Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density 5, 6, 7, 20, 25, 10, 11, 12, 13, 14; earthquake 0.32 rising to 0.61. Outlines are exactly the suggested build's pieces (no gaps closed).
+Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density 5, 42, 20, 75, 25, 10, 60, 12, 13, 14 (heavy enough that wrong-material mudbrick crumbles); earthquake 0.32 rising to 0.61. Outlines are exactly the suggested build's pieces (no gaps closed), except beside arches: slivers between arch stones and their neighbours (narrower than 0.7 m) are drawn solid and not checked, and each arch stone has a thin guide line (owner).
 
 ## 1. Mastaba, Saqqara (c. 3000 BC)
 
@@ -48,10 +49,10 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 2. Step pyramid of Djoser, Saqqara (c. 2650 BC)
 
 - Headpiece: the top (sixth) step, lowered onto the fifth (the pyramid has six steps). LOCKED.
-- Pieces: 15 stone blocks, 5 mudbrick blocks; pile adds 6 mudbrick blocks.
+- Pieces: 6 stone blocks (the first layer only, owner), 14 mudbrick blocks; pile adds stone and mudbrick for the wrong choice.
 - New: stone. Technique: heavy low, light high.
-- Hard: just enough stone for the lower steps.
-- Wrong material: mudbrick at the bottom, stone on top: the bottom crumbles.
+- Hard: stone only where the weight is greatest.
+- Wrong material: mudbrick at the bottom, stone above it: the bottom crumbles under the stone and the top step.
 - Wrong build: a top-step block more than half off the step below: it falls.
 - Temporary wood: none.
 
@@ -68,11 +69,12 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 4. Karnak hypostyle hall (c. 1290-1220 BC)
 
 - Headpiece: the roof slab over the taller middle nave (University of Memphis: central nave taller than the sides). LOCKED.
-- Pieces: 9 stone blocks, 6 stone columns, 8 capitals, 2 stone beams; pile adds 2 mudbrick blocks and 2 wooden columns.
-- New: columns and capitals. Technique: beams across gaps, each end on a column.
-- Hard: columns must stand where the beams reach both; the middle supports are built up from two parts.
-- Wrong material: mudbrick pillars crumble under the roof; wooden upper pillars (owner) blow down in the wind.
-- Wrong build: a middle pillar too far out for the beam: the beam and the upper column fall.
+- Pieces: 5 stone blocks, 4 stone columns (all the same, owner), 12 small oblong blocks (two stacked make each of the six capitals, owner), 2 stone beams, 2 stone squares (the pillars of the taller middle nave); pile adds mudbrick for the wrong choices.
+- New: columns and capitals. Technique: beams across gaps, each end on a capital.
+- Hard: columns must stand where the beams reach both; every pillar is topped by a capital of two small blocks.
+- Wrong material: mudbrick pillars under the middle roof crumble; mudbrick middle columns crumble.
+- Wrong build: a middle column too far in for the beam: the beam and the middle pillar fall.
+- Historical: Karnak's columns carry a capital with a square abacus block on top; here the two small blocks stand for them.
 - Temporary wood: none.
 
 ## 5. Lion Gate, Mycenae (c. 1250 BC)
@@ -121,9 +123,9 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 9. Lighthouse of Alexandria (c. 280 BC)
 
 - Headpiece: the statue on top and the two Tritons on the corners of the lowest tier. LOCKED.
-- Pieces: 13 stone blocks, 15 stone half-blocks, 10 wooden beams; pile adds 2 mudbrick blocks.
-- New: a hollow tower. Technique: the lowest tier (ten courses) is two walls round the shaft, tied every other course by two wooden beams across it; the second tier is hollow too, walls one block thick tied by single wooden beams; a stone over the shaft carries the round top.
-- Hard: the tallest level and a strong wind (18 against 6.5 elsewhere).
+- Pieces: 9 stone blocks, 13 stone half-blocks, 8 wooden beams; pile adds 2 mudbrick blocks.
+- New: a hollow tower. Technique: the lowest tier (seven courses, owner: three tie courses and one stone course on top) is two walls round the shaft, tied every other course by two wooden beams across it; the second tier is hollow too, walls one block thick tied by single wooden beams; a stone over the shaft carries the round top.
+- Hard: the tallest level and a strong wind (18 against 6.5 elsewhere). Still drawn smaller than the others (81% at 1280 x 800, 71% at 1920 x 1080); full size needs the top at most about 12 m (10.7 m at 1920 x 1080), it is 14.4 m.
 - Wrong material: mudbrick at the base crumbles.
 - Wrong build: no wooden ties (test 7): the walls fall in the wind; the upper tier set off centre: the tower falls.
 - Temporary wood: none.
@@ -132,13 +134,22 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 10. Valens Aqueduct, Constantinople (AD 368)
 
 - Headpiece: the water channel along the top. LOCKED.
-- Pieces: 4 arches of 9 wedges, 8 big triangles, side walls (6 stone blocks below, 6 half-blocks above), 2 wooden arch forms; pile adds 2 mudbrick blocks.
-- New: nothing new. Technique: two forms for four arches. The lower arches and their forms stand on the ground; take the forms out, use them again for the upper arches, which stand on the lower tier (its top is flat: wedge tops, triangles and walls all exactly 3 m up).
-- Hard: the side walls take the arches' push; the lower ones are a block wide.
-- Wrong material: mudbrick at the foot of the side walls crumbles.
+- Pieces (owner: back to the old design): 3 stone blocks as piers under the lower arches, 4 arches of 9 wedges, 8 big triangles, side walls a half-block wide in both tiers, a course of 7 stone blocks between the tiers, 2 wooden arch forms each on one wooden block; pile adds mudbrick for the wrong choice.
+- New: nothing new. Technique: two forms for four arches. The lower arches spring from the piers; take the forms out, use them again for the upper arches, which stand on the course between the tiers.
+- Hard: the piers carry everything.
+- Wrong material: mudbrick piers crumble.
+- Open: this pile does not fit the sidebar (120%); waiting for the owner.
 - Wrong build: a form pulled out before the last wedge: the arch falls.
 - Temporary wood: two forms, no more.
-- Historical: the real aqueduct stands on tall piers and its upper arches are smaller; here the arches stand on the ground and are all one size, so the pile fits the sidebar.
+- Historical: the real aqueduct stands on tall piers and its upper arches are smaller; here the arches are all one size.
+
+## Game changes made for these levels (12 Nov 2026, second list)
+
+- Pieces' physical shapes are 5 mm smaller on every side than drawn (`SKIN_GAP`): planck kept touching pieces about 1.4 cm apart, so every course stood higher than drawn and builds no longer matched their outlines. The check uses the drawn shape.
+- Mudbrick crumbles under four mudbrick blocks and three stone blocks, not under three and three (`CRUSH_FORCE` 515 N, was 320). Resting pieces fall asleep in the physics and stopped reporting their load, so mudbrick never crumbled under a still stack; a sleeping piece now keeps its last verdict.
+- In the hand a piece's ease and carry speed follow its mass (a block is the reference): small pieces follow quicker than big ones of the same material.
+- New piece `abacus`: a small oblong block, half a capital (Karnak).
+- `tools/make-levels.py` and `tools/level-pictures.py` use `tools/geom.py` (numpy, OpenCV) instead of shapely.
 
 ## Game changes made for these levels (12 Nov 2026)
 

@@ -21,6 +21,12 @@
       if(!best||bd>1.5){missing++;miss.push(e[0]+'/'+e[1]+'@'+e[2].toFixed(1)+','+e[3].toFixed(1));continue;} used.add(best); worst=Math.max(worst,bd); }
     const halves=T.pieces.filter(p=>/half/.test(p.defKey)).length; return {moved:+worst.toFixed(2),missing,miss:miss.slice(0,3),halves,phys:worst>0.3||missing>0||halves>0}; };
   const c=T.runCheck(), ready=T.checkPasses(c), after=phys();
+  // test 8: the settled build matches the outline: share of the outline left uncovered, and of the pieces lying outside it (hole rims excepted)
+  { const g=T.grid; let over=0; for(let k=0;k<g.cov.length;k++){ if(!g.cov[k]||g.inOutline[k]||g.inHole[k]||g.inLoad[k]) continue; const x=(k%400+0.5)*0.1, y=(Math.floor(k/400)+0.5)*0.1;
+      if(!g.holes.some(r=>T.inRing(x,y,r))) over++; }
+    if(window.__DIAG){ const rows={}; for(let k=0;k<g.cov.length;k++){ const y=Math.floor(k/400), x=k%400; if(g.inOutline[k]&&!g.cov[k]) (rows[y]=rows[y]||[]).push('m'+(x-200)); else if(g.cov[k]&&!g.inOutline[k]&&!g.inHole[k]&&!g.inLoad[k]&&!g.holes.some(r=>T.inRing((x+0.5)*0.1,(y+0.5)*0.1,r))) (rows[y]=rows[y]||[]).push('o'+(x-200)); }
+      after.diag=Object.entries(rows).map(([y,v])=>y+':'+v.length+':'+v.slice(0,4).join(',')).join(' | '); }
+    after.miss=+(1-c.fill).toFixed(3); after.over=+(over/g.solidCells).toFixed(3); }
   T.setTab(true); T.startTest(); T.setTab(false); if(T.test) T.test.fast=false; // as in play: not the Tab speed-up
   let last='',ph=[],t=0,atFail=null; while(T.test&&t<60*90){ if(T.test.phase!==last){last=T.test.phase;ph.push(last);} if(last==='fail'){atFail=phys(); const bl=T.failShow?T.failShow.loads.length:0; atFail.loadsOff=bl; atFail.loadsAt=T.loads.map(l=>[+(l.body.getPosition().x-20).toFixed(2),+l.body.getPosition().y.toFixed(2)]); if(bl) atFail.phys=true; break;} run(1/60);t++; }
   const res={ready,phases:ph.join('>'),pass:!!T.progress.done[key],build:Object.assign(after,{fill:+c.fill.toFixed(3),hole:+c.hole.toFixed(3),load:c.load}),fail:atFail};

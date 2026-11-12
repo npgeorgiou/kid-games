@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 import os, re
 HERE=os.path.dirname(os.path.abspath(__file__))
 src=open(os.path.join(HERE,'..','tower-builder.html')).read()
-hook='''window.__tb={renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,testReady,stockItems,TEST_WIND,PIECE_DEFS,levelSidebar,pileLayout,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
+hook='''window.__tb={TEST_LOAD_DENSITY,renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,testReady,stockItems,TEST_WIND,PIECE_DEFS,levelSidebar,pileLayout,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
 get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale}};
 window.requestAnimationFrame=()=>0;
 '''
@@ -42,14 +42,18 @@ with sync_playwright() as p:
                 if not(pulled and e[1]=='wood'): c[e[0]+'/'+e[1]]+=1
             return c
         NJ=int(os.environ.get('NJ','6'))
+        if os.environ.get('LOAD'): pg.evaluate('(a)=>{for(const [i,d] of a) __tb.TEST_LOAD_DENSITY[i]=d}',[[int(x.split(':')[0]),float(x.split(':')[1])] for x in os.environ['LOAD'].split(',')])
+        if os.environ.get('DIAG'): pg.evaluate('()=>{window.__DIAG=1}')
         if os.environ.get('DA'): pg.evaluate('(v)=>{window.__DA=v}',float(os.environ['DA']))
-        if os.environ.get('WIND'): pg.evaluate('([i,w])=>{__tb.TEST_WIND[i]=w}',[int(os.environ['WIND'].split(':')[0]),float(os.environ['WIND'].split(':')[1])])
+        if os.environ.get('WIND'): pg.evaluate('(a)=>{for(const [i,w] of a) __tb.TEST_WIND[i]=w}',[[int(x.split(':')[0]),float(x.split(':')[1])] for x in os.environ['WIND'].split(',')])
         for i,l in enumerate(LVS):
             if levels and i not in levels: continue
             k=l['key']; lines=[]
             lines.append(('1 headpiece locked',json.dumps(l['load'])==json.dumps(LV[k]['headpiece']),''))
             base=[pg.evaluate(RUN,[i,l['solution'],sd]) for sd in range(NJ)]
             lines.append(('2 build stands (exact + off by up to 3 cm)',all(b['pass'] and b['ready'] for b in base),' '.join(('P' if b['pass'] and b['ready'] else 'F:'+(b['phases'] or 'ready')+':'+json.dumps(b['fail'] or b['build'])) for b in base)))
+            e0=base[0]['build']  # the exactly placed run: settled pieces within 5 cm of their places, outline and pieces differ by at most 2.5%
+            lines.append(('8 outline matches the settled build',e0['moved']<=0.05 and e0['miss']<=0.025 and e0['over']<=0.025,'moved %s, outline uncovered %s, pieces outside %s'%(e0['moved'],e0['miss'],e0['over'])))
             for w in TESTS[k]:
                 r=pg.evaluate(RUN,[i,w['sol'],0]); p=r['build']['phys'] or bool(r['fail'] and r['fail']['phys'])
                 lines.append(('3 wrong %s: %s'%(w['kind'],w['name']),(not (r['pass'] and r['ready'])) and p,'%s %s'%(r['phases'] or 'not ready',json.dumps(r['fail'] or r['build']))))
@@ -62,6 +66,7 @@ with sync_playwright() as p:
               return +(Math.max(...out.map(([it,x,y])=>y+T.PIECE_DEFS[it.defKey].hy))/(r.h/px)).toFixed(2);}''',i)
             lines.append(('4 pile (and it fits the sidebar at 1280x800)',okp and fits<=1.0,'%d pieces, %d%% of the sidebar height'%(sum(have.values()),round(fits*100))))
             for name,ok,det in lines: print('%-9s %-4s %-58s %s'%(k,'PASS' if ok else 'FAIL',name,det[:170]),flush=True)
+            if os.environ.get('DIAG'): print(base[0]['build'].get('diag','')[:3000])
         levels=[]
     if 'real' in sys.argv:  # levels.md test 2, last part: the real game loop (real frame timing, the real ready gate, no Tab), all levels at once
         import time
@@ -78,6 +83,13 @@ with sync_playwright() as p:
                     st=q.evaluate(POLL)
                     if st: done[i]=st
         for i,q in pages: print('%-9s %-4s %s'%(q.evaluate('(i)=>__tb.LEVELS[i].key',i),'PASS' if done.get(i,'').endswith('PASS') else 'FAIL','2 real game loop: '+done.get(i,'timeout')),flush=True)
+        levels=[]
+    if 'shot' in sys.argv:  # screenshot of each level after the quick build (before the test): /tmp/shot<i>.png
+        for i in levels:
+            pg.evaluate('''(i)=>{const T=__tb; T.mode="build"; T.startLevel(i); T.quiet0(); T.render();}''',i); pg.screenshot(path='/tmp/shot%da.png'%i)
+            pg.evaluate('''(i)=>{const T=__tb; T.mode="build"; T.startLevel(i); T.quiet0(); T.startAutoBuild(); let n=0; while(T.auto&&n<60*300){T.stepPhysics(1/60);T.cleanupOutOfBounds();T.updateCheck(1/60);n++;}
+              for(let k=0;k<120;k++){T.stepPhysics(1/60);T.updateCheck(1/60);} T.render();}''',i)
+            pg.screenshot(path='/tmp/shot%d.png'%i)
         levels=[]
     if 'sizes' in sys.argv:
         for vw,vh in [(1920,1080),(1366,768),(1536,864),(2560,1440),(1280,1024),(1024,768)]:
