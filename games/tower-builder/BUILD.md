@@ -186,12 +186,19 @@ The owner's second fix list (18 items) is built and pushed. What changed:
 
 ## Current state, update 5 (12 Nov 2026; overrides the sections above where they differ)
 
-- Sidebar and its pieces 1.5x bigger (`pilePx` x 1.5 after the fit loop). A level whose full pile is then too tall gets a wider bin (pieces keep their size), up to 45% of the screen (Lion Gate, Valens at 1280x800).
+- Sidebar and its pieces 1.5x bigger (`pilePx` x 1.5 after the fit loop), the same in every level: no per-level widening, no shrinking fallback (owner: every level's pile fits; do not change sidebar or piece sizes again).
 - Sidebar hand: maxForce (200 x own weight + 8 x pile weight) x g, but the joint target stays within `PILE_LEAD` 1.5 m of the grab point (down only 0.1 m, so pressing into the pile stays gentle) and the held piece's speed is capped (15 m/s, upward 7 m/s): the most buried piece lifts, nothing shoots up.
 - Out of the sidebar the piece keeps its grab point (corner stays a corner hold), its spin and its screen speed.
 - Hand, final (supersedes all earlier hand lines): a planck MouseJoint at the grab point (5 Hz, damping 0.9; the Box2D testbed drag), solved with the contacts. Its target is the hand, easing to the pointer (0.03 s), capped at the carry speed, within 0.5 m of the grab point, never below it while touching (no pressing down). maxForce = weight + max(m x maxAccel, 350 N) in air; touching: hypot(weight, min(m x maxAccel, 0.8 x weight + 120 N)). Centre grab: limited torque holds the angle. Off-centre: free pendulum plus grip friction (torque 2.5 x inertia about the grab point x spin, capped at 0.25 x weight x arm), so it swings, settles, and a hard whirl goes round. Sling code removed. Harness `probe` "hand" checks hang, whirl, drag-and-settle with a tremble count, and spin kept out of the sidebar.
 
+## Current state, update 6 (12 Nov 2026; overrides the sections above where they differ)
+
+- Sidebar hand: maxForce (400 x own weight + 16 x pile weight) x g, `PILE_LEAD` 3 m; pieces resting on the held one (`carriedByHand`) are exempt from the pile's settling brake and slow cap and get the hand's cap (15 m/s, up 7 m/s). Harness: the bottom piece of every level rises 6-9 m in 1 s.
+- Into the sidebar the piece keeps its grab point, spin and screen speed (nudged sideways only as far as needed to be inside the bin).
+- Held off-centre in free air a piece weighs 1.8x (`HELD_EXTRA_G` 0.8) and the grip is firmer (`GRIP_DAMP` 4, `GRIP_MAX` 0.4): dragging swings it about 0.3 rad (was 0.5).
+- Ground: drawn 24 px thick (`GROUND_PX`), its top at y = 0 (the old 12 px strip covered the bottom of the pieces). Held pieces passed through the ground because the hand joint was attached to the ground body (jointed bodies never collide); it now hangs on `anchorBody`. Ghosts use collision groups (pass through pieces, not ground or walls); their overlap with pieces is measured directly (`overlapsPiece`).
+
 ## Task list
 
-Done (12 Nov 2026): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
+Done (12 Nov 2026, second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
 When the owner sends a numbered fix list: copy it here as the task list, then build all of it in that chat (rules in the root `CLAUDE.md`).

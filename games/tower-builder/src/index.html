@@ -398,12 +398,15 @@
   let viewX0 = 0; // world x at the left edge of the building area (negative when zoomed out, so the level stays centred)
 
   const world = new planck.World({ gravity: planck.Vec2(0, -10) });
+  // Collision groups: a piece just out of the sidebar (ghost) passes through other pieces but not the ground or walls.
+  const SOLID_CAT = 2, GHOST_CAT = 4;
 
   // Kinematic so the earthquake can move it; at rest it behaves as static.
   const groundBody = world.createBody({ type: "kinematic", position: planck.Vec2(WORLD_CENTER_X, -2) });
   groundBody.createFixture({
     shape: planck.Box(40, 2),
     friction: 0.8,
+    filterCategoryBits: SOLID_CAT,
   });
 
   const anchorBody = world.createBody({ type: "static" });
@@ -420,6 +423,7 @@
     for (const x of [viewX0 - WALL_THICKNESS / 2, viewX0 + worldWidth + WALL_THICKNESS / 2]) {
       const wall = world.createBody({ type: "static", position: planck.Vec2(x, centerY) });
       wall.createFixture({
+        filterCategoryBits: SOLID_CAT,
         shape: planck.Box(WALL_THICKNESS / 2, halfHeight),
         friction: 1.35,
         restitution: 0,
@@ -492,6 +496,7 @@
   let scale = 1; // pixels per metre
   let buildingWidthPx = 0;
   let buildingHeightPx = 0;
+  const GROUND_PX = 24; // the ground strip at the bottom of the building area; its top is y = 0
   let sidebarWidthPx = 0;
   let currentLevel = null; // index into LEVELS; null = free play
   let levelTop = 0; // metres of height the current level needs on screen
@@ -515,16 +520,12 @@
         if (w <= cssWidth * 0.45 && LEVELS.every((L, i) => pileLayout(stockItems(i), bin, pilePx)[2])) break;
       }
       pilePx *= 1.5; // owner: sidebar and its pieces one and a half times bigger
-      // a pile too tall for the bin at that size gets a wider bin (pieces keep their size), up to 45% of the screen
-      let binW = PILE_BIN_W;
-      const fitsAt = (bw) => { const w = bw * pilePx + 16, size = Math.min(64, (w - 32) / 3); return pileLayout(stockItems(currentLevel), { w: w - 16, h: cssHeight - size - 24 }, pilePx)[2]; };
-      while (!fitsAt(binW) && (binW + 0.2) * pilePx + 16 <= cssWidth * 0.45) binW += 0.2;
-      sidebarWidthPx = binW * pilePx + 16;
+      sidebarWidthPx = PILE_BIN_W * pilePx + 16;
     }
     buildingWidthPx = cssWidth - sidebarWidthPx;
     buildingHeightPx = cssHeight;
     scale = buildingWidthPx / WORLD_WIDTH;
-    if (currentLevel != null) scale = Math.min(scale, buildingHeightPx / levelTop);
+    if (currentLevel != null) scale = Math.min(scale, (buildingHeightPx - GROUND_PX) / levelTop);
     worldWidth = buildingWidthPx / scale;
     viewX0 = WORLD_CENTER_X - worldWidth / 2;
     rebuildBoundaries();
@@ -534,13 +535,13 @@
   window.addEventListener("resize", layout);
 
   function worldToScreen(x, y) {
-    return { x: (x - viewX0) * scale, y: buildingHeightPx - y * scale };
+    return { x: (x - viewX0) * scale, y: buildingHeightPx - GROUND_PX - y * scale };
   }
   function screenToWorld(px, py) {
     const rect = canvas.getBoundingClientRect();
     const localX = px - rect.left;
     const localY = py - rect.top;
-    return { x: localX / scale + viewX0, y: (buildingHeightPx - localY) / scale };
+    return { x: localX / scale + viewX0, y: (buildingHeightPx - GROUND_PX - localY) / scale };
   }
 
   function materialLayout() {
@@ -648,7 +649,7 @@
     piece.desired = { x: worldPt.x, y: worldPt.y };
     piece.controlMode = "hand";
     piece.handT = { x: worldPt.x, y: worldPt.y };
-    piece.joint = world.createJoint(planck.MouseJoint({ maxForce: 1, frequencyHz: HOLD_HZ, dampingRatio: HOLD_DAMP }, groundBody, piece.body, planck.Vec2(worldPt.x, worldPt.y)));
+    piece.joint = world.createJoint(planck.MouseJoint({ maxForce: 1, frequencyHz: HOLD_HZ, dampingRatio: HOLD_DAMP }, anchorBody, piece.body, planck.Vec2(worldPt.x, worldPt.y)));
     
     pointers.set(pointerId, {
       piece,
@@ -687,10 +688,10 @@
     const def = PIECE_DEFS[defKey];
     const vertHalfExtent = def.shape === "circle" ? def.r : (angle === 0 ? def.hy : def.hx);
     const horizHalfExtent = def.shape === "circle" ? def.r : (angle === 0 ? def.hx : def.hy);
-    const rawY = (buildingHeightPx - py) / scale;
+    const rawY = (buildingHeightPx - GROUND_PX - py) / scale;
     const spawnPt = {
       x: viewX0 + worldWidth - horizHalfExtent - 0.08,
-      y: Math.min(Math.max(rawY, vertHalfExtent + 0.05), buildingHeightPx / scale - vertHalfExtent - 0.05),
+      y: Math.min(Math.max(rawY, vertHalfExtent + 0.05), (buildingHeightPx - GROUND_PX) / scale - vertHalfExtent - 0.05),
     };
     const piece = spawnPiece(defKey, spawnPt.x, spawnPt.y, angle, material);
     startHold(piece, spawnPt, pointerId, px, py);
@@ -916,7 +917,7 @@
   // events are filtered), moves at most at the material's carry speed, stays within HOLD_LEAD of the
   // grab point, and while touching another piece never goes below the grab point (no pressing down).
   const HOLD_HZ = 5, HOLD_DAMP = 0.9, HOLD_SMOOTH = 0.03, HOLD_LEAD = 0.5; // Hz, -, s, m
-  const GRIP_DAMP = 2.5, GRIP_MAX = 0.25; // 1/s: the grip's friction, so a piece held off-centre swings and settles (amplitude halves in about 0.55 s)
+  const GRIP_DAMP = 4, GRIP_MAX = 0.4, HELD_EXTRA_G = 0.8; // HELD_EXTRA_G: held off-centre in free air it weighs 1.8x, so it swings less and settles faster // 1/s: the grip's friction, so a piece held off-centre swings and settles (amplitude halves in about 0.55 s)
   function advanceHeldTargets() {
     for (const hand of pointers.values()) {
       const piece = hand.piece;
@@ -941,7 +942,9 @@
       // Force: its own weight plus the hand's strength; touching another piece only a gentle push
       // (0.8 x own weight + HAND_PUSH), so what it pushes resists by its own mass.
       const W = m * GRAVITY;
-      piece.joint.setMaxForce(touching ? Math.hypot(W, Math.min(m * material.maxAccel, m * PUSH_ACCEL + HAND_PUSH)) : W + Math.max(m * material.maxAccel, HAND_LIFT));
+      const extra = piece.lever && !touching ? HELD_EXTRA_G * W : 0;
+      if (extra) body.applyForceToCenter(planck.Vec2(0, -extra), true);
+      piece.joint.setMaxForce(touching ? Math.hypot(W, Math.min(m * material.maxAccel, m * PUSH_ACCEL + HAND_PUSH)) : W + extra + Math.max(m * material.maxAccel, HAND_LIFT));
       if (piece.lever) {
         // grip friction: a torque against the swing, scaled by the inertia about the grab point (a body's own
         // angular damping acts only about its centre and barely slows a pendulum)
@@ -1009,7 +1012,7 @@
     for (const l of loads) if (l.released) damp(l.body, 0.05, 0.08, 0.85);
   }
   function settlePile() {
-    const held = new Set(Array.from(pointers.values()).map((h) => h.pileBody));
+    const held = carriedByHand();
     for (const b of pileBodies()) if (!held.has(b)) damp(b, 0.4, 0.8, 0.7);
   }
 
@@ -1085,7 +1088,7 @@
   function render() {
     SKIN.background(ctx, buildingWidthPx, buildingHeightPx);
     ctx.fillStyle = "#d8c08a";
-    ctx.fillRect(0, buildingHeightPx - 12, buildingWidthPx, 12);
+    ctx.fillRect(0, buildingHeightPx - GROUND_PX, buildingWidthPx, GROUND_PX);
 
     drawLevelBackdrop();
     for (const piece of pieces) drawPiece(piece);
@@ -1543,9 +1546,8 @@
     const r = pileBinRect;
     if (!r) return;
     // the same piece size in every level's pile (pilePx); only a screen too narrow for it shrinks it
-    let places, fits;
-    [pileScale, places, fits] = pileLayout(items, r, pilePx);
-    if (!fits) [pileScale, places] = pileLayout(items, r, null);
+    let places;
+    [pileScale, places] = pileLayout(items, r, pilePx);
     const W = r.w / pileScale, H = r.h / pileScale;
     const walls = (pileWalls = pileWorld.createBody({ type: "static" }));
     pileQuietUntil = performance.now() + 1500;
@@ -1626,15 +1628,29 @@
     const bx = d.r != null ? d.r / 3 : short(d.hx, d.hy), by = d.r != null ? d.r / 3 : short(d.hy, d.hx);
     const centred = forceCentre || (l.x * l.x) / (bx * bx) + (l.y * l.y) / (by * by) <= 1;
     const grab = centred ? body.getLocalCenter() : l;
-    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: (200 * body.getMass() + 8 * pileBodies().reduce((s, b) => s + b.getMass(), 0)) * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
+    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: (400 * body.getMass() + 16 * pileBodies().reduce((s, b) => s + b.getMass(), 0)) * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
     body.setAngularDamping(PILE_SWING_DAMP[body.pileItem.material]); body.setLinearDamping(0);
     if (centred) body.setAngularVelocity(0);
     pointers.set(pointerId, { piece: null, pileBody: body, pileGrab: planck.Vec2(grab.x, grab.y), pileTarget: pt, joint, centred });
   }
-  const PILE_LEAD = 1.5, PILE_LEAD_DOWN = 0.1, PILE_HAND_SPEED = 15, PILE_HAND_UP = 7; // m, m, m/s, m/s (sidebar world)
+  const PILE_LEAD = 3, PILE_LEAD_DOWN = 0.1, PILE_HAND_SPEED = 15, PILE_HAND_UP = 7; // m, m, m/s, m/s (sidebar world)
   function capPileHand(b) {
     const v = b.getLinearVelocity(), sp = Math.hypot(v.x, v.y), ks = sp > PILE_HAND_SPEED ? PILE_HAND_SPEED / sp : 1;
     if (ks < 1 || v.y > PILE_HAND_UP) b.setLinearVelocity(planck.Vec2(v.x * ks, Math.min(PILE_HAND_UP, v.y * ks)));
+  }
+  // pieces resting (directly or through others) on top of a held sidebar piece: lifted with it, so the
+  // pile's settling brake and its slow speed cap do not hold them (and the hand) back
+  function carriedByHand() {
+    const out = new Set(), todo = [];
+    for (const h of pointers.values()) if (h.pileBody) { out.add(h.pileBody); todo.push(h.pileBody); }
+    while (todo.length) {
+      const b = todo.pop(), y = b.getPosition().y;
+      for (let ce = b.getContactList(); ce; ce = ce.next) {
+        const o = ce.other;
+        if (o.pileItem && !out.has(o) && ce.contact.isTouching() && o.getPosition().y > y) { out.add(o); todo.push(o); }
+      }
+    }
+    return out;
   }
   function drivePileHands() {
     const r = pileBinRect, W = r.w / pileScale, H = r.h / pileScale;
@@ -1657,10 +1673,11 @@
     const r = pileBinRect;
     if (!r) return;
     const W = r.w / pileScale, H = r.h / pileScale;
-    const held = new Set(Array.from(pointers.values()).map((h) => h.pileBody));
+    const held = carriedByHand();
     for (const b of pileBodies()) {
-      // pieces knocked by the hand stay messy but do not fly far
-      if (!held.has(b)) {
+      // pieces knocked by the hand stay messy but do not fly far; those carried up by it keep the hand's cap
+      if (held.has(b)) capPileHand(b);
+      else {
         const v = b.getLinearVelocity(), sp = Math.hypot(v.x, v.y);
         if (sp > PILE_MAX_SPEED || v.y > PILE_MAX_UP) {
           const k = Math.min(1, PILE_MAX_SPEED / sp);
@@ -1676,7 +1693,24 @@
   }
   function setGhost(piece, on) {
     piece.ghost = on;
-    for (let f = piece.body.getFixtureList(); f; f = f.getNext()) f.setSensor(on);
+    for (let f = piece.body.getFixtureList(); f; f = f.getNext()) f.setFilterData(on ? { groupIndex: 0, categoryBits: GHOST_CAT, maskBits: SOLID_CAT } : { groupIndex: 0, categoryBits: 1, maskBits: 0xffff });
+  }
+  // a ghost has no contacts with pieces, so its overlap with them is measured directly
+  function overlapsPiece(body) {
+    let hit = false;
+    for (let f = body.getFixtureList(); f && !hit; f = f.getNext()) {
+      world.queryAABB(f.getAABB(0), (fx) => {
+        const b = fx.getBody();
+        if (b === body || !(b.piece || b.isLoad) || (b.piece && (b.piece.ghost || b.piece.auto))) return true;
+        dIn.proxyA.set(f.getShape(), 0); dIn.proxyB.set(fx.getShape(), 0);
+        dIn.transformA.set(body.getTransform()); dIn.transformB.set(b.getTransform());
+        dIn.useRadii = true; dCache.count = 0;
+        planck.Distance(dOut, dCache, dIn);
+        if (dOut.distance < 0.01) { hit = true; return false; }
+        return true;
+      });
+    }
+    return hit;
   }
   // Dragged out of the sidebar: the real piece appears under the finger, passing through
   // everything until it is clear of other pieces and the ground, so it cannot knock the building.
@@ -1696,24 +1730,31 @@
   }
   // Dragged into the sidebar: the piece shrinks into the pile and stays in the hand.
   function worldToPile(pointerId, hand, px, py) {
-    const piece = hand.piece, a = piece.body.getAngle();
+    // held at the same point, moving and turning as it was (screen speed kept across the two scales);
+    // only nudged sideways as far as needed to be inside the bin
+    const piece = hand.piece, a = piece.body.getAngle(), lever = piece.lever, g = lever ? piece.grabLocal : piece.body.getLocalCenter();
+    const k = scale / pileScale, vg = piece.body.getLinearVelocityFromWorldPoint(piece.body.getWorldPoint(g)), om = piece.body.getAngularVelocity();
     piece.ghost = false;
     releaseHold(pointerId);
     if (!pieces.includes(piece)) return;
     removePiece(piece);
-    // held by its middle, kept inside the bin
-    const r = pileBinRect, W = r.w / pileScale, H = r.h / pileScale, t = pilePoint(px, py);
-    const d = PIECE_DEFS[piece.defKey], e = d.r != null ? d.r : Math.max(d.hx, d.hy);
-    const b = createPileBody({ defKey: piece.defKey, material: piece.material }, Math.max(e, Math.min(W - e, t.x)), Math.max(e, Math.min(H + 2, t.y)));
+    const r = pileBinRect, W = r.w / pileScale, H = r.h / pileScale, t = pilePoint(px, py), ca = Math.cos(a), sa = Math.sin(a);
+    const b = createPileBody({ defKey: piece.defKey, material: piece.material }, t.x - (g.x * ca - g.y * sa), t.y - (g.x * sa + g.y * ca));
     b.setTransform(b.getPosition(), a);
-    startPileHold(pointerId, b, b.getWorldCenter(), true);
+    let lo = Infinity, hi = -Infinity, bot = Infinity;
+    for (let f = b.getFixtureList(); f; f = f.getNext()) { const bb = f.getAABB(0); lo = Math.min(lo, bb.lowerBound.x); hi = Math.max(hi, bb.upperBound.x); bot = Math.min(bot, bb.lowerBound.y); }
+    const sx = lo < 0 ? -lo + 0.01 : hi > W ? W - hi - 0.01 : 0, sy = bot < 0 ? -bot + 0.01 : 0;
+    if (sx || sy) b.setTransform(planck.Vec2(b.getPosition().x + sx, b.getPosition().y + sy), a);
+    startPileHold(pointerId, b, b.getWorldPoint(g), !lever);
+    const c = b.getWorldCenter(), q = b.getWorldPoint(g);
+    b.setLinearVelocity(planck.Vec2(vg.x * k - om * (c.y - q.y), vg.y * k + om * (c.x - q.x)));
+    b.setAngularVelocity(om);
+    capPileHand(b);
   }
   function solidifyGhosts() {
     for (const p of pieces) {
       if (!p.ghost) continue;
-      let clear = true;
-      for (let ce = p.body.getContactList(); ce; ce = ce.next) if (ce.contact.isTouching()) { clear = false; break; }
-      if (clear) setGhost(p, false);
+      if (!overlapsPiece(p.body)) setGhost(p, false);
     }
   }
   function returnToPile(piece) {

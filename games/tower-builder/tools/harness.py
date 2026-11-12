@@ -54,13 +54,13 @@ with sync_playwright() as p:
           print('pile',li,pg.evaluate('''(i)=>{const T=__tb;T.mode="build";T.startLevel(i);T.quiet0&&T.quiet0();const run=(n)=>{for(let k=0;k<n;k++){T.stepPhysics(1/60);T.cleanupOutOfBounds();}};
           run(120);T.feelHits[1]=0;run(300);const a=T.feelHits[1]; let seed=i+1; const rnd=()=>((seed=(seed*16807)%2147483647)/2147483647);
           const bs=T.pileBodies().sort((x,y)=>x.getPosition().y-y.getPosition().y), b=bs[0], y0=b.getPosition().y;
-          T.startPileHold(99,b,b.getWorldCenter(),true); const h=T.pointers.get(99); let vup=0; for(let k=0;k<90;k++){h.pileTarget={x:b.getPosition().x,y:y0+k/15};run(1);vup=Math.max(vup,b.getLinearVelocity().y);}
+          T.startPileHold(99,b,b.getWorldCenter(),true); const h=T.pointers.get(99); let vup=0; for(let k=0;k<60;k++){h.pileTarget={x:b.getPosition().x,y:y0+k/6};run(1);vup=Math.max(vup,b.getLinearVelocity().y);}
           const lifted=+(b.getPosition().y-y0).toFixed(2), sizeKept=T.pileScale===T.pilePx; T.releaseHold(99); run(60);
           for(let r=0;r<8;r++){const B=T.pileBodies(), c=B[Math.floor(rnd()*B.length)], q=c.getPosition();
             T.startPileHold(99,c,c.getWorldPoint({x:0.4,y:0.2}),false); const H=T.pointers.get(99);
             const tx=rnd()*8, ty=rnd()*6; for(let k=0;k<40;k++){H.pileTarget={x:q.x+(tx-q.x)*k/40,y:q.y+(ty-q.y)*k/40};run(1);} T.releaseHold(99); run(20);}
-          run(180); T.feelHits[1]=0; let mx=0, nmov=0; for(let k=0;k<600;k++){run(1); for(const B of T.pileBodies()){const v=B.getLinearVelocity(),sp=Math.hypot(v.x,v.y); mx=Math.max(mx,sp); if(sp>0.05)nmov++;}}
-          return {sizeKept,untouched5s:a,bottomLifted:lifted,maxUp:+vup.toFixed(1),afterMessHits10s:T.feelHits[1],maxSpeed:+mx.toFixed(2),movingBodyFrames:nmov};}''',li))
+          run(180); T.feelHits[1]=0; T.feelHits[2]=0; let mx=0, nmov=0; for(let k=0;k<600;k++){run(1); for(const B of T.pileBodies()){const v=B.getLinearVelocity(),sp=Math.hypot(v.x,v.y); mx=Math.max(mx,sp); if(sp>0.05)nmov++;}}
+          return {sizeKept,untouched5s:a,bottomLifted:lifted,maxUp:+vup.toFixed(1),afterMessHits10s:T.feelHits[1],rescued:T.feelHits[2]||0,maxSpeed:+mx.toFixed(2),movingBodyFrames:nmov};}''',li))
         # Hand physics tests (pass/fail). Pointer paths are human-like: speed eases in over 0.3 s.
         print('hand',pg.evaluate('''()=>{const T=__tb;T.mode="build";T.startLevel(0);const run=(n)=>{for(let k=0;k<n;k++)T.stepPhysics(1/60);};
           const res={};
@@ -87,6 +87,14 @@ with sync_playwright() as p:
            for(let k=0;k<40;k++){H.pileTarget={x:q.x-k*0.05,y:q.y+1};run(1);} const w1=B.getAngularVelocity(),r=T.pileBinRect;
            T.pileToWorld(96,H,r.x-5,r.y+r.h/2);const P=T.pointers.get(96).piece,w2=P.body.getAngularVelocity();run(1);
            res['out of sidebar keeps spin and grip']=[+w1.toFixed(2),+w2.toFixed(2),P.lever,Math.abs(w1-w2)<0.01&&P.lever?'PASS':'FAIL'];T.releaseHold(96);}
+          {T.clearAllPieces();const P=T.spawnPiece("block",8,6,0,"stone");run(1);const g=P.body.getWorldPoint({x:0.9,y:0.4});T.startHold(P,g,95,0,0);
+           for(let k=0;k<40;k++){P.desired={x:g.x+k*0.06,y:g.y+0.5};run(1);} const w1=P.body.getAngularVelocity(),r=T.pileBinRect;
+           T.worldToPile(95,T.pointers.get(95),r.x+r.w/2,r.y+r.h/2);const B=T.pointers.get(95).pileBody,w2=B.getAngularVelocity();
+           res['into sidebar keeps spin and grip']=[+w1.toFixed(2),+w2.toFixed(2),!T.pointers.get(95).centred,Math.abs(w1-w2)<0.01&&!T.pointers.get(95).centred?'PASS':'FAIL'];T.releaseHold(95);}
+          {T.clearAllPieces();const a=T.spawnPiece("block",8,0.5,0,"stone");run(30);const P=T.spawnPiece("block",8,0.55,0,"stone");P.ghost=false;T.startHold(P,P.body.getWorldCenter(),94,0,0);
+           for(let f=P.body.getFixtureList();f;f=f.getNext())f.setFilterData({groupIndex:0,categoryBits:4,maskBits:2});P.ghost=true;
+           let low=9;for(let k=0;k<120;k++){P.desired={x:8,y:-2};run(1);low=Math.min(low,P.body.getPosition().y);}
+           res['ghost stays above ground']=[+low.toFixed(2),P.ghost,low>0.4&&P.ghost?'PASS':'FAIL'];T.releaseHold(94);}
           return res;}'''))
         levels=[]
     for i in levels:
