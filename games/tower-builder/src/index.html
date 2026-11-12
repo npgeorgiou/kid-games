@@ -945,11 +945,12 @@
     return w;
   }
   const PUSH_ACCEL = 8; // m/s^2: hand force while touching = 0.8 x own weight ...
-  const HAND_PUSH = 120; // N ... plus this much hand strength, so a mudbrick can shove another along the ground (stone only slowly)
+  // (no fixed extra strength: what a held piece pushes against resists by its own weight, so a piece pushes along only what is about as heavy as itself)
   const NEAR_GAP = 0.25, NEAR_SPEED = 1.5; // within this gap of another piece the held piece moves at most this fast (no sudden ramming)
   // Within NEAR_GAP of another piece only the speed towards it is capped; moving along
   // or away from it stays at full speed (capping all of it made dragging over the building lag).
   const dIn = new planck.DistanceInput(), dOut = new planck.DistanceOutput(), dCache = new planck.SimplexCache();
+  let nearSeen = false; // set by capApproach: another piece within NEAR_GAP
   function capApproach(body, vx, vy, cap) {
     for (let f = body.getFixtureList(); f; f = f.getNext()) {
       const bb = f.getAABB(0);
@@ -962,6 +963,7 @@
         dIn.useRadii = true; dCache.count = 0;
         planck.Distance(dOut, dCache, dIn);
         const d = dOut.distance;
+        if (d < NEAR_GAP) nearSeen = true;
         if (d >= NEAR_GAP || d < 0.003) return true; // far, or already touching (the push force is limited then)
         const ux = (dOut.pointB.x - dOut.pointA.x) / d, uy = (dOut.pointB.y - dOut.pointA.y) / d;
         const toward = vx * ux + vy * uy;
@@ -1026,7 +1028,9 @@
       let vx = ((piece.desired.x - T.x) * k) / STEP, vy = ((piece.desired.y - T.y) * k) / STEP;
       const vlen = Math.hypot(vx, vy), vcap = CARRY_SPEED / Math.sqrt(mr);
       if (vlen > vcap) { vx *= vcap / vlen; vy *= vcap / vlen; }
+      nearSeen = false;
       if (!piece.ghost) [vx, vy] = capApproach(body, vx, vy, Math.min(NEAR_SPEED, vcap));
+      const close = touching || nearSeen; // about to touch: no free-air strength, so it cannot ram what it meets
       T.x += vx * STEP; T.y += vy * STEP;
       // a spring tracking a moving point trails it by 2 x damping / stiffness x speed; aim that far ahead so the grab point stays on the hand
       const lead = (2 * HOLD_DAMP) / (2 * Math.PI * HOLD_HZ);
@@ -1040,9 +1044,10 @@
       const W = m * GRAVITY;
       const extra = piece.lever && !touching ? HELD_EXTRA_G * W : 0;
       if (extra) body.applyForceToCenter(planck.Vec2(0, -extra), true);
-      piece.joint.setMaxForce(!touching ? W + extra + Math.max(m * FREE_AIR_ACCEL, HAND_LIFT)
+      // every part of the hand's strength goes with the weight it holds (owner: a small stone must not shove big ones away)
+      piece.joint.setMaxForce(!close ? W + extra + m * FREE_AIR_ACCEL
         : Wt > HAND_MAX_WEIGHT ? HAND_MAX_WEIGHT // too heavy: it cannot lift it
-        : Math.hypot(Wt * (1 + HAND_LIFT_EXTRA), Math.min(mt * material.maxAccel, mt * PUSH_ACCEL + HAND_PUSH)));
+        : Math.hypot(Wt * (1 + HAND_LIFT_EXTRA), mt * Math.min(material.maxAccel, PUSH_ACCEL)));
       if (piece.lever) {
         // grip friction: a torque against the swing, scaled by the inertia about the grab point (a body's own
         // angular damping acts only about its centre and barely slows a pendulum)
@@ -1433,9 +1438,10 @@
   // ---------------------------------------------------------------------
   // SECTION: BREAKING -- mudbrick crumbles under heavy weight, wood snaps when loaded over a gap
   // ---------------------------------------------------------------------
-  // Owner (12 Nov, changed): a mudbrick block crumbles under four mudbrick blocks and two stone blocks (about 449 N as built), holds anything lighter (seven mudbricks: 441 N).
+  // Owner (13 Nov): a mudbrick block crumbles under four mudbrick blocks (about 252 N), and, separately, under three stone blocks
+  // (about 296 N); three mudbricks (189 N) or two stones (197 N) it holds. The limit sits between those.
   // A wooden beam over a gap holds one stone block, not two (placeholder).
-  const CRUSH_FORCE = 445; // N pressing down on one mudbrick block lying flat (2 m wide)
+  const CRUSH_FORCE = 238; // N pressing down on one mudbrick block lying flat (2 m wide)
   // owner: a narrow mudbrick (a column standing up) holds less: what it holds goes with the width it stands on
   function crushLimit(p) {
     let x0 = Infinity, x1 = -Infinity;
@@ -1965,7 +1971,7 @@
   // From level 2 on, below what tips a lone stone column (0.6 x 2.4 m tips at about
   // 7.5 N/m here: weight x half-width against wind x half-height); level 1 has no columns.
   const TEST_WIND = [110, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 18, 6.5]; // Lighthouse: the strongest wind; walls not tied together fall in it
-  const TEST_LOAD_DENSITY = [5, 16, 12, 75, 25, 18.3, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
+  const TEST_LOAD_DENSITY = [5, 8, 5, 75, 25, 8, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
   const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
   const TEST_FAST = 10, DRUM_LEAD = 1.5; // Tab test speed-up; seconds the drumroll may start before the load moves
@@ -2562,7 +2568,7 @@
   function drawLevelBackdrop() {
     if (currentLevel == null || !grid) return;
     SKIN.outline(ctx, screenPath(grid.solid), screenPath(grid.holes), grid.guides.length ? screenPath(grid.guides) : null);
-    if (grid.wood.length) SKIN.woodZone(ctx, screenPath(grid.wood));
+    if (grid.wood.length && grid.L.woodRole === "courses") SKIN.woodZone(ctx, screenPath(grid.wood)); // wood courses only; an opening where temporary wood stands is drawn as an opening (owner)
     const badGhost = failShow && (failShow.loads.length || failShow.loadZone);
     if (!loads.length || badGhost) SKIN.loadGhost(ctx, screenPath(grid.load), badGhost);
   }

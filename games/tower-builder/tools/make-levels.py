@@ -111,14 +111,14 @@ level("mastaba", "Μαστάμπα", "c. 3000 BC", "stack a wide, solid mass", "
       wrong=[W("wooden blocks in the top row", "material", recolour(s, lambda e: near(e[3], 2.5), "wood")),
              W("the middle of the top row left open under the roof", "build", without(s, lambda e: abs(e[2]) < 1.5 and near(e[3], 2.5)))])
 # 2 Djoser: five steps built, the sixth step is the load
-s = [p for r in range(5) for p in row("stone" if r == 0 else "mudbrick", -(6 - r), 6 - r, r + 0.5)]
+s = [p for r in range(5) for p in row("stone" if r < 3 else "mudbrick", -(6 - r), 6 - r, r + 0.5)]  # owner's mudbrick strength (13 Nov): stone in the first three layers
 level("djoser", "Πυραμίδα του Ζοζέρ", "c. 2650 BC", "build tall in steps; the sixth step goes on last", "six steps (Djoser's pyramid has six); the load is the top step",
       s, [rect(-1, 5, 1, 6)],
       wrong=[W("mudbrick at the bottom, stone on top", "material", [[e[0], "mudbrick" if e[3] < 1 else "stone", e[2], e[3], e[4]] for e in s]),
              W("a top-step block more than half off the step below", "build", moved(s, lambda e: near(e[2], 1) and near(e[3], 4.5), dx=2.2))])
 # 3 Ziggurat of Ur
 s = (row("stone", -5, 5, 0.5) + [["beam", "wood", x, 1.25, 0] for x in (-3.2, 0, 3.2)] + [tri_rest(-5, 0, "right", "stone")] +
-     row("mudbrick", -4, 4, 2.0) + row("mudbrick", -4, 4, 3.0) + [["beam", "wood", x, 3.75, 0] for x in (-1.6, 1.6)] + row("mudbrick", -2, 2, 4.5))
+     row("stone", -4, 4, 2.0) + row("mudbrick", -4, 4, 3.0) + [["beam", "wood", x, 3.75, 0] for x in (-1.6, 1.6)] + row("mudbrick", -2, 2, 4.5))
 level("ziggurat", "Ζιγκουράτ της Ουρ", "c. 2100 BC", "three terraces with reed-mat courses, a stairway, the temple on top",
       "Britannica: mudbrick core strengthened with reed matting, three tiers, staircases, temple of Nanna on top (not preserved); wood courses stand for the reed mats; the stairway is one triangle",
       s, [rect(-1.5, 5, 1.5, 6.0)], woodRole="courses",
@@ -155,7 +155,7 @@ level("liongate", "Πύλη των Λεόντων", "c. 1250 BC", "jambs, a ston
              W("one jamb left out", "build", without(s, lambda e: e[0] == "block" and e[4] != 0 and e[2] < 0))])
 # 6 Ishtar Gate
 s = ([p for y in (0.5, 1.5) for p in row("stone", -6, 2, y) + row("stone", 2, 2, y)] +
-     [p for y in (2.5, 3.5, 4.5, 5.5, 6.5) for p in (["block", "stone" if y < 4 else "mudbrick", -(ARCH_X + 2), y, 0], ["block", "stone" if y < 4 else "mudbrick", ARCH_X + 2, y, 0])] +
+     [p for y in (2.5, 3.5, 4.5, 5.5, 6.5) for p in (["block", "stone" if y < 5 else "mudbrick", -(ARCH_X + 2), y, 0], ["block", "stone" if y < 5 else "mudbrick", ARCH_X + 2, y, 0])] +
      arch(0, 2, 2) + [p for y in (2.5, 3.5, 4.5) for p in (["square", "stone", -(ARCH_X + 0.5), y, 0], ["square", "stone", ARCH_X + 0.5, y, 0])] +
      [tri_at(-ARCH_X, 5, 1, kind="trib"), tri_at(ARCH_X, 5, -1, kind="trib")])
 ish = s
@@ -184,7 +184,7 @@ level("parthenon", "Παρθενώνας", "447-432 BC", "columns built drum by 
 # 8 Mausoleum: solid core, columns, the walkway ceiling beams reach out from the core further than they hold alone:
 # wooden posts hold them while the roof steps go on, then come out
 s = (row("stone", -6, 6, 0.5) +
-     [["block", "stone", 0, 2.5, 0], ["block", "stone", 0, 3.5, 0], ["capital", "stone", -0.8, 4.2, 0], ["capital", "stone", 0.8, 4.2, 0]] +  # owner: two capitals on the middle column
+     [["square", "stone", 0, 2.5, 0], ["square", "stone", 0, 3.5, 0], ["capital", "stone", 0, 4.2, 0]] +  # owner: the middle column half as wide (one square), its capital wider than it, like the side columns
      [p for x in (-5.0, 5.0) for p in (["square", "stone", x, 2.5, 0], ["square", "stone", x, 3.5, 0], ["capital", "stone", x, 4.2, 0])] +
      [["column", "wood", x, 3.2, 0] for x in (-2.6, 2.6)] +   # temporary posts
      [["beam", "stone", x, 4.65, 0] for x in (-4.8, -1.6, 1.6, 4.8)] +   # owner: the lintels meet, no gap between them
@@ -195,9 +195,9 @@ maus = s
 level("mausoleum", "Μαυσωλείο της Αλικαρνασσού", "c. 350 BC", "beams reaching out from the core, held on wooden posts until the roof weighs them down; a sloped roof",
       "Pliny: podium, 36 columns, a pyramid of 24 steps, a four-horse chariot on top (corroborated by excavation, worldhistory.org); a solid core behind the columns carried the roof (Wikipedia); ceiling beams of the walkway were found (AJA). Cut through: core in the middle, a column each side; the wooden posts are the game's way of building it",
       s, [Polygon([(-0.9, 8.9), (0.9, 8.9), (1.0, 9.4), (0.5, 10.0), (-0.6, 10.0), (-1.0, 9.4)]), acroterion(-5.95, 3.9, 0.45), acroterion(5.95, 3.9, 0.45)],
-      [rect(-4.5, 1, -1, 3.4), rect(1, 1, 4.5, 3.4)], "support",  # the walkways between the columns and the core; the acroteria stay on the lintel ends, moved in with them
-      wrong=[W("mudbrick in the core", "material", recolour(s, lambda e: e[0] == "block" and near(e[2], 0) and 1 < e[3] < 3, "mudbrick")),
-             W("mudbrick columns", "material", recolour(s, lambda e: e[0] == "square" and e[3] < 3, "mudbrick")),
+      [rect(-4.5, 1, -0.5, 3.4), rect(0.5, 1, 4.5, 3.4)], "support",  # the walkways between the columns and the core; the acroteria stay on the lintel ends, moved in with them
+      wrong=[W("mudbrick in the middle column", "material", recolour(s, lambda e: e[0] == "square" and near(e[2], 0) and 1 < e[3] < 3, "mudbrick")),
+             W("mudbrick side columns", "material", recolour(s, lambda e: e[0] == "square" and abs(e[2]) > 4 and e[3] < 3, "mudbrick")),
              W("one column left out", "build", without(s, lambda e: e[0] in ("square", "capital") and near(e[2], -5.0) and e[3] < 3.5))])  # posts pulled early no longer fails: the lintels now meet and hold each other
 # 9 Lighthouse: tall hollow lowest tier, two thin walls round a shaft tied by wooden beams, a stone cap, a narrower tier, a round top, statue and Tritons
 def pharos(tied=True, cap="stone"):

@@ -14,7 +14,7 @@ The single source for what each level is. Code, suggested builds and piles follo
 - Owner: piece size in the sidebar never changes (`PILE_REF_HEIGHT` in the PILE section pins it). Every level's pile must fit the sidebar at that size; the pile packer fills the room beside tall rows with smaller pieces.
 - Outline (owner, 12 Nov): the outline is the shape of the building, never the outline of the suggested build's pieces. It is solid everywhere inside the building's outer edge (seams, slivers beside arch stones, gaps between triangles and arches, and narrow dips in the edge narrower than 0.6 m all count as building), except the building's real openings: doors, arch openings, the spaces between columns, the lighthouse shaft. Each level declares its openings on purpose in `make-levels.py` (listed per level below); openings that touch are drawn as one.
 - Green button (owner, 12 Nov): 85% of the outline covered, nothing in an opening, nothing far outside, the headpiece's place free, everything still. Openings are never painted red unless a piece really blocks them; gaps between pieces narrower than 10 cm are never painted.
-- Mudbrick (owner, 12 Nov, eighth list): a mudbrick block lying flat crumbles under four mudbrick blocks and two stone blocks and holds anything lighter (seven mudbricks hold). A narrower mudbrick holds less, in proportion to the width it stands on (an upright mudbrick column: one stone block holds, two crumble). Laid across a gap of 30 cm or more like a lintel it breaks far more easily (a stone block on it over a 1 m gap breaks it). It survives a fall one block side (1 m) higher than before: whole from 3.5 m, broken from 4 m.
+- Mudbrick (owner, 13 Nov): a mudbrick block lying flat crumbles under four mudbrick blocks, and, separately, under three stone blocks; three mudbricks or two stones it holds. A narrower mudbrick holds less, in proportion to the width it stands on (an upright mudbrick column crumbles under one stone block). Laid across a gap of 30 cm or more like a lintel it breaks far more easily (a stone block on it over a 1 m gap breaks it). It survives a fall one block side (1 m) higher than before: whole from 3.5 m, broken from 4 m.
 - Pieces fit like toy bricks: square blocks are the unit. The arch is nine equal wedges on a wooden form, its top exactly 3 m (three squares) above its feet. The big triangle (short sides 1.75 m) sits in the corner beside an arch, resting on the arch, flush with its top. The small triangle (half a square) slopes the ziggurat stairway and the mausoleum roof; one level uses only one triangle size.
 - Levels are not shrunk on screen unless they must be: the building fills the height and the headpiece comes down from above the top edge (only the Lighthouse is tall enough to shrink; the aqueduct by 3% for width).
 
@@ -38,7 +38,7 @@ Run from `games/tower-builder/tools`: `python3 harness.py spec` (tests 1, 2, 3, 
 7. Lighthouse: without its wooden ties the walls fall in the wind.
 8. Outline matches the build: the exactly placed build, once settled, has every piece within 5 cm of its place, covers at least 85% of the outline (the building's shape; its uncovered slivers must still light the button) and has at most 2.5% of its pieces outside the outline.
 
-Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density 5, 16, 12, 75, 25, 18.3, 60, 12, 13, 14 (heavy enough that wrong-material mudbrick crumbles, light enough that the suggested build holds 30% more on every screen size; set again 12 Nov for the new mudbrick strength); earthquake 0.32 rising to 0.61. Each arch stone has a thin guide line in the outline (owner).
+Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density 5, 8, 5, 75, 25, 8, 60, 12, 13, 14 (heavy enough that wrong-material mudbrick crumbles, light enough that the suggested build holds 30% more on every screen size; set again 12 Nov for the new mudbrick strength); earthquake 0.32 rising to 0.61. Each arch stone has a thin guide line in the outline (owner).
 
 ## 1. Mastaba, Saqqara (c. 3000 BC)
 
@@ -53,7 +53,7 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 2. Step pyramid of Djoser, Saqqara (c. 2650 BC)
 
 - Headpiece: the top (sixth) step, lowered onto the fifth (the pyramid has six steps). LOCKED.
-- Pieces: 6 stone blocks (the first layer only, owner), 14 mudbrick blocks; pile adds 6 mudbrick blocks and 14 stone blocks (the wrong choice swaps every course).
+- Pieces (13 Nov, for the owner's mudbrick strength): 15 stone blocks (the first three layers), 5 mudbrick blocks; pile adds 6 mudbrick blocks and 14 stone blocks (the wrong choice swaps every course).
 - New: stone. Technique: heavy low, light high.
 - Hard: stone only where the weight is greatest.
 - Wrong material: mudbrick at the bottom, stone above it: the bottom crumbles under the stone and the top step.
@@ -63,10 +63,10 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 3. Ziggurat of Ur (c. 2100 BC)
 
 - Headpiece: the temple of Nanna on the top terrace (Britannica: temple on top, not preserved). LOCKED.
-- Pieces: 5 stone blocks, 1 stone triangle (the stairway), 10 mudbrick blocks, 5 wooden beams in two courses; pile adds 5 mudbrick blocks and 2 stone blocks (owner: material for the wrong choice).
+- Pieces (13 Nov, for the owner's mudbrick strength: the lower terrace stone): 9 stone blocks, 1 stone triangle (the stairway), 6 mudbrick blocks, 5 wooden beams in two courses; pile adds 5 mudbrick blocks and 2 stone blocks (owner: material for the wrong choice).
 - New: wooden beams laid as courses (they stand for the reed matting that strengthened the mudbrick core, Britannica). Technique: three terraces, each narrower.
 - Hard: wood only where it lies fully supported; terraces centred.
-- Wrong material: mudbrick in the base and stone in the top terrace: the base crumbles. OPEN (12 Nov): with the new mudbrick strength it no longer crumbles; owner to decide.
+- Wrong material: mudbrick in the base and stone in the top terrace: the base crumbles. (13 Nov: crumbles again with the owner's mudbrick strength.)
 - Wrong build: a top-terrace block more than half off the terrace below: it falls.
 - Temporary wood: none.
 
@@ -98,7 +98,7 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 6. Ishtar Gate, Babylon (c. 575 BC)
 
 - Headpiece: the cedar roof over the passage (worldhistory.org: door and roof of cedar), and (owner, 12 Nov) a headpiece as thick as the roof lowered onto each tower. LOCKED.
-- Pieces: 12 stone blocks (8 in the base, the towers' two lowest courses), 6 mudbrick blocks (the towers' top three courses; owner: the towers one course taller), 9 wedges, 6 stone half-blocks and 2 big triangles beside the arch, 1 wooden arch form on 4 wooden blocks; pile adds 4 mudbrick blocks. Stone exactly as much as the build needs, mudbrick more than it needs (owner).
+- Pieces: 14 stone blocks (8 in the base, the towers' three lowest courses), 4 mudbrick blocks (the towers' top two courses; owner: the towers one course taller), 9 wedges, 6 stone half-blocks and 2 big triangles beside the arch, 1 wooden arch form on 4 wooden blocks; pile adds 4 mudbrick blocks. Stone exactly as much as the build needs, mudbrick more than it needs (owner).
 - Openings: the arch.
 - New: wedges and the wooden arch form. Technique: the arch built on the form, the form taken out once the last wedge is in. The squares beside the arch stand right at its feet; the triangles rest on the arch and come exactly to its top.
 - Hard: the wedges only stand once the last one is in.
@@ -123,10 +123,10 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 - Headpiece: the four-horse chariot on top, and two acroteria on the beam ends beside the roof (owner). LOCKED. 12 Nov: the acroteria moved in with the lintel ends (from 6.5 to 5.95 m out), so they still stand on them.
 - Pieces (owner, 12 Nov: the lintels meet with no gap, the roof a square narrower on each side, the top two triangles gone): 21 stone blocks (podium, core, five roof steps of 5, 4, 3, 2, 1 blocks), 6 small triangles (the roof's slope), 4 square drums and 3 capitals, 4 stone beams end to end, 2 wooden posts; pile adds 2 mudbrick blocks and 4 mudbrick half-blocks.
 - Openings: the two walkways between the columns and the core.
-- Owner (12 Nov): two capitals on the middle column, read as side by side (stacked would make it taller than the side columns).
+- Owner (13 Nov): the middle column half as wide (two squares), with one capital wider than it, like the side columns, so the posts would be needed. Checked: the lintels still hold each other end to end, so pulling the posts early still does not fail.
 - New: wooden posts as temporary props. Technique: the walkway beams reach out from the solid core further than they can hold alone; they rest on wooden posts while the roof goes on, and hold once its weight (five steps over the core) presses their inner ends down. The posts then come out.
 - Hard: the posts must stand before the beams go on and stay until the roof is on.
-- Wrong material: mudbrick in the core crumbles; mudbrick columns crumble.
+- Wrong material: mudbrick in the middle column crumbles; mudbrick side columns crumble.
 - Wrong build: one column left out: its lintel and the roof above it fall. (Checked 12 Nov and taken out because they no longer fail: the posts left out or pulled out early (the lintels now meet end to end and hold each other, so the posts are not needed any more; owner to decide whether the posts stay in this level) and wooden lintels (they snap while building, but the building then passes).)
 - Temporary wood: two posts.
 - Historical: podium, 36 columns, a pyramid of 24 steps, a four-horse chariot (Pliny, corroborated by excavation, worldhistory.org); a solid core behind the columns carried the roof (Wikipedia); ceiling beams of the walkway were found (American Journal of Archaeology); lions stood at the base of the pyramid (worldhistory.org). The real roof was stepped with a low pitch; here the steps are filled out with triangles into a 45-degree slope (owner). The acroteria are the owner's addition. The posts are the game's way of building it.

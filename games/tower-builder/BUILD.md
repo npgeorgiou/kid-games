@@ -234,6 +234,19 @@ The owner's second fix list (18 items) is built and pushed. What changed:
 - Owner tests added (`harness.py owner fall shape carry triangle screens`); screens runs every level on five screen sizes, plain and 1.3x.
 - Open: Djoser suggested build placed roughly crushed its middle bottom mudbrick in 1 of 6 tries (new mudbrick strength); Ziggurat wrong material no longer fails; Valens pile 120%; Mausoleum posts no longer needed. Owner to decide.
 
+## Current state, update 12 (13 Nov 2026, ninth list; overrides the sections above where they differ)
+
+- Mudbrick: `CRUSH_FORCE` 238 for a block lying flat (owner: four mudbricks crumble it, three stones crumble it, separately; three mudbricks or two stones hold). Suggested builds changed so their mudbrick holds with 30% to spare: Djoser stone in the first three layers; Ziggurat lower terrace stone; Ishtar towers stone in the three lowest courses. Load densities 5, 8, 5, 75, 25, 8, 60, 12, 13, 14.
+- Hand: every part of its strength goes with the weight held (`HAND_PUSH`, `HAND_LIFT` removed); within 25 cm of another piece it uses the touching strength, so a small piece cannot ram a big one.
+- Mausoleum: middle column of two squares with one capital. The posts are still not needed (the lintels hold each other); "posts pulled out early" does not fail and is not a wrong choice.
+- Openings where temporary wood stands are drawn as openings (no brown tint); the brown tint stays only for wood courses.
+- CLAUDE.md: "Rules for every change (owner, 13 Nov 2026)" written.
+- Open: Valens pile 120%; Mausoleum posts not needed; Djoser to be play-tested by the owner.
+
+Ninth list, the owner's own words (13 Nov 2026, verbatim):
+
+1. are you fucking stupid? its so clear: ""mudbrick breaks under four mudbrick and three stone blocks," SEPERATELY! NOT COMBINED!!!! sperately!!! I just give you their strength compared to 2 DIFFERENT stacks!!! FIX THAT IDIOT; and test everyhting, and rething anythign this touches, like material choise, adn make that isntar gate headpiece that you amde heaver, make it as it was or at least something thaat breaks excessive mudbrick stacks!!!! moron!!!!  2. Open questions: "Djoser" -> dont know, I have to play test it. "Ziggurat" -> that may change now "Mauseleum" -> no moron, i mean that kionocrana extrude, do there should be 2 of the small oblong pieces as kionocrano, not one that is more narrow than the kionas. also, there are 2 weird brown areas in teh outlien at mausoleum, solve that. and the wooden supports would be needed if the middle column was of half the width??? think of that, I think it can work, and should work. so forget about the double kionocrano ALSO; THE STRENGTH of me holding a small oblong stone piece is excessiove, it rams into big stones and kicks them away,  thats insanely underalistic, something is wrong with how you calculate strength per object mass. AND YES; write down your rules
+
 ### Seventh and eighth lists: the owner's own words (12 Nov 2026, verbatim)
 
 Seventh list, with a screenshot saved as `owner-shots/list7-item5-mudbrick-column-holds-3-stones.png` (Karnak: an upright mudbrick column holding three stone blocks):

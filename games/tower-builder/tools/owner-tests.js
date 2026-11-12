@@ -60,13 +60,12 @@
       run(6);
       return T.pieces.includes(base) ? "holds" : "crumbles";
     };
-    for (const [n, list, exp] of [
-      ["4 mudbricks then 2 stones on a mudbrick (owner, changed)", ["mudbrick", "mudbrick", "mudbrick", "mudbrick", "stone", "stone"], "crumbles"],
-      ["2 stones then 4 mudbricks on a mudbrick", ["stone", "stone", "mudbrick", "mudbrick", "mudbrick", "mudbrick"], "crumbles"],
-      ["4 mudbricks and 3 stones on a mudbrick", ["mudbrick", "mudbrick", "mudbrick", "mudbrick", "stone", "stone", "stone"], "crumbles"],
-      ["7 mudbricks on a mudbrick (lighter than 4 and 2)", ["mudbrick", "mudbrick", "mudbrick", "mudbrick", "mudbrick", "mudbrick", "mudbrick"], "holds"],
-      ["6 mudbricks on a mudbrick (owner, Ishtar)", ["mudbrick", "mudbrick", "mudbrick", "mudbrick", "mudbrick", "mudbrick"], "holds"],
-      ["3 mudbricks and 2 stones on a mudbrick", ["mudbrick", "mudbrick", "mudbrick", "stone", "stone"], "holds"],
+    for (const [n, list, exp] of [ // owner (13 Nov): two separate stacks, each breaks it: four mudbricks; three stones
+      ["4 mudbricks on a mudbrick (owner)", ["mudbrick", "mudbrick", "mudbrick", "mudbrick"], "crumbles"],
+      ["3 stones on a mudbrick (owner)", ["stone", "stone", "stone"], "crumbles"],
+      ["6 mudbricks on a mudbrick (owner, Ishtar)", ["mudbrick", "mudbrick", "mudbrick", "mudbrick", "mudbrick", "mudbrick"], "crumbles"],
+      ["3 mudbricks on a mudbrick", ["mudbrick", "mudbrick", "mudbrick"], "holds"],
+      ["2 stones on a mudbrick", ["stone", "stone"], "holds"],
     ]) for (const [how, rough, quick] of [["", false, false], [", placed roughly", true, false], [", placed quickly", false, true]]) {
       const r = stackOn(list, rough, quick); out.push(["12 mudbrick: " + n + how, r === exp, r + " (should " + (exp === "holds" ? "hold" : "crumble") + ")"]); }
   }
@@ -87,7 +86,7 @@
     T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
     const column = (n) => { T.clearAllPieces(); const c = T.spawnPiece("column", X, 1.203, 0, "mudbrick"); run(1); let top = 2.4;
       for (let k = 0; k < n; k++) { T.spawnPiece("block", X, top + 0.503, 0, "stone"); top += 1; run(1.5); } run(5); return T.pieces.includes(c) ? "holds" : "crumbles"; };
-    for (const [n, exp] of [[1, "holds"], [2, "crumbles"], [3, "crumbles"]]) { const r = column(n); out.push(["7-5 upright mudbrick column with " + n + " stone block(s) on it (owner's picture: 3)", r === exp, r]); }
+    for (const [n, exp] of [[1, "crumbles"], [3, "crumbles"]]) { const r = column(n); out.push(["7-5 upright mudbrick column with " + n + " stone block(s) on it (owner's picture: 3)", r === exp, r]); }
     const lintel = (d, m, load) => { T.clearAllPieces(); // two stone blocks 1 m apart, the piece across them, a stone block on its middle
       T.spawnPiece("block", X - 1.5, 0.503, 0, "stone"); T.spawnPiece("block", X + 1.5, 0.503, 0, "stone"); run(1);
       const hy = T.PIECE_DEFS[d].hy, L = T.spawnPiece(d, X, 1.0 + hy + 0.003, 0, m); run(1.5);
@@ -127,6 +126,18 @@
       T.releaseHold(95); run(1); return +lag.toFixed(2); };
     const lt = drag("trib"), ls = drag("square");
     out.push(["8-1 a triangle slid up and over a block follows the hand like a square", lt <= ls + 0.1, "triangle " + lt + " m behind, square " + ls + " m behind"]);
+  }
+
+  // --- ninth list: a small stone held in the hand does not shove a big stone away
+  if (want("push")) {
+    T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
+    const push = (d, m, td, tm) => { T.clearAllPieces(); const t = T.spawnPiece(td, X + 1.5, T.PIECE_DEFS[td].hy + 0.003, 0, tm); const p = T.spawnPiece(d, X - 2, T.PIECE_DEFS[d].hy + 0.05, 0, m); run(1);
+      const x0 = t.body.getPosition().x, c0 = p.body.getWorldCenter(), g = { x: c0.x, y: c0.y }; T.startHold(p, g, 96, 0, 0);
+      for (let k = 0; k < 240; k++) { p.desired = { x: g.x + Math.min(6, k * 6 / 60), y: g.y }; frame(1 / 60); } T.releaseHold(96); run(1); return +(t.body.getPosition().x - x0).toFixed(2); };
+    const a = push("abacus", "stone", "block", "stone"), b = push("block", "stone", "block", "stone"), c = push("abacus", "stone", "abacus", "stone");
+    out.push(["9 a small oblong stone pushed hard into a big stone block hardly moves it", a < 0.1, "moved " + a + " m"]);
+    out.push(["9 a stone block pushes a stone block along (as heavy as itself)", b > 0.5, "moved " + b + " m"]);
+    out.push(["9 a small oblong stone pushes another small one along", c > 0.5, "moved " + c + " m"]);
   }
 
   // helpers: quick build and test as the owner does it (Tab, the build button, the test button), real frame timing varied
