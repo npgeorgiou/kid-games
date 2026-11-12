@@ -3,27 +3,20 @@
 # Extend this file in place for new checks; do not make new scratch harnesses.
 import sys, json
 from playwright.sync_api import sync_playwright
-import os
+import os, re
 HERE=os.path.dirname(os.path.abspath(__file__))
 src=open(os.path.join(HERE,'..','tower-builder.html')).read()
-hook='''window.__tb={renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
+hook='''window.__tb={renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,testReady,stockItems,TEST_WIND,PIECE_DEFS,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
 get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale}};
 window.requestAnimationFrame=()=>0;
 '''
 k=src.rindex('})();')
 src=src[:k]+hook+src[k:]
 open('/tmp/tb.html','w').write(src)
+open('/tmp/tb-real.html','w').write(src.replace('window.requestAnimationFrame=()=>0;',''))
 JIT='jitter' in sys.argv
 # wrong choices that must fail (level index -> [(name, JS: entry -> new material or nothing)])
-WRONG={0:[('wood top row','e=>e[3]===2.5&&"wood"')],
- 1:[('mudbrick at the bottom','e=>e[3]===0.5?"mudbrick":e[3]>=3.5?"stone":0')],
- 2:[('stone in the wood courses','e=>e[0]==="beam"&&"stone"')],
- 3:[('mudbrick pillars','e=>e[0]==="block"&&e[4]!==0&&"mudbrick"')],
- 4:[('mudbrick base','e=>e[3]===0.5&&"mudbrick"'),('wooden lintel','e=>e[0]==="beam"&&e[2]===0&&"wood"')],
- 6:[('mudbrick top step','e=>e[0]==="block"&&e[3]===2.5&&"mudbrick"')],
- 7:[('mudbrick podium top','e=>e[0]==="block"&&e[3]===2.5&&"mudbrick"')],
- 8:[('mudbrick base','e=>e[3]===0.5&&"mudbrick"')],
- 9:[('mudbrick piers','e=>e[0]==="block"&&e[3]===0.5&&"mudbrick"')]}
+WRONG={}  # wrong choices now live in tools/level-tests.json (made by make-levels.py); run: harness.py spec
 PROBE='probe' in sys.argv
 levels=[int(a) for a in sys.argv[1:] if a.isdigit()] or list(range(10))
 with sync_playwright() as p:
@@ -35,6 +28,55 @@ with sync_playwright() as p:
       for(const b of T.pileBodies()){const v=b.getLinearVelocity(),sp=Math.hypot(v.x,v.y)+Math.abs(b.getAngularVelocity())*0.5; mp=Math.max(mp,sp); if(sp>0.05)np++;}
       for(const p of T.pieces){const b=p.body,v=b.getLinearVelocity(),sp=Math.hypot(v.x,v.y)+Math.abs(b.getAngularVelocity())*0.5; mw=Math.max(mw,sp); if(sp>0.05)nw++;}}
       return {pileMax:+mp.toFixed(3),pileMovingFrames:np,worldMax:+mw.toFixed(3),worldMovingFrames:nw};}'''
+    if 'spec' in sys.argv:  # levels.md tests; one line per check
+        from collections import Counter
+        LV=json.loads(re.sub(r'^//.*\n','',open(os.path.join(HERE,'level-spec.json')).read()))
+        TESTS=json.load(open(os.path.join(HERE,'level-tests.json')))
+        js=open(os.path.join(HERE,'..','src','levels.js')).read(); LVS=json.loads(js[js.index('const LEVELS = ')+15:js.rindex(';')])
+        SUPPORTS={'ishtar':{'centering':1},'valens':{'centering':2}}
+        RUN=open(os.path.join(HERE,'spec-run.js')).read()
+        def stock(sol):
+            c=Counter(); pulled=False
+            for e in sol:
+                if e[0]=='pull': pulled=True; continue
+                if not(pulled and e[1]=='wood'): c[e[0]+'/'+e[1]]+=1
+            return c
+        NJ=int(os.environ.get('NJ','6'))
+        if os.environ.get('DA'): pg.evaluate('(v)=>{window.__DA=v}',float(os.environ['DA']))
+        if os.environ.get('WIND'): pg.evaluate('([i,w])=>{__tb.TEST_WIND[i]=w}',[int(os.environ['WIND'].split(':')[0]),float(os.environ['WIND'].split(':')[1])])
+        for i,l in enumerate(LVS):
+            if levels and i not in levels: continue
+            k=l['key']; lines=[]
+            lines.append(('1 headpiece locked',json.dumps(l['load'])==json.dumps(LV[k]['headpiece']),''))
+            base=[pg.evaluate(RUN,[i,l['solution'],sd]) for sd in range(NJ)]
+            lines.append(('2 build stands (exact + off by up to 3 cm)',all(b['pass'] and b['ready'] for b in base),' '.join(('P' if b['pass'] and b['ready'] else 'F:'+(b['phases'] or 'ready')+':'+json.dumps(b['fail'] or b['build'])) for b in base)))
+            for w in TESTS[k]:
+                r=pg.evaluate(RUN,[i,w['sol'],0]); p=r['build']['phys'] or bool(r['fail'] and r['fail']['phys'])
+                lines.append(('3 wrong %s: %s'%(w['kind'],w['name']),(not (r['pass'] and r['ready'])) and p,'%s %s'%(r['phases'] or 'not ready',json.dumps(r['fail'] or r['build']))))
+            have=Counter(pg.evaluate('(i)=>__tb.stockItems(i).map(o=>o.defKey+"/"+o.material)',i))
+            okp=all(have[x]>=n for x,n in stock(l['solution']).items())
+            for w in TESTS[k]:
+                if w['kind']=='material': okp=okp and all(have[x]>=n for x,n in stock(w['sol']).items())
+            for d,n in SUPPORTS.get(k,{}).items(): okp=okp and have[d+'/wood']==n
+            lines.append(('4 pile',okp,'%d pieces'%sum(have.values())))
+            for name,ok,det in lines: print('%-9s %-4s %-58s %s'%(k,'PASS' if ok else 'FAIL',name,det[:170]),flush=True)
+        levels=[]
+    if 'real' in sys.argv:  # levels.md test 2, last part: the real game loop (real frame timing, the real ready gate, no Tab), all levels at once
+        import time
+        POLL=open(os.path.join(HERE,'spec-real.js')).read()
+        pages=[]
+        for i in (levels or range(10)):
+            q=b.new_page(viewport={'width':1280,'height':800}); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(300)
+            q.evaluate('(i)=>{const T=__tb; T.mode="build"; delete T.progress.done[T.LEVELS[i].key]; T.startLevel(i); T.quiet0(); T.startAutoBuild(); window.__st="build"; window.__i=i;}',i); pages.append((i,q))
+        t0=time.time(); done={}
+        while len(done)<len(pages) and time.time()-t0<900:
+            time.sleep(2)
+            for i,q in pages:
+                if i not in done:
+                    st=q.evaluate(POLL)
+                    if st: done[i]=st
+        for i,q in pages: print('%-9s %-4s %s'%(q.evaluate('(i)=>__tb.LEVELS[i].key',i),'PASS' if done.get(i,'').endswith('PASS') else 'FAIL','2 real game loop: '+done.get(i,'timeout')),flush=True)
+        levels=[]
     if 'sizes' in sys.argv:
         for vw,vh in [(1920,1080),(1366,768),(1536,864),(2560,1440),(1280,1024),(1024,768)]:
             pg.set_viewport_size({'width':vw,'height':vh}); pg.wait_for_timeout(100)
