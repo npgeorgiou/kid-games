@@ -7,7 +7,7 @@ import os, re
 HERE=os.path.dirname(os.path.abspath(__file__))
 src=open(os.path.join(HERE,'..','tower-builder.html')).read()
 hook='''window.__tb={TEST_LOAD_DENSITY,renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,testReady,stockItems,TEST_WIND,PIECE_DEFS,levelSidebar,pileLayout,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
-get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale}};
+get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale},set failShow(v){failShow=v},worldToScreen,failingCells,CHECK,TEST_QUAKE,get doneSites(){return typeof doneSites!=='undefined'?doneSites:null},get goMap(){return typeof goMap!=='undefined'?goMap:null},get siteLook(){return typeof siteLook!=='undefined'?siteLook:null},get restartButton(){return typeof restartButton!=='undefined'?restartButton:null},get readySince(){return readySince},ageReady(){if(readySince!=null)readySince-=1000},get removePiece(){return removePiece},music(){return {ctx:actx&&actx.state,name:musicName,on:!!music}}};
 window.requestAnimationFrame=()=>0;
 '''
 k=src.rindex('})();')
@@ -53,14 +53,18 @@ with sync_playwright() as p:
             base=[pg.evaluate(RUN,[i,l['solution'],sd]) for sd in range(NJ)]
             lines.append(('2 build stands (exact + off by up to 3 cm)',all(b['pass'] and b['ready'] for b in base),' '.join(('P' if b['pass'] and b['ready'] else 'F:'+(b['phases'] or 'ready')+':'+json.dumps(b['fail'] or b['build'])) for b in base)))
             e0=base[0]['build']  # the exactly placed run: settled pieces within 5 cm of their places, outline and pieces differ by at most 2.5%
-            lines.append(('8 outline matches the settled build',e0['moved']<=0.05 and e0['miss']<=0.025 and e0['over']<=0.025,'moved %s, outline uncovered %s, pieces outside %s'%(e0['moved'],e0['miss'],e0['over'])))
+            # owner: the outline is the building's shape; the build's uncovered parts of it must still light the button (85%)
+            lines.append(('8 outline matches the settled build',e0['moved']<=0.05 and 1-e0['miss']>=0.85 and e0['over']<=0.025,'moved %s, outline uncovered %s, pieces outside %s'%(e0['moved'],e0['miss'],e0['over'])))
             for w in TESTS[k]:
                 r=pg.evaluate(RUN,[i,w['sol'],0]); p=r['build']['phys'] or bool(r['fail'] and r['fail']['phys'])
                 lines.append(('3 wrong %s: %s'%(w['kind'],w['name']),(not (r['pass'] and r['ready'])) and p,'%s %s'%(r['phases'] or 'not ready',json.dumps(r['fail'] or r['build']))))
             have=Counter(pg.evaluate('(i)=>__tb.stockItems(i).map(o=>o.defKey+"/"+o.material)',i))
             okp=all(have[x]>=n for x,n in stock(l['solution']).items())
-            for w in TESTS[k]:
-                if w['kind']=='material': okp=okp and all(have[x]>=n for x,n in stock(w['sol']).items())
+            right={(e[0],round(e[2],3),round(e[3],3)):e[1] for e in l['solution'] if e[0]!='pull'}
+            for w in TESTS[k]:  # levels.md: every wrong choice can be built while the suggested build's pieces stay in the pile
+                swap=Counter(e[0]+'/'+e[1] for e in w['sol'] if e[0]!='pull' and right.get((e[0],round(e[2],3),round(e[3],3)),e[1])!=e[1])
+                need=stock(l['solution'])+swap+((stock(w['sol'])-stock(l['solution']))-swap)
+                okp=okp and all(have[x]>=n for x,n in need.items())
             for d,n in SUPPORTS.get(k,{}).items(): okp=okp and have[d+'/wood']==n
             fits=pg.evaluate('''(i)=>{const T=__tb; T.mode="build"; T.startLevel(i); const r=T.levelSidebar().bin, px=T.pilePx; const [sc,out]=T.pileLayout(T.stockItems(i),r,px);
               return +(Math.max(...out.map(([it,x,y])=>y+T.PIECE_DEFS[it.defKey].hy))/(r.h/px)).toFixed(2);}''',i)
@@ -83,6 +87,30 @@ with sync_playwright() as p:
                     st=q.evaluate(POLL)
                     if st: done[i]=st
         for i,q in pages: print('%-9s %-4s %s'%(q.evaluate('(i)=>__tb.LEVELS[i].key',i),'PASS' if done.get(i,'').endswith('PASS') else 'FAIL','2 real game loop: '+done.get(i,'timeout')),flush=True)
+        levels=[]
+    if 'owner' in sys.argv:  # the owner's sixth list: tests that repeat what he does in the game (tools/owner-tests.js)
+        names=[a for a in sys.argv[2:] if not a.isdigit()]
+        for name,ok,det in pg.evaluate(open(os.path.join(HERE,'owner-tests.js')).read(),names):
+            print('%-4s %-70s %s'%('PASS' if ok else 'FAIL',name,det[:200]),flush=True)
+        if not names or 'restart' in names:  # 1: a real click on the restart button puts the whole map back to the beginning
+            q=b.new_page(viewport={'width':1280,'height':800}); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(500)
+            st=q.evaluate("""()=>{const T=__tb; T.progress.done.mastaba={pieces:[],loads:[]}; T.progress.done.djoser={pieces:[],loads:[]};
+              localStorage.setItem('tower-builder-progress-v1',JSON.stringify(T.progress)); for(const g of T.groups){g.state='visit';g.site='mastaba';g.wait=3;g.boat=null;}
+              for(let k=0;k<600;k++) T.renderMap(0.05); const b=T.restartButton&&T.restartButton(); return b&&[b.x,b.y];}""")
+            if st:
+                q.mouse.click(st[0],st[1]); q.wait_for_timeout(300)
+                r=q.evaluate("""()=>{const T=__tb; return {done:Object.keys(T.progress.done).length, saved:localStorage.getItem('tower-builder-progress-v1'),
+                  people:T.groups.every((g,i)=>g.state==='boat'&&g.boat===T.boats[i]&&g.onFoot===0), boats:T.boats.every((b,i)=>b.wait>0||(b.leg===i%b.line.legs.length&&b.dir===1&&Math.abs(b.d-b.lens[b.leg]*((i*0.37)%1))<20)), mode:T.mode};}""")
+                ok=r['done']==0 and r['people'] and r['boats'] and r['mode']=='map' and (r['saved'] is None or json.loads(r['saved']).get('done',{})=={})
+                print('%-4s %-70s %s'%('PASS' if ok else 'FAIL','1 restart: sites, people, boats and progress as at the start',json.dumps(r)))
+            else: print('FAIL 1 restart: no button on the map')
+            q.close()
+        if not names or 'music' in names:  # 2: music at load when the browser allows it, otherwise at the first touch
+            b2=p.chromium.launch(args=['--autoplay-policy=no-user-gesture-required']); q=b2.new_page(); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(2500)
+            r=q.evaluate('()=>__tb.music()'); print('%-4s %-70s %s'%('PASS' if r['on'] and r['ctx']=='running' else 'FAIL','2 music at load (PC allows sound)',json.dumps(r))); b2.close()
+            b3=p.chromium.launch(args=['--autoplay-policy=user-gesture-required']); q=b3.new_page(viewport={'width':1280,'height':800}); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(2500)
+            r0=q.evaluate('()=>__tb.music()'); q.mouse.click(640,30); q.wait_for_timeout(1500); r=q.evaluate('()=>__tb.music()')
+            print('%-4s %-70s %s'%('PASS' if r['on'] and r['ctx']=='running' else 'FAIL','2 music at the first touch (PC holds sound back)','before '+json.dumps(r0)+' after '+json.dumps(r))); b3.close()
         levels=[]
     if 'shot' in sys.argv:  # screenshot of each level after the quick build (before the test): /tmp/shot<i>.png
         for i in levels:

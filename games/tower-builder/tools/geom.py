@@ -72,6 +72,9 @@ class Frame:
         k = int(round(r / RES)); ker = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * k + 1, 2 * k + 1))
         return cv2.morphologyEx(m, op, ker)
 
+    def square(self, m, r, op):  # the same by an axis-aligned square of half-side r: right-angled corners stay sharp
+        k = int(round(r / RES)); return cv2.morphologyEx(m, op, np.ones((2 * k + 1, 2 * k + 1), np.uint8))
+
     def keep(self, m, min_area):  # drop pieces smaller than min_area m^2
         n, lab, st, _ = cv2.connectedComponentsWithStats(m, connectivity=8)
         out = np.zeros_like(m)

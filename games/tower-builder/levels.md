@@ -6,11 +6,14 @@ The single source for what each level is. Code, suggested builds and piles follo
 
 - One new piece or technique per level; everything met earlier stays in the pile.
 - The pile holds the suggested build plus the wrong-material pieces for that level, little else. A wrong choice is a real piece lying in the pile that fits the outline and looks usable.
+- Wrong choices in the pile (owner, 12 Nov): every wrong choice, of material or of building, in every level, must be buildable from the pile while every piece of the suggested build is still in it. So for each wrong choice the pile holds, on top of the suggested build, every piece that choice puts in place of the right one (mudbrick where stone belongs, wooden planks where a stone lintel belongs, and so on). The player can always build the tempting wrong way without first taking the right pieces away from the right places. `make-levels.py` adds these pieces (`extra`), and test 4 checks it for every wrong choice.
 - Every level has both kinds of wrong choice: a wrong material and a wrong way to build. Each fails by physics (crumbles, snaps, blows off, tips, falls in, or the headpiece falls off), shown in red; failing only the ready check does not count.
 - A wrong choice that the tests show does not fail is replaced, never kept.
 - Middle and higher levels (4 on) are not a solid wall: openings, columns, arches or overhangs.
 - The headpiece is an important part of that building, lowered from above onto a place the player must leave the right shape for.
 - Owner: piece size in the sidebar never changes (`PILE_REF_HEIGHT` in the PILE section pins it). Every level's pile must fit the sidebar at that size; the pile packer fills the room beside tall rows with smaller pieces.
+- Outline (owner, 12 Nov): the outline is the shape of the building, never the outline of the suggested build's pieces. It is solid everywhere inside the building's outer edge (seams, slivers beside arch stones, gaps between triangles and arches, and narrow dips in the edge narrower than 0.6 m all count as building), except the building's real openings: doors, arch openings, the spaces between columns, the lighthouse shaft. Each level declares its openings on purpose in `make-levels.py` (listed per level below); openings that touch are drawn as one.
+- Green button (owner, 12 Nov): 85% of the outline covered, nothing in an opening, nothing far outside, the headpiece's place free, everything still. Openings are never painted red unless a piece really blocks them; gaps between pieces narrower than 10 cm are never painted.
 - Pieces fit like toy bricks: square blocks are the unit. The arch is nine equal wedges on a wooden form, its top exactly 3 m (three squares) above its feet. The big triangle (short sides 1.75 m) sits in the corner beside an arch, resting on the arch, flush with its top. The small triangle (half a square) slopes the ziggurat stairway and the mausoleum roof; one level uses only one triangle size.
 - Levels are not shrunk on screen unless they must be: the building fills the height and the headpiece comes down from above the top edge (only the Lighthouse is tall enough to shrink; the aqueduct by 3% for width).
 
@@ -26,15 +29,15 @@ The single source for what each level is. Code, suggested builds and piles follo
 Run from `games/tower-builder/tools`: `python3 harness.py spec` (tests 1, 2, 3, 4; one line each) and `python3 harness.py real` (test 2, real game loop). `NJ=n` sets the number of placement runs (default 6).
 
 1. Headpiece: the level's load equals `tools/level-spec.json` exactly.
-2. Suggested build stands: quick build and the full test (at play speed, not the Tab speed-up) pass with every piece exactly placed and in five more runs with every piece off by up to 3 cm and 1 degree (never overlapping what is already there, as a careful player places them); and once through the real game loop (real frames, the real ready check, no Tab).
-3. Each wrong choice below, swapped into the suggested build, fails: something crumbles, snaps, falls, or the headpiece comes off.
-4. Pile: it holds every piece the suggested build uses and every wrong-material piece; arch forms only as many as listed; it fits the sidebar at 1280 x 800.
+2. Suggested build stands: quick build and the full test (at play speed, not the Tab speed-up) pass with every piece exactly placed and in five more runs with every piece off by up to 3 cm and 1 degree (never overlapping what is already there, as a careful player places them); and once through the real game loop (real frames, the real ready check, no Tab). Owner (12 Nov): it also passes with the earthquake and the headpiece 30% stronger, and quick build plus test gives the same result 20 times in a row (`harness.py owner repeat margin`).
+3. Each wrong choice below, swapped into the suggested build, fails: something crumbles, snaps, falls, or the headpiece comes off, and the result is not a building that lights the button and passes the test.
+4. Pile: it holds every piece the suggested build uses and, for every wrong choice, the pieces it puts in place of the right ones (rule above); arch forms only as many as listed; it fits the sidebar at 1280 x 800.
 5. Wood-support levels: the build without the supports, or with them taken out too early, falls (wrong builds of Ishtar, Mausoleum and Valens).
 6. Reuse (Valens): built with two forms, moved from the lower to the upper arches.
 7. Lighthouse: without its wooden ties the walls fall in the wind.
-8. Outline matches the build: the exactly placed build, once settled, has every piece within 5 cm of its place, and the outline and the pieces differ by at most 2.5% of the outline (owner, 12 Nov: outlines and builds did not match).
+8. Outline matches the build: the exactly placed build, once settled, has every piece within 5 cm of its place, covers at least 85% of the outline (the building's shape; its uncovered slivers must still light the button) and has at most 2.5% of its pieces outside the outline.
 
-Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density 5, 42, 20, 75, 25, 10, 60, 12, 13, 14 (heavy enough that wrong-material mudbrick crumbles); earthquake 0.32 rising to 0.61. Outlines are exactly the suggested build's pieces (no gaps closed), except beside arches: slivers between arch stones and their neighbours (narrower than 0.7 m) are drawn solid and not checked, and each arch stone has a thin guide line (owner).
+Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density 5, 33, 20, 75, 25, 23.5, 60, 12, 13, 14 (heavy enough that wrong-material mudbrick crumbles, light enough that the suggested build holds 30% more; Djoser 42 -> 33 for that, Ishtar 10 -> 23.5 so the tower headpieces crush all-mudbrick towers); earthquake 0.32 rising to 0.61. Each arch stone has a thin guide line in the outline (owner).
 
 ## 1. Mastaba, Saqqara (c. 3000 BC)
 
@@ -49,7 +52,7 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 2. Step pyramid of Djoser, Saqqara (c. 2650 BC)
 
 - Headpiece: the top (sixth) step, lowered onto the fifth (the pyramid has six steps). LOCKED.
-- Pieces: 6 stone blocks (the first layer only, owner), 14 mudbrick blocks; pile adds stone and mudbrick for the wrong choice.
+- Pieces: 6 stone blocks (the first layer only, owner), 14 mudbrick blocks; pile adds 6 mudbrick blocks and 14 stone blocks (the wrong choice swaps every course).
 - New: stone. Technique: heavy low, light high.
 - Hard: stone only where the weight is greatest.
 - Wrong material: mudbrick at the bottom, stone above it: the bottom crumbles under the stone and the top step.
@@ -59,7 +62,7 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 3. Ziggurat of Ur (c. 2100 BC)
 
 - Headpiece: the temple of Nanna on the top terrace (Britannica: temple on top, not preserved). LOCKED.
-- Pieces: 5 stone blocks, 1 stone triangle (the stairway), 10 mudbrick blocks, 5 wooden beams in two courses; pile adds 3 mudbrick blocks.
+- Pieces: 5 stone blocks, 1 stone triangle (the stairway), 10 mudbrick blocks, 5 wooden beams in two courses; pile adds 5 mudbrick blocks and 2 stone blocks (owner: material for the wrong choice).
 - New: wooden beams laid as courses (they stand for the reed matting that strengthened the mudbrick core, Britannica). Technique: three terraces, each narrower.
 - Hard: wood only where it lies fully supported; terraces centred.
 - Wrong material: mudbrick in the base and stone in the top terrace: the base crumbles.
@@ -72,6 +75,7 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 - Pieces: 5 stone blocks, 4 stone columns (all the same, owner), 12 small oblong blocks (two stacked make each of the six capitals, owner), 2 stone beams, 2 stone squares (the pillars of the taller middle nave); pile adds mudbrick for the wrong choices.
 - New: columns and capitals. Technique: beams across gaps, each end on a capital.
 - Hard: columns must stand where the beams reach both; every pillar is topped by a capital of two small blocks.
+- Openings: the two aisles between the columns, up to the beams.
 - Wrong material: mudbrick pillars under the middle roof crumble; mudbrick middle columns crumble.
 - Wrong build: a middle column too far in for the beam: the beam and the middle pillar fall.
 - Historical: Karnak's columns carry a capital with a square abacus block on top; here the two small blocks stand for them.
@@ -80,30 +84,33 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 5. Lion Gate, Mycenae (c. 1250 BC)
 
 - Headpiece: the lion relief, a stone triangle, lowered onto the lintel. LOCKED. Never replaced by a slab, a wall course or anything on top of the gate.
-- Pieces: 10 stone blocks (two upright as jambs), 6 stone half-blocks, 3 stone beams (the middle one is the lintel), 2 wooden beams standing upright as flagpoles, each held between the two stones of its side's top row (owner); pile adds 2 mudbrick blocks.
+- Pieces: 10 stone blocks (two upright as jambs), 6 stone half-blocks, 3 stone beams (the middle one is the lintel), 2 wooden beams standing upright as flagpoles, each held between the two stones of its side's top row (owner); pile adds 3 wooden beams (tempting as the lintel over the door, owner) and 8 mudbrick blocks and 4 mudbrick half-blocks (owner: more mudbrick).
+- Openings: the door.
 - New: a pole held upright between two stones. Technique: jambs and a lintel; the relief stands free on the lintel.
-- Wrong material: mudbrick jambs crumble under the lintel and the lion.
-- Wrong build: flagpoles standing on top of the stones instead of between them: the wind blows them down.
+- Wrong material: mudbrick jambs crumble under the lintel and the lion; wooden planks as the lintel snap under the lion; mudbrick for the jambs and the lower walls: the jambs crumble.
+- Wrong build: one jamb left out: the lintel and the lion fall into the door. (Flagpoles standing on top of the stones, the earlier wrong build, no longer fails the test: the poles fall but the building passes, so it was replaced.)
 - Temporary wood: none.
 - Flagpoles: no source found for flagpoles at the Lion Gate. The sources describe a double wooden door turning in pivot holes in the lintel and threshold, closed by a crossbar in sockets in the jambs (odysseyadventures.ca; ancient-greece.org).
-- Wooden lintel, checked: it does not fail, so it is not a wrong choice. The real lintel is one stone, 4.5 x 2.0 x 0.8 m, about 20 t (Wikipedia; theplaka.com); the relief's weight rests only on its lower corners (odysseyadventures.ca), close to the jambs.
+- Wooden lintel (owner, 12 Nov: 3 planks to tempt): a piece lying flat now presses on wood along the whole face they share (it pressed only at its two ends before, which is why the wooden lintel did not snap); the lion's weight over the door snaps a wooden lintel. The real lintel is one stone, 4.5 x 2.0 x 0.8 m, about 20 t (Wikipedia; theplaka.com); the relief's weight rests only on its lower corners (odysseyadventures.ca), close to the jambs.
 
 ## 6. Ishtar Gate, Babylon (c. 575 BC)
 
-- Headpiece: the cedar roof over the passage (worldhistory.org: door and roof of cedar). LOCKED.
-- Pieces: 8 stone blocks, 8 mudbrick blocks (the side towers), 9 wedges, 6 stone half-blocks and 2 big triangles beside the arch, 1 wooden arch form on 4 wooden blocks; pile adds 4 mudbrick blocks.
+- Headpiece: the cedar roof over the passage (worldhistory.org: door and roof of cedar), and (owner, 12 Nov) a headpiece as thick as the roof lowered onto each tower. LOCKED.
+- Pieces: 12 stone blocks (8 in the base, the towers' two lowest courses), 6 mudbrick blocks (the towers' top three courses; owner: the towers one course taller), 9 wedges, 6 stone half-blocks and 2 big triangles beside the arch, 1 wooden arch form on 4 wooden blocks; pile adds 4 mudbrick blocks. Stone exactly as much as the build needs, mudbrick more than it needs (owner).
+- Openings: the arch.
 - New: wedges and the wooden arch form. Technique: the arch built on the form, the form taken out once the last wedge is in. The squares beside the arch stand right at its feet; the triangles rest on the arch and come exactly to its top.
 - Hard: the wedges only stand once the last one is in.
-- Wrong material: mudbrick under the arch's feet crumbles.
+- Wrong material: mudbrick under the arch's feet crumbles; mudbrick towers all the way down: the lowest course crumbles under the tower headpiece.
 - Wrong build: the form pulled out before the last wedge: the arch falls.
 - Temporary wood: one arch form on four blocks.
 
 ## 7. Parthenon front, Athens (447-432 BC)
 
 - Headpiece: the three acroteria: one on each end of the architrave beside the pediment, standing level, and one on the pediment's flat top. LOCKED. The player builds the pediment.
-- Pieces: two steps (7 blocks, then 5 blocks and 2 half-blocks), 6 columns of 3 square drums each with a capital, 2 m apart, an architrave of 5 blocks, a pediment of two stones; pile adds 7 mudbrick blocks and 2 mudbrick half-blocks.
+- Pieces: two steps (7 blocks, then 5 blocks and 2 half-blocks), 6 columns of 3 square drums each with a capital, 2 m apart, an architrave of 5 blocks, a pediment of two stones; pile adds 5 mudbrick blocks and 2 mudbrick half-blocks.
 - New: the pediment stones. Technique: columns built drum by drum (σπόνδυλοι), stacked straight; every architrave block has both ends on a capital.
 - Hard: loose drums wobble until the architrave ties their tops; a column off its spot leaves an architrave end hanging.
+- Openings: the five spaces between the columns, up to the architrave.
 - Wrong material: mudbrick in the top step crumbles under the temple.
 - Wrong build: drums stacked off line: the column falls; an end column too far out: the architrave end falls.
 - Temporary wood: none.
@@ -111,21 +118,23 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 
 ## 8. Mausoleum of Halicarnassus (c. 350 BC): the wooden-post level
 
-- Headpiece: the four-horse chariot on top, and two acroteria on the beam ends beside the roof (owner). LOCKED.
-- Pieces: 26 stone blocks (podium, core, five roof steps), 8 small triangles (the roof's slope), 4 square drums and 3 capitals, 4 stone beams, 2 wooden posts; pile adds 2 mudbrick blocks.
+- Headpiece: the four-horse chariot on top, and two acroteria on the beam ends beside the roof (owner). LOCKED. 12 Nov: the acroteria moved in with the lintel ends (from 6.5 to 5.95 m out), so they still stand on them.
+- Pieces (owner, 12 Nov: the lintels meet with no gap, the roof a square narrower on each side, the top two triangles gone): 21 stone blocks (podium, core, five roof steps of 5, 4, 3, 2, 1 blocks), 6 small triangles (the roof's slope), 4 square drums and 3 capitals, 4 stone beams end to end, 2 wooden posts; pile adds 2 mudbrick blocks and 4 mudbrick half-blocks.
+- Openings: the two walkways between the columns and the core.
 - New: wooden posts as temporary props. Technique: the walkway beams reach out from the solid core further than they can hold alone; they rest on wooden posts while the roof goes on, and hold once its weight (five steps over the core) presses their inner ends down. The posts then come out.
 - Hard: the posts must stand before the beams go on and stay until the roof is on.
-- Wrong material: mudbrick in the core crumbles.
-- Wrong build: no posts: the beams tip and the roof falls; posts pulled out before the roof is on: the same.
+- Wrong material: mudbrick in the core crumbles; mudbrick columns crumble.
+- Wrong build: one column left out: its lintel and the roof above it fall. (Checked 12 Nov and taken out because they no longer fail: the posts left out or pulled out early (the lintels now meet end to end and hold each other, so the posts are not needed any more; owner to decide whether the posts stay in this level) and wooden lintels (they snap while building, but the building then passes).)
 - Temporary wood: two posts.
 - Historical: podium, 36 columns, a pyramid of 24 steps, a four-horse chariot (Pliny, corroborated by excavation, worldhistory.org); a solid core behind the columns carried the roof (Wikipedia); ceiling beams of the walkway were found (American Journal of Archaeology); lions stood at the base of the pyramid (worldhistory.org). The real roof was stepped with a low pitch; here the steps are filled out with triangles into a 45-degree slope (owner). The acroteria are the owner's addition. The posts are the game's way of building it.
 
 ## 9. Lighthouse of Alexandria (c. 280 BC)
 
 - Headpiece: the statue on top and the two Tritons on the corners of the lowest tier. LOCKED.
-- Pieces: 9 stone blocks, 13 stone half-blocks, 8 wooden beams; pile adds 2 mudbrick blocks.
+- Pieces: 9 stone blocks, 13 stone half-blocks, 8 wooden beams; pile adds 2 mudbrick blocks and 6 stone half-blocks (for the wrong build without ties).
 - New: a hollow tower. Technique: the lowest tier (seven courses, owner: three tie courses and one stone course on top) is two walls round the shaft, tied every other course by two wooden beams across it; the second tier is hollow too, walls one block thick tied by single wooden beams; a stone over the shaft carries the round top.
 - Hard: the tallest level and a strong wind (18 against 6.5 elsewhere). Still drawn smaller than the others (81% at 1280 x 800, 71% at 1920 x 1080); full size needs the top at most about 12 m (10.7 m at 1920 x 1080), it is 14.4 m.
+- Openings: the shaft in each course between the ties (touching ones drawn as one, owner).
 - Wrong material: mudbrick at the base crumbles.
 - Wrong build: no wooden ties (test 7): the walls fall in the wind; the upper tier set off centre: the tower falls.
 - Temporary wood: none.
@@ -137,6 +146,7 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 - Pieces (owner: back to the old design): 3 stone blocks as piers under the lower arches, 4 arches of 9 wedges, 8 big triangles, side walls a half-block wide in both tiers, a course of 7 stone blocks between the tiers, 2 wooden arch forms each on one wooden block; pile adds mudbrick for the wrong choice.
 - New: nothing new. Technique: two forms for four arches. The lower arches spring from the piers; take the forms out, use them again for the upper arches, which stand on the course between the tiers.
 - Hard: the piers carry everything.
+- Openings: the four arches.
 - Wrong material: mudbrick piers crumble.
 - Open: this pile does not fit the sidebar (120%); waiting for the owner.
 - Wrong build: a form pulled out before the last wedge: the arch falls.

@@ -328,8 +328,25 @@
         ctx.fill();
         ctx.stroke();
         ctx.restore();
+      } else if (name === "restart") {
+        // a circular arrow: start again
+        ctx.lineWidth = s * 0.28; ctx.strokeStyle = "#e8dcc5"; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.arc(0, 0, s * 0.7, -Math.PI * 0.35, Math.PI * 1.35); ctx.stroke();
+        const a = -Math.PI * 0.35, ex = Math.cos(a) * s * 0.7, ey = Math.sin(a) * s * 0.7;
+        ctx.beginPath(); ctx.moveTo(ex + s * 0.42, ey - s * 0.05); ctx.lineTo(ex - s * 0.12, ey - s * 0.42); ctx.lineTo(ex - s * 0.05, ey + s * 0.3); ctx.closePath(); ctx.fill();
       }
       ctx.restore();
+    },
+    // label under a map button
+    buttonLabel(ctx, text, x, y, size) {
+      ctx.save(); ctx.font = "bold " + Math.round(size * 0.22) + "px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.lineWidth = 4; ctx.strokeStyle = "rgba(255, 248, 230, 0.9)"; ctx.strokeText(text, x, y); ctx.fillStyle = "#3c3226"; ctx.fillText(text, x, y);
+      ctx.restore();
+    },
+    // A finished site that is no longer whole (its headpiece out of place): see-through red; it is drawn as it is now.
+    mapSiteBroken(ctx, x, y, r) {
+      ctx.fillStyle = "rgba(224, 71, 59, 0.45)"; ctx.strokeStyle = "#7a2a1e"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     },
   };
 
@@ -418,20 +435,34 @@
   let worldWidth = WORLD_WIDTH; // visible width; wider than 16 m when a tall level zooms out
   let viewX0 = 0; // world x at the left edge of the building area (negative when zoomed out, so the level stays centred)
 
-  const world = new planck.World({ gravity: planck.Vec2(0, -10) });
+  // The world is made fresh when a level starts, when the quick build starts and when the test starts, so what
+  // happens in it depends only on the pieces put into it, never on what was built and taken away before (owner:
+  // the same quick build and test failed once and passed once).
+  let world = new planck.World({ gravity: planck.Vec2(0, -10) });
+  const worldEvents = [];
+  function onWorld(ev, fn) { worldEvents.push([ev, fn]); world.on(ev, fn); }
   // Collision groups: a piece just out of the sidebar (ghost) passes through other pieces but not the ground or walls.
   const SOLID_CAT = 2, GHOST_CAT = 4;
 
   // Kinematic so the earthquake can move it; at rest it behaves as static.
-  const groundBody = world.createBody({ type: "kinematic", position: planck.Vec2(WORLD_CENTER_X, -2) });
-  groundBody.createFixture({
-    shape: planck.Box(40, 2),
-    friction: 0.8,
-    filterCategoryBits: SOLID_CAT,
-  });
-
-  const anchorBody = world.createBody({ type: "static" });
-  let boundaryBodies = [];
+  let groundBody, anchorBody, boundaryBodies = [];
+  function makeGround() {
+    groundBody = world.createBody({ type: "kinematic", position: planck.Vec2(WORLD_CENTER_X, -2) });
+    groundBody.createFixture({
+      shape: planck.Box(40, 2),
+      friction: 0.8,
+      filterCategoryBits: SOLID_CAT,
+    });
+    anchorBody = world.createBody({ type: "static" });
+  }
+  makeGround();
+  function freshWorld() { // call with no pieces, loads or hands left in the old world
+    world = new planck.World({ gravity: planck.Vec2(0, -10) });
+    for (const [ev, fn] of worldEvents) world.on(ev, fn);
+    makeGround();
+    boundaryBodies = [];
+    if (scale) rebuildBoundaries();
+  }
 
   // Keep every piece inside the visible building area. The walls extend well
   // above the viewport so tall towers are not capped by an invisible ceiling.
@@ -736,13 +767,7 @@
     const btn = hitButton(px, py);
     if ((test || auto) && !(btn && btn.kind === "home")) return; // hands off during the test and the quick build
     if (btn) {
-      if (btn.kind === "home") {
-        cancelAuto();
-        releaseAllPointers();
-        abortTest();
-        mode = "map"; mapEnteredAt = performance.now();
-        return;
-      }
+      if (btn.kind === "home") { goMap(); return; }
       if (btn.kind === "test") {
         startTest();
         return;
@@ -894,9 +919,25 @@
   // crushed into overlap and launched, and a dragged piece cannot shove the
   // pieces under it harder than its weight allows.
   const GRAVITY = 10;
-  // Hand strength for lifting beyond the piece's own weight, in newtons:
-  // a stone block lifts with three more on top (slowly), not with four.
+  // Hand strength in free air beyond the piece's own weight, in newtons.
   const HAND_LIFT = 350;
+  // Owner: the hand uses the strength the job needs: the piece and everything resting on it, by weight only (never by
+  // size); heavier lags more; above the weight of two big stone blocks it cannot lift.
+  const HAND_MAX_WEIGHT = 2 * 2 * 5.0 * GRAVITY; // N: two stone blocks (2 m^2 each, stone 5 kg/m^2)
+  const HAND_LIFT_EXTRA = 0.3; // lifts with 30% more than the weight it carries
+  // weight pressing down on a body from the pieces resting on it (contact forces of the last step)
+  function weightOnTop(body) {
+    let w = 0;
+    for (let ce = body.getContactList(); ce; ce = ce.next) {
+      const c = ce.contact, o = ce.other;
+      if (!c.isTouching() || !(o.piece || o.isLoad) || (o.piece && (o.piece.ghost || o.piece.auto))) continue;
+      const man = c.getManifold(), wm = new planck.WorldManifold(); c.getWorldManifold(wm);
+      let j = 0; for (let i = 0; i < man.pointCount; i++) j += man.points[i].normalImpulse;
+      const fy = (c.getFixtureA().getBody() === body ? -wm.normal.y : wm.normal.y) * j / STEP; // force on this body, up
+      if (fy < 0) w -= fy;
+    }
+    return w;
+  }
   const PUSH_ACCEL = 8; // m/s^2: hand force while touching = 0.8 x own weight ...
   const HAND_PUSH = 120; // N ... plus this much hand strength, so a mudbrick can shove another along the ground (stone only slowly)
   const NEAR_GAP = 0.25, NEAR_SPEED = 1.5; // within this gap of another piece the held piece moves at most this fast (no sudden ramming)
@@ -953,9 +994,11 @@
       const touching = touchesOtherPiece(body);
       const p = body.getWorldPoint(piece.grabLocal);
       const T = piece.handT;
-      // HOLD_SMOOTH and maxLiftSpeed are for a block (2 m^2) of the material; a piece eases in proportion to its mass
-      // and its carry speed goes with 1/sqrt(mass), so a small stone follows the hand quicker than a big one
-      const mr = Math.min(3.5, Math.max(0.25, m / (2 * material.density)));
+      // what the hand carries: the piece and everything resting on it
+      const Wt = m * GRAVITY + (touching ? weightOnTop(body) : 0), mt = Wt / GRAVITY;
+      // HOLD_SMOOTH and maxLiftSpeed are for a block (2 m^2) of the material; a piece eases in proportion to the mass
+      // carried and its carry speed goes with 1/sqrt(mass), so a small stone follows the hand quicker than a big one
+      const mr = Math.min(3.5, Math.max(0.25, mt / (2 * material.density)));
       const k = Math.min(1, STEP / (HOLD_SMOOTH[piece.material] * mr));
       let vx = ((piece.desired.x - T.x) * k) / STEP, vy = ((piece.desired.y - T.y) * k) / STEP;
       const vlen = Math.hypot(vx, vy), vcap = material.maxLiftSpeed / Math.sqrt(mr);
@@ -974,7 +1017,9 @@
       const W = m * GRAVITY;
       const extra = piece.lever && !touching ? HELD_EXTRA_G * W : 0;
       if (extra) body.applyForceToCenter(planck.Vec2(0, -extra), true);
-      piece.joint.setMaxForce(touching ? Math.hypot(W, Math.min(m * material.maxAccel, m * PUSH_ACCEL + HAND_PUSH)) : W + extra + Math.max(m * FREE_AIR_ACCEL, HAND_LIFT));
+      piece.joint.setMaxForce(!touching ? W + extra + Math.max(m * FREE_AIR_ACCEL, HAND_LIFT)
+        : Wt > HAND_MAX_WEIGHT ? HAND_MAX_WEIGHT // too heavy: it cannot lift it
+        : Math.hypot(Wt * (1 + HAND_LIFT_EXTRA), Math.min(mt * material.maxAccel, mt * PUSH_ACCEL + HAND_PUSH)));
       if (piece.lever) {
         // grip friction: a torque against the swing, scaled by the inertia about the grab point (a body's own
         // angular damping acts only about its centre and barely slows a pendulum)
@@ -1275,7 +1320,7 @@
   const lastImpact = new Map(); // body -> time, so one landing makes one thud
   const MUD_SHATTER_SPEED = 7; // m/s lost in one step that crumbles a mudbrick at once (about a 2.5 m fall); placeholder
   // Also used by the sidebar pile (pile = true): same dust, chips and sounds, no shake, no breaking.
-  world.on("post-solve", (contact, impulse) => feelContact(contact, impulse, false));
+  onWorld("post-solve", (contact, impulse) => feelContact(contact, impulse, false));
   // How fast the two bodies were closing at the contact before the solver ran (m/s).
   // A resting stack has ~0 here even though its contact impulse carries the weight of
   // everything above; reading impulse/mass alone mistook that weight for a hit every step.
@@ -1289,7 +1334,7 @@
     }
     return vn;
   }
-  world.on("pre-solve", (contact) => { contact.tbVn = approachSpeed(contact); });
+  onWorld("pre-solve", (contact) => { contact.tbVn = approachSpeed(contact); });
   function feelContact(contact, impulse, pile) {
     const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
     const n = Math.max(...impulse.normalImpulses.slice(0, contact.getManifold().pointCount));
@@ -1372,7 +1417,7 @@
   const STRAIN_TIME = { crumble: 0.5, snap: 0.25 }; // seconds of overload before it gives
 
   // Collect, per physics step, what presses on each mudbrick and where wood is held up and pushed down.
-  world.on("post-solve", (contact, impulse) => {
+  onWorld("post-solve", (contact, impulse) => {
     const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
     const watch = (b) => b.piece && (b.piece.material === "mudbrick" || b.piece.canSnap);
     if (!watch(bA) && !watch(bB)) return;
@@ -1399,11 +1444,18 @@
       if (py < 0.5) continue; // standing too upright to bend
       const c = body.getPosition();
       let s0 = Infinity, s1 = -Infinity, sl = 0, nl = 0;
+      const down = [];
       for (const [x, y, fx, fy] of pts) {
         const s = (x - c.x) * ux + (y - c.y) * uy, f = fx * px + fy * py;
         if (f > 0) { s0 = Math.min(s0, s); s1 = Math.max(s1, s); }
-        else { piece.loads.push([s, -f]); sl += s; nl++; }
+        else { down.push([s, -f]); sl += s; nl++; }
       }
+      // a piece lying flat on it presses along the whole face they share (the physics reports only its two ends),
+      // so the part of its weight over a gap bends the wood
+      if (down.length === 2) {
+        const [[sa, pa], [sb, pb]] = down, N = 8;
+        for (let k = 0; k < N; k++) piece.loads.push([sa + ((sb - sa) * (k + 0.5)) / N, (pa + pb) / N]);
+      } else for (const d of down) piece.loads.push(d);
       // what hit it: kinetic energy it brought in = J^2 / 2m (J = the impulse that stopped it this step)
       const other = body === bA ? bB : bA, mo = other.isDynamic() ? other.getMass() : 0;
       if (nl && mo > 0) {
@@ -1850,7 +1902,7 @@
   const LEVEL_X0 = WORLD_CENTER_X; // level data is centred on x = 0
   const CELL = 0.1, GX = 400, GY = 220; // check grid: 0.1 m cells over x 0..40 m, y 0..22 m
   const CHECK = {
-    fill: 0.83,      // share of the outline that must be covered before the test
+    fill: 0.85,      // owner: share of the outline (the building's shape) that must be covered before the test
     fillAfter: 0.8,  // ... and still covered at each step of it
     farReach: 0.5,   // metres outside the outline that still count as "inside"
     farCells: 5,     // allowed cells beyond that
@@ -1866,7 +1918,7 @@
   // From level 2 on, below what tips a lone stone column (0.6 x 2.4 m tips at about
   // 7.5 N/m here: weight x half-width against wind x half-height); level 1 has no columns.
   const TEST_WIND = [110, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 18, 6.5]; // Lighthouse: the strongest wind; walls not tied together fall in it
-  const TEST_LOAD_DENSITY = [5, 42, 20, 75, 25, 10, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
+  const TEST_LOAD_DENSITY = [5, 33, 20, 75, 25, 23.5, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
   const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
   const TEST_FAST = 10, DRUM_LEAD = 1.5; // Tab test speed-up; seconds the drumroll may start before the load moves
@@ -1934,7 +1986,7 @@
     const L = LEVELS[i], n = GX * GY;
     const g = {
       L, solid: L.solid.map(toWorldRing), holes: L.holes.map(toWorldRing), wood: L.wood.map(toWorldRing), load: L.load.map(toWorldRing),
-      pockets: (L.pockets || []).map(toWorldRing), guides: (L.guides || []).map(toWorldRing),
+      guides: (L.guides || []).map(toWorldRing),
       inOutline: new Uint8Array(n), inHole: new Uint8Array(n), inWood: new Uint8Array(n), inLoad: new Uint8Array(n), near: new Uint8Array(n), cov: new Uint8Array(n),
       solidCells: 0, holeCells: 0, woodCells: 0,
     };
@@ -1958,7 +2010,7 @@
         // otherwise fail on their rim; the rim itself is neither outline nor opening
         const deep = hole && [[LM, 0], [-LM, 0], [0, LM], [0, -LM]].every(([dx, dy]) => g.holes.some((r) => inRing(x + dx, y + dy, r)));
         if (deep) { g.inHole[k] = 1; g.holeCells++; }
-        else if (!hole && g.solid.some((r) => inRing(x, y, r)) && !g.pockets.some((r) => inRing(x, y, r))) { g.inOutline[k] = 1; g.solidCells++; } // slivers beside arch stones: drawn solid, not checked
+        else if (!hole && g.solid.some((r) => inRing(x, y, r))) { g.inOutline[k] = 1; g.solidCells++; }
         if (g.wood.some((r) => inRing(x, y, r))) { g.inWood[k] = 1; g.woodCells++; }
       }
     }
@@ -2069,12 +2121,31 @@
   function testReady() {
     return currentLevel != null && !test && !auto && pointers.size === 0 && readySince != null && performance.now() - readySince >= READY_HOLD * 1000;
   }
+  // A finished site whose headpiece is no longer in its place (taken off, fallen, shovelled away) is not finished:
+  // the map shows it red and see-through, as it is now, and nobody visits it. Fixing it means passing the test again.
+  function headpieceOut() { return !grid || loads.length < grid.load.length || loads.some((l) => !loadInPlace(l)); }
+  function syncSite(save) {
+    const done = currentLevel != null && progress.done[LEVELS[currentLevel].key];
+    if (!done || test || auto) return;
+    const out = headpieceOut();
+    if (!save && out === !!done.broken) return;
+    const r3 = (n) => Math.round(n * 1000) / 1000;
+    done.broken = out;
+    done.pieces = pieces.map((p) => { const q = p.body.getPosition(); return [p.defKey, p.material, r3(q.x), r3(q.y), r3(p.body.getAngle())]; });
+    done.loads = loads.map((l) => { const q = l.body.getPosition(); return [r3(q.x), r3(q.y), r3(l.body.getAngle()), l.verts]; });
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (err) { /* ignore */ }
+  }
+  function goMap() { // leaving a level for the map: a finished site is kept as it is now
+    const testing = !!test; // leaving mid-test: a pass is saved by the test itself, anything else is undone
+    cancelAuto(); releaseAllPointers(); abortTest(); if (!testing) syncSite(true);
+    mode = "map"; mapEnteredAt = performance.now();
+  }
   function updateCheck(dt) {
     if (failShow && failShow.until != null && performance.now() > failShow.until) failShow = null;
     if (currentLevel == null || test) return;
     checkTimer -= dt;
     if (checkTimer <= 0) {
-      check = runCheck(); checkTimer = 0.25;
+      check = runCheck(); checkTimer = 0.25; syncSite(false);
       const ok = pointers.size === 0 && !auto && checkPasses(check) && piecesAtRest();
       readySince = ok ? (readySince != null ? readySince : performance.now()) : null;
     }
@@ -2082,8 +2153,9 @@
 
   function startLevel(i) {
     releaseAllPointers();
-    const fresh = currentLevel !== i;
-    if (fresh) { clearAllPieces(); fillPile([]); }
+    // a finished site always opens as it was saved when it was left (owner: its headpiece must always be there)
+    const fresh = currentLevel !== i || !!progress.done[LEVELS[i].key];
+    if (fresh) { clearAllPieces(); fillPile([]); freshWorld(); }
     if (!grid || grid.L !== LEVELS[i]) grid = buildLevel(i);
     currentLevel = i;
     levelTop = grid.top; levelWidth = grid.width;
@@ -2108,12 +2180,13 @@
         const j = left.findIndex((it) => it.defKey === key && it.material === m);
         if (j >= 0) left.splice(j, 1);
       }
-      for (const [x, y, a, verts] of done.loads || []) { // the load stays on top of the finished building
+      (done.loads || []).forEach(([x, y, a, verts], k) => { // the load stays where it was left; its place is the level's
         const body = world.createBody({ type: "dynamic", position: planck.Vec2(x, y), angle: a });
         body.createFixture({ shape: planck.Polygon(verts.map(([vx, vy]) => planck.Vec2(vx, vy))), density: TEST_LOAD_DENSITY[i], friction: 0.6, restitution: 0 });
         body.isLoad = true;
-        loads.push({ body, tx: x, ty: y, verts, released: true });
-      }
+        const [tx, ty] = grid.load[k] ? ringCentre(grid.load[k]) : [x, y];
+        loads.push({ body, tx, ty, verts, released: true });
+      });
       fillPile(left);
     }
   }
@@ -2138,6 +2211,7 @@
     releaseAllPointers();
     const items = pileItems().concat(pieces.map((p) => ({ defKey: p.defKey, material: p.material })));
     clearAllPieces();
+    freshWorld();
     fillPile(items);
     failShow = null;
     auto = { queue: SOLUTIONS[LEVELS[currentLevel].key].slice(), cur: null, wait: 0.3 };
@@ -2227,7 +2301,15 @@
     failShow = null;
     for (const l of loads) world.destroyBody(l.body); // a finished site's load: the test lowers a new one
     loads = [];
-    const snapshot = pieces.map((p) => { const q = p.body.getPosition(); return { defKey: p.defKey, material: p.material, x: q.x, y: q.y, angle: p.body.getAngle() }; });
+    // the building first finishes settling (until every piece is still): what it settles into does not depend on
+    // when the button was pressed; then the test starts in a fresh world from where the pieces stand (to the
+    // millimetre), always in the same order: the same building gives the same result every time
+    for (let k = 0; k < 900 && pieces.some((p) => p.body.isAwake()); k++) { world.step(STEP, 10, 5); settleResting(); updateStrain(); }
+    const r4 = (v) => Math.round(v * 1000) / 1000;
+    const snapshot = pieces.map((p) => { const q = p.body.getPosition(); return { defKey: p.defKey, material: p.material, x: r4(q.x), y: r4(q.y), angle: r4(p.body.getAngle()) }; })
+      .sort((a, b) => a.y - b.y || a.x - b.x || a.angle - b.angle || (a.defKey + a.material < b.defKey + b.material ? -1 : 1));
+    clearAllPieces(); freshWorld();
+    for (const q of snapshot) spawnPiece(q.defKey, q.x, q.y, q.angle, q.material);
     const toPull = []; // supports are no longer pulled by the test: left in, they fail the check
     test = { phase: "supports", t: 0, snapshot, toPull, after: null, fast: tabHeldNow(), broken: [] };
   }
@@ -2320,7 +2402,7 @@
       shake = Math.max(shake, 10 * env);
       if (T >= D) { resetGround(); settleThenCheck("pass"); }
     } else if (test.phase === "pass") {
-      if (T >= PHASE_TIME.pass) { saveMonument(); finishTest(); mode = "map"; mapEnteredAt = performance.now(); }
+      if (T >= PHASE_TIME.pass) { saveMonument(); finishTest(true); mode = "map"; mapEnteredAt = performance.now(); }
     } else if (test.phase === "fail") {
       if (T >= PHASE_TIME.fail) restoreSnapshot();
     }
@@ -2363,10 +2445,9 @@
     groundBody.setLinearVelocity(planck.Vec2(0, 0));
     groundBody.setPosition(planck.Vec2(WORLD_CENTER_X, -2));
   }
-  function finishTest() {
+  function finishTest(keepLoads = false) { // passed: the headpiece stays on the building
     if (test && test.loop) { test.loop.stop(0.6); test.loop = null; }
-    for (const l of loads) world.destroyBody(l.body);
-    loads = [];
+    if (!keepLoads) { for (const l of loads) world.destroyBody(l.body); loads = []; }
     resetGround();
     test = null;
     checkTimer = 0;
@@ -2376,13 +2457,13 @@
     const snap = test.snapshot;
     finishTest();
     failShow = null;
-    clearAllPieces();
+    clearAllPieces(); freshWorld();
     for (const s of snap) spawnPiece(s.defKey, s.x, s.y, s.angle, s.material);
   }
   // Leaving mid-test keeps the player's work: a pass is saved, anything else is put back.
   function abortTest() {
     if (!test) return;
-    if (test.phase === "pass") { saveMonument(); finishTest(); } else restoreSnapshot();
+    if (test.phase === "pass") { saveMonument(); finishTest(true); } else restoreSnapshot();
   }
 
   function dustAt(q) {
@@ -2429,7 +2510,7 @@
   // Red, pulsing: the parts of the outline (or openings, or wood zones) that broke a rule.
   // Unfilled outline = the outline with every piece cut out (a little wider than itself, so
   // pieces that touch leave no seam), drawn on a spare canvas: straight edges, real gaps only.
-  const SEAM = 0.04; // m
+  const SEAM = 0.05; // m: gaps narrower than twice this between pieces are seams, not painted
   let unfilledCanvas = null;
   function drawUnfilled(alpha) {
     const dpr = window.devicePixelRatio || 1;
@@ -2439,9 +2520,11 @@
     o.setTransform(1, 0, 0, 1, 0, 0); o.clearRect(0, 0, oc.width, oc.height); o.setTransform(dpr, 0, 0, dpr, 0, 0);
     o.globalCompositeOperation = "source-over";
     o.fillStyle = "rgb(220, 40, 30)";
-    o.fill(screenPath(grid.solid.concat(grid.holes)), "evenodd");
+    o.fill(screenPath(grid.solid));
     o.globalCompositeOperation = "destination-out";
-    o.fillStyle = o.strokeStyle = "#000"; o.lineWidth = 2 * SEAM * scale; o.lineJoin = "round";
+    o.fillStyle = o.strokeStyle = "#000";
+    if (grid.holes.length) o.fill(screenPath(grid.holes)); // openings are never painted (owner)
+    o.lineWidth = 2 * SEAM * scale; o.lineJoin = "round";
     for (const p of pieces) {
       if (p.heldBy != null || p.auto) continue;
       for (let f = p.body.getFixtureList(); f; f = f.getNext()) {
@@ -2585,7 +2668,12 @@
     const q = MAP_WALKS[to + ">" + from];
     return q ? q.slice().reverse() : null;
   }
-  const doneSites = () => SITES.filter((s) => progress.done[s.key]).map((s) => s.key);
+  const siteFinished = (key) => !!progress.done[key] && !progress.done[key].broken;
+  const doneSites = () => SITES.filter((s) => siteFinished(s.key)).map((s) => s.key); // a site no longer whole gets no visitors
+  function siteLook(key) { // how the map shows a site
+    const i = LEVELS.findIndex((L) => L.key === key), d = progress.done[key];
+    return d ? (d.broken ? "broken" : "done") : levelOpen(i) ? "open" : "locked";
+  }
   function startWalk(g, path, then) { g.state = "walk"; g.path = path; g.len = polyLen(path); g.s = 0; g.then = then; }
   function boatInPort(b, port) {
     for (const g of groups) {
@@ -2645,11 +2733,11 @@
         const end = g.then.site ? g.len - rSite : g.len;
         if (g.s >= end) {
           g.s = Math.max(0, end);
-          if (g.then.site) { g.state = "visit"; g.site = g.then.site; g.wait = VISIT_TIME; g.onFoot++; g.recent = [g.site].concat(g.recent).slice(0, 2); }
+          if (g.then.site) { g.state = "visit"; g.site = g.then.site; g.wait = siteFinished(g.site) ? VISIT_TIME : 0; g.onFoot++; g.recent = [g.site].concat(g.recent).slice(0, 2); }
           else { g.state = "port"; g.port = g.then.port; g.plan = g.then.plan; }
         }
       } else if (g.state === "visit" && (g.wait -= dt) <= 0) {
-        if (!progress.done[g.site]) g.recent = []; // the site is gone (progress reset): just move on
+        if (!siteFinished(g.site)) g.recent = []; // the site is gone or no longer whole: just move on
         chooseNext(g);
       }
     }
@@ -2686,6 +2774,19 @@
     const r = siteRadius() * (progress.done[site.key] ? DONE_SIZE : 1), m = v.pt(site.x, site.y);
     return { x: Math.max(r + 2, Math.min(cssWidth - r - 2, m.x)), y: Math.max(r + 2, Math.min(cssHeight - r - 2, m.y)), r };
   }
+  // ΕΠΑΝΕΚΚΙΝΗΣΗ (owner): the whole map back to the very beginning: every site, the travellers and the boats, all progress.
+  function restartButton() {
+    const size = Math.max(60, Math.min(cssWidth, cssHeight) * 0.11);
+    return { x: size * 1.15, y: cssHeight - size * 0.95, size }; // far enough in for its label
+  }
+  function restartAll() {
+    progress.done = {};
+    try { localStorage.removeItem(SAVE_KEY); } catch (err) { /* ignore */ }
+    allOpen = false; cornerHold = null;
+    if (currentLevel != null) { releaseAllPointers(); clearAllPieces(); fillPile([]); freshWorld(); currentLevel = null; grid = null; check = null; failShow = null; }
+    boats.forEach((b, i) => { b.leg = i % b.line.legs.length; b.dir = 1; b.d = b.lens[b.leg] * ((i * 0.37) % 1); b.wait = 0; });
+    groups.forEach((g, i) => { for (const k of Object.keys(g)) delete g[k]; Object.assign(g, { state: "boat", boat: boats[i], onFoot: 0, stops: 0, recent: [], plan: null }); });
+  }
   function freePlayButton() {
     const size = Math.max(70, Math.min(cssWidth, cssHeight) * 0.14);
     return { x: cssWidth - size * 0.75, y: cssHeight - size * 0.75, size };
@@ -2701,7 +2802,7 @@
       const m = siteMarker(v, site), r = m.r;
       const i = LEVELS.findIndex((L) => L.key === site.key);
       const done = progress.done[site.key];
-      if (done) { SKIN.mapSiteDone(ctx, m.x, m.y, r); drawMonumentMini(done, m.x, m.y, r); }
+      if (done) { if (done.broken) SKIN.mapSiteBroken(ctx, m.x, m.y, r); else SKIN.mapSiteDone(ctx, m.x, m.y, r); drawMonumentMini(done, m.x, m.y, r); }
       else if (levelOpen(i)) SKIN.mapSiteOpen(ctx, m.x, m.y, r);
       else SKIN.mapSite(ctx, m.x, m.y, r);
     }
@@ -2710,10 +2811,15 @@
     if (cornerHold && performance.now() - cornerHold.t > 3000) { allOpen = !allOpen; cornerHold = null; }
     const fb = freePlayButton();
     SKIN.button(ctx, "block", fb.x, fb.y, fb.size, false);
+    const rb = restartButton();
+    SKIN.button(ctx, "restart", rb.x, rb.y, rb.size, false);
+    SKIN.buttonLabel(ctx, "ΕΠΑΝΕΚΚΙΝΗΣΗ", rb.x, rb.y + rb.size * 0.55, rb.size);
   }
   function onMapPointerDown(e) {
     const fb = freePlayButton();
     if (Math.hypot(e.clientX - fb.x, e.clientY - fb.y) <= fb.size / 2) { startFree(); return; }
+    const rb = restartButton();
+    if (Math.hypot(e.clientX - rb.x, e.clientY - rb.y) <= rb.size / 2) { restartAll(); return; }
     if (e.clientX < 90 && e.clientY < 90) { cornerHold = { id: e.pointerId, t: performance.now() }; return; }
     const v = mapView();
     let best = -1, bestD = Infinity; // nearest marker wins where big ones overlap
@@ -2753,7 +2859,7 @@
   }
   // Try sound right away (browsers may hold it until the first press or key; it then starts).
   startAudio();
-  window.addEventListener("keydown", startAudio);
+  for (const ev of ["pointerdown", "touchstart", "mousedown", "keydown"]) window.addEventListener(ev, startAudio, { capture: true });
   requestAnimationFrame(frame);
 })();
 </script>
