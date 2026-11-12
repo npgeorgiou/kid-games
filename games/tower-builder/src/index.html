@@ -511,13 +511,10 @@
 
     sidebarWidthPx = Math.min(156, Math.max(92, cssWidth * 0.23));
     if (cssWidth - sidebarWidthPx < 160) sidebarWidthPx = Math.max(72, cssWidth * 0.28);
-    if (currentLevel != null) { // room for the pile: as wide as this level's full pile needs at the one pile size
-      pilePx = Math.max(28, Math.min(48, cssHeight / 22));
-      const items = stockItems(currentLevel), maxW = cssWidth * 0.5;
-      for (sidebarWidthPx = Math.min(240, Math.max(130, cssWidth * 0.24)); sidebarWidthPx < maxW; sidebarWidthPx += 10) {
-        const size = Math.min(64, (sidebarWidthPx - 32) / 3), bin = { w: sidebarWidthPx - 16, h: cssHeight - size - 24 };
-        if (pileLayout(items, bin, pilePx)[2]) break;
-      }
+    if (currentLevel != null) { // room for the pile; one piece size for every level: the largest at which every level's full pile fits
+      sidebarWidthPx = Math.min(240, Math.max(130, cssWidth * 0.24));
+      const size = Math.min(64, (sidebarWidthPx - 32) / 3), bin = { w: sidebarWidthPx - 16, h: cssHeight - size - 24 };
+      pilePx = Math.min(...LEVELS.map((L, i) => pileLayout(stockItems(i), bin, null)[0]));
     }
     buildingWidthPx = cssWidth - sidebarWidthPx;
     buildingHeightPx = cssHeight;
@@ -642,7 +639,6 @@
     // Outside the balance zone the grab point is a lever and tilts the piece.
     piece.grabLocal = localGrab;
     piece.lever = !inBalanceZone;
-    piece.shortSide = piece.r != null ? 2 * piece.r : 2 * Math.min(piece.hx, piece.hy);
     piece.holdAngle = piece.body.getAngle();
     piece.desired = { x: worldPt.x, y: worldPt.y };
     piece.controlMode = "hand";
@@ -914,13 +910,20 @@
       // held piece's own weight), so what it pushes resists by its own mass.
       const touching = touchesOtherPiece(body);
       const A = touching ? PUSH_ACCEL : material.maxAccel;
-      // Held off-centre, the hand's grip resists turning up to a torque that grows with the piece's
-      // weight and its short side: a chunky block is carried without swinging; a long thin beam or
-      // column overpowers the grip, hangs and can be swung round in circles.
+      // Held off-centre the piece is a pendulum under the hand: lifted by one end it swings down and
+      // hangs, and circling the hand swings it round. The grip only adds friction to the swing
+      // (GRIP_K), so a swing dies out instead of rocking on.
+      // Friction about the grab point (not about the centre): the grab point keeps its velocity, so
+      // the hand does not have to undo it and the swing really dies down.
       if (piece.lever) {
-        const Ic = Math.max(1e-6, body.getInertia() - m * Vec2len2(body.getLocalCenter()));
-        const w = body.getAngularVelocity(), cap = GRIP * m * GRAVITY * piece.shortSide * piece.shortSide * STEP;
-        body.setAngularVelocity(w + Math.max(-cap, Math.min(cap, -Ic * w)) / Ic);
+        const g = body.getWorldPoint(piece.grabLocal), vg = body.getLinearVelocityFromWorldPoint(g), c = body.getWorldCenter();
+        // the grip's friction torque is the same for any shape, so a long piece (much more to turn
+        // about the hand) keeps swinging and can be whirled; a compact block settles at once
+        const lc = body.getLocalCenter(), rr = (c.x - g.x) ** 2 + (c.y - g.y) ** 2;
+        const Ipiv = body.getInertia() - m * (lc.x * lc.x + lc.y * lc.y) + m * rr;
+        const w = body.getAngularVelocity() * Math.exp(-(GRIP_K * m / Ipiv) * STEP);
+        body.setAngularVelocity(w);
+        body.setLinearVelocity(planck.Vec2(vg.x - w * (c.y - g.y), vg.y + w * (c.x - g.x)));
       }
       const p = body.getWorldPoint(piece.grabLocal);
       const v = body.getLinearVelocityFromWorldPoint(p);
@@ -975,8 +978,7 @@
   // Heavier material resists being spun around in the hand; a piece held off-centre
   // swinging under its own weight may turn up to LEVER_SPIN.
   const LEVER_SPIN = 5; // rad/s
-  const GRIP = 2.5; // grip torque = GRIP x weight x short side^2: holds a block or square (short side 1 m) from its corner; a column (0.6 m), beam (0.5) or capital (0.4) held at its end hangs and swings
-  const Vec2len2 = (v) => v.x * v.x + v.y * v.y;
+  const GRIP_K = 2.5; // m^2/s: friction of the grip on a swinging piece, per kg (damping rate = GRIP_K x mass / inertia about the hand)
   function clampHeldSpin() {
     for (const hand of pointers.values()) {
       const piece = hand.piece;
@@ -1584,7 +1586,7 @@
       const out = []; let x = GAP, y = 0.02, rowH = 0, rowKey = null, k = 0;
       for (const it of items) {
         const [w, h] = size(it), nested = it.defKey === "wedge" || it.defKey === "tri";
-        const key = (nested || curved(it) ? it.defKey : h.toFixed(2)) + "/" + it.material; // a row holds one height of one material (blocks and squares share)
+        const key = (nested || curved(it) ? it.defKey + "/" + it.material : h.toFixed(2)); // a row holds one height (blocks and squares of any material share)
         const pairW = it.defKey === "wedge" ? 1.95 : it.defKey === "tri" ? w + 0.03 : w; // a nested pair's width
         const second = (it.defKey === "wedge" || it.defKey === "tri") && key === rowKey && k % 2 === 1;
         if (key !== rowKey) k = 0;
@@ -1599,10 +1601,10 @@
       }
       return [out, y + rowH];
     };
-    const fit = (sc, out, top) => top <= (r.h / sc) * 0.92 && out.every(([it]) => size(it)[0] < r.w / sc - 2 * GAP);
+    const fit = (sc, out, top) => top <= (r.h / sc) * 0.95 && out.every(([it]) => size(it)[0] < r.w / sc - 2 * GAP);
     if (fixedScale) { const [out, top] = pack(r.w / fixedScale); return [fixedScale, out, fit(fixedScale, out, top)]; }
     let sc = 48, places = [];
-    for (; sc > 6; sc *= 0.95) {
+    for (; sc > 6; sc *= 0.98) {
       const [out, top] = pack(r.w / sc);
       places = out;
       if (fit(sc, out, top)) break;

@@ -61,16 +61,24 @@ with sync_playwright() as p:
             const tx=rnd()*8, ty=rnd()*6; for(let k=0;k<40;k++){H.pileTarget={x:q.x+(tx-q.x)*k/40,y:q.y+(ty-q.y)*k/40};run(1);} T.releaseHold(99); run(20);}
           run(180); T.feelHits[1]=0; let mx=0, nmov=0; for(let k=0;k<600;k++){run(1); for(const B of T.pileBodies()){const v=B.getLinearVelocity(),sp=Math.hypot(v.x,v.y); mx=Math.max(mx,sp); if(sp>0.05)nmov++;}}
           return {untouched5s:a,bottomLifted:lifted,afterMessHits10s:T.feelHits[1],maxSpeed:+mx.toFixed(2),movingBodyFrames:nmov};}''',li))
-        print('swing',pg.evaluate('''()=>{const T=__tb;T.mode="build";T.startLevel(0);const run=(n)=>{for(let k=0;k<n;k++){T.stepPhysics(1/60);}};
-          const out={};for(const mat of ["stone","mudbrick","wood"]){const p=T.spawnPiece("block",4,8,0,mat);const g=p.body.getWorldPoint({x:-0.9,y:0.45});
-          T.startHold(p,g,98,0,0);p.desired={x:g.x,y:g.y};run(600);const hang=p.body.getAngle();let mx=0;
-          let lag=0,over=0;const gx=()=>p.body.getWorldPoint(p.grabLocal).x;
-          for(let k=0;k<45;k++){p.desired={x:g.x+k*4/45,y:g.y};run(1);mx=Math.max(mx,Math.abs(p.body.getAngle()-hang));lag=Math.max(lag,p.desired.x-gx());}
-          let amp=[];for(let k=0;k<240;k++){run(1);amp.push(Math.abs(p.body.getAngle()-hang));over=Math.max(over,gx()-p.desired.x);}
-          out[mat]={lag:+lag.toFixed(2),overshoot:+over.toFixed(2),maxTiltMoving:+mx.toFixed(2),maxAfterStop:+Math.max(...amp).toFixed(2),after2s:+Math.max(...amp.slice(120,180)).toFixed(2),after3s:+Math.max(...amp.slice(180)).toFixed(2)};T.releaseHold(98);}
-          for(const [d,mat,gx] of [["beam","wood",1.5],["column","stone",0],["beam","stone",1.5]]){const p=T.spawnPiece(d,7,8,d==="column"?Math.PI/2:0,mat);const g=p.body.getWorldPoint({x:d==="column"?0:gx,y:d==="column"?1.1:0});
-            const a0=p.body.getAngle();T.startHold(p,g,98,0,0);p.desired={x:g.x,y:g.y};run(180);out[d+'/'+mat+' hangs after 3s (rad turned)']=+Math.abs(p.body.getAngle()-a0).toFixed(2);T.releaseHold(98);}
-          return out;}'''))
+        # Hand physics tests (pass/fail). Pointer paths are human-like: speed eases in over 0.3 s.
+        print('hand',pg.evaluate('''()=>{const T=__tb;T.mode="build";T.startLevel(0);const run=(n)=>{for(let k=0;k<n;k++)T.stepPhysics(1/60);};
+          const res={};
+          const hold=(d,mat,lx,ly,sx=7)=>{const p=T.spawnPiece(d,sx,6,0,mat);run(1);const g=p.body.getWorldPoint({x:lx,y:ly});T.startHold(p,g,98,0,0);p.desired={x:g.x,y:g.y};return [p,g];};
+          // 1 lifted by one end, a lying piece swings down and hangs (turns about 90 deg)
+          for(const [d,mat,lx] of [["block","stone",0.9],["beam","stone",1.5],["block","wood",0.9]]){const [p,g]=hold(d,mat,lx,0);const a0=p.body.getAngle();
+            for(let k=0;k<60;k++){p.desired={x:g.x,y:g.y+k*1.5/60};run(1);} run(300); const turn=Math.abs(p.body.getAngle()-a0);
+            res['hangs '+d+'/'+mat]=[+turn.toFixed(2), turn>1.3&&turn<1.85?'PASS':'FAIL']; T.releaseHold(98);}
+          // 2 circling the hand swings a held piece round (it turns more than half a turn)
+          for(const [d,mat,lx,hz] of [["block","stone",0.9,0.6],["beam","wood",1.5,0.4],["beam","stone",1.5,0.4]]){const [p,g]=hold(d,mat,lx,0);run(150);let a=p.body.getAngle(),tot=0;
+            for(let k=0;k<360;k++){const th=k/60*2*Math.PI*hz;p.desired={x:g.x+1.2*Math.sin(th),y:g.y+1.2*(1-Math.cos(th))};run(1);const b=p.body.getAngle();tot=Math.max(tot,Math.abs(b-a));}
+            res['swings in circles '+d+'/'+mat]=[+tot.toFixed(2), tot>1.2?'PASS':'FAIL']; T.releaseHold(98);}
+          // 3 carried sideways at steady speed, a hanging piece hangs straight; after stopping it settles
+          for(const [d,mat,lx] of [["block","stone",0.9],["block","mudbrick",0.9],["square","stone",0.4]]){const [p,g]=hold(d,mat,lx,0,3);run(240);const hang=p.body.getAngle();let x=g.x,v=0,steady=0,after=0;
+            for(let k=0;k<180;k++){v=Math.min(3,v+3/18);x+=v/60;p.desired={x,y:g.y};run(1);if(k>=120)steady=Math.max(steady,Math.abs(p.body.getAngle()-hang));}
+            for(let k=0;k<18;k++){v=Math.max(0,v-3/18);x+=v/60;p.desired={x,y:g.y};run(1);} run(120);for(let k=0;k<30;k++){run(1);after=Math.max(after,Math.abs(p.body.getAngle()-hang));}
+            res['steady carry '+d+'/'+mat]=[+steady.toFixed(2),+after.toFixed(2), steady<0.15&&after<0.15?'PASS':'FAIL']; T.releaseHold(98);}
+          return res;}'''))
         levels=[]
     for i in levels:
         if JIT:
