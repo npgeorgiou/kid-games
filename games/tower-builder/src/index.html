@@ -38,19 +38,16 @@
   // ---------------------------------------------------------------------
   // SECTION: SKIN -- drawing goes through here so art can be replaced later.
   // ---------------------------------------------------------------------
-  const groundImg = new Image(); groundImg.src = "art/ground.jpg"; // "ground_with_rocks_01" colour map, darkened by its ambient occlusion map
   const SKIN = {
     background(ctx, w, h) {
       ctx.fillStyle = "#bfe3f0";
       ctx.fillRect(0, 0, w, h);
     },
-    // The ground strip at (x, y), w by h pixels; the texture tiles every `tile` pixels from screen x `originX`.
-    ground(ctx, x, y, w, h, tile, originX) {
-      if (!groundImg.complete || !groundImg.naturalWidth) { ctx.fillStyle = "#d8c08a"; ctx.fillRect(x, y, w, h); return; }
-      const pat = ctx.createPattern(groundImg, "repeat");
-      const k = tile / groundImg.naturalWidth;
-      pat.setTransform(new DOMMatrix([k, 0, 0, k, originX, y]));
-      ctx.fillStyle = pat; ctx.fillRect(x, y, w, h);
+    ground(ctx, w, h) {
+      ctx.fillStyle = "#d8c08a";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "#c2a86f";
+      ctx.fillRect(0, 0, w, Math.max(4, h * 0.08));
     },
     dust(ctx, x, y, r, alpha) {
       ctx.fillStyle = "rgba(214, 196, 160, " + (0.5 * alpha) + ")";
@@ -1098,7 +1095,8 @@
 
   function render() {
     SKIN.background(ctx, buildingWidthPx, buildingHeightPx);
-    SKIN.ground(ctx, 0, buildingHeightPx - 12, buildingWidthPx, 12, 2 * scale, -viewX0 * scale); // one texture tile per 2 m
+    ctx.fillStyle = "#d8c08a";
+    ctx.fillRect(0, buildingHeightPx - 12, buildingWidthPx, 12);
 
     drawLevelBackdrop();
     for (const piece of pieces) drawPiece(piece);
