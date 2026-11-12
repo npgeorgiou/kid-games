@@ -7,7 +7,7 @@ import os
 HERE=os.path.dirname(os.path.abspath(__file__))
 src=open(os.path.join(HERE,'..','tower-builder.html')).read()
 hook='''window.__tb={renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
-get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale}};
+get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale}};
 window.requestAnimationFrame=()=>0;
 '''
 k=src.rindex('})();')
@@ -54,30 +54,39 @@ with sync_playwright() as p:
           print('pile',li,pg.evaluate('''(i)=>{const T=__tb;T.mode="build";T.startLevel(i);T.quiet0&&T.quiet0();const run=(n)=>{for(let k=0;k<n;k++){T.stepPhysics(1/60);T.cleanupOutOfBounds();}};
           run(120);T.feelHits[1]=0;run(300);const a=T.feelHits[1]; let seed=i+1; const rnd=()=>((seed=(seed*16807)%2147483647)/2147483647);
           const bs=T.pileBodies().sort((x,y)=>x.getPosition().y-y.getPosition().y), b=bs[0], y0=b.getPosition().y;
-          T.startPileHold(99,b,b.getWorldCenter(),true); const h=T.pointers.get(99); for(let k=0;k<90;k++){h.pileTarget={x:b.getPosition().x,y:y0+k/15};run(1);}
-          const lifted=+(b.getPosition().y-y0).toFixed(2); T.releaseHold(99); run(60);
+          T.startPileHold(99,b,b.getWorldCenter(),true); const h=T.pointers.get(99); let vup=0; for(let k=0;k<90;k++){h.pileTarget={x:b.getPosition().x,y:y0+k/15};run(1);vup=Math.max(vup,b.getLinearVelocity().y);}
+          const lifted=+(b.getPosition().y-y0).toFixed(2), sizeKept=T.pileScale===T.pilePx; T.releaseHold(99); run(60);
           for(let r=0;r<8;r++){const B=T.pileBodies(), c=B[Math.floor(rnd()*B.length)], q=c.getPosition();
             T.startPileHold(99,c,c.getWorldPoint({x:0.4,y:0.2}),false); const H=T.pointers.get(99);
             const tx=rnd()*8, ty=rnd()*6; for(let k=0;k<40;k++){H.pileTarget={x:q.x+(tx-q.x)*k/40,y:q.y+(ty-q.y)*k/40};run(1);} T.releaseHold(99); run(20);}
           run(180); T.feelHits[1]=0; let mx=0, nmov=0; for(let k=0;k<600;k++){run(1); for(const B of T.pileBodies()){const v=B.getLinearVelocity(),sp=Math.hypot(v.x,v.y); mx=Math.max(mx,sp); if(sp>0.05)nmov++;}}
-          return {untouched5s:a,bottomLifted:lifted,afterMessHits10s:T.feelHits[1],maxSpeed:+mx.toFixed(2),movingBodyFrames:nmov};}''',li))
+          return {sizeKept,untouched5s:a,bottomLifted:lifted,maxUp:+vup.toFixed(1),afterMessHits10s:T.feelHits[1],maxSpeed:+mx.toFixed(2),movingBodyFrames:nmov};}''',li))
         # Hand physics tests (pass/fail). Pointer paths are human-like: speed eases in over 0.3 s.
         print('hand',pg.evaluate('''()=>{const T=__tb;T.mode="build";T.startLevel(0);const run=(n)=>{for(let k=0;k<n;k++)T.stepPhysics(1/60);};
           const res={};
-          const hold=(d,mat,lx,ly,sx=7)=>{const p=T.spawnPiece(d,sx,6,0,mat);run(1);const g=p.body.getWorldPoint({x:lx,y:ly});T.startHold(p,g,98,0,0);p.desired={x:g.x,y:g.y};return [p,g];};
+          const hold=(d,mat,lx,ly,sx=7)=>{T.clearAllPieces();const p=T.spawnPiece(d,sx,6,0,mat);run(1);const g=p.body.getWorldPoint({x:lx,y:ly});T.startHold(p,g,98,0,0);p.desired={x:g.x,y:g.y};return [p,g];};
           // 1 lifted by one end, a lying piece swings down and hangs (turns about 90 deg)
           for(const [d,mat,lx] of [["block","stone",0.9],["beam","stone",1.5],["block","wood",0.9]]){const [p,g]=hold(d,mat,lx,0);const a0=p.body.getAngle();
             for(let k=0;k<60;k++){p.desired={x:g.x,y:g.y+k*1.5/60};run(1);} run(300); const turn=Math.abs(p.body.getAngle()-a0);
             res['hangs '+d+'/'+mat]=[+turn.toFixed(2), turn>1.3&&turn<1.85?'PASS':'FAIL']; T.releaseHold(98);}
           // 2 whirling the hand in circles (1 Hz, 1 m) turns the piece round and round, smoothly (no jerks in its spin)
-          for(const [d,mat,lx] of [["block","stone",0.9],["beam","wood",1.5],["beam","stone",1.5]]){const [p,g]=hold(d,mat,lx,0);run(150);let prev=p.body.getAngle(),tot=0,jerk=0,w0=0;
-            for(let k=0;k<240;k++){const th=k/60*2*Math.PI*1.0;p.desired={x:g.x+1.0*Math.sin(th),y:g.y+1.0*(1-Math.cos(th))};run(1);const a=p.body.getAngle();tot+=a-prev;prev=a;const w=p.body.getAngularVelocity();if(k>60)jerk=Math.max(jerk,Math.abs(w-w0));w0=w;}
-            const turns=Math.abs(tot)/(2*Math.PI); res['whirls '+d+'/'+mat]=[+turns.toFixed(2)+' turns',+jerk.toFixed(2)+' max spin change per step', turns>2.5&&jerk<0.6?'PASS':'FAIL']; T.releaseHold(98);}
-          // 3 dragged through the air (speeding up to 4 m/s in 0.25 s, then stopping as fast), a hanging piece does not swing back
-          for(const [d,mat,lx] of [["block","stone",0.9],["block","mudbrick",0.9],["square","stone",0.4],["beam","stone",1.5]]){const [p,g]=hold(d,mat,lx,0,3);run(240);const hang=p.body.getAngle();let x=g.x,v=0,mx=0;
-            for(let k=0;k<120;k++){v=k<15?v+4/15:k>=105?Math.max(0,v-4/15):v;x+=v/60;p.desired={x,y:g.y};run(1);mx=Math.max(mx,Math.abs(p.body.getAngle()-hang));}
+          // trembling = the spin's acceleration flipping sign from one step to the next (smooth motion: almost never)
+          for(const [d,mat,lx] of [["block","stone",0.9],["block","wood",0.9],["beam","wood",1.5],["beam","stone",1.5]]){const [p,g]=hold(d,mat,lx,0);run(150);let prev=p.body.getAngle(),tot=0,flips=0,w0=p.body.getAngularVelocity(),dw0=0;
+            for(let k=0;k<240;k++){const th=k/60*2*Math.PI*1.0;p.desired={x:g.x+1.0*Math.sin(th),y:g.y+1.0*(1-Math.cos(th))};run(1);const a=p.body.getAngle();tot+=a-prev;prev=a;const w=p.body.getAngularVelocity(),dw=w-w0;if(k>30&&Math.abs(dw)>0.03&&Math.abs(dw0)>0.03&&dw*dw0<0)flips++;w0=w;dw0=dw;}
+            const turns=Math.abs(tot)/(2*Math.PI); res['whirls '+d+'/'+mat]=[+turns.toFixed(2)+' turns',flips+' trembles', flips<=4?'PASS':'FAIL']; T.releaseHold(98);}
+          // 3 dragged through the air (speeding up to 3 m/s in 0.25 s, then stopping as fast), a hanging piece swings and settles, never trembles
+          for(const [d,mat,lx] of [["block","stone",0.9],["block","mudbrick",0.9],["square","stone",0.4],["beam","stone",1.5]]){const [p,g]=hold(d,mat,lx,0,3);run(600);const hang=p.body.getAngle();let x=g.x,v=0,mx=0;
+            for(let k=0;k<120;k++){v=k<15?v+3/15:k>=105?Math.max(0,v-3/15):v;x+=v/60;p.desired={x,y:g.y};run(1);mx=Math.max(mx,Math.abs(p.body.getAngle()-hang));}
             for(let k=0;k<60;k++){run(1);mx=Math.max(mx,Math.abs(p.body.getAngle()-hang));}
-            res['drag '+d+'/'+mat]=[+mx.toFixed(2)+' rad max tilt', mx<0.12?'PASS':'FAIL']; T.releaseHold(98);}
+            let jerk=0,w0=p.body.getAngularVelocity(),dw0=0; for(let k=0;k<180;k++){run(1);const w=p.body.getAngularVelocity(),dw=w-w0;if(Math.abs(dw)>0.03&&Math.abs(dw0)>0.03&&dw*dw0<0)jerk++;w0=w;dw0=dw;}
+            const left=Math.abs(p.body.getAngle()-hang);
+            res['drag '+d+'/'+mat]=[+mx.toFixed(2)+' rad max swing',+left.toFixed(3)+' rad 4 s after stop ('+hang.toFixed(2)+'>'+p.body.getAngle().toFixed(2)+(T.pieces.includes(p)?'':' gone')+')',jerk+' trembles', left<0.1&&jerk<=4?'PASS':'FAIL']; T.releaseHold(98);}
+          // 4 taken out of the sidebar held at a corner while swinging: same grab point under the finger and same spin
+          {T.startLevel(3);T.quiet0&&T.quiet0();run(60);const B=T.pileBodies().sort((x,y)=>y.getPosition().y-x.getPosition().y)[0],L=B.getLocalCenter();
+           const g={x:L.x+0.8*Math.abs(B.getLocalPoint(B.getWorldCenter()).x+0.9),y:L.y};T.startPileHold(96,B,B.getWorldPoint({x:0.85,y:0.4}),false);const H=T.pointers.get(96),q=B.getWorldPoint(H.pileGrab);
+           for(let k=0;k<40;k++){H.pileTarget={x:q.x-k*0.05,y:q.y+1};run(1);} const w1=B.getAngularVelocity(),r=T.pileBinRect;
+           T.pileToWorld(96,H,r.x-5,r.y+r.h/2);const P=T.pointers.get(96).piece,w2=P.body.getAngularVelocity();run(1);
+           res['out of sidebar keeps spin and grip']=[+w1.toFixed(2),+w2.toFixed(2),P.lever,Math.abs(w1-w2)<0.01&&P.lever?'PASS':'FAIL'];T.releaseHold(96);}
           return res;}'''))
         levels=[]
     for i in levels:

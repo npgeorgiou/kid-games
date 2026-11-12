@@ -184,7 +184,14 @@ The owner's second fix list (18 items) is built and pushed. What changed:
 - Ground: back to the plain strip (the textured ground commit was reverted at the owner's request).
 - Level redesign proposals (headpiece = important part, new shapes, history checked) are on branch `level-proposals` (make-levels.py, new piece `abacus`), all passing the harness. Not merged: waiting for the owner's verdict on the pictures.
 
+## Current state, update 5 (12 Nov 2026; overrides the sections above where they differ)
+
+- Sidebar and its pieces 1.5x bigger (`pilePx` x 1.5 after the fit loop). A level whose full pile is then too tall gets a wider bin (pieces keep their size), up to 45% of the screen (Lion Gate, Valens at 1280x800).
+- Sidebar hand: maxForce (200 x own weight + 8 x pile weight) x g, but the joint target stays within `PILE_LEAD` 1.5 m of the grab point (down only 0.1 m, so pressing into the pile stays gentle) and the held piece's speed is capped (15 m/s, upward 7 m/s): the most buried piece lifts, nothing shoots up.
+- Out of the sidebar the piece keeps its grab point (corner stays a corner hold), its spin and its screen speed.
+- Hand, final (supersedes all earlier hand lines): a planck MouseJoint at the grab point (5 Hz, damping 0.9; the Box2D testbed drag), solved with the contacts. Its target is the hand, easing to the pointer (0.03 s), capped at the carry speed, within 0.5 m of the grab point, never below it while touching (no pressing down). maxForce = weight + max(m x maxAccel, 350 N) in air; touching: hypot(weight, min(m x maxAccel, 0.8 x weight + 120 N)). Centre grab: limited torque holds the angle. Off-centre: free pendulum plus grip friction (torque 2.5 x inertia about the grab point x spin, capped at 0.25 x weight x arm), so it swings, settles, and a hard whirl goes round. Sling code removed. Harness `probe` "hand" checks hang, whirl, drag-and-settle with a tremble count, and spin kept out of the sidebar.
+
 ## Task list
 
-Empty. Nothing is waiting to be built. The next step is the owner's play-test of the update above.
+Done (12 Nov 2026): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
 When the owner sends a numbered fix list: copy it here as the task list, then build all of it in that chat (rules in the root `CLAUDE.md`).

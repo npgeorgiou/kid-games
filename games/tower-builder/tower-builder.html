@@ -569,7 +569,12 @@ const MAP_WALKS = {"port:athens>site:mastaba": [[362, 454], [350, 398], [310, 35
         const w = PILE_BIN_W * pilePx + 16, size = Math.min(64, (w - 32) / 3), bin = { w: w - 16, h: cssHeight - size - 24 };
         if (w <= cssWidth * 0.45 && LEVELS.every((L, i) => pileLayout(stockItems(i), bin, pilePx)[2])) break;
       }
-      sidebarWidthPx = PILE_BIN_W * pilePx + 16;
+      pilePx *= 1.5; // owner: sidebar and its pieces one and a half times bigger
+      // a pile too tall for the bin at that size gets a wider bin (pieces keep their size), up to 45% of the screen
+      let binW = PILE_BIN_W;
+      const fitsAt = (bw) => { const w = bw * pilePx + 16, size = Math.min(64, (w - 32) / 3); return pileLayout(stockItems(currentLevel), { w: w - 16, h: cssHeight - size - 24 }, pilePx)[2]; };
+      while (!fitsAt(binW) && (binW + 0.2) * pilePx + 16 <= cssWidth * 0.45) binW += 0.2;
+      sidebarWidthPx = binW * pilePx + 16;
     }
     buildingWidthPx = cssWidth - sidebarWidthPx;
     buildingHeightPx = cssHeight;
@@ -697,7 +702,9 @@ const MAP_WALKS = {"port:athens>site:mastaba": [[362, 454], [350, 398], [310, 35
     piece.holdAngle = piece.body.getAngle();
     piece.desired = { x: worldPt.x, y: worldPt.y };
     piece.controlMode = "hand";
-
+    piece.handT = { x: worldPt.x, y: worldPt.y };
+    piece.joint = world.createJoint(planck.MouseJoint({ maxForce: 1, frequencyHz: HOLD_HZ, dampingRatio: HOLD_DAMP }, groundBody, piece.body, planck.Vec2(worldPt.x, worldPt.y)));
+    
     pointers.set(pointerId, {
       piece,
       lastX: clientX,
@@ -714,6 +721,9 @@ const MAP_WALKS = {"port:athens>site:mastaba": [[362, 454], [350, 398], [310, 35
     if (hand.pileBody && pileBodies().includes(hand.pileBody)) { hand.pileBody.setAngularDamping(PILE_ANG_DAMP); hand.pileBody.setLinearDamping(0.3); }
     const piece = hand.piece;
     if (!piece) return;
+    if (piece.joint && pieces.includes(piece)) { try { world.destroyJoint(piece.joint); } catch (err) { /* body already gone */ } }
+    piece.joint = null;
+    piece.handT = null;
     // let go while still passing through other pieces: it was never placed, so it goes back to the pile
     if (piece.ghost && currentLevel != null && pieces.includes(piece)) { piece.heldBy = null; returnToPile(piece); return; }
     piece.heldBy = null;
@@ -954,81 +964,53 @@ const MAP_WALKS = {"port:athens>site:mastaba": [[362, 454], [350, 398], [310, 35
     }
     return false;
   }
+  // The hand is a soft point constraint at the grab point (planck MouseJoint, the Box2D testbed's
+  // drag): solved inside the physics step together with the contacts, so the piece swings, hangs and
+  // goes round like a real pendulum without the rocking that impulses applied outside the solver gave.
+  // The joint's target is the hand, which eases towards the pointer once per tick (bursty pointer
+  // events are filtered), moves at most at the material's carry speed, stays within HOLD_LEAD of the
+  // grab point, and while touching another piece never goes below the grab point (no pressing down).
+  const HOLD_HZ = 5, HOLD_DAMP = 0.9, HOLD_SMOOTH = 0.03, HOLD_LEAD = 0.5; // Hz, -, s, m
+  const GRIP_DAMP = 2.5, GRIP_MAX = 0.25; // 1/s: the grip's friction, so a piece held off-centre swings and settles (amplitude halves in about 0.55 s)
   function advanceHeldTargets() {
     for (const hand of pointers.values()) {
       const piece = hand.piece;
-      if (!piece || !piece.desired) continue;
+      if (!piece || !piece.desired || !piece.joint) continue;
       const body = piece.body;
       const material = MATERIALS[piece.material];
       const m = body.getMass() || 1;
-      // Touching another piece, the hand pushes only gently (a fraction of the
-      // held piece's own weight), so what it pushes resists by its own mass.
       const touching = touchesOtherPiece(body);
-      const A = touching ? PUSH_ACCEL : material.maxAccel;
       const p = body.getWorldPoint(piece.grabLocal);
-      const v = body.getLinearVelocityFromWorldPoint(p);
-      const dx = piece.desired.x - p.x, dy = piece.desired.y - p.y;
-      const dist = Math.hypot(dx, dy);
-      // speed that can still brake to a stop on target with acceleration A
-      // Move with the pointer (its own smoothed velocity), plus a correction
-      // that closes the remaining gap and can brake to a stop on target.
-      // Without the first part the piece lags and cuts across curves.
-      const prev = piece.prevDesired || piece.desired;
-      const ux = (piece.desired.x - prev.x) / STEP, uy = (piece.desired.y - prev.y) / STEP;
-      piece.prevDesired = { x: piece.desired.x, y: piece.desired.y };
-      piece.uSmooth = piece.uSmooth || { x: 0, y: 0 };
-      piece.uSmooth.x += (ux - piece.uSmooth.x) * 0.35;
-      piece.uSmooth.y += (uy - piece.uSmooth.y) * 0.35;
-      // the hand's acceleration, smoothed over SLING_TAU (heavier: longer), for the sling below
-      const au = piece.prevU ? { x: (piece.uSmooth.x - piece.prevU.x) / STEP, y: (piece.uSmooth.y - piece.prevU.y) / STEP } : { x: 0, y: 0 };
-      piece.prevU = { x: piece.uSmooth.x, y: piece.uSmooth.y };
-      piece.aHand = piece.aHand || { x: 0, y: 0 };
-      const kf = Math.min(1, STEP / SLING_TAU[piece.material]);
-      piece.aHand.x += (au.x - piece.aHand.x) * kf; piece.aHand.y += (au.y - piece.aHand.y) * kf;
-      const corr = Math.min(Math.sqrt(2 * A * dist) * 0.9, dist / STEP);
-      let vx = piece.uSmooth.x + (dist > 1e-6 ? (dx / dist) * corr : 0);
-      let vy = piece.uSmooth.y + (dist > 1e-6 ? (dy / dist) * corr : 0);
+      const T = piece.handT;
+      const k = Math.min(1, STEP / HOLD_SMOOTH);
+      let vx = ((piece.desired.x - T.x) * k) / STEP, vy = ((piece.desired.y - T.y) * k) / STEP;
       const vlen = Math.hypot(vx, vy), vcap = material.maxLiftSpeed;
       if (vlen > vcap) { vx *= vcap / vlen; vy *= vcap / vlen; }
-      if (!piece.ghost) [vx, vy] = capApproach(body, vx, vy, Math.min(NEAR_SPEED, material.maxLiftSpeed));
-      const lim = (touching ? Math.min(m * material.maxAccel, m * PUSH_ACCEL + HAND_PUSH) : m * A) * STEP;
-      // Impulse that gives the grab point the wanted velocity change. Off-centre the piece
-      // also turns, so the grab point reacts with less than the full mass (effective mass
-      // K^-1); using the full mass there overshoots every tick and makes the piece tremble.
-      let dvx = vx - v.x, dvy = vy - v.y + GRAVITY * STEP, Px = m * dvx, Py = m * dvy;
-      let wSling = 0;
+      if (!piece.ghost) [vx, vy] = capApproach(body, vx, vy, Math.min(NEAR_SPEED, vcap));
+      T.x += vx * STEP; T.y += vy * STEP;
+      let dx = T.x - p.x, dy = T.y - p.y;
+      if (touching && dy < 0) dy = 0;
+      const d = Math.hypot(dx, dy);
+      if (d > HOLD_LEAD) { dx *= HOLD_LEAD / d; dy *= HOLD_LEAD / d; }
+      piece.joint.setTarget(planck.Vec2(p.x + dx, p.y + dy));
+      // Force: its own weight plus the hand's strength; touching another piece only a gentle push
+      // (0.8 x own weight + HAND_PUSH), so what it pushes resists by its own mass.
+      const W = m * GRAVITY;
+      piece.joint.setMaxForce(touching ? Math.hypot(W, Math.min(m * material.maxAccel, m * PUSH_ACCEL + HAND_PUSH)) : W + Math.max(m * material.maxAccel, HAND_LIFT));
       if (piece.lever) {
-        // Held off-centre, the piece turns smoothly (no rocking) until it hangs along the pull it
-        // feels: gravity plus the hand's smoothed acceleration, minus SLING_DEADBAND. A short tug
-        // while dragging stays inside the deadband, so the piece keeps hanging straight; lifted by one
-        // end it swings down and hangs; whirled in circles it follows round like a sling.
-        const c = body.getWorldCenter(), rx = c.x - p.x, ry = c.y - p.y;
-        const ah = piece.aHand, am = Math.hypot(ah.x, ah.y), ks = am > SLING_DEADBAND ? (am - SLING_DEADBAND) / am : 0;
-        const gx = -ah.x * ks, gy = -GRAVITY - ah.y * ks; // the pull, in the hand's frame
-        let d = Math.atan2(gy, gx) - Math.atan2(ry, rx);
-        while (d > Math.PI) d -= 2 * Math.PI;
-        while (d < -Math.PI) d += 2 * Math.PI;
-        wSling = Math.max(-SLING_SPIN, Math.min(SLING_SPIN, SLING_GAIN * d));
-        // the centre's velocity that keeps the grab point on target while the piece turns at wSling
-        const vc = body.getLinearVelocity();
-        dvx = vx - wSling * ry - vc.x; dvy = vy + wSling * rx - vc.y + GRAVITY * STEP;
-        Px = m * dvx; Py = m * dvy;
-      }
-      const jx = Math.max(-lim, Math.min(lim, Px));
-      const liftLim = m * GRAVITY * STEP + Math.max(m * material.maxAccel, HAND_LIFT) * STEP;
-      // In free air the hand can also pull down (needed to swing a piece
-      // round a curve); touching other pieces it never presses down.
-      const jy = Math.max(touching ? 0 : -lim, Math.min(liftLim, Py));
-      if (piece.lever) {
-        body.applyLinearImpulse(planck.Vec2(jx, jy), body.getWorldCenter(), true);
-        const lc = body.getLocalCenter(), Ic = Math.max(1e-6, body.getInertia() - m * (lc.x * lc.x + lc.y * lc.y));
-        body.applyAngularImpulse(Ic * (wSling - body.getAngularVelocity()), true);
+        // grip friction: a torque against the swing, scaled by the inertia about the grab point (a body's own
+        // angular damping acts only about its centre and barely slows a pendulum)
+        // angular damping acts only about its centre and barely slows a pendulum). Like real friction it is
+        // capped (GRIP_MAX x the weight's turning force at the arm), so a hard whirl still swings it round.
+        const c = body.getWorldCenter(), r2 = (c.x - p.x) ** 2 + (c.y - p.y) ** 2, lc = body.getLocalCenter();
+        const Ip = body.getInertia() - m * (lc.x * lc.x + lc.y * lc.y) + m * r2, w = body.getAngularVelocity();
+        const tq = Math.min(GRIP_DAMP * Ip * Math.abs(w), GRIP_MAX * m * GRAVITY * Math.sqrt(r2));
+        body.applyAngularImpulse(-Math.sign(w) * tq * STEP, true);
       } else {
-        body.applyLinearImpulse(planck.Vec2(jx, jy), body.getWorldCenter(), true);
         // centred grab: hold the pick-up angle with limited torque
         const I = body.getInertia();
         const rc = piece.r != null ? piece.r : Math.max(piece.hx, piece.hy);
-        const tl = m * A * rc * STEP;
+        const tl = m * (touching ? PUSH_ACCEL : material.maxAccel) * rc * STEP;
         const wDes = Math.max(-material.maxSpin, Math.min(material.maxSpin, (piece.holdAngle - body.getAngle()) * 10));
         body.applyAngularImpulse(Math.max(-tl, Math.min(tl, I * (wDes - body.getAngularVelocity()))), true);
       }
@@ -1037,12 +1019,7 @@ const MAP_WALKS = {"port:athens>site:mastaba": [[362, 454], [350, 398], [310, 35
 
   // Heavier material resists being spun around in the hand; a piece held off-centre
   // swinging under its own weight may turn up to LEVER_SPIN.
-  const LEVER_SPIN = 5; // rad/s
-  // Sling (piece held off-centre): it turns towards the pull it feels at up to SLING_SPIN, closing the
-  // gap at SLING_GAIN per second (smooth, no overshoot). The hand's acceleration counts only above
-  // SLING_DEADBAND and smoothed over SLING_TAU, so dragging does not make it rock but whirling does.
-  const SLING_SPIN = 9, SLING_GAIN = 7, SLING_DEADBAND = 14; // rad/s, 1/s, m/s^2
-  const SLING_TAU = { stone: 0.12, mudbrick: 0.12, wood: 0.12 }; // s
+  const LEVER_SPIN = 12; // rad/s
   function clampHeldSpin() {
     for (const hand of pointers.values()) {
       const piece = hand.piece;
@@ -1066,7 +1043,7 @@ const MAP_WALKS = {"port:athens>site:mastaba": [[362, 454], [350, 398], [310, 35
       clampHeldSpin();
       updateStrain();
       solidifyGhosts();
-      if (currentLevel != null) { drivePileHands(); pileWorld.step(STEP, 10, 6); settlePile(); rescuePile(); }
+      if (currentLevel != null) { drivePileHands(); pileWorld.step(STEP, 10, 6); for (const h of pointers.values()) if (h.pileBody) capPileHand(h.pileBody); settlePile(); rescuePile(); }
       accumulator -= STEP;
       steps++;
     }
@@ -1704,16 +1681,29 @@ const MAP_WALKS = {"port:athens>site:mastaba": [[362, 454], [350, 398], [310, 35
     const bx = d.r != null ? d.r / 3 : short(d.hx, d.hy), by = d.r != null ? d.r / 3 : short(d.hy, d.hx);
     const centred = forceCentre || (l.x * l.x) / (bx * bx) + (l.y * l.y) / (by * by) <= 1;
     const grab = centred ? body.getLocalCenter() : l;
-    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: (120 * body.getMass() + 4 * pileBodies().reduce((s, b) => s + b.getMass(), 0)) * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
+    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: (200 * body.getMass() + 8 * pileBodies().reduce((s, b) => s + b.getMass(), 0)) * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
     body.setAngularDamping(PILE_SWING_DAMP[body.pileItem.material]); body.setLinearDamping(0);
     if (centred) body.setAngularVelocity(0);
     pointers.set(pointerId, { piece: null, pileBody: body, pileGrab: planck.Vec2(grab.x, grab.y), pileTarget: pt, joint, centred });
+  }
+  const PILE_LEAD = 1.5, PILE_LEAD_DOWN = 0.1, PILE_HAND_SPEED = 15, PILE_HAND_UP = 7; // m, m, m/s, m/s (sidebar world)
+  function capPileHand(b) {
+    const v = b.getLinearVelocity(), sp = Math.hypot(v.x, v.y), ks = sp > PILE_HAND_SPEED ? PILE_HAND_SPEED / sp : 1;
+    if (ks < 1 || v.y > PILE_HAND_UP) b.setLinearVelocity(planck.Vec2(v.x * ks, Math.min(PILE_HAND_UP, v.y * ks)));
   }
   function drivePileHands() {
     const r = pileBinRect, W = r.w / pileScale, H = r.h / pileScale;
     for (const hand of pointers.values()) {
       if (!hand.pileBody) continue;
-      hand.joint.setTarget(planck.Vec2(Math.max(0, Math.min(W, hand.pileTarget.x)), Math.max(0, Math.min(H, hand.pileTarget.y))));
+      // the target stays within PILE_LEAD of the grab point and the piece's speed is capped, so a buried
+      // piece is pulled out hard but does not shoot up once it comes free
+      const b = hand.pileBody, p = b.getWorldPoint(hand.pileGrab);
+      let dx = Math.max(0, Math.min(W, hand.pileTarget.x)) - p.x, dy = Math.max(0, Math.min(H, hand.pileTarget.y)) - p.y;
+      const d = Math.hypot(dx, dy);
+      if (d > PILE_LEAD) { dx *= PILE_LEAD / d; dy *= PILE_LEAD / d; }
+      dy = Math.max(dy, -PILE_LEAD_DOWN); // pressing down into the pile stays gentle
+      hand.joint.setTarget(planck.Vec2(p.x + dx, p.y + dy));
+      capPileHand(b);
       if (hand.centred) hand.pileBody.setAngularVelocity(hand.pileBody.getAngularVelocity() * 0.5);
     }
   }
@@ -1746,13 +1736,18 @@ const MAP_WALKS = {"port:athens>site:mastaba": [[362, 454], [350, 398], [310, 35
   // Dragged out of the sidebar: the real piece appears under the finger, passing through
   // everything until it is clear of other pieces and the ground, so it cannot knock the building.
   function pileToWorld(pointerId, hand, px, py) {
-    const b = hand.pileBody, it = b.pileItem, a = b.getAngle(), g = b.getLocalCenter(); // comes out held by its centre
+    // held at the same point, moving and turning as it was (screen speed kept across the two scales)
+    const b = hand.pileBody, it = b.pileItem, a = b.getAngle(), g = hand.pileGrab, centred = hand.centred;
+    const k = pileScale / scale, vg = b.getLinearVelocityFromWorldPoint(b.getWorldPoint(g)), om = b.getAngularVelocity();
     pointers.delete(pointerId);
     pileWorld.destroyBody(b);
     const w = screenToWorld(px, py), ca = Math.cos(a), sa = Math.sin(a);
     const piece = spawnPiece(it.defKey, w.x - (g.x * ca - g.y * sa), w.y - (g.x * sa + g.y * ca), a, it.material);
     setGhost(piece, true);
-    startHold(piece, piece.body.getWorldCenter(), pointerId, px, py, true); // always carried by its centre of mass
+    startHold(piece, w, pointerId, px, py, centred);
+    const c = piece.body.getWorldCenter();
+    piece.body.setLinearVelocity(planck.Vec2(vg.x * k - om * (c.y - w.y), vg.y * k + om * (c.x - w.x)));
+    piece.body.setAngularVelocity(om);
   }
   // Dragged into the sidebar: the piece shrinks into the pile and stays in the hand.
   function worldToPile(pointerId, hand, px, py) {
