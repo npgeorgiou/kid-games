@@ -204,7 +204,11 @@ The owner's second fix list (18 items) is built and pushed. What changed:
 - Out of the sidebar the new piece is nudged inside the building area and above the ground (it was born overlapping the wall or ground and thrown out of the world). Harness: a sideways turning beam out and back in at the edge, never lost.
 - Hand joint 10 Hz (was 5) and aimed ahead of the hand by 2 x damping / stiffness x hand speed (a spring trails a moving point by that much); in free air its strength is `FREE_AIR_ACCEL` 400 m/s^2 x mass (the lift cap still applies when touching). Whirled pieces stay within 0.13 m of the hand (was 0.7-2.6 m).
 
+## Current state, update 8 (12 Nov 2026; overrides the sections above where they differ)
+
+- Materials feel more different in the hand: wood carry speed 13 m/s (was 9; mudbrick 7.5, stone 6 unchanged); the hand eases to the pointer over `HOLD_SMOOTH` wood 0.015 s, mudbrick 0.03, stone 0.05; stone's grip is firmest (`GRIP_DAMP` 7, `GRIP_MAX` 0.7; wood and mudbrick 4 and 0.4). Dragged by an end: stone block swings 0.22 rad (was 0.31), mudbrick 0.33. Densities unchanged.
+
 ## Task list
 
-Done (12 Nov 2026, third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
+Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
 When the owner sends a numbered fix list: copy it here as the task list, then build all of it in that chat (rules in the root `CLAUDE.md`).
