@@ -71,9 +71,9 @@ with sync_playwright() as p:
             res['hangs '+d+'/'+mat]=[+turn.toFixed(2), turn>1.3&&turn<1.85?'PASS':'FAIL']; T.releaseHold(98);}
           // 2 whirling the hand in circles (1 Hz, 1 m) turns the piece round and round, smoothly (no jerks in its spin)
           // trembling = the spin's acceleration flipping sign from one step to the next (smooth motion: almost never)
-          for(const [d,mat,lx] of [["block","stone",0.9],["block","wood",0.9],["beam","wood",1.5],["beam","stone",1.5]]){const [p,g]=hold(d,mat,lx,0);run(150);let prev=p.body.getAngle(),tot=0,flips=0,w0=p.body.getAngularVelocity(),dw0=0;
-            for(let k=0;k<240;k++){const th=k/60*2*Math.PI*1.0;p.desired={x:g.x+1.0*Math.sin(th),y:g.y+1.0*(1-Math.cos(th))};run(1);const a=p.body.getAngle();tot+=a-prev;prev=a;const w=p.body.getAngularVelocity(),dw=w-w0;if(k>30&&Math.abs(dw)>0.03&&Math.abs(dw0)>0.03&&dw*dw0<0)flips++;w0=w;dw0=dw;}
-            const turns=Math.abs(tot)/(2*Math.PI); res['whirls '+d+'/'+mat]=[+turns.toFixed(2)+' turns',flips+' trembles', flips<=4?'PASS':'FAIL']; T.releaseHold(98);}
+          for(const [d,mat,lx] of [["block","stone",0.9],["block","wood",0.9],["beam","wood",1.5],["beam","stone",1.5]]){const [p,g]=hold(d,mat,lx,0);run(150);let gap=0,fg=0,prev=p.body.getAngle(),tot=0,flips=0,w0=p.body.getAngularVelocity(),dw0=0;
+            for(let k=0;k<240;k++){const th=k/60*2*Math.PI*1.0;p.desired={x:g.x+1.0*Math.sin(th),y:g.y+1.0*(1-Math.cos(th))};run(1);const a=p.body.getAngle();tot+=a-prev;prev=a;const q=p.body.getWorldPoint(p.grabLocal);if(k>30){gap=Math.max(gap,Math.hypot(q.x-p.handT.x,q.y-p.handT.y));fg=Math.max(fg,Math.hypot(q.x-p.desired.x,q.y-p.desired.y));}const w=p.body.getAngularVelocity(),dw=w-w0;if(k>30&&Math.abs(dw)>0.03&&Math.abs(dw0)>0.03&&dw*dw0<0)flips++;w0=w;dw0=dw;}
+            const turns=Math.abs(tot)/(2*Math.PI); res['whirls '+d+'/'+mat]=[+turns.toFixed(2)+' turns',flips+' trembles',+gap.toFixed(2)+' m max off hand',+fg.toFixed(2)+' m off finger (hand speed cap)', flips<=4&&gap<0.2?'PASS':'FAIL']; T.releaseHold(98);}
           // 3 dragged through the air (speeding up to 3 m/s in 0.25 s, then stopping as fast), a hanging piece swings and settles, never trembles
           for(const [d,mat,lx] of [["block","stone",0.9],["block","mudbrick",0.9],["square","stone",0.4],["beam","stone",1.5]]){const [p,g]=hold(d,mat,lx,0,3);run(600);const hang=p.body.getAngle();let x=g.x,v=0,mx=0;
             for(let k=0;k<120;k++){v=k<15?v+3/15:k>=105?Math.max(0,v-3/15):v;x+=v/60;p.desired={x,y:g.y};run(1);mx=Math.max(mx,Math.abs(p.body.getAngle()-hang));}
@@ -95,6 +95,13 @@ with sync_playwright() as p:
            for(let f=P.body.getFixtureList();f;f=f.getNext())f.setFilterData({groupIndex:0,categoryBits:4,maskBits:2});P.ghost=true;
            let low=9;for(let k=0;k<120;k++){P.desired={x:8,y:-2};run(1);low=Math.min(low,P.body.getPosition().y);}
            res['ghost stays above ground']=[+low.toFixed(2),P.ghost,low>0.4&&P.ghost?'PASS':'FAIL'];T.releaseHold(94);}
+          // 5 a beam lying sideways leaves the sidebar right at its edge, turning, and comes back in: never lost
+          {T.startLevel(9);T.quiet0&&T.quiet0();run(60);let lost=0;for(const [dx,spin] of [[2,4],[2,-4],[30,6],[2,0]]){const B=T.pileBodies().find(b=>b.pileItem.defKey==="beam")||T.pileBodies()[0];
+            T.startPileHold(93,B,B.getWorldPoint({x:1.2,y:0}),false);const H=T.pointers.get(93);B.setAngularVelocity(spin);const r=T.pileBinRect;
+            T.pileToWorld(93,H,r.x-dx,r.y+r.h*0.95);const P=T.pointers.get(93).piece;for(let k=0;k<60;k++){P.desired=P.desired;run(1);T.cleanupOutOfBounds();}
+            if(!T.pieces.includes(P)){lost++;T.pointers.delete(93);continue;}
+            const n=T.pileBodies().length;T.worldToPile(93,T.pointers.get(93),r.x+3,r.y+r.h*0.95);for(let k=0;k<60;k++)run(1);if(T.pileBodies().length!==n+1)lost++;T.releaseHold(93);run(30);}
+           res['sideways in and out of the sidebar']=[lost+' lost',lost===0?'PASS':'FAIL'];}
           return res;}'''))
         levels=[]
     for i in levels:

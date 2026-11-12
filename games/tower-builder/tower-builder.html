@@ -971,7 +971,8 @@ const MAP_WALKS = {"port:athens>site:mastaba": [[362, 454], [350, 398], [310, 35
   // The joint's target is the hand, which eases towards the pointer once per tick (bursty pointer
   // events are filtered), moves at most at the material's carry speed, stays within HOLD_LEAD of the
   // grab point, and while touching another piece never goes below the grab point (no pressing down).
-  const HOLD_HZ = 5, HOLD_DAMP = 0.9, HOLD_SMOOTH = 0.03, HOLD_LEAD = 0.5; // Hz, -, s, m
+  const HOLD_HZ = 10, HOLD_DAMP = 0.9, HOLD_SMOOTH = 0.03, HOLD_LEAD = 0.5; // Hz, -, s, m
+  const FREE_AIR_ACCEL = 400; // m/s^2: the hand keeps hold of a piece touching nothing however it is swung (its speed stays capped)
   const GRIP_DAMP = 4, GRIP_MAX = 0.4, HELD_EXTRA_G = 0.8; // HELD_EXTRA_G: held off-centre in free air it weighs 1.8x, so it swings less and settles faster // 1/s: the grip's friction, so a piece held off-centre swings and settles (amplitude halves in about 0.55 s)
   function advanceHeldTargets() {
     for (const hand of pointers.values()) {
@@ -989,7 +990,9 @@ const MAP_WALKS = {"port:athens>site:mastaba": [[362, 454], [350, 398], [310, 35
       if (vlen > vcap) { vx *= vcap / vlen; vy *= vcap / vlen; }
       if (!piece.ghost) [vx, vy] = capApproach(body, vx, vy, Math.min(NEAR_SPEED, vcap));
       T.x += vx * STEP; T.y += vy * STEP;
-      let dx = T.x - p.x, dy = T.y - p.y;
+      // a spring tracking a moving point trails it by 2 x damping / stiffness x speed; aim that far ahead so the grab point stays on the hand
+      const lead = (2 * HOLD_DAMP) / (2 * Math.PI * HOLD_HZ);
+      let dx = T.x + vx * lead - p.x, dy = T.y + vy * lead - p.y;
       if (touching && dy < 0) dy = 0;
       const d = Math.hypot(dx, dy);
       if (d > HOLD_LEAD) { dx *= HOLD_LEAD / d; dy *= HOLD_LEAD / d; }
@@ -999,7 +1002,7 @@ const MAP_WALKS = {"port:athens>site:mastaba": [[362, 454], [350, 398], [310, 35
       const W = m * GRAVITY;
       const extra = piece.lever && !touching ? HELD_EXTRA_G * W : 0;
       if (extra) body.applyForceToCenter(planck.Vec2(0, -extra), true);
-      piece.joint.setMaxForce(touching ? Math.hypot(W, Math.min(m * material.maxAccel, m * PUSH_ACCEL + HAND_PUSH)) : W + extra + Math.max(m * material.maxAccel, HAND_LIFT));
+      piece.joint.setMaxForce(touching ? Math.hypot(W, Math.min(m * material.maxAccel, m * PUSH_ACCEL + HAND_PUSH)) : W + extra + Math.max(m * FREE_AIR_ACCEL, HAND_LIFT));
       if (piece.lever) {
         // grip friction: a torque against the swing, scaled by the inertia about the grab point (a body's own
         // angular damping acts only about its centre and barely slows a pendulum)
@@ -1683,12 +1686,12 @@ const MAP_WALKS = {"port:athens>site:mastaba": [[362, 454], [350, 398], [310, 35
     const bx = d.r != null ? d.r / 3 : short(d.hx, d.hy), by = d.r != null ? d.r / 3 : short(d.hy, d.hx);
     const centred = forceCentre || (l.x * l.x) / (bx * bx) + (l.y * l.y) / (by * by) <= 1;
     const grab = centred ? body.getLocalCenter() : l;
-    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: (400 * body.getMass() + 16 * pileBodies().reduce((s, b) => s + b.getMass(), 0)) * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
+    const joint = pileWorld.createJoint(planck.MouseJoint({ maxForce: (600 * body.getMass() + 24 * pileBodies().reduce((s, b) => s + b.getMass(), 0)) * 10, frequencyHz: 5, dampingRatio: 0.9 }, pileWalls, body, body.getWorldPoint(grab)));
     body.setAngularDamping(PILE_SWING_DAMP[body.pileItem.material]); body.setLinearDamping(0);
     if (centred) body.setAngularVelocity(0);
     pointers.set(pointerId, { piece: null, pileBody: body, pileGrab: planck.Vec2(grab.x, grab.y), pileTarget: pt, joint, centred });
   }
-  const PILE_LEAD = 3, PILE_LEAD_DOWN = 0.1, PILE_HAND_SPEED = 15, PILE_HAND_UP = 7; // m, m, m/s, m/s (sidebar world)
+  const PILE_LEAD = 4.5, PILE_LEAD_DOWN = 0.05, PILE_HAND_SPEED = 15, PILE_HAND_UP = 7; // m, m, m/s, m/s (sidebar world)
   function capPileHand(b) {
     const v = b.getLinearVelocity(), sp = Math.hypot(v.x, v.y), ks = sp > PILE_HAND_SPEED ? PILE_HAND_SPEED / sp : 1;
     if (ks < 1 || v.y > PILE_HAND_UP) b.setLinearVelocity(planck.Vec2(v.x * ks, Math.min(PILE_HAND_UP, v.y * ks)));
@@ -1778,6 +1781,12 @@ const MAP_WALKS = {"port:athens>site:mastaba": [[362, 454], [350, 398], [310, 35
     const w = screenToWorld(px, py), ca = Math.cos(a), sa = Math.sin(a);
     const piece = spawnPiece(it.defKey, w.x - (g.x * ca - g.y * sa), w.y - (g.x * sa + g.y * ca), a, it.material);
     setGhost(piece, true);
+    {
+      let lo = Infinity, hi = -Infinity, bot = Infinity;
+      for (let f = piece.body.getFixtureList(); f; f = f.getNext()) { const bb = f.getAABB(0); lo = Math.min(lo, bb.lowerBound.x); hi = Math.max(hi, bb.upperBound.x); bot = Math.min(bot, bb.lowerBound.y); }
+      const L = viewX0, R = viewX0 + worldWidth, sx = hi > R ? R - hi - 0.02 : lo < L ? L - lo + 0.02 : 0, sy = bot < 0 ? -bot + 0.02 : 0;
+      if (sx || sy) { const q = piece.body.getPosition(); piece.body.setTransform(planck.Vec2(q.x + sx, q.y + sy), a); w.x += sx; w.y += sy; }
+    }
     startHold(piece, w, pointerId, px, py, centred);
     const c = piece.body.getWorldCenter();
     piece.body.setLinearVelocity(planck.Vec2(vg.x * k - om * (c.y - w.y), vg.y * k + om * (c.x - w.x)));

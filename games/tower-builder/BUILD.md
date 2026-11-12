@@ -198,7 +198,13 @@ The owner's second fix list (18 items) is built and pushed. What changed:
 - Held off-centre in free air a piece weighs 1.8x (`HELD_EXTRA_G` 0.8) and the grip is firmer (`GRIP_DAMP` 4, `GRIP_MAX` 0.4): dragging swings it about 0.3 rad (was 0.5).
 - Ground: drawn 24 px thick (`GROUND_PX`), its top at y = 0 (the old 12 px strip covered the bottom of the pieces). Held pieces passed through the ground because the hand joint was attached to the ground body (jointed bodies never collide); it now hangs on `anchorBody`. Ghosts use collision groups (pass through pieces, not ground or walls); their overlap with pieces is measured directly (`overlapsPiece`).
 
+## Current state, update 7 (12 Nov 2026; overrides the sections above where they differ)
+
+- Sidebar hand 1.5x stronger: maxForce (600 x own weight + 24 x pile weight) x g, `PILE_LEAD` 4.5 m, `PILE_LEAD_DOWN` 0.05 m.
+- Out of the sidebar the new piece is nudged inside the building area and above the ground (it was born overlapping the wall or ground and thrown out of the world). Harness: a sideways turning beam out and back in at the edge, never lost.
+- Hand joint 10 Hz (was 5) and aimed ahead of the hand by 2 x damping / stiffness x hand speed (a spring trails a moving point by that much); in free air its strength is `FREE_AIR_ACCEL` 400 m/s^2 x mass (the lift cap still applies when touching). Whirled pieces stay within 0.13 m of the hand (was 0.7-2.6 m).
+
 ## Task list
 
-Done (12 Nov 2026, second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
+Done (12 Nov 2026, third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
 When the owner sends a numbered fix list: copy it here as the task list, then build all of it in that chat (rules in the root `CLAUDE.md`).
