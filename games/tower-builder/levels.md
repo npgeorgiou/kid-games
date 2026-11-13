@@ -63,7 +63,7 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 3. Ziggurat of Ur (c. 2100 BC)
 
 - Headpiece: the temple of Nanna on the top terrace (Britannica: temple on top, not preserved). LOCKED.
-- Pieces (owner, 13 Nov: all mudbrick, as the real one; each course staggered and one long plank under the top terrace, so the weight of two blocks spreads into three): 14 mudbrick blocks, 2 mudbrick half-blocks, 1 mudbrick triangle (the stairway), 3 wooden beams and 1 wooden plank (6 m, new) in two courses; pile adds 2 mudbrick blocks (16 in all), 5 stone blocks, and 2 wooden beams for the wrong choice. Temple lighter (load density 4, was 5) so the all-mudbrick build also passes the 20% stronger test.
+- Pieces (owner, 13 Nov: all mudbrick, as the real one; each course staggered and one long plank under the top terrace, so the weight of two blocks spreads into three): 14 mudbrick blocks, 2 mudbrick half-blocks, 3 wooden beams (owner, 13 Nov: no triangle in this level, for good) and 1 wooden plank (6 m, new) in two courses; pile adds 2 mudbrick blocks (16 in all), 5 stone blocks, and 2 wooden beams for the wrong choice. Temple lighter (load density 4, was 5) so the all-mudbrick build also passes the 20% stronger test.
 - New: wooden beams laid as courses (they stand for the reed matting that strengthened the mudbrick core, Britannica). Technique: three terraces, each narrower.
 - Hard: wood only where it lies fully supported; terraces centred.
 - Wrong material: two short beams under the top terrace instead of the long plank: the weight stays over the middle and the bottom bricks crumble.
