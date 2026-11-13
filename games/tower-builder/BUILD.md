@@ -275,6 +275,17 @@ Eighth list (sent while the seventh was being built):
 
 Still to agree with the owner: the CLAUDE.md instructions he asked to deliberate (proposal in the reply of 12 Nov; nothing written until he answers).
 
+## Current state, update 15 (13 Nov 2026, map visuals list)
+
+Owner's words: "put halicarnassus in asia minor, now it is in the aegean. make small ripples behind the boat, as if it is sailing in water. make sure the finished monuments on the world map stand on solid land, not water, in all reasonable screen sized, including small laptop sizes. travelers similarly should always stand on land, never on water, and when they stand to see the monument, they should be looking at it, not the other way. also make the spread around the monument a but while they admire it, not remain as a group. also when they are on a boat, currently the stand above the boat, in the boat only their heads should be visible."
+
+- Halicarnassus site moved to the Asia Minor coast (665, 495), in `src/index.html` SITES and `tools/make-map-routes.py`.
+- `tools/make-map-routes.py` now exports MAP_LAND (land without sea, straits or lakes); walks keep to it, so nobody walks across the straits any more.
+- Finished buildings: placed at the nearest spot to their site where the building's foot is on land, on screen and not over another finished site (`donePlaces`).
+- Boats: ripples behind while sailing (SKIN.mapWake); people aboard show only their heads above the boat's side.
+- Travellers: get off onto the shore, never on water; at a finished building they spread round it on land, face it, then gather again.
+- Test: `python3 tools/harness.py map` (eight screen sizes; buildings and people on land, spread and not clumped).
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
