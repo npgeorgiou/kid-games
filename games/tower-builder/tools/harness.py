@@ -7,7 +7,7 @@ import os, re
 HERE=os.path.dirname(os.path.abspath(__file__))
 src=open(os.path.join(HERE,'..','tower-builder.html')).read()
 hook='''window.__tb={TEST_LOAD_DENSITY,renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,testReady,stockItems,TEST_WIND,PIECE_DEFS,levelSidebar,pileLayout,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
-get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale},set failShow(v){failShow=v},worldToScreen,failingCells,CHECK,TEST_QUAKE,get doneSites(){return typeof doneSites!=='undefined'?doneSites:null},get goMap(){return typeof goMap!=='undefined'?goMap:null},get siteLook(){return typeof siteLook!=='undefined'?siteLook:null},get restartButton(){return typeof restartButton!=='undefined'?restartButton:null},get readySince(){return readySince},ageReady(){if(readySince!=null)readySince-=1000},get removePiece(){return removePiece},get hitPiece(){return hitPiece},music(){return {ctx:actx&&actx.state,name:musicName,on:!!music}},isLand,mapView,siteMarker,monumentBox,SITES,admireSpots,trailPoints,DONE_SIZE,siteRadius,get cssW(){return cssWidth}};
+get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale},set failShow(v){failShow=v},worldToScreen,failingCells,CHECK,TEST_QUAKE,get doneSites(){return typeof doneSites!=='undefined'?doneSites:null},get goMap(){return typeof goMap!=='undefined'?goMap:null},get siteLook(){return typeof siteLook!=='undefined'?siteLook:null},get restartButton(){return typeof restartButton!=='undefined'?restartButton:null},get readySince(){return readySince},ageReady(){if(readySince!=null)readySince-=1000},get removePiece(){return removePiece},get hitPiece(){return hitPiece},music(){return {ctx:actx&&actx.state,name:musicName,on:!!music}},isLand,massAt,siteMass,mapView,siteMarker,SITES,tourPeople,trailPoints,DONE_SIZE,DONE_RING,siteRadius,WALK_SPEED,get cssW(){return cssWidth}};
 window.requestAnimationFrame=()=>0;
 '''
 k=src.rindex('})();')
@@ -141,25 +141,25 @@ with sync_playwright() as p:
               for(let k=0;k<120;k++){T.stepPhysics(1/60);T.updateCheck(1/60);} T.render();}''',i)
             pg.screenshot(path='/tmp/shot%d.png'%i)
         levels=[]
-    if 'map' in sys.argv:  # owner 13 Nov: finished buildings stand on land; travellers stand on land, spread round a building and face it
-        for vw,vh in [(1920,1080),(1536,864),(1366,768),(1280,800),(1280,720),(1024,600),(1280,1024),(2560,1440)]:
+    if 'map' in sys.argv:  # owner 13 Nov: every big circle wholly on its own land, nothing overlaps; travellers on land, round the building slowly
+        for vw,vh in [(2560,1600),(2560,1440),(1920,1200),(1920,1080),(1680,1050),(1600,900),(1536,864),(1440,900),(1366,768),(1280,800),(1280,720),(1280,1024),(1024,768),(1024,600)]:
             pg.set_viewport_size({'width':vw,'height':vh}); pg.wait_for_timeout(100)
             r=pg.evaluate('''()=>{const T=__tb; T.mode="map";
               T.LEVELS.forEach(L=>{T.progress.done[L.key]={pieces:L.solution.filter(e=>e[0]!=="pull"),loads:L.load.map(v=>[0,0,0,v.reduce((a,c,i)=>(i%2?a[a.length-1].push(c):a.push([c]),a),[])])};});
-              const v=T.mapView(), r=T.siteRadius()*T.DONE_SIZE, land=(sx,sy)=>T.isLand((sx-v.ox)/v.k,(sy-v.oy)/v.k), bad=[];
-              for(const s of T.SITES){const m=T.siteMarker(v,s),b=T.monumentBox(T.progress.done[s.key],r);
-                for(let i=0;i<=6;i++){const fx=m.x-b.hw+2*b.hw*i/6; if(!land(fx,m.y+b.hh)) {bad.push(s.key);break;}}}
-              let water=0, faceWrong=0, clumped=0, visits=0;
+              const v=T.mapView(), bad=[], over=[], M=T.SITES.map(s=>T.siteMarker(v,s));
+              T.SITES.forEach((s,i)=>{const m=M[i], mass=T.siteMass(s); for(let a=0;a<6.28;a+=0.1) for(const f of [1,0.5]){ if(T.massAt((m.x+Math.cos(a)*m.r*f-v.ox)/v.k,(m.y+Math.sin(a)*m.r*f-v.oy)/v.k)!==mass){bad.push(s.key);return;} }});
+              for(let i=0;i<M.length;i++) for(let j=i+1;j<M.length;j++) if(Math.hypot(M[i].x-M[j].x,M[i].y-M[j].y)<M[i].r+M[j].r+M[i].r*0.2) over.push(T.SITES[i].key+"/"+T.SITES[j].key);
+              let wk={}, water=0, jumps=0, visits=0, last=new Map();
               for(let f=0;f<6000;f++){T.renderMap(0.05);
-                for(const g of T.groups){ if(g.state==="boat") continue;
-                  const pts=g.state==="visit"&&g.spots?g.trailPoints?null:null:null;
-                  let P=T.trailPoints(g);
-                  if(g.state==="visit"&&g.spots){ if(g.u>=1){ P=g.spots; visits++; const cx=(T.siteMarker(v,T.SITES.find(s=>s.key===g.site)).x-v.ox)/v.k;
-                      const xs=P.map(p=>p[0]); if(Math.max(...xs)-Math.min(...xs)<20) clumped++; } }
-                  for(const p of P) if(!T.isLand(p[0],p[1])) water++; }}
-              return {buildingsOnWater:bad, personFramesOnWater:water, admiringFrames:visits, clumped};}''')
-            ok=not r['buildingsOnWater'] and r['personFramesOnWater']==0 and r['admiringFrames']>0 and r['clumped']==0
-            print('%-4s %-40s %s'%('PASS' if ok else 'FAIL','map %dx%d'%(vw,vh),json.dumps(r)),flush=True)
+                for(const g of T.groups){ if(g.state==="boat"){last.delete(g);continue;}
+                  let P=T.trailPoints(g).map(p=>[p[0],p[1]]);
+                  if(g.state==="visit"&&g.tour){ P=T.tourPeople(g).map(p=>[p.x,p.y]); if(g.phase==="look") visits++;
+                    const L=last.get(g); if(L&&L.visit) P.forEach((p,k)=>{ if(Math.hypot(p[0]-L.P[k][0],p[1]-L.P[k][1])>T.WALK_SPEED*0.05*1.05+0.01) jumps++; }); }
+                  last.set(g,{P,visit:g.state==="visit"&&!!g.tour});
+                  for(const p of P) if(!T.isLand(p[0],p[1])) {water++; wk[g.state+(g.phase&&g.state==="visit"?g.phase:"")]=(wk[g.state+(g.phase&&g.state==="visit"?g.phase:"")]||0)+1;} }}
+              return {circlesOffTheirLand:bad, overlapping:over, personFramesOnWater:water, where:wk, lookingFrames:visits, fastSteps:jumps};}''')
+            ok=not r['circlesOffTheirLand'] and not r['overlapping'] and r['personFramesOnWater']==0 and r['lookingFrames']>0 and r['fastSteps']==0
+            print('%-4s %-24s %s'%('PASS' if ok else 'FAIL','map %dx%d'%(vw,vh),json.dumps(r)),flush=True)
         levels=[]
     if 'sizes' in sys.argv:
         for vw,vh in [(1920,1080),(1366,768),(1536,864),(2560,1440),(1280,1024),(1024,768)]:

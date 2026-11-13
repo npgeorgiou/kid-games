@@ -32,7 +32,7 @@ PORTS = {
 }
 SOUTH = (1205, 1400)  # where the Red Sea boat sails to, at the bottom edge of the map
 SITES = {"mastaba": (720, 1060), "djoser": (880, 1050), "ziggurat": (1960, 900), "karnak": (830, 1300), "liongate": (200, 530),
-         "ishtar": (1720, 770), "parthenon": (340, 425), "mausoleum": (665, 495), "pharos": (700, 900), "valens": (720, 180)}
+         "ishtar": (1720, 770), "parthenon": (340, 425), "mausoleum": (665, 495), "pharos": (700, 900), "valens": (676, 190)}
 LINES = [["athens", "crete", "alexandria"], ["corinth", "athens", "rhodes"], ["miletus", "rhodes", "lycia", "cyprus"],
          ["cyprus", "phoenicia", "alexandria"], ["cyrene", "crete", "rhodes"], ["alexandria", "cyrene"], ["blacksea", "athens"],
          ["redsea", "south"], ["lycia", "phoenicia"], ["miletus", "corinth"]]

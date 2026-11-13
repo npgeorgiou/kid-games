@@ -286,6 +286,16 @@ Owner's words: "put halicarnassus in asia minor, now it is in the aegean. make s
 - Travellers: get off onto the shore, never on water; at a finished building they spread round it on land, face it, then gather again.
 - Test: `python3 tools/harness.py map` (eight screen sizes; buildings and people on land, spread and not clumped).
 
+## Current state, update 16 (13 Nov 2026, map visuals, second list)
+
+Owner's words: "I dont know in what screen you test, but for me halicarnassus is on the Aegean islands still. also, on my sccreen, mycenai and acropolis overlap. nothing should overlap even in big circle size, redive green circle size a bit, without reducing monument preview size. ripples should follow the direction of the back par tof the boat, not be horizontal all the time. fix that, in my screen alexandria is still on the water. and space out egypgs buildings a bit more. travellers spread and collect too rapidly and in and explosive motion, they shoudl slowly circle around the monument to spread, like, trading its perimeter."
+
+- Halicarnassus moved in the game too (update 15 had moved it only in the route tool). Constantinople moved to the European side.
+- Every site gets one place per screen size: the big circle wholly on its own land (no islands), on screen, a gap away from all others (`sitePlaces`). Green circle 0.85 of the old size; the building inside unchanged.
+- Ripples trail behind the stern along the boat's heading.
+- Visitors walk over land at walking speed to the circle, then along it to their place, look, and return the same way (`admireTour`, `landRoutes`).
+- Checked by opening the map at 1366x768 and 1920x1080 with all sites finished. `harness.py map` (long run) was not rerun on the last version.
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
