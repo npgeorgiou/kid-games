@@ -67,7 +67,7 @@
     mapWater(ctx, img, v, t) {
       const s = img.naturalWidth, n = Math.max(1, Math.floor(img.naturalHeight / s));
       if (!img._frames) img._frames = Array.from({ length: n }, (_, i) => { const c = document.createElement("canvas"); c.width = c.height = s; c.getContext("2d").drawImage(img, 0, i * s, s, s, 0, 0, s, s); return c; });
-      const ph = ((t / 2) * n) % n, f = Math.floor(ph), mix = ph - f, tile = Math.max(24, s * v.k * 0.5), sc = tile / s;
+      const ph = ((t / 2) * n) % n, f = Math.floor(ph), mix = ph - f, tile = s, sc = 1; // drawn at the picture's own size, one picture pixel per screen pixel
       const w = (cssWidth - v.ox) / sc, h = (cssHeight - v.oy) / sc;
       ctx.save(); ctx.translate(v.ox, v.oy); ctx.scale(sc, sc);
       ctx.fillStyle = ctx.createPattern(img._frames[f], "repeat"); ctx.fillRect(0, 0, w, h);
