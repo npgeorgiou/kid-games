@@ -38,7 +38,7 @@ Run from `games/tower-builder/tools`: `python3 harness.py spec` (tests 1, 2, 3, 
 7. Lighthouse: without its wooden ties the walls fall in the wind.
 8. Outline matches the build: the exactly placed build, once settled, has every piece within 5 cm of its place, covers at least 85% of the outline (the building's shape; its uncovered slivers must still light the button) and has at most 2.5% of its pieces outside the outline.
 
-Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density (in play order) 5, 8, 5, 25, 75, 4, 60, 12, 13, 14 (heavy enough that wrong-material mudbrick crumbles, light enough that the suggested build holds 30% more on every screen size; set again 12 Nov for the new mudbrick strength); earthquake 0.32 rising to 0.61. Each arch stone has a thin guide line in the outline (owner).
+Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density (in play order) 5, 7 (owner 13 Nov: was 8; passes the 20% stronger test), 5, 25, 75, 4, 60, 12, 13, 14 (heavy enough that wrong-material mudbrick crumbles, light enough that the suggested build holds 30% more on every screen size; set again 12 Nov for the new mudbrick strength); earthquake 0.32 rising to 0.61. Each arch stone has a thin guide line in the outline (owner).
 
 ## 1. Mastaba, Saqqara (c. 3000 BC)
 

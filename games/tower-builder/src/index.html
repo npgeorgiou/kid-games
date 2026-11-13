@@ -2146,7 +2146,7 @@
     let area = 0; verts.forEach(([x, y], j) => { const [x2, y2] = verts[(j + 1) % verts.length]; area += x * y2 - x2 * y; });
     return mass / Math.abs(area / 2);
   }
-  const TEST_LOAD_DENSITY = [5, 8, 5, 25, 75, 4, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
+  const TEST_LOAD_DENSITY = [5, 7, 5, 25, 75, 4, 60, 12, 13, 14]; // kg/m^2, per level (Djoser 8 -> 7, owner 13 Nov: passes the 20% stronger test): heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
   const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
   const TEST_FAST = 10, DRUM_LEAD = 1.5; // Ctrl test speed-up; seconds the drumroll may start before the load moves
