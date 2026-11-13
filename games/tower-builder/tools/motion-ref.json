@@ -1,0 +1,12 @@
+{
+ "carry stone block 4 m (s)": 0.85,
+ "carry stone square 4 m (s)": 0.5833333333333334,
+ "carry stone abacus 4 m (s)": 0.36666666666666664,
+ "carry stone beam 4 m (s)": 0.6833333333333333,
+ "carry mudbrick block 4 m (s)": 0.6666666666666666,
+ "carry wood block 4 m (s)": 0.38333333333333336,
+ "carry wood column 4 m (s)": 0.36666666666666664,
+ "stone block swung at one end, turns in 4 circles": 1.69,
+ "lift a stone square 1 m from the ground (s)": 0.36666666666666664,
+ "lift a stone block 1 m from the ground (s)": 0.4
+}

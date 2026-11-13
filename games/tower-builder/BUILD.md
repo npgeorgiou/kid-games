@@ -250,6 +250,15 @@ Ninth list, the owner's own words (13 Nov 2026, verbatim):
 
 1. are you fucking stupid? its so clear: ""mudbrick breaks under four mudbrick and three stone blocks," SEPERATELY! NOT COMBINED!!!! sperately!!! I just give you their strength compared to 2 DIFFERENT stacks!!! FIX THAT IDIOT; and test everyhting, and rething anythign this touches, like material choise, adn make that isntar gate headpiece that you amde heaver, make it as it was or at least something thaat breaks excessive mudbrick stacks!!!! moron!!!!  2. Open questions: "Djoser" -> dont know, I have to play test it. "Ziggurat" -> that may change now "Mauseleum" -> no moron, i mean that kionocrana extrude, do there should be 2 of the small oblong pieces as kionocrano, not one that is more narrow than the kionas. also, there are 2 weird brown areas in teh outlien at mausoleum, solve that. and the wooden supports would be needed if the middle column was of half the width??? think of that, I think it can work, and should work. so forget about the double kionocrano ALSO; THE STRENGTH of me holding a small oblong stone piece is excessiove, it rams into big stones and kicks them away,  thats insanely underalistic, something is wrong with how you calculate strength per object mass. AND YES; write down your rules
 
+## Current state, update 13 (13 Nov 2026, eleventh list)
+
+- Lifting off: the hand is weak only when it presses into a piece or is about to hit one while moving towards it (`pressesInto`, `capApproach` toward check); lifting or sliding a piece off what it sits on keeps full strength (it trailed the hand by up to 1 m before).
+- Lion Gate back to the lower version; play order Lion Gate (level 4) then Karnak (level 5): owner, "MYCENAI IS EASIER" (the campaign is otherwise chronological). SITES and `TEST_LOAD_DENSITY` swapped with it; the earthquake per position is unchanged.
+- Hand tests: `harness.py owner motion` (lift-off stickiness, push, swing, carry) and the hand's feel locked against `tools/motion-ref.json` (recorded 13 Nov from this build; a change of more than 15% fails and needs the owner's yes; re-record only with `record` after he approves).
+- `checklist.md`: everything the owner asked to fix, grouped for testing.
+
+Eleventh list, the owner's own words (13 Nov 2026, verbatim): "write test for all thigs related with mouse strength and objects motion, because you are too often changing them and messing them up. WEIRD STICKINESS WHEN i PULL SQUARE FROM TOP OF BLOCK??? actually in all lifts where lifted object A is sitting on object B REVERT MYCENAI TO PREVIOUS LOWER VERSION, AND MOVE EXCHANGE LEVELS BETWEEN MYCENAI AND KARNAK, BECAUSE MYCENAI IS EASIER. I have told you to fix so many things that I lost count. AFTER ALSO FIXING THE ABOVE, compile a list with everything I told you to fix. I will test it against the game. dont fucking miss anything, but group things that can be tested together."
+
 ### Seventh and eighth lists: the owner's own words (12 Nov 2026, verbatim)
 
 Seventh list, with a screenshot saved as `owner-shots/list7-item5-mudbrick-column-holds-3-stones.png` (Karnak: an upright mudbrick column holding three stone blocks):

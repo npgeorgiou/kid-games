@@ -38,7 +38,7 @@ Run from `games/tower-builder/tools`: `python3 harness.py spec` (tests 1, 2, 3, 
 7. Lighthouse: without its wooden ties the walls fall in the wind.
 8. Outline matches the build: the exactly placed build, once settled, has every piece within 5 cm of its place, covers at least 85% of the outline (the building's shape; its uncovered slivers must still light the button) and has at most 2.5% of its pieces outside the outline.
 
-Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density 5, 8, 5, 75, 25, 4, 60, 12, 13, 14 (heavy enough that wrong-material mudbrick crumbles, light enough that the suggested build holds 30% more on every screen size; set again 12 Nov for the new mudbrick strength); earthquake 0.32 rising to 0.61. Each arch stone has a thin guide line in the outline (owner).
+Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density (in play order) 5, 8, 5, 25, 75, 4, 60, 12, 13, 14 (heavy enough that wrong-material mudbrick crumbles, light enough that the suggested build holds 30% more on every screen size; set again 12 Nov for the new mudbrick strength); earthquake 0.32 rising to 0.61. Each arch stone has a thin guide line in the outline (owner).
 
 ## 1. Mastaba, Saqqara (c. 3000 BC)
 
@@ -87,7 +87,7 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 - Headpiece: the lion relief, a stone triangle, lowered onto the lintel. LOCKED. Never replaced by a slab, a wall course or anything on top of the gate.
 - Pieces: 10 stone blocks (two upright as jambs), 6 stone half-blocks, 3 stone beams (the middle one is the lintel), 2 wooden beams standing upright as flagpoles, each held between the two stones of its side's top row (owner); pile adds 3 wooden beams (tempting as the lintel over the door, owner) and 8 mudbrick blocks and 4 mudbrick half-blocks (owner: more mudbrick).
 - Openings: the door.
-- Owner (12 Nov): one course taller (a second row of stones holds the flagpoles).
+- Owner (13 Nov): back to the lower version (the extra course removed); played before Karnak (it is easier), so the Lion Gate is level 4 and Karnak level 5.
 - New: a pole held upright between two stones. Technique: jambs and a lintel; the relief stands free on the lintel.
 - Wrong material: mudbrick jambs crumble under the lintel and the lion; wooden planks as the lintel snap under the lion; mudbrick for the jambs and the lower walls: the jambs crumble.
 - Wrong build: one jamb left out: the lintel and the lion fall into the door. (Flagpoles standing on top of the stones, the earlier wrong build, no longer fails the test: the poles fall but the building passes, so it was replaced.)

@@ -124,7 +124,22 @@ level("ziggurat", "Ζιγκουράτ της Ουρ", "c. 2100 BC", "three terra
       s, [rect(-1.5, 5, 1.5, 6.0)], woodRole="courses",
       wrong=[W("mudbrick in the base, stone in the top terrace", "material", [[e[0], "mudbrick" if near(e[3], 0.5) and e[0] == "block" else "stone" if near(e[3], 4.5) else e[1], e[2], e[3], e[4]] for e in s]),
              W("a top-terrace block more than half off the terrace below", "build", moved(s, lambda e: near(e[2], 1) and near(e[3], 4.5), dx=3.2))])
-# 4 Karnak: four identical columns (two outer, two middle), every pillar topped by a capital of two small stacked blocks;
+# 4 Lion Gate (owner, 13 Nov: before Karnak, it is easier): the lion triangle (headpiece) is lowered onto the lintel between the stepped-in stones
+gate = rect(-1, 0, 1, 2)
+s = (mirror([["block", "stone", -5, 0.5, 0], ["block", "stone", -3, 0.5, 0], ["square", "stone", -5.5, 1.5, 0], ["block", "stone", -4, 1.5, 0], ["square", "stone", -2.5, 1.5, 0],
+             ["block", "stone", -1.5, 1.0, UP]]) +
+     [["beam", "stone", x, 2.25, 0] for x in (-3.2, 0, 3.2)] +
+     mirror([["block", "stone", -4.0, 3.0, 0], ["square", "stone", -2.0, 3.0, 0]]) +  # owner (13 Nov): back to the lower version
+     mirror([["beam", "wood", -2.75, 4.1, UP]]))  # flagpoles held between two stones
+level("liongate", "Πύλη των Λεόντων", "c. 1250 BC", "jambs, a stone lintel, flagpoles held between stones, and the lion triangle lowered onto the lintel",
+      "two monolith jambs and a great lintel (4.5 x 2.0 x 0.8 m, about 20 t); the lion relief, a triangle, stands on the lintel in the relieving triangle (Wikipedia); "
+      "the real corbelled courses close over the relief, which a slab lowered from above cannot pass, so the relief stands free on the lintel; the flagpoles are the owner's addition (no source found for them)",
+      s, [Polygon([(-1.45, 2.52), (1.45, 2.52), (0, 5.1)])], [gate],
+      wrong=[W("mudbrick jambs", "material", recolour(s, lambda e: e[0] == "block" and e[4] != 0, "mudbrick")),
+             W("wooden planks as the lintel over the door", "material", recolour(s, lambda e: e[0] == "beam" and e[1] == "stone", "wood")),
+             W("mudbrick for the jambs and the lower walls", "material", recolour(s, lambda e: e[0] in ("block", "square") and e[3] < 2, "mudbrick")),
+             W("one jamb left out", "build", without(s, lambda e: e[0] == "block" and e[4] != 0 and e[2] < 0))])
+# 5 Karnak (owner, 13 Nov: after the Lion Gate, which is easier): four identical columns (two outer, two middle), every pillar topped by a capital of two small stacked blocks;
 # the side beams rest on the outer and middle capitals; the taller middle nave stands on square pillars over the beam ends
 def cap(x, y): return [["abacus", "stone", x, y + 0.2, 0], ["abacus", "stone", x, y + 0.6, 0]]
 s = row("stone", -5, 5, 0.5) + mirror([["column", "stone", -3.7, 2.2, 0], *cap(-3.7, 3.4), ["column", "stone", -1.3, 2.2, 0], *cap(-1.3, 3.4),
@@ -138,21 +153,6 @@ level("karnak", "Υπόστυλη αίθουσα του Καρνάκ", "c. 1290-
              W("wooden planks as the side beams", "material", recolour(s, lambda e: e[0] == "beam", "wood")),
              W("mudbrick middle columns", "material", recolour(s, lambda e: e[0] == "column" and abs(e[2]) < 2, "mudbrick")),
              W("a middle column too far in for the beam", "build", moved(s, lambda e: near(e[2], -1.3) and e[3] < 4.3, dx=1.0))])
-# 5 Lion Gate: the lion triangle (headpiece) is lowered onto the lintel between the stepped-in stones
-gate = rect(-1, 0, 1, 2)
-s = (mirror([["block", "stone", -5, 0.5, 0], ["block", "stone", -3, 0.5, 0], ["square", "stone", -5.5, 1.5, 0], ["block", "stone", -4, 1.5, 0], ["square", "stone", -2.5, 1.5, 0],
-             ["block", "stone", -1.5, 1.0, UP]]) +
-     [["beam", "stone", x, 2.25, 0] for x in (-3.2, 0, 3.2)] +
-     mirror([["block", "stone", -4.0, 3.0, 0], ["square", "stone", -2.0, 3.0, 0]]) + mirror([["block", "stone", -4.0, 4.0, 0], ["square", "stone", -2.0, 4.0, 0]]) +  # owner: one course taller
-     mirror([["beam", "wood", -2.75, 4.1, UP]]))  # flagpoles held between two stones
-level("liongate", "Πύλη των Λεόντων", "c. 1250 BC", "jambs, a stone lintel, flagpoles held between stones, and the lion triangle lowered onto the lintel",
-      "two monolith jambs and a great lintel (4.5 x 2.0 x 0.8 m, about 20 t); the lion relief, a triangle, stands on the lintel in the relieving triangle (Wikipedia); "
-      "the real corbelled courses close over the relief, which a slab lowered from above cannot pass, so the relief stands free on the lintel; the flagpoles are the owner's addition (no source found for them)",
-      s, [Polygon([(-1.45, 2.52), (1.45, 2.52), (0, 5.1)])], [gate],
-      wrong=[W("mudbrick jambs", "material", recolour(s, lambda e: e[0] == "block" and e[4] != 0, "mudbrick")),
-             W("wooden planks as the lintel over the door", "material", recolour(s, lambda e: e[0] == "beam" and e[1] == "stone", "wood")),
-             W("mudbrick for the jambs and the lower walls", "material", recolour(s, lambda e: e[0] in ("block", "square") and e[3] < 2, "mudbrick")),
-             W("one jamb left out", "build", without(s, lambda e: e[0] == "block" and e[4] != 0 and e[2] < 0))])
 # 6 Ishtar Gate
 s = ([p for y in (0.5, 1.5) for p in row("stone", -6, 2, y) + row("stone", 2, 2, y)] +
      [p for y in (2.5, 3.5, 4.5, 5.5, 6.5) for p in (["block", "stone" if y < 4 else "mudbrick", -(ARCH_X + 2), y, 0], ["block", "stone" if y < 4 else "mudbrick", ARCH_X + 2, y, 0])] +

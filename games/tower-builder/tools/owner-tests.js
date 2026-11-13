@@ -146,6 +146,45 @@
     out.push(["9 a small oblong stone pushes another small one along", c > 0.5, "moved " + c + " m"]);
   }
 
+  // --- eleventh list: lifting a piece off the piece it sits on is not sticky, and the hand's feel is locked
+  if (want("motion")) {
+    T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
+    // time for the grabbed piece to rise 1 m when the hand goes up 1.5 m (or, with dir, to move 1 m that way)
+    const lift = (d, m, under, dir = [0, 1]) => { T.clearAllPieces(); let y = 0.003;
+      if (under && under !== "air") { const u = T.spawnPiece(under[0], X, T.PIECE_DEFS[under[0]].hy + 0.003, 0, under[1]); y = 2 * T.PIECE_DEFS[under[0]].hy + 0.006; run(0.5); }
+      const p = T.spawnPiece(d, X, under === "air" ? 3 : y + T.PIECE_DEFS[d].hy, 0, m); run(under === "air" ? 0.05 : 1);
+      const c0 = p.body.getWorldCenter(), g = { x: c0.x + (lag ? 0.2 : 0), y: c0.y + (lag ? 0.2 : 0) }; T.startHold(p, g, 98, 0, 0); if (under === "air") { p.desired = { x: g.x, y: g.y }; run(1); }
+      const s0 = p.body.getWorldPoint(p.grabLocal), q0 = { x: s0.x, y: s0.y }; let t = null, worst = 0;
+      for (let k = 0; k < 240; k++) { p.desired = { x: q0.x + dir[0] * Math.min(1.5, k * 1.5 / 30), y: q0.y + dir[1] * Math.min(1.5, k * 1.5 / 30) }; frame(1 / 60);
+        const q = p.body.getWorldCenter(), w = p.body.getWorldPoint(p.grabLocal); if (k < 24) worst = Math.max(worst, Math.hypot(w.x - p.desired.x, w.y - p.desired.y));
+        if (t == null && (q.x - q0.x) * dir[0] + (q.y - q0.y) * dir[1] > 1.0) t = k / 60; }
+      T.releaseHold(98); run(0.5); return lag ? +worst.toFixed(2) : t; };
+    let lag = true; // the owner grabs anywhere on the piece: how far the piece trails the hand as it leaves what it sat on
+    const close = (a, b) => a != null && b != null && a <= b + 0.1;
+    for (const [d, m, u] of [["square", "stone", ["block", "stone"]], ["block", "stone", ["block", "stone"]], ["abacus", "stone", ["capital", "stone"]], ["block", "mudbrick", ["block", "mudbrick"]], ["beam", "wood", ["block", "stone"]]]) {
+      const off = lift(d, m, u), air = lift(d, m, "air");
+      out.push(["11 lifting a " + m + " " + d + " off a " + u[1] + " " + u[0] + " is not sticky (it follows the hand as in the air)", close(off, air), off + " m behind the hand vs " + air + " m in the air"]);
+    }
+    { const off = lift("square", "stone", ["block", "stone"], [1, 0.3]), air = lift("square", "stone", "air", [1, 0.3]);
+      out.push(["11 sliding a stone square off the top of a block is not sticky", close(off, air), off + " m behind vs " + air + " m in the air"]); }
+    lag = false;
+    // the hand's feel, locked: carrying, swinging and lifting stay as the owner has them (tools/motion-ref.json); a change needs his yes
+    const carry = (d, m) => { T.clearAllPieces(); const p = T.spawnPiece(d, X - 4, 3, 0, m), c0 = p.body.getWorldCenter(), g = { x: c0.x, y: c0.y };
+      T.startHold(p, g, 94, 0, 0); run(0.5); let t = null;
+      for (let k = 0; k < 300; k++) { p.desired = { x: g.x + 4, y: g.y }; frame(1 / 60); if (t == null && p.body.getPosition().x > g.x + 3.9) t = k / 60; }
+      T.releaseHold(94); return t; };
+    const feel = {};
+    for (const [d, m] of [["block", "stone"], ["square", "stone"], ["abacus", "stone"], ["beam", "stone"], ["block", "mudbrick"], ["block", "wood"], ["column", "wood"]]) feel["carry " + m + " " + d + " 4 m (s)"] = carry(d, m);
+    { T.clearAllPieces(); const p = T.spawnPiece("block", X, 6, 0, "stone"); run(0.1); const g0 = p.body.getWorldPoint({ x: 0.9, y: 0 }), g = { x: g0.x, y: g0.y };
+      T.startHold(p, g, 97, 0, 0); p.desired = { x: g.x, y: g.y }; run(2.5); let prev = p.body.getAngle(), tot = 0;
+      for (let k = 0; k < 240; k++) { const th = k / 60 * 2 * Math.PI; p.desired = { x: g.x + Math.sin(th), y: g.y + 1 - Math.cos(th) }; frame(1 / 60); const a = p.body.getAngle(); tot += a - prev; prev = a; }
+      T.releaseHold(97); feel["stone block swung at one end, turns in 4 circles"] = +(Math.abs(tot) / (2 * Math.PI)).toFixed(2); }
+    feel["lift a stone square 1 m from the ground (s)"] = lift("square", "stone", null);
+    feel["lift a stone block 1 m from the ground (s)"] = lift("block", "stone", null);
+    out.push(["11 feel", true, JSON.stringify(feel)]);
+    window.__feel = feel;
+  }
+
   // helpers: quick build and test as the owner does it (Tab, the build button, the test button), real frame timing varied
   let seed = 12345; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const frameDt = () => [1 / 60, 1 / 144, 1 / 30, 1 / 75, 1 / 50][Math.floor(rnd() * 5)] * (0.9 + 0.2 * rnd());
@@ -245,17 +284,20 @@
       T.failShow = null;
       out.push(["6 empty openings not red: " + T.LEVELS[i].key, bad === 0, bad + " of " + n + " opening points red"]);
     }
-    // seams: the suggested build placed by hand (each piece up to 3 cm off) leaves no red between pieces
-    for (const i of [4, 0, 6]) {
-      T.mode = "build"; T.startLevel(i); T.quiet0(); const key = T.LEVELS[i].key, orig = T.SOLUTIONS[key];
-      let s = i + 7; const r2 = () => ((s = (s * 16807) % 2147483647) / 2147483647 - 0.5);
-      T.SOLUTIONS[key] = orig.map((e) => e[0] === "pull" ? e : [e[0], e[1], e[2] + r2() * 0.06, e[3] + Math.abs(r2()) * 0.03, e[4]]);
-      T.startAutoBuild(); T.SOLUTIONS[key] = orig; let n = 0; while (T.auto && n < 20000) { frame(1 / 60); n++; } run(2);
-      const c = T.runCheck(); T.failShow = { cells: [], loads: [], unfilled: true, until: null }; T.render();
-      const cv = document.querySelector("canvas"), cx = cv.getContext("2d"), dpr = window.devicePixelRatio || 1, im = cx.getImageData(0, 0, cv.width, cv.height).data;
-      let red = 0; for (let k = 0; k < im.length; k += 4) if (im[k] > 170 && im[k + 1] < 120 && im[k + 2] < 110) red++;
-      T.failShow = null; const m2 = red / (dpr * dpr) / (T.scale * T.scale);
-      out.push(["6 no red seams between hand-placed pieces: " + key, m2 < 0.05, (m2).toFixed(3) + " m2 painted red, outline covered " + (c.fill * 100).toFixed(1) + "%"]);
+    // seams: the suggested build placed by hand (each piece up to 3 cm off) paints no more red than the exact build
+    // (whose only red is the building's own uncovered corners, such as under a capital that is wider than its column)
+    for (const key of ["liongate", "mastaba", "parthenon", "karnak"]) {
+      const i = T.LEVELS.findIndex((L) => L.key === key), orig = T.SOLUTIONS[key];
+      const redOf = (j) => { T.mode = "build"; T.startLevel((i + 1) % 10); T.startLevel(i); T.quiet0();
+        let s = i + 7; const r2 = () => ((s = (s * 16807) % 2147483647) / 2147483647 - 0.5);
+        T.SOLUTIONS[key] = j ? orig.map((e) => e[0] === "pull" ? e : [e[0], e[1], e[2] + r2() * 0.06, e[3] + Math.abs(r2()) * 0.03, e[4]]) : orig;
+        T.startAutoBuild(); T.SOLUTIONS[key] = orig; let n = 0; while (T.auto && n < 20000) { frame(1 / 60); n++; } run(2);
+        T.failShow = { cells: [], loads: [], unfilled: true, until: null }; T.render();
+        const cv = document.querySelector("canvas"), cx = cv.getContext("2d"), dpr = window.devicePixelRatio || 1, im = cx.getImageData(0, 0, cv.width, cv.height).data;
+        let red = 0; for (let k = 0; k < im.length; k += 4) if (im[k] > 170 && im[k + 1] < 120 && im[k + 2] < 110) red++;
+        T.failShow = null; return red / (dpr * dpr) / (T.scale * T.scale); };
+      const e = redOf(false), jt = redOf(true);
+      out.push(["6 no red seams between hand-placed pieces: " + key, jt <= e + 0.05, jt.toFixed(3) + " m2 red placed by hand, " + e.toFixed(3) + " m2 placed exactly"]);
     }
   }
 

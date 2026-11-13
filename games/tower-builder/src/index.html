@@ -964,10 +964,15 @@
         dIn.useRadii = true; dCache.count = 0;
         planck.Distance(dOut, dCache, dIn);
         const d = dOut.distance;
-        if (d < NEAR_GAP) nearSeen = true;
-        if (d >= NEAR_GAP || d < 0.003) return true; // far, or already touching (the push force is limited then)
+        if (d >= NEAR_GAP) return true; // far
+        if (d < 0.003) { // touching it: moving towards it (from centre to centre) counts as near, moving away does not
+          const a = body.getWorldCenter(), o = b.getWorldCenter();
+          if (vx * (o.x - a.x) + vy * (o.y - a.y) > 0) nearSeen = true;
+          return true; // (the push force is limited then)
+        }
         const ux = (dOut.pointB.x - dOut.pointA.x) / d, uy = (dOut.pointB.y - dOut.pointA.y) / d;
         const toward = vx * ux + vy * uy;
+        if (toward > 0) nearSeen = true; // moving towards it, not away
         if (toward > cap) { vx -= (toward - cap) * ux; vy -= (toward - cap) * uy; }
         return true;
       });
@@ -990,6 +995,17 @@
       });
     }
     return best;
+  }
+  // the hand pushes the held piece into a piece it touches (dx, dy: where the hand pulls it)
+  function pressesInto(body, dx, dy) {
+    for (let ce = body.getContactList(); ce; ce = ce.next) {
+      const c = ce.contact, o = ce.other;
+      if (!c.isTouching() || !(o.piece || o.isLoad) || (o.piece && (o.piece.ghost || o.piece.auto))) continue;
+      const wm = new planck.WorldManifold(); c.getWorldManifold(wm);
+      const s = c.getFixtureA().getBody() === body ? 1 : -1; // normal from this piece to the other
+      if ((dx * wm.normal.x + dy * wm.normal.y) * s > 0.01) return true;
+    }
+    return false;
   }
   function touchesOtherPiece(body) {
     if (body.piece && body.piece.ghost) return false;
@@ -1033,7 +1049,6 @@
       if (vlen > vcap) { vx *= vcap / vlen; vy *= vcap / vlen; }
       nearSeen = false;
       if (!piece.ghost) [vx, vy] = capApproach(body, vx, vy, Math.min(NEAR_SPEED, vcap));
-      const close = touching || nearSeen; // about to touch: no free-air strength, so it cannot ram what it meets
       T.x += vx * STEP; T.y += vy * STEP;
       // a spring tracking a moving point trails it by 2 x damping / stiffness x speed; aim that far ahead so the grab point stays on the hand
       const lead = (2 * HOLD_DAMP) / (2 * Math.PI * HOLD_HZ);
@@ -1042,6 +1057,9 @@
       const d = Math.hypot(dx, dy);
       if (d > HOLD_LEAD) { dx *= HOLD_LEAD / d; dy *= HOLD_LEAD / d; }
       piece.joint.setTarget(planck.Vec2(p.x + dx, p.y + dy));
+      // pressing into (or about to hit) another piece: no free-air strength, so it cannot ram what it meets; lifting a
+      // piece off another, or pulling it away, keeps the full strength (owner: no stickiness when lifting off)
+      const close = nearSeen || (touching && pressesInto(body, dx, dy));
       // Force: its own weight plus the hand's strength; touching another piece only a gentle push
       // (0.8 x own weight + HAND_PUSH), so what it pushes resists by its own mass.
       const W = m * GRAVITY;
@@ -1974,7 +1992,7 @@
   // From level 2 on, below what tips a lone stone column (0.6 x 2.4 m tips at about
   // 7.5 N/m here: weight x half-width against wind x half-height); level 1 has no columns.
   const TEST_WIND = [110, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 18, 6.5]; // Lighthouse: the strongest wind; walls not tied together fall in it
-  const TEST_LOAD_DENSITY = [5, 8, 5, 75, 25, 4, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
+  const TEST_LOAD_DENSITY = [5, 8, 5, 25, 75, 4, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
   const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
   const TEST_FAST = 10, DRUM_LEAD = 1.5; // Tab test speed-up; seconds the drumroll may start before the load moves
@@ -2653,8 +2671,8 @@
     { key: "mastaba",   x: 720,  y: 1060 }, // Saqqara, c. 3000 BC
     { key: "djoser",    x: 880,  y: 1050 }, // Saqqara, c. 2650 BC
     { key: "ziggurat",  x: 1960, y: 900  }, // Ur, c. 2100 BC
+    { key: "liongate",  x: 200,  y: 530  }, // Mycenae, c. 1250 BC (owner: before Karnak, it is easier)
     { key: "karnak",    x: 830,  y: 1300 }, // Karnak, c. 1290-1220 BC
-    { key: "liongate",  x: 200,  y: 530  }, // Mycenae, c. 1250 BC
     { key: "ishtar",    x: 1720, y: 770  }, // Babylon, c. 575 BC
     { key: "parthenon", x: 340,  y: 425  }, // Athens, 447-432 BC
     { key: "mausoleum", x: 580,  y: 540  }, // Halicarnassus (Bodrum), c. 350 BC

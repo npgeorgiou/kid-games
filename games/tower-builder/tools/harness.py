@@ -92,6 +92,14 @@ with sync_playwright() as p:
         names=[a for a in sys.argv[2:] if not a.isdigit()]
         for name,ok,det in pg.evaluate(open(os.path.join(HERE,'owner-tests.js')).read(),names):
             print('%-4s %-70s %s'%('PASS' if ok else 'FAIL',name,det[:200]),flush=True)
+        if not names or 'motion' in names:  # the hand's feel against the owner-approved reference (tools/motion-ref.json)
+            feel=pg.evaluate('()=>window.__feel'); ref_p=os.path.join(HERE,'motion-ref.json')
+            if feel and not os.path.exists(ref_p) or 'record' in sys.argv: json.dump(feel,open(ref_p,'w'),indent=1,ensure_ascii=False); print('     motion reference recorded')
+            elif feel:
+                ref=json.load(open(ref_p))
+                for k,v in ref.items():
+                    n=feel.get(k); ok=n is not None and v is not None and abs(n-v)<=0.15*abs(v)+0.04
+                    print('%-4s %-70s %s'%('PASS' if ok else 'FAIL','11 hand feel unchanged: '+k,'now %s, approved %s'%(n,v)),flush=True)
         if not names or 'screens' in names:  # seventh list 2: the quick build and test give the same result on every screen size
             JS=open(os.path.join(HERE,'owner-tests.js')).read()
             allr={}
