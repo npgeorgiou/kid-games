@@ -41,7 +41,7 @@ What you should see in the game now, grouped so things can be checked together. 
 
 - [ ] Quick build plus test gives the same result every time (list 6).
 - [ ] The result is the same on every screen size; level 3 used to fail on a 1366 × 768 screen (list 7).
-- [ ] Every suggested build also passes with a 30% stronger earthquake and headpiece (list 6).
+- [ ] Every suggested build also passes with a 20% stronger earthquake and headpiece (list 6).
 
 ## 6. Map and finished sites
 

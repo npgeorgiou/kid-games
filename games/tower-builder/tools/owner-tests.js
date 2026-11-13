@@ -210,14 +210,14 @@
       out.push(["14 same result 20 times: " + T.LEVELS[i].key, Object.keys(res).length === 1 && Object.keys(res)[0].endsWith("PASS") && sigs.size === 1, JSON.stringify(res) + (sigs.size > 1 ? " (" + sigs.size + " different starting buildings)" : "")]);
     }
   }
-  // --- 14: every suggested build also passes with the earthquake and the headpiece 30% stronger
+  // --- 14: every suggested build also passes with the earthquake and the headpiece 20% stronger (owner, 13 Nov; was 30%)
   if (want("margin")) {
     for (let i = 0; i < T.LEVELS.length; i++) {
       const q = T.TEST_QUAKE[i], d = T.TEST_LOAD_DENSITY[i];
-      T.TEST_QUAKE[i] = q * 1.3; T.TEST_LOAD_DENSITY[i] = d * 1.3;
+      T.TEST_QUAKE[i] = q * 1.2; T.TEST_LOAD_DENSITY[i] = d * 1.2;
       const o = quickBuildAndTest(i, 1, true);
       T.TEST_QUAKE[i] = q; T.TEST_LOAD_DENSITY[i] = d;
-      out.push(["14 passes with 1.3x earthquake and headpiece: " + T.LEVELS[i].key, o.res.endsWith("PASS"), o.res]);
+      out.push(["14 passes with 1.2x earthquake and headpiece: " + T.LEVELS[i].key, o.res.endsWith("PASS"), o.res]);
     }
   }
 

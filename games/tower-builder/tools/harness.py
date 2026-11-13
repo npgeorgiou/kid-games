@@ -117,14 +117,14 @@ with sync_playwright() as p:
             for (w,h,dpr) in [(1280,800,1),(1366,768,1),(1920,1080,1),(1536,864,1.25),(1024,768,1)]:
                 c=b.new_context(viewport={'width':w,'height':h},device_scale_factor=dpr); q=c.new_page(); q.goto('file:///tmp/tb.html'); q.wait_for_timeout(300)
                 allr['%dx%d'%(w,h)]=q.evaluate("""()=>{const T=__tb; const fr=(dt)=>{const f=T.test&&T.test.fast&&T.test.phase!=="fail"&&T.test.phase!=="pass"?10:1;T.stepPhysics(dt*f,5*f);T.cleanupOutOfBounds();T.updateCheck(dt);};
-                  return T.LEVELS.map((L,i)=>[1,1.3].map((m)=>{const q0=T.TEST_QUAKE[i],d0=T.TEST_LOAD_DENSITY[i]; T.TEST_QUAKE[i]=q0*m; T.TEST_LOAD_DENSITY[i]=d0*m;
+                  return T.LEVELS.map((L,i)=>[1,1.2].map((m)=>{const q0=T.TEST_QUAKE[i],d0=T.TEST_LOAD_DENSITY[i]; T.TEST_QUAKE[i]=q0*m; T.TEST_LOAD_DENSITY[i]=d0*m;
                     T.mode="build"; delete T.progress.done[L.key]; T.startLevel((i+1)%10); T.startLevel(i); T.quiet0(); T.startAutoBuild(); let n=0; while(T.auto&&n<20000){fr(1/60);n++;}
                     T.setTab(true); T.startTest(); T.setTab(false); T.test.fast=true; let k=0; while(T.test&&k<20000){fr(1/60);k++;} T.TEST_QUAKE[i]=q0; T.TEST_LOAD_DENSITY[i]=d0;
-                    return T.progress.done[L.key]?"PASS":"FAIL";}).join("/"));}""")  # plain test / 30% stronger earthquake and headpiece
+                    return T.progress.done[L.key]?"PASS":"FAIL";}).join("/"));}""")  # plain test / 20% stronger (owner, 13 Nov; was 30%) earthquake and headpiece
                 c.close()
             for i in range(10):
                 rs={k:v[i] for k,v in allr.items()}
-                print('%-4s %-70s %s'%('PASS' if set(rs.values())=={'PASS/PASS'} else 'FAIL','7-2 same result on every screen size (also 1.3x): level %d'%(i+1),json.dumps(rs)),flush=True)
+                print('%-4s %-70s %s'%('PASS' if set(rs.values())=={'PASS/PASS'} else 'FAIL','7-2 same result on every screen size (also 1.2x): level %d'%(i+1),json.dumps(rs)),flush=True)
         if not names or 'restart' in names:  # 1: a real click on the restart button puts the whole map back to the beginning
             q=b.new_page(viewport={'width':1280,'height':800}); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(500)
             st=q.evaluate("""()=>{const T=__tb; T.progress.done.mastaba={pieces:[],loads:[]}; T.progress.done.djoser={pieces:[],loads:[]};
