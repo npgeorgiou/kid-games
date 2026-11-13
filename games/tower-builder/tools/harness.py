@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 import os, re
 HERE=os.path.dirname(os.path.abspath(__file__))
 src=open(os.path.join(HERE,'..','tower-builder.html')).read()
-hook='''window.__tb={TEST_LOAD_DENSITY,renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,testReady,stockItems,TEST_WIND,PIECE_DEFS,levelSidebar,pileLayout,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
+hook='''window.__tb={crushLimit,TEST_LOAD_DENSITY,renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,testReady,stockItems,TEST_WIND,PIECE_DEFS,levelSidebar,pileLayout,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
 get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale},set failShow(v){failShow=v},worldToScreen,failingCells,CHECK,TEST_QUAKE,get doneSites(){return typeof doneSites!=='undefined'?doneSites:null},get goMap(){return typeof goMap!=='undefined'?goMap:null},get siteLook(){return typeof siteLook!=='undefined'?siteLook:null},get restartButton(){return typeof restartButton!=='undefined'?restartButton:null},get readySince(){return readySince},ageReady(){if(readySince!=null)readySince-=1000},get removePiece(){return removePiece},get hitPiece(){return hitPiece},music(){return {ctx:actx&&actx.state,name:musicName,on:!!music}},isLand,massAt,siteMass,mapView,siteMarker,SITES,tourPeople,trailPoints,DONE_SIZE,DONE_RING,siteRadius,WALK_SPEED,get cssW(){return cssWidth}};
 window.requestAnimationFrame=()=>0;
 '''
@@ -72,6 +72,11 @@ with sync_playwright() as p:
             for name,ok,det in lines: print('%-9s %-4s %-58s %s'%(k,'PASS' if ok else 'FAIL',name,det[:170]),flush=True)
             if os.environ.get('DIAG'): print(base[0]['build'].get('diag','')[:3000])
         levels=[]
+    if 'variants' in sys.argv:  # owner reports: run named builds of one level (JSON file: {"level":i,"sols":{name:sol}}), NJ placements each, with what strained each mudbrick
+        V=json.load(open(os.environ['VARIANTS'])); RUN=open(os.path.join(HERE,'spec-run.js')).read(); pg.evaluate('()=>{window.__MON=1}')
+        for name,sol in V['sols'].items():
+            for sd in range(int(os.environ.get('NJ','6'))):
+                r=pg.evaluate(RUN,[V['level'],sol,sd]); print(name,sd,'PASS' if r['pass'] else 'FAIL',r['phases'],json.dumps(r['mon']))
     if 'real' in sys.argv:  # levels.md test 2, last part: the real game loop (real frame timing, the real ready gate, no Tab), all levels at once
         import time
         POLL=open(os.path.join(HERE,'spec-real.js')).read()

@@ -12,7 +12,10 @@
     jit.push(q); placed.push([e,box(q)]); }
   let pulled=false; const items=[]; for(const e of sol){ if(e[0]==="pull"){pulled=true;continue;} if(!(pulled&&e[1]==="wood")) items.push({defKey:e[0],material:e[1]}); }
   T.clearAllPieces(); T.fillPile(items); T.SOLUTIONS[key]=jit; T.startAutoBuild(); T.SOLUTIONS[key]=orig;
-  const run=(s)=>{for(let k=0;k<s*60;k++){T.stepPhysics(1/60);T.cleanupOutOfBounds();T.updateCheck(1/60);}};
+  const mon=window.__MON?{}:null; // per mudbrick: peak weight on it / its limit, and whether it was ever bent over a gap, while strained
+  const watch=()=>{ if(!mon) return; for(const p of T.pieces){ if(p.material!=="mudbrick") continue; const q=p.body.getPosition(), id=p.defKey+'@'+(q.x-20).toFixed(1)+','+q.y.toFixed(1)+':'+((T.test&&T.test.phase)||'build');
+      const m=mon[id]=mon[id]||{peak:0,bent:0,strain:0}; m.peak=Math.max(m.peak,+((p.crushAvg||0)/T.crushLimit(p)).toFixed(2)); if(p.wasBent)m.bent++; m.strain=Math.max(m.strain,+(p.strain||0).toFixed(2)); } };
+  const run=(s)=>{for(let k=0;k<s*60;k++){T.stepPhysics(1/60);T.cleanupOutOfBounds();T.updateCheck(1/60);watch();}};
   let n=0; while(T.auto&&n<60*300){run(1/60);n++;} run(2);
   const targets=sol.filter(e=>e[0]!=="pull"&&!(sup&&e[1]==="wood"));
   const phys=()=>{ const used=new Set(); let worst=0, missing=0; const miss=[];
@@ -29,5 +32,5 @@
     after.miss=+(1-c.fill).toFixed(3); after.over=+(over/g.solidCells).toFixed(3); }
   T.setTab(true); T.startTest(); T.setTab(false); if(T.test) T.test.fast=false; // as in play: not the Tab speed-up
   let last='',ph=[],t=0,atFail=null; while(T.test&&t<60*90){ if(T.test.phase!==last){last=T.test.phase;ph.push(last);} if(last==='fail'){atFail=phys(); const bl=T.failShow?T.failShow.loads.length:0; atFail.loadsOff=bl; atFail.loadsAt=T.loads.map(l=>[+(l.body.getPosition().x-20).toFixed(2),+l.body.getPosition().y.toFixed(2)]); if(bl) atFail.phys=true; break;} run(1/60);t++; }
-  const res={ready,phases:ph.join('>'),pass:!!T.progress.done[key],build:Object.assign(after,{fill:+c.fill.toFixed(3),hole:+c.hole.toFixed(3),load:c.load}),fail:atFail};
+  const res={mon:mon&&Object.fromEntries(Object.entries(mon).filter(([k,v])=>v.peak>0.8||v.bent||v.strain>0)),ready,phases:ph.join('>'),pass:!!T.progress.done[key],build:Object.assign(after,{fill:+c.fill.toFixed(3),hole:+c.hole.toFixed(3),load:c.load}),fail:atFail};
   if(T.test)run(4); T.mode="map"; return res;}
