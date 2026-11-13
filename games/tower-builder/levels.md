@@ -53,10 +53,10 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 2. Step pyramid of Djoser, Saqqara (c. 2650 BC)
 
 - Headpiece: the top (sixth) step, lowered onto the fifth (the pyramid has six steps). LOCKED.
-- Pieces (owner, 13 Nov): 11 stone blocks (the first two layers), 9 mudbrick blocks (the top three layers); pile adds 6 mudbrick blocks and 14 stone blocks (the wrong choice swaps every course).
+- Pieces (owner, 13 Nov): 11 stone blocks (the first two layers), 9 mudbrick blocks (the top three layers); pile adds 8 mudbrick blocks: 6 for the wrong choice and 2 in case some break (owner, 13 Nov: two more mudbricks, no extra stone).
 - New: stone. Technique: heavy low, light high.
 - Hard: stone only where the weight is greatest.
-- Wrong material: mudbrick at the bottom, stone above it: the bottom crumbles under the stone and the top step.
+- Wrong material: mudbrick in the bottom row: it crumbles under the steps above (owner, 13 Nov: no extra stone, so the old wrong choice, stone on top, can no longer be built).
 - Wrong build: a top-step block more than half off the step below: it falls.
 - Temporary wood: none.
 

@@ -91,8 +91,8 @@ def colonnade(y):  # six columns with capitals, three beams
         [["beam", "stone", x, y + 3.05, 0] for x in (-3.2, 0, 3.2)]
 
 L = []
-def level(key, nameEl, date, demand, note, sol, load, holes=(), woodRole=None, wrong=()):
-    L.append(dict(key=key, nameEl=nameEl, date=date, newDemand=demand, note=note, sol=sol, load=list(load), holes=list(holes), woodRole=woodRole, wrong=list(wrong)))
+def level(key, nameEl, date, demand, note, sol, load, holes=(), woodRole=None, wrong=(), spare=()):  # spare: owner's extra pieces, [(shape, material, n)]
+    L.append(dict(key=key, nameEl=nameEl, date=date, newDemand=demand, note=note, sol=sol, load=list(load), holes=list(holes), woodRole=woodRole, wrong=list(wrong), spare=list(spare)))
 PULL = ["pull", "", 0, 0, 0]  # quick build: take every temporary wooden support out now (put back in the pile)
 
 # --- wrong choices: each is the suggested build with one change; tools/harness.py spec checks that each one falls
@@ -114,7 +114,8 @@ level("mastaba", "Μαστάμπα", "c. 3000 BC", "stack a wide, solid mass", "
 s = [p for r in range(5) for p in row("stone" if r < 2 else "mudbrick", -(6 - r), 6 - r, r + 0.5)]  # owner (13 Nov): two stone layers, three mudbrick
 level("djoser", "Πυραμίδα του Ζοζέρ", "c. 2650 BC", "build tall in steps; the sixth step goes on last", "six steps (Djoser's pyramid has six); the load is the top step",
       s, [rect(-1, 5, 1, 6)],
-      wrong=[W("mudbrick at the bottom, stone on top", "material", [[e[0], "mudbrick" if e[3] < 1 else "stone", e[2], e[3], e[4]] for e in s]),
+      spare=[("block", "mudbrick", 2)],  # owner (13 Nov): two more mudbricks in case they break; no spare stone
+      wrong=[W("mudbrick in the bottom row", "material", recolour(s, lambda e: e[3] < 1, "mudbrick")),
              W("a top-step block more than half off the step below", "build", moved(s, lambda e: near(e[2], 1) and near(e[3], 4.5), dx=2.2))])
 # 3 Ziggurat of Ur
 s = (row("stone", -5, 5, 0.5) + [["beam", "wood", x, 1.25, 0] for x in (-3.2, 0, 3.2)] + [tri_rest(-5, 0, "right", "stone")] +
@@ -298,6 +299,7 @@ for l, o in zip(L, out):
         right = {(e[0], round(e[2], 3), round(e[3], 3)): e[1] for e in l["sol"] if e[0] != "pull"}
         swap = Counter((e[0], e[1]) for e in w["sol"] if e[0] != "pull" and right.get((e[0], round(e[2], 3), round(e[3], 3)), e[1]) != e[1])
         ex |= swap + ((stock(w["sol"]) - base) - swap)
+    ex += Counter({(d, m): n for d, m, n in l["spare"]})
     o["extra"] = [[d, m, n] for (d, m), n in sorted(ex.items())]
 js = js[:js.index("const LEVELS = ")] + "const LEVELS = " + json.dumps(out, ensure_ascii=False) + ";\n"
 (HERE / "src" / "levels.js").write_text(js, encoding="utf-8")
