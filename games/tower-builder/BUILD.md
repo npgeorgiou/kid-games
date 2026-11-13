@@ -302,6 +302,12 @@ Owner's words: "I dont know in what screen you test, but for me halicarnassus is
 - Sites by the sea placed first; a site is never moved to another land; only the lower half of the circle (where the building stands) must be on its land. Valens just south of Constantinople (owner) so it is never at the top edge. Pharos on the delta coast.
 - Sea: owner's first water picture (`src/art/water.png`, royalty free per owner), 1.5x its size, two frames drifting slowly the same way (owner chose this from test files: frame swapping and the 40-frame OpenGameArt water were rejected).
 
+## Current state, update 18 (13 Nov 2026, real textures option)
+
+- Owner's words: "We keep this, and add it as a secong option. in the main menu, add a botton that if its clicked we ll show the real textures as you amde it now, with borders and all, and if its unclicked, which willl be the defaults, we ll have the materials as they were before".
+- Map button above ΕΠΑΝΕΚΚΙΝΗΣΗ (a little wall; green ring when on), saved in localStorage "tower-builder-progress-v1-textures", off by default.
+- On: owner's seamless pictures in `src/art/tex-*` (recoloured to one warm palette: marble 241,237,229; sandstone 208,162,96; wood 204,148,82; grey stone 170,165,156; mudbrick 152,106,74). Stone per building: sandstone (Mastaba, Djoser, Ur, Karnak, Ishtar), grey (Lion Gate, Valens), white marble (Parthenon, Halicarnassus, Pharos). Stone tiled 3x3 at 2.67 m per picture, mudbrick 5.33 m, wood 1.33 m with grain along the long side; each piece a random place, kept from pile to building. Border: the material's colour at half brightness. Chips take the material's colour.
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.

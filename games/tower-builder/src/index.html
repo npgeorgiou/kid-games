@@ -55,7 +55,7 @@
     },
     chip(ctx, x, y, r, angle, alpha) {
       ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
-      ctx.fillStyle = "rgba(120, 128, 135, " + alpha + ")";
+      ctx.fillStyle = "rgba(" + chipRGB("stone") + ", " + alpha + ")";
       ctx.beginPath(); ctx.moveTo(-r, -r * 0.6); ctx.lineTo(r, -r * 0.3); ctx.lineTo(r * 0.3, r); ctx.closePath(); ctx.fill();
       ctx.restore();
     },
@@ -95,6 +95,20 @@
         ctx.strokeStyle = "rgba(255, 255, 255, " + (0.75 * (1 - p)).toFixed(3) + ")";
         ctx.beginPath(); ctx.ellipse(sx + bx * d, sy + by * d, rx, rx * 0.3, ang, 0, Math.PI * 2); ctx.stroke();
       }
+      ctx.restore();
+    },
+    // The textures switch: a little wall of four blocks inside the button, plain colours when off, the real
+    // textures when on (with a green ring).
+    texSwitch(ctx, x, y, size, on, tex) {
+      const w = size * 0.26, h = size * 0.15, keys = ["sandstone", "wood", "mudbrick", "marble"], plain = ["#89939b", "#c9a36b", "#ad7f52", "#c9b088"];
+      ctx.save();
+      [[-1, -1], [0, -1], [-1, 0], [0, 0]].forEach(([i, j], n) => {
+        const bx = x + i * w, by = y + j * h - h * 0.05, im = tex[keys[n]];
+        if (on && im.complete && im.naturalWidth) ctx.drawImage(im, 0, 0, im.naturalWidth / 3, im.naturalWidth / 6, bx, by, w, h);
+        else { ctx.fillStyle = plain[n]; ctx.fillRect(bx, by, w, h); }
+        ctx.strokeStyle = "#3c3226"; ctx.lineWidth = 1.2; ctx.strokeRect(bx, by, w, h);
+      });
+      if (on) { ctx.strokeStyle = "#5fbf4a"; ctx.lineWidth = Math.max(3, size * 0.06); ctx.beginPath(); ctx.arc(x, y, size * 0.5, 0, Math.PI * 2); ctx.stroke(); }
       ctx.restore();
     },
     // An empty building site: a pale dashed circle.
@@ -178,7 +192,7 @@
     },
     mudChip(ctx, x, y, r, angle, alpha) {
       ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
-      ctx.fillStyle = "rgba(140, 98, 60, " + alpha + ")";
+      ctx.fillStyle = "rgba(" + chipRGB("mudbrick") + ", " + alpha + ")";
       ctx.beginPath(); ctx.moveTo(-r, -r * 0.6); ctx.lineTo(r, -r * 0.3); ctx.lineTo(r * 0.3, r); ctx.closePath(); ctx.fill();
       ctx.restore();
     },
@@ -1174,12 +1188,51 @@
     const pos = piece.body.getPosition();
     const s = worldToScreen(pos.x, pos.y);
     if (piece.ghost) { ctx.save(); ctx.globalAlpha = 0.55; }
-    drawPieceShape(piece.defKey, piece.material, s.x, s.y, piece.body.getAngle(), scale, piece.strain);
+    drawPieceShape(piece.defKey, piece.material, s.x, s.y, piece.body.getAngle(), scale, piece.strain, piece.seed || (piece.seed = newSeed()));
     if (piece.ghost) ctx.restore();
   }
 
+  // Real textures (owner, 13 Nov): an option, switched by the button on the map, off by default. Owner's seamless
+  // pictures, recoloured into one warm palette (marble, sandstone, wood, grey stone, mudbrick from light to dark). Stone: tiled 3 x 3, drawn a third bigger than one block (2 m); each piece shows
+  // a random place in that 3 x 3. Mudbrick: the same, twice as big again. Wood: one picture per 1.33 m, grain along the long side.
+  // Edges: a thin border in a darker shade of the material's own colour.
+  const TEX = {}; for (const [k, src] of Object.entries({ mudbrick: "art/tex-mudbrick.jpg", sandstone: "art/tex-sandstone.png",
+    "silver-sandstone": "art/tex-silver-sandstone.png", marble: "art/tex-marble.png", wood: "art/tex-wood.png" })) { TEX[k] = new Image(); TEX[k].src = src; }
+  const STONE_OF = { mastaba: "sandstone", djoser: "sandstone", ziggurat: "sandstone", liongate: "silver-sandstone", karnak: "sandstone",
+    ishtar: "sandstone", parthenon: "marble", mausoleum: "marble", pharos: "marble", valens: "silver-sandstone" };
+  const TEX_RGB = {"sandstone": "207, 161, 95", "silver-sandstone": "169, 164, 155", "marble": "240, 236, 228", "wood": "203, 147, 81", "mudbrick": "151, 105, 73"}; // each picture's average colour, for the chips that fly off
+  let texSite = null; // the building whose stone to show; null: the level being played
+  const stoneKey = () => STONE_OF[texSite || (currentLevel != null ? LEVELS[currentLevel].key : null)] || "silver-sandstone";
+  const TEX_KEY = "tower-builder-progress-v1" + "-textures"; // next to the saved progress (SAVE_KEY), but kept by ΕΠΑΝΕΚΚΙΝΗΣΗ
+  let useTextures = (() => { try { return localStorage.getItem(TEX_KEY) === "1"; } catch (err) { return false; } })();
+  function setTextures(on) { useTextures = on; try { localStorage.setItem(TEX_KEY, on ? "1" : "0"); } catch (err) { /* ignore */ } }
+  function chipRGB(material) { if (!useTextures) return material === "mudbrick" ? "140, 98, 60" : "120, 128, 135"; return TEX_RGB[material === "mudbrick" ? "mudbrick" : stoneKey()]; }
+  const texPat = {};
+  function texFor(material) {
+    if (!useTextures) return null; // the plain drawing
+    const k = material === "wood" ? "wood" : material === "mudbrick" ? "mudbrick" : stoneKey(), im = TEX[k];
+    if (!im.complete || !im.naturalWidth) return null;
+    return { pat: texPat[k] || (texPat[k] = ctx.createPattern(im, "repeat")), px: im.naturalWidth, m: k === "wood" ? 4 / 3 : k === "mudbrick" ? 16 / 3 : 8 / 3, wood: k === "wood", key: k };
+  }
+  const rand01 = (n) => { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); n ^= n >>> 16; return (n >>> 0) / 4294967296; };
+  const newSeed = () => (Math.random() * 1e9) | 0;
+  function drawTextured(piece, tx, angle, seed) {
+    const hx = piece.r != null ? piece.r : piece.hx, hy = piece.r != null ? piece.r : piece.hy;
+    let pts = piece.r != null ? Array.from({ length: 24 }, (_, i) => [Math.cos((i * Math.PI) / 12) * piece.r, Math.sin((i * Math.PI) / 12) * piece.r])
+      : piece.verts || [[-hx, -hy], [hx, -hy], [hx, hy], [-hx, hy]];
+    let area = 0; pts.forEach(([x, y], i) => { const [x2, y2] = pts[(i + 1) % pts.length]; area += x * y2 - x2 * y; });
+    if (area < 0) pts = pts.slice().reverse(); // counter-clockwise from here on
+    ctx.save(); ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.clip();
+    const k = tx.m / tx.px, turn = tx.wood && hx > hy ? 1 : 0; // only wood turns, so its grain runs along the long side
+    tx.pat.setTransform(new DOMMatrix().rotate(turn * 90).translate(rand01(seed * 2 + 1) * tx.m * 3, rand01(seed * 2 + 2) * tx.m * 3).scale(k, k)); // a random place in the 3 x 3
+    ctx.fillStyle = tx.pat; ctx.fillRect(-hx - 1, -hy - 1, hx * 2 + 2, hy * 2 + 2);
+    ctx.restore();
+    const dark = TEX_RGB[tx.key].split(",").map((v) => Math.round(+v * 0.5)).join(", "); // the border: the material's own colour, darker
+    ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
+    ctx.strokeStyle = "rgb(" + dark + ")"; ctx.lineWidth = 0.06; ctx.lineJoin = "miter"; ctx.stroke();
+  }
   // Draws one piece at a screen point and pixels-per-metre (also used for the map's small monuments).
-  function drawPieceShape(defKey, material, sx, sy, angle, sc, strain = 0) {
+  function drawPieceShape(defKey, material, sx, sy, angle, sc, strain = 0, seed = 0) {
     const fillC = material === "mudbrick" ? "#ad7f52" : "#89939b", lineC = material === "mudbrick" ? "#5b3b20" : "#4d5962";
     const def = PIECE_DEFS[defKey];
     const piece = { material, r: def.r, hx: def.hx, hy: def.hy, verts: def.verts };
@@ -1187,6 +1240,8 @@
     ctx.translate(sx, sy);
     ctx.rotate(-angle);
     ctx.scale(sc, -sc); // y up, same as the physics shape
+    const tx = texFor(material);
+    if (tx) { drawTextured(piece, tx, angle, seed); if (strain > 0.05) SKIN.crack(ctx, piece.hx != null ? piece.hx : piece.r, piece.hy != null ? piece.hy : piece.r, strain, material); ctx.restore(); return; }
     const fn = SKIN.piece[def.skin];
     if (piece.r != null) fn(ctx, piece.r);
     else fn(ctx, piece.hx * 2, piece.hy * 2, piece.material);
@@ -1727,7 +1782,7 @@
     if (def.shape === "poly") body.createFixture({ ...fo, shape: planck.Polygon(def.verts.map(([vx, vy]) => planck.Vec2(vx, vy))) });
     else if (def.shape === "box") body.createFixture({ ...fo, shape: planck.Box(def.hx, def.hy) });
     else body.createFixture({ ...fo, shape: planck.Circle(def.r) });
-    body.pileItem = { defKey: item.defKey, material: item.material };
+    body.pileItem = { defKey: item.defKey, material: item.material, seed: item.seed || newSeed() };
     return body;
   }
   function fillPile(items) {
@@ -1934,7 +1989,7 @@
     pointers.delete(pointerId);
     pileWorld.destroyBody(b);
     const w = screenToWorld(px, py), ca = Math.cos(a), sa = Math.sin(a);
-    const piece = spawnPiece(it.defKey, w.x - (g.x * ca - g.y * sa), w.y - (g.x * sa + g.y * ca), a, it.material);
+    const piece = spawnPiece(it.defKey, w.x - (g.x * ca - g.y * sa), w.y - (g.x * sa + g.y * ca), a, it.material); piece.seed = it.seed; // keeps its look
     setGhost(piece, true);
     {
       let lo = Infinity, hi = -Infinity, bot = Infinity;
@@ -1990,7 +2045,7 @@
     ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
     for (const b of pileBodies()) {
       const q = b.getPosition();
-      drawPieceShape(b.pileItem.defKey, b.pileItem.material, r.x + q.x * pileScale, r.y + r.h - q.y * pileScale, b.getAngle(), pileScale, 0);
+      drawPieceShape(b.pileItem.defKey, b.pileItem.material, r.x + q.x * pileScale, r.y + r.h - q.y * pileScale, b.getAngle(), pileScale, 0, b.pileItem.seed);
     }
     ctx.restore();
   }
@@ -2310,7 +2365,7 @@
   }
   function startAutoBuild() {
     releaseAllPointers();
-    const items = pileItems().concat(pieces.map((p) => ({ defKey: p.defKey, material: p.material })));
+    const items = pileItems().concat(pieces.map((p) => ({ defKey: p.defKey, material: p.material, seed: p.seed })));
     clearAllPieces();
     freshWorld();
     fillPile(items);
@@ -2693,7 +2748,7 @@
     const sc = (1.5 * r) / Math.max(x1 - x0, y1 - y0, 1), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
     const at = (x, y) => [cx + (x - mx) * sc, cy + (my - y) * sc];
     ctx.save();
-    for (const [d, m, x, y, a] of done.pieces) { const [sx, sy] = at(x, y); drawPieceShape(d, m, sx, sy, a, sc, 0); }
+    done.pieces.forEach(([d, m, x, y, a], i) => { const [sx, sy] = at(x, y); drawPieceShape(d, m, sx, sy, a, sc, 0, i + 1); });
     for (const [x, y, a, verts] of done.loads) { const [sx, sy] = at(x, y); drawLoadShape(verts, sx, sy, a, sc, false); }
     ctx.restore();
   }
@@ -3059,6 +3114,8 @@
     boats.forEach((b, i) => { b.leg = i % b.line.legs.length; b.dir = 1; b.d = b.lens[b.leg] * ((i * 0.37) % 1); b.wait = 0; });
     groups.forEach((g, i) => { for (const k of Object.keys(g)) delete g[k]; Object.assign(g, { state: "boat", boat: boats[i], onFoot: 0, stops: 0, recent: [], plan: null }); });
   }
+  // Real textures on or off (owner): a round button above ΕΠΑΝΕΚΚΙΝΗΣΗ, showing a little wall in the look it gives.
+  function texButton() { const rb = restartButton(); return { x: rb.x, y: rb.y - rb.size * 1.45, size: rb.size }; }
   function freePlayButton() {
     const size = Math.max(70, Math.min(cssWidth, cssHeight) * 0.14);
     return { x: cssWidth - size * 0.75, y: cssHeight - size * 0.75, size };
@@ -3076,7 +3133,7 @@
       const m = siteMarker(v, site), r = m.r;
       const i = LEVELS.findIndex((L) => L.key === site.key);
       const done = progress.done[site.key];
-      if (done) { if (done.broken) SKIN.mapSiteBroken(ctx, m.x, m.y, r); else SKIN.mapSiteDone(ctx, m.x, m.y, r); drawMonumentMini(done, m.x, m.y, r / DONE_RING); }
+      if (done) { if (done.broken) SKIN.mapSiteBroken(ctx, m.x, m.y, r); else SKIN.mapSiteDone(ctx, m.x, m.y, r); texSite = site.key; drawMonumentMini(done, m.x, m.y, r / DONE_RING); texSite = null; }
       else if (levelOpen(i)) SKIN.mapSiteOpen(ctx, m.x, m.y, r);
       else SKIN.mapSite(ctx, m.x, m.y, r);
     }
@@ -3088,8 +3145,13 @@
     const rb = restartButton();
     SKIN.button(ctx, "restart", rb.x, rb.y, rb.size, false);
     SKIN.buttonLabel(ctx, "ΕΠΑΝΕΚΚΙΝΗΣΗ", rb.x, rb.y + rb.size * 0.55, rb.size);
+    const tb = texButton();
+    SKIN.button(ctx, "blank", tb.x, tb.y, tb.size, false);
+    SKIN.texSwitch(ctx, tb.x, tb.y, tb.size, useTextures, TEX);
   }
   function onMapPointerDown(e) {
+    const tb = texButton();
+    if (Math.hypot(e.clientX - tb.x, e.clientY - tb.y) <= tb.size / 2) { setTextures(!useTextures); return; }
     const fb = freePlayButton();
     if (Math.hypot(e.clientX - fb.x, e.clientY - fb.y) <= fb.size / 2) { startFree(); return; }
     const rb = restartButton();
