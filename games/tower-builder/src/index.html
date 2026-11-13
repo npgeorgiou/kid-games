@@ -62,6 +62,14 @@
     mapImage(ctx, img, x, y, w, h) {
       if (img.complete && img.naturalWidth) ctx.drawImage(img, x, y, w, h);
     },
+    // Animated sea: square frames stacked in one picture, tiled over the whole map, a few frames a second.
+    mapWater(ctx, img, v, t) {
+      const s = img.naturalWidth, n = Math.max(1, Math.floor(img.naturalHeight / s)), f = Math.floor(t * 6) % n;
+      const tile = Math.max(48, s * v.k * 1.5);
+      ctx.save(); ctx.imageSmoothingEnabled = true;
+      for (let y = v.oy; y < cssHeight; y += tile) for (let x = v.ox; x < cssWidth; x += tile) ctx.drawImage(img, 0, f * s, s, s, x, y, tile + 0.5, tile + 0.5);
+      ctx.restore();
+    },
     // A boat on the map, drawn centred at (x, y), `size` pixels wide, mirrored when sailing left.
     mapBoat(ctx, img, x, y, size, flip, tilt) {
       if (!img.complete || !img.naturalWidth) return;
@@ -2702,10 +2710,23 @@
     { key: "parthenon", x: 340,  y: 425  }, // Athens, 447-432 BC
     { key: "mausoleum", x: 665,  y: 495  }, // Halicarnassus (Bodrum), on the coast of Asia Minor, c. 350 BC
     { key: "pharos",    x: 700,  y: 900  }, // Alexandria, c. 280 BC
-    { key: "valens",    x: 676,  y: 190  }, // Constantinople, on the European side of the Bosporus, AD 368
+    { key: "valens",    x: 735,  y: 225  }, // just south of Constantinople (owner: so it is never at the top edge), AD 368
   ];
   const MAP_W = 2176, MAP_H = 1408;
   const mapImg = new Image(); mapImg.src = "art/map.jpg";
+  const landCut = new Image(); landCut.src = "art/map-land.png"; // the picture's land; water is see-through
+  const waterImg = new Image(); waterImg.src = "art/water.png"; // owner's water, frames one under another
+  let mapLand = null; // the picture with its water cut out, at the current screen size
+  function mapLandCanvas(v) {
+    if (!mapImg.naturalWidth || !landCut.naturalWidth) return null;
+    const key = Math.round(v.w) + "x" + Math.round(v.h);
+    if (mapLand && mapLand.key === key) return mapLand.c;
+    const c = document.createElement("canvas"); c.width = Math.round(v.w); c.height = Math.round(v.h);
+    const o = c.getContext("2d"); o.drawImage(mapImg, 0, 0, c.width, c.height);
+    o.globalCompositeOperation = "destination-in"; o.drawImage(landCut, 0, 0, c.width, c.height);
+    mapLand = { key, c };
+    return c;
+  }
   const boatImg = new Image(); boatImg.src = "art/boat-owner.png"; // owner's picture, white background cut out
   // The picture fills the screen; where it is cropped, the crop is centred on the sites.
   function mapView() {
@@ -2746,8 +2767,8 @@
     return x >= 0 && y >= 0 && c < w && r < h ? LANDMASS[r * w + c] : 0;
   }
   function siteMass(s) { for (const [dx, dy] of NEAR) { const m = massAt(s.x + dx, s.y + dy); if (m) return m; } return 0; }
-  // Every site's place on screen: the nearest to the real site where the big (finished) circle lies wholly on
-  // the site's own land, wholly on screen, and a clear gap away from every other site. Redone when the screen size changes.
+  // Every site's place on screen: the nearest to the real site where the lower half of the big (finished) circle,
+  // where the building stands, lies on the site's own land, wholly on screen, and a clear gap away from every other site. Redone when the screen size changes.
   const DISC = [[0, 0]]; for (let i = 0; i < 256; i++) { const a = (i * Math.PI) / 128; DISC.push([Math.cos(a), Math.sin(a)]); if (i % 8 === 0) DISC.push([Math.cos(a) * 0.6, Math.sin(a) * 0.6]); }
   let placeCache = { key: "", at: {} };
   function sitePlaces(v) {
@@ -2761,8 +2782,8 @@
       const x0 = Math.max(R + 2, Math.min(cssWidth - R - 2, m.x)), y0 = Math.max(R + 2, Math.min(cssHeight - R - 2, m.y));
       const fits = (x, y, gap, part) => { // `part`: how much of the circle must be on the site's own land
         if (x < R + 2 || x > cssWidth - R - 2 || y < R + 2 || y > cssHeight - R - 2 || !placed.every((p) => Math.hypot(p.x - x, p.y - y) >= 2 * R + gap)) return false;
-        let off = 0, most = DISC.length * (1 - part);
-        for (const [a, b] of DISC) if (massAt((x + a * R - v.ox) / v.k, (y + b * R - v.oy) / v.k) !== mass && ++off > most) return false;
+        let off = 0, most = (DISC.length / 2) * (1 - part);
+        for (const [a, b] of DISC) if (b >= 0 && massAt((x + a * R - v.ox) / v.k, (y + b * R - v.oy) / v.k) !== mass && ++off > most) return false;
         return massAt((x - v.ox) / v.k, (y - v.oy) / v.k) === mass; };
       let best = null;
       for (const [gap, own] of [[R * 0.3, 1], [0, 1], [0, 0.8], [0, 0.6]]) { // a clear gap, all on its land, first; only if nothing fits, less; never another land
@@ -3040,7 +3061,9 @@
   function renderMap(dt) {
     ctx.fillStyle = "#4f9ad0"; ctx.fillRect(0, 0, cssWidth, cssHeight);
     const v = mapView();
-    SKIN.mapImage(ctx, mapImg, v.ox, v.oy, v.w, v.h);
+    const land = mapLandCanvas(v);
+    if (land && waterImg.naturalWidth) { SKIN.mapWater(ctx, waterImg, v, performance.now() / 1000); ctx.drawImage(land, v.ox, v.oy, v.w, v.h); }
+    else SKIN.mapImage(ctx, mapImg, v.ox, v.oy, v.w, v.h);
     updateBoats(dt);
     updateTravellers(dt, v);
     drawBoats(v);
