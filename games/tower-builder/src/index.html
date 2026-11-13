@@ -63,11 +63,11 @@
       if (img.complete && img.naturalWidth) ctx.drawImage(img, x, y, w, h);
     },
     // Sea: the owner's animated water (OpenGameArt "animated water texture 128px", CC0), square frames stacked
-    // in one picture, tiled over the map; each frame fades into the next, one round every two seconds.
+    // in one picture, tiled over the map; each frame fades into the next, one round every four seconds.
     mapWater(ctx, img, v, t) {
       const s = img.naturalWidth, n = Math.max(1, Math.floor(img.naturalHeight / s));
       if (!img._frames) img._frames = Array.from({ length: n }, (_, i) => { const c = document.createElement("canvas"); c.width = c.height = s; c.getContext("2d").drawImage(img, 0, i * s, s, s, 0, 0, s, s); return c; });
-      const ph = ((t / 2) * n) % n, f = Math.floor(ph), mix = ph - f, tile = s, sc = 1; // drawn at the picture's own size, one picture pixel per screen pixel
+      const ph = ((t / 4) * n) % n, f = Math.floor(ph), mix = ph - f, tile = s * 1.25, sc = 1.25; // a little bigger than the picture's own size
       const w = (cssWidth - v.ox) / sc, h = (cssHeight - v.oy) / sc;
       ctx.save(); ctx.translate(v.ox, v.oy); ctx.scale(sc, sc);
       ctx.fillStyle = ctx.createPattern(img._frames[f], "repeat"); ctx.fillRect(0, 0, w, h);
