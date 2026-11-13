@@ -119,12 +119,16 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     mapImage(ctx, img, x, y, w, h) {
       if (img.complete && img.naturalWidth) ctx.drawImage(img, x, y, w, h);
     },
-    // Animated sea: square frames stacked in one picture, tiled over the whole map, a few frames a second.
+    // Animated sea: square frames stacked in one picture, tiled over the map; each frame fades into the next,
+    // so the water moves smoothly (one round of frames every two seconds).
     mapWater(ctx, img, v, t) {
-      const s = img.naturalWidth, n = Math.max(1, Math.floor(img.naturalHeight / s)), f = Math.floor(t * 6) % n;
-      const tile = Math.max(48, s * v.k * 1.5);
-      ctx.save(); ctx.imageSmoothingEnabled = true;
-      for (let y = v.oy; y < cssHeight; y += tile) for (let x = v.ox; x < cssWidth; x += tile) ctx.drawImage(img, 0, f * s, s, s, x, y, tile + 0.5, tile + 0.5);
+      const s = img.naturalWidth, n = Math.max(1, Math.floor(img.naturalHeight / s));
+      if (!img._frames) img._frames = Array.from({ length: n }, (_, i) => { const c = document.createElement("canvas"); c.width = c.height = s; c.getContext("2d").drawImage(img, 0, i * s, s, s, 0, 0, s, s); return c; });
+      const ph = ((t / 2) * n) % n, f = Math.floor(ph), mix = ph - f, tile = Math.max(24, s * v.k * 0.5);
+      ctx.save(); ctx.translate(v.ox, v.oy); ctx.scale(tile / s, tile / s);
+      const w = ((cssWidth - v.ox) * s) / tile, h = ((cssHeight - v.oy) * s) / tile;
+      ctx.fillStyle = ctx.createPattern(img._frames[f], "repeat"); ctx.fillRect(0, 0, w, h);
+      ctx.globalAlpha = mix; ctx.fillStyle = ctx.createPattern(img._frames[(f + 1) % n], "repeat"); ctx.fillRect(0, 0, w, h);
       ctx.restore();
     },
     // A boat on the map, drawn centred at (x, y), `size` pixels wide, mirrored when sailing left.
