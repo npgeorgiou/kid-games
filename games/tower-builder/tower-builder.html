@@ -161,7 +161,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       ctx.save();
       [[-1, -1], [0, -1], [-1, 0], [0, 0]].forEach(([i, j], n) => {
         const bx = x + i * w, by = y + j * h - h * 0.05, im = tex[keys[n]];
-        if (on && im.complete && im.naturalWidth) ctx.drawImage(im, 0, 0, im.naturalWidth / 3, im.naturalWidth / 6, bx, by, w, h);
+        if (on && im.complete && im.naturalWidth) {
+          if (keys[n] === "wood") { ctx.save(); ctx.translate(bx + w / 2, by + h / 2); ctx.rotate(Math.PI / 2); ctx.drawImage(im, 0, 0, im.naturalWidth / 6, im.naturalWidth / 3, -h / 2, -w / 2, h, w); ctx.restore(); } // grain along the block
+          else ctx.drawImage(im, 0, 0, im.naturalWidth / 3, im.naturalWidth / 6, bx, by, w, h);
+        }
         else { ctx.fillStyle = plain[n]; ctx.fillRect(bx, by, w, h); }
         ctx.strokeStyle = "#3c3226"; ctx.lineWidth = 1.2; ctx.strokeRect(bx, by, w, h);
       });
@@ -428,10 +431,11 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
         ctx.restore();
       } else if (name === "restart") {
         // a circular arrow: start again
-        ctx.lineWidth = s * 0.28; ctx.strokeStyle = "#e8dcc5"; ctx.lineCap = "round";
-        ctx.beginPath(); ctx.arc(0, 0, s * 0.7, -Math.PI * 0.35, Math.PI * 1.35); ctx.stroke();
-        const a = -Math.PI * 0.35, ex = Math.cos(a) * s * 0.7, ey = Math.sin(a) * s * 0.7;
-        ctx.beginPath(); ctx.moveTo(ex + s * 0.42, ey - s * 0.05); ctx.lineTo(ex - s * 0.12, ey - s * 0.42); ctx.lineTo(ex - s * 0.05, ey + s * 0.3); ctx.closePath(); ctx.fill();
+        const R = s * 0.7, a = -Math.PI * 0.3; // the arrow's end, top right; the arc runs round from there
+        ctx.lineWidth = s * 0.28; ctx.strokeStyle = "#e8dcc5"; ctx.lineCap = "butt";
+        ctx.beginPath(); ctx.arc(0, 0, R, a, Math.PI * 1.3); ctx.stroke();
+        const ex = Math.cos(a) * R, ey = Math.sin(a) * R, tx = Math.sin(a), ty = -Math.cos(a), nx = Math.cos(a), ny = Math.sin(a); // along the arc onward; outward
+        ctx.beginPath(); ctx.moveTo(ex + tx * s * 0.45, ey + ty * s * 0.45); ctx.lineTo(ex + nx * s * 0.36, ey + ny * s * 0.36); ctx.lineTo(ex - nx * s * 0.36, ey - ny * s * 0.36); ctx.closePath(); ctx.fill();
       }
       ctx.restore();
     },
@@ -2131,6 +2135,16 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   // From level 2 on, below what tips a lone stone column (0.6 x 2.4 m tips at about
   // 7.5 N/m here: weight x half-width against wind x half-height); level 1 has no columns.
   const TEST_WIND = [110, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 18, 6.5]; // Lighthouse: the strongest wind; walls not tied together fall in it
+  // Owner (13 Nov): a headpiece that weighs as much as a named piece, by level and headpiece (its place in the level's load list).
+  // Ishtar: each tower headpiece weighs one stone block, so four mudbricks under it crumble (three hold).
+  const LOAD_WEIGHT = { ishtar: { 1: ["block", "stone"], 2: ["block", "stone"] } };
+  function loadDensity(i, k, verts) {
+    const w = (LOAD_WEIGHT[LEVELS[i].key] || {})[k];
+    if (!w) return TEST_LOAD_DENSITY[i];
+    const d = PIECE_DEFS[w[0]], mass = MATERIALS[w[1]].density * d.densityScale * 4 * d.hx * d.hy;
+    let area = 0; verts.forEach(([x, y], j) => { const [x2, y2] = verts[(j + 1) % verts.length]; area += x * y2 - x2 * y; });
+    return mass / Math.abs(area / 2);
+  }
   const TEST_LOAD_DENSITY = [5, 8, 5, 25, 75, 4, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
   const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
@@ -2344,7 +2358,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     if (!save && out === !!done.broken) return;
     const r3 = (n) => Math.round(n * 1000) / 1000;
     done.broken = out;
-    done.pieces = pieces.map((p) => { const q = p.body.getPosition(); return [p.defKey, p.material, r3(q.x), r3(q.y), r3(p.body.getAngle())]; });
+    done.pieces = pieces.map((p) => { const q = p.body.getPosition(); return [p.defKey, p.material, r3(q.x), r3(q.y), r3(p.body.getAngle()), p.seed]; });
     done.loads = loads.map((l) => { const q = l.body.getPosition(); return [r3(q.x), r3(q.y), r3(l.body.getAngle()), l.verts]; });
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (err) { /* ignore */ }
   }
@@ -2382,8 +2396,8 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       if (!done) { fillPile(stockItems(i)); return; }
       // a finished site opens as it was built; the pile holds what was left over
       const left = stockItems(i), halves = {};
-      for (const [d, m, x, y, a] of done.pieces) {
-        spawnPiece(d, x, y, a, m);
+      for (const [d, m, x, y, a, sd] of done.pieces) {
+        const sp = spawnPiece(d, x, y, a, m); if (sd) sp.seed = sd; // its look, as saved
         let key = d;
         if (d.endsWith("-half")) { // two halves of a snapped piece use up one piece
           key = Object.keys(PIECE_DEFS).find((k) => PIECE_DEFS[k].half === d);
@@ -2395,7 +2409,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       }
       (done.loads || []).forEach(([x, y, a, verts], k) => { // the load stays where it was left; its place is the level's
         const body = world.createBody({ type: "dynamic", position: planck.Vec2(x, y), angle: a });
-        body.createFixture({ shape: planck.Polygon(verts.map(([vx, vy]) => planck.Vec2(vx, vy))), density: TEST_LOAD_DENSITY[i], friction: 0.6, restitution: 0 });
+        body.createFixture({ shape: planck.Polygon(verts.map(([vx, vy]) => planck.Vec2(vx, vy))), density: loadDensity(i, k, verts), friction: 0.6, restitution: 0 });
         body.isLoad = true;
         const [tx, ty] = grid.load[k] ? ringCentre(grid.load[k]) : [x, y];
         loads.push({ body, tx, ty, verts, released: true });
@@ -2519,10 +2533,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     // millimetre), always in the same order: the same building gives the same result every time
     for (let k = 0; k < 900 && pieces.some((p) => p.body.isAwake()); k++) { world.step(STEP, 10, 5); settleResting(); updateStrain(); }
     const r4 = (v) => Math.round(v * 1000) / 1000;
-    const snapshot = pieces.map((p) => { const q = p.body.getPosition(); return { defKey: p.defKey, material: p.material, x: r4(q.x), y: r4(q.y), angle: r4(p.body.getAngle()) }; })
+    const snapshot = pieces.map((p) => { const q = p.body.getPosition(); return { defKey: p.defKey, material: p.material, x: r4(q.x), y: r4(q.y), angle: r4(p.body.getAngle()), seed: p.seed }; })
       .sort((a, b) => a.y - b.y || a.x - b.x || a.angle - b.angle || (a.defKey + a.material < b.defKey + b.material ? -1 : 1));
     clearAllPieces(); freshWorld();
-    for (const q of snapshot) spawnPiece(q.defKey, q.x, q.y, q.angle, q.material);
+    for (const q of snapshot) spawnPiece(q.defKey, q.x, q.y, q.angle, q.material).seed = q.seed; // each keeps its look
     const toPull = []; // supports are no longer pulled by the test: left in, they fail the check
     test = { phase: "supports", t: 0, snapshot, toPull, after: null, fast: tabHeldNow(), broken: [] };
   }
@@ -2650,13 +2664,13 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   }
 
   function spawnLoads() {
-    loads = grid.load.map((ring) => {
+    loads = grid.load.map((ring, k) => {
       const [cx, cy] = ringCentre(ring);
       const verts = ring.map(([x, y]) => [x - cx, y - cy]);
       // starts just above the top of the screen and is lowered all the way
       const top = screenToWorld(0, 0).y, low = Math.min(...verts.map((v) => v[1]));
       const body = world.createBody({ type: "kinematic", position: planck.Vec2(cx, Math.max(cy + LOAD_DROP, top - low + 0.1)) });
-      body.createFixture({ shape: planck.Polygon(verts.map(([x, y]) => planck.Vec2(x, y))), density: TEST_LOAD_DENSITY[currentLevel], friction: 0.6, restitution: 0 });
+      body.createFixture({ shape: planck.Polygon(verts.map(([x, y]) => planck.Vec2(x, y))), density: loadDensity(currentLevel, k, verts), friction: 0.6, restitution: 0 });
       body.isLoad = true;
       body.setLinearVelocity(planck.Vec2(0, -LOAD_SPEED));
       return { body, tx: cx, ty: cy, verts, released: false };
@@ -2683,7 +2697,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     finishTest();
     failShow = null;
     clearAllPieces(); freshWorld();
-    for (const s of snap) spawnPiece(s.defKey, s.x, s.y, s.angle, s.material);
+    for (const s of snap) spawnPiece(s.defKey, s.x, s.y, s.angle, s.material).seed = s.seed;
   }
   // Leaving mid-test keeps the player's work: a pass is saved, anything else is put back.
   function abortTest() {
@@ -2705,7 +2719,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   function saveMonument() {
     const r3 = (n) => Math.round(n * 1000) / 1000;
     progress.done[grid.L.key] = {
-      pieces: pieces.map((p) => { const q = p.body.getPosition(); return [p.defKey, p.material, r3(q.x), r3(q.y), r3(p.body.getAngle())]; }),
+      pieces: pieces.map((p) => { const q = p.body.getPosition(); return [p.defKey, p.material, r3(q.x), r3(q.y), r3(p.body.getAngle()), p.seed]; }),
       loads: loads.map((l) => { const q = l.body.getPosition(); return [r3(q.x), r3(q.y), r3(l.body.getAngle()), l.verts]; }),
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (err) { /* ignore */ }
@@ -2805,7 +2819,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     const sc = (1.5 * r) / Math.max(x1 - x0, y1 - y0, 1), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
     const at = (x, y) => [cx + (x - mx) * sc, cy + (my - y) * sc];
     ctx.save();
-    done.pieces.forEach(([d, m, x, y, a], i) => { const [sx, sy] = at(x, y); drawPieceShape(d, m, sx, sy, a, sc, 0, i + 1); });
+    done.pieces.forEach(([d, m, x, y, a, sd], i) => { const [sx, sy] = at(x, y); drawPieceShape(d, m, sx, sy, a, sc, 0, sd || i + 1); });
     for (const [x, y, a, verts] of done.loads) { const [sx, sy] = at(x, y); drawLoadShape(verts, sx, sy, a, sc, false); }
     ctx.restore();
   }

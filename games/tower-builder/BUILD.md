@@ -308,6 +308,14 @@ Owner's words: "I dont know in what screen you test, but for me halicarnassus is
 - Map button above ΕΠΑΝΕΚΚΙΝΗΣΗ (a little wall; green ring when on), saved in localStorage "tower-builder-progress-v1-textures", off by default.
 - On: owner's seamless pictures in `src/art/tex-*` (recoloured to one warm palette: marble 241,237,229; sandstone 208,162,96; wood 204,148,82; grey stone 170,165,156; mudbrick 152,106,74). Stone per building: sandstone (Mastaba, Djoser, Ur, Karnak, Ishtar), grey (Lion Gate, Valens), white marble (Parthenon, Halicarnassus, Pharos). Stone tiled 3x3 at 2.67 m per picture, mudbrick 5.33 m, wood 1.33 m with grain along the long side; each piece a random place, kept from pile to building. Border: the material's colour at half brightness. Chips take the material's colour.
 
+## Current state, update 19 (13 Nov 2026)
+
+Owner's words: "1. the restart arrow has a weird bulge. 2, change the material toggel icon to have the wood waters horizontally and not vertically. 3, pressing the gree test button SHOULD NOT change the textures. 4. In Ishatar, the tower headpieces should ahve weight equal to 1 stone block, so that if the user has piled 4 mudbricks on top, they then break"
+
+- Restart arrow redrawn (flat ends, head continuing the arc). Textures icon: wood grain lies along the block.
+- Each piece keeps its look (seed) through the test, a failed test, saving and re-entering (saved pieces carry the seed as a 6th value).
+- `LOAD_WEIGHT`: Ishtar's two tower headpieces weigh one stone block each. Checked at 1280x800, 1366x768, 1920x1080: suggested build (three mudbricks per tower) passes; four mudbricks per tower crumble and fail.
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
