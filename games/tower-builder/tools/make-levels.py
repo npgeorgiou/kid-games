@@ -124,7 +124,7 @@ s = (row("mudbrick", -5, 5, 0.5) + [["beam", "wood", x, 1.25, 0] for x in (-3.2,
 level("ziggurat", "Ζιγκουράτ της Ουρ", "c. 2100 BC", "three terraces with reed-mat courses, the temple on top",
       "Britannica: mudbrick core strengthened with reed matting, three tiers, staircases, temple of Nanna on top (not preserved); wood courses stand for the reed mats; no stairway piece (owner, 13 Nov: the triangle removed from this level for good)",
       s, [rect(-1.5, 5, 1.5, 6.0)], woodRole="courses",
-      spare=[("block", "mudbrick", 2), ("block", "stone", 5)],  # owner (13 Nov): 16 mudbrick blocks and 5 stone blocks in the pile
+      spare=[("block", "mudbrick", 2)],  # owner (13 Nov): 16 mudbrick blocks; no stone in this pile
       wrong=[W("two short beams instead of the long plank", "material", [p for e in s for p in ([["beam", "wood", -1.6, 3.75, 0], ["beam", "wood", 1.6, 3.75, 0]] if e[0] == "plank" else [e])]),
              W("a top-terrace block more than half off the terrace below", "build", moved(s, lambda e: near(e[2], 1) and near(e[3], 4.5), dx=3.2))])
 # 4 Lion Gate (owner, 13 Nov: before Karnak, it is easier): the lion triangle (headpiece) is lowered onto the lintel between the stepped-in stones

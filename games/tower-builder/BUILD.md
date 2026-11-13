@@ -316,6 +316,17 @@ Owner's words: "1. the restart arrow has a weird bulge. 2, change the material t
 - Each piece keeps its look (seed) through the test, a failed test, saving and re-entering (saved pieces carry the seed as a 6th value).
 - `LOAD_WEIGHT`: Ishtar's two tower headpieces weigh one stone block each. Checked at 1280x800, 1366x768, 1920x1080: suggested build (three mudbricks per tower) passes; four mudbricks per tower crumble and fail.
 
+## Current state, update 20 (14 Nov 2026, weight sharing and the ziggurat)
+
+- Weight on mudbrick is traced, not read from the physics contacts (BREAKING: `traceLoads`, `shareWeight`). The solver handed most of a piece's weight to one of its supports (symmetric ziggurat: left middle brick twice the right). Now each piece passes its weight plus what rests on it to the pieces under it, by how much of it lies on each (shared width, from the two pieces' bounding boxes) and to which side it leans, as a stiff piece on springy supports; a wide support also resists turning, so a corner touching beside it takes no false share.
+- Ziggurat (owner): all mudbrick, courses staggered, a new 6 m wooden plank (`plank`) under the top terrace; temple a fifth lighter (load density 4); wrong choice: two short beams instead of the plank (fails 100/100, the plank build passes 100/100, also with the temple 20% heavier). No triangle and no stone in this level, for good. Pile: 16 mudbrick blocks, 2 half-blocks, 5 beams, the plank.
+- Djoser: top step lighter (load density 7, was 8); pile 2 spare mudbricks, no spare stone; wrong choice mudbrick in the bottom row.
+- Safety test (owner tests 14 and 7-2): earthquake and headpiece 20% stronger (was 30%).
+- Valens pile not fitting the sidebar: not an issue (owner); test 4 waives it.
+- Harness: `variants` (named builds of one level, N placements, what strained each mudbrick; env VARIANTS, NJ, LOAD, TRACE) and `trace` (weight on each mudbrick after the quick build).
+- Explored, not built: a 5-row all-mudbrick ziggurat stands only with a plank as wide as the row under every row (12, 10, 8, 6 m); with 6-7 m planks the bottom bricks reach 120-130%. With full-width planks it failed 2 of 10 runs by something moving in the wind or earthquake (cause unknown). Owner kept the current ziggurat.
+- Known: owner test "no red seams" on Karnak fails on some runs, also before these changes (cause unknown).
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
