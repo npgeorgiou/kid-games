@@ -2754,14 +2754,18 @@
     const R = siteRadius() * DONE_SIZE * DONE_RING, key = cssWidth + "x" + cssHeight;
     if (key === placeCache.key) return placeCache.at;
     const at = {}, placed = [];
-    for (const s of SITES) {
+    // sites by the sea first (Alexandria, Athens, ...): they have the least room to stay by the water; inland ones make way
+    const shore = (s) => { for (const [dx, dy] of NEAR) if (!isLand(s.x + dx, s.y + dy)) return dx * dx + dy * dy; return Infinity; };
+    for (const s of SITES.slice().sort((a, b) => shore(a) - shore(b))) {
       const mass = siteMass(s), m = v.pt(s.x, s.y);
       const x0 = Math.max(R + 2, Math.min(cssWidth - R - 2, m.x)), y0 = Math.max(R + 2, Math.min(cssHeight - R - 2, m.y));
-      const fits = (x, y, gap, own) => x >= R + 2 && x <= cssWidth - R - 2 && y >= R + 2 && y <= cssHeight - R - 2 &&
-        placed.every((p) => Math.hypot(p.x - x, p.y - y) >= 2 * R + gap) &&
-        DISC.every(([a, b]) => { const mx = (x + a * R - v.ox) / v.k, my = (y + b * R - v.oy) / v.k; return own ? massAt(mx, my) === mass : isLand(mx, my); });
+      const fits = (x, y, gap, part) => { // `part`: how much of the circle must be on the site's own land
+        if (x < R + 2 || x > cssWidth - R - 2 || y < R + 2 || y > cssHeight - R - 2 || !placed.every((p) => Math.hypot(p.x - x, p.y - y) >= 2 * R + gap)) return false;
+        let off = 0, most = DISC.length * (1 - part);
+        for (const [a, b] of DISC) if (massAt((x + a * R - v.ox) / v.k, (y + b * R - v.oy) / v.k) !== mass && ++off > most) return false;
+        return massAt((x - v.ox) / v.k, (y - v.oy) / v.k) === mass; };
       let best = null;
-      for (const [gap, own] of [[R * 0.3, true], [0, true], [0, false]]) { // a clear gap first; only if nothing fits, less
+      for (const [gap, own] of [[R * 0.3, 1], [0, 1], [0, 0.8], [0, 0.6]]) { // a clear gap, all on its land, first; only if nothing fits, less; never another land
         for (const [dx, dy] of NEAR) if (fits(x0 + dx, y0 + dy, gap, own)) { best = { x: x0 + dx, y: y0 + dy }; break; }
         if (best) break;
       }
