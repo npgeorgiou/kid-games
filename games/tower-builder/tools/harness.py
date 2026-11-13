@@ -68,14 +68,16 @@ with sync_playwright() as p:
             for d,n in SUPPORTS.get(k,{}).items(): okp=okp and have[d+'/wood']==n
             fits=pg.evaluate('''(i)=>{const T=__tb; T.mode="build"; T.startLevel(i); const r=T.levelSidebar().bin, px=T.pilePx; const [sc,out]=T.pileLayout(T.stockItems(i),r,px);
               return +(Math.max(...out.map(([it,x,y])=>y+T.PIECE_DEFS[it.defKey].hy))/(r.h/px)).toFixed(2);}''',i)
-            lines.append(('4 pile (and it fits the sidebar at 1280x800)',okp and fits<=1.0,'%d pieces, %d%% of the sidebar height'%(sum(have.values()),round(fits*100))))
+            lines.append(('4 pile (and it fits the sidebar at 1280x800)',okp and (fits<=1.0 or k=='valens'),  # owner 13 Nov: the Valens pile not fitting is not an issue
+                 '%d pieces, %d%% of the sidebar height'%(sum(have.values()),round(fits*100))))
             for name,ok,det in lines: print('%-9s %-4s %-58s %s'%(k,'PASS' if ok else 'FAIL',name,det[:170]),flush=True)
             if os.environ.get('DIAG'): print(base[0]['build'].get('diag','')[:3000])
         levels=[]
+    if 'trace' in sys.argv and os.environ.get('VARIANTS'): pg.evaluate('(s)=>{window.__SOL=s}',list(json.load(open(os.environ['VARIANTS']))['sols'].values())[0])
     if 'trace' in sys.argv:  # weight traced onto each mudbrick after the quick build (fair sharing), as a share of its limit
         for i in levels:
-            print(LVS[i]['key'] if 'LVS' in dir() else i, pg.evaluate("""(i)=>{const T=__tb;T.mode="build";T.startLevel(i);T.quiet0();T.startAutoBuild();let n=0;while(T.auto&&n<18000){T.stepPhysics(1/60);n++;}for(let k=0;k<180;k++)T.stepPhysics(1/60);
-              const t=T.traceLoads();return T.pieces.filter(p=>p.material==="mudbrick").map(p=>{const q=p.body.getPosition();return p.defKey[0]+'@'+(q.x-20).toFixed(1)+','+q.y.toFixed(1)+'='+(t.get(p.body).recv/T.crushLimit(p)).toFixed(2)+'/'+(p.crushAvg/T.crushLimit(p)).toFixed(2)}).join(' ')}""",i))
+            print(LVS[i]['key'] if 'LVS' in dir() else i, pg.evaluate("""(i)=>{const T=__tb;T.mode="build";T.startLevel(i);T.quiet0();if(window.__SOL){const k=T.LEVELS[i].key,o=T.SOLUTIONS[k];T.clearAllPieces();T.fillPile(window.__SOL.map(e=>({defKey:e[0],material:e[1]})));T.SOLUTIONS[k]=window.__SOL;T.startAutoBuild();T.SOLUTIONS[k]=o;}else T.startAutoBuild();let n=0;while(T.auto&&n<18000){T.stepPhysics(1/60);n++;}for(let k=0;k<180;k++)T.stepPhysics(1/60);
+              const t=T.traceLoads();return T.pieces.filter(p=>p.material==="mudbrick"||window.__SOL).map(p=>{const q=p.body.getPosition();return p.defKey[0]+'@'+(q.x-20).toFixed(1)+','+q.y.toFixed(1)+'='+(t.get(p.body).recv/T.crushLimit(p)).toFixed(2)+'/'+(p.crushAvg/T.crushLimit(p)).toFixed(2)+'/'+t.get(p.body).sup.map(s=>s.c.toFixed(2)+':'+s.w.toFixed(2)).join(';')}).join(' ')}""",i))
     if 'variants' in sys.argv:  # owner reports: run named builds of one level (JSON file: {"level":i,"sols":{name:sol}}), NJ placements each, with what strained each mudbrick
         V=json.load(open(os.environ['VARIANTS'])); RUN=open(os.path.join(HERE,'spec-run.js')).read(); pg.evaluate('(t)=>{window.__MON=1; if(t) window.__TRACE=+t}',os.environ.get('TRACE'))
         if os.environ.get('LOAD'): pg.evaluate('(a)=>{for(const [i,d] of a) __tb.TEST_LOAD_DENSITY[i]=d}',[[int(x.split(':')[0]),float(x.split(':')[1])] for x in os.environ['LOAD'].split(',')])

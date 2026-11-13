@@ -38,7 +38,7 @@ Run from `games/tower-builder/tools`: `python3 harness.py spec` (tests 1, 2, 3, 
 7. Lighthouse: without its wooden ties the walls fall in the wind.
 8. Outline matches the build: the exactly placed build, once settled, has every piece within 5 cm of its place, covers at least 85% of the outline (the building's shape; its uncovered slivers must still light the button) and has at most 2.5% of its pieces outside the outline.
 
-Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density (in play order) 5, 7 (owner 13 Nov: was 8; passes the 20% stronger test), 5, 25, 75, 4, 60, 12, 13, 14 (heavy enough that wrong-material mudbrick crumbles, light enough that the suggested build holds 30% more on every screen size; set again 12 Nov for the new mudbrick strength); earthquake 0.32 rising to 0.61. Each arch stone has a thin guide line in the outline (owner).
+Test numbers per level (placeholders in the LEVELS section, tuned only through these tests): wind 110 N/m on level 1, 18 on the Lighthouse, 6.5 elsewhere; load density (in play order) 5, 7 (owner 13 Nov: was 8; passes the 20% stronger test), 4 (owner 13 Nov: was 5, all-mudbrick ziggurat), 25, 75, 4, 60, 12, 13, 14 (heavy enough that wrong-material mudbrick crumbles, light enough that the suggested build holds 30% more on every screen size; set again 12 Nov for the new mudbrick strength); earthquake 0.32 rising to 0.61. Each arch stone has a thin guide line in the outline (owner).
 
 ## 1. Mastaba, Saqqara (c. 3000 BC)
 
@@ -63,10 +63,10 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 3. Ziggurat of Ur (c. 2100 BC)
 
 - Headpiece: the temple of Nanna on the top terrace (Britannica: temple on top, not preserved). LOCKED.
-- Pieces (owner, 13 Nov: only the bottom row stone; each course staggered and one long plank under the top terrace, so the weight of two blocks spreads into three): 5 stone blocks, 1 stone triangle (the stairway), 9 mudbrick blocks and 2 mudbrick half-blocks, 3 wooden beams and 1 wooden plank (6 m, new) in two courses; pile adds 7 mudbrick blocks (16 in all), no extra stone.
+- Pieces (owner, 13 Nov: all mudbrick, as the real one; each course staggered and one long plank under the top terrace, so the weight of two blocks spreads into three): 14 mudbrick blocks, 2 mudbrick half-blocks, 1 mudbrick triangle (the stairway), 3 wooden beams and 1 wooden plank (6 m, new) in two courses; pile adds 2 mudbrick blocks (16 in all), 5 stone blocks, and 2 wooden beams for the wrong choice. Temple lighter (load density 4, was 5) so the all-mudbrick build also passes the 20% stronger test.
 - New: wooden beams laid as courses (they stand for the reed matting that strengthened the mudbrick core, Britannica). Technique: three terraces, each narrower.
 - Hard: wood only where it lies fully supported; terraces centred.
-- Wrong material: mudbrick in the bottom row too. Open (13 Nov): with weight shared fairly it holds in 97 of 100 tests; waiting for the owner.
+- Wrong material: two short beams under the top terrace instead of the long plank: the weight stays over the middle and the bottom bricks crumble.
 - Wrong build: a top-terrace block more than half off the terrace below: it falls.
 - Temporary wood: none.
 
@@ -152,7 +152,7 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 - Hard: the piers carry everything.
 - Openings: the four arches.
 - Wrong material: mudbrick piers crumble.
-- Open: this pile does not fit the sidebar (120%); waiting for the owner.
+- Owner (13 Nov): the pile not fitting the sidebar is not an issue.
 - Wrong build: a form pulled out before the last wedge: the arch falls.
 - Temporary wood: two forms, no more.
 - Historical: the real aqueduct stands on tall piers and its upper arches are smaller; here the arches are all one size.

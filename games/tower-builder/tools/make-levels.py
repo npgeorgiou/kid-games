@@ -118,14 +118,14 @@ level("djoser", "Πυραμίδα του Ζοζέρ", "c. 2650 BC", "build tall 
       wrong=[W("mudbrick in the bottom row", "material", recolour(s, lambda e: e[3] < 1, "mudbrick")),
              W("a top-step block more than half off the step below", "build", moved(s, lambda e: near(e[2], 1) and near(e[3], 4.5), dx=2.2))])
 # 3 Ziggurat of Ur
-s = (row("stone", -5, 5, 0.5) + [["beam", "wood", x, 1.25, 0] for x in (-3.2, 0, 3.2)] + [tri_rest(-5, 0, "right", "stone")] +
+s = (row("mudbrick", -5, 5, 0.5) + [["beam", "wood", x, 1.25, 0] for x in (-3.2, 0, 3.2)] + [tri_rest(-5, 0, "right", "mudbrick")] +
      row("mudbrick", -4, 4, 2.0) + staggered("mudbrick", -4, 4, 3.0) + [["plank", "wood", 0, 3.75, 0]] + row("mudbrick", -2, 2, 4.5))
-# owner (13 Nov): only the bottom row stone; the courses staggered and one long plank under the top terrace, so the weight of two blocks spreads into three
+# owner (13 Nov): all mudbrick; the courses staggered and one long plank under the top terrace, so the weight of two blocks spreads into three
 level("ziggurat", "Ζιγκουράτ της Ουρ", "c. 2100 BC", "three terraces with reed-mat courses, a stairway, the temple on top",
       "Britannica: mudbrick core strengthened with reed matting, three tiers, staircases, temple of Nanna on top (not preserved); wood courses stand for the reed mats; the stairway is one triangle",
       s, [rect(-1.5, 5, 1.5, 6.0)], woodRole="courses",
-      spare=[("block", "mudbrick", 2)],  # owner (13 Nov): no spare stone; five more mudbrick blocks than the old pile (16)
-      wrong=[W("mudbrick in the bottom row too", "material", recolour(s, lambda e: e[0] == "block" and near(e[3], 0.5), "mudbrick")),
+      spare=[("block", "mudbrick", 2), ("block", "stone", 5)],  # owner (13 Nov): 16 mudbrick blocks and 5 stone blocks in the pile
+      wrong=[W("two short beams instead of the long plank", "material", [p for e in s for p in ([["beam", "wood", -1.6, 3.75, 0], ["beam", "wood", 1.6, 3.75, 0]] if e[0] == "plank" else [e])]),
              W("a top-terrace block more than half off the terrace below", "build", moved(s, lambda e: near(e[2], 1) and near(e[3], 4.5), dx=3.2))])
 # 4 Lion Gate (owner, 13 Nov: before Karnak, it is easier): the lion triangle (headpiece) is lowered onto the lintel between the stepped-in stones
 gate = rect(-1, 0, 1, 2)

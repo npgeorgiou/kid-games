@@ -1690,7 +1690,7 @@
     let act = sup.map((s, i) => i), f = sup.map(() => 0);
     for (let it = 0; it <= sup.length; it++) {
       let S0 = 0, S1 = 0, S2 = 0;
-      for (const i of act) { const { c, w } = sup[i]; S0 += w; S1 += w * c; S2 += w * c * c; }
+      for (const i of act) { const { c, w } = sup[i]; S0 += w; S1 += w * c; S2 += w * (c * c + (w * w) / 12); } // a wide support also resists turning (its own width), so a corner touching beside it takes no share it cannot have
       const det = S0 * S2 - S1 * S1;
       let al, be;
       if (det < 1e-9 * S0 * S0) { al = W / S0; be = 0; } else { al = (W * S2 - W * xbar * S1) / det; be = (W * xbar * S0 - W * S1) / det; }
@@ -2146,7 +2146,7 @@
     let area = 0; verts.forEach(([x, y], j) => { const [x2, y2] = verts[(j + 1) % verts.length]; area += x * y2 - x2 * y; });
     return mass / Math.abs(area / 2);
   }
-  const TEST_LOAD_DENSITY = [5, 7, 5, 25, 75, 4, 60, 12, 13, 14]; // kg/m^2, per level (Djoser 8 -> 7, owner 13 Nov: passes the 20% stronger test): heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
+  const TEST_LOAD_DENSITY = [5, 7, 4, 25, 75, 4, 60, 12, 13, 14]; // kg/m^2, per level (Ziggurat 5 -> 4 and all mudbrick, owner 13 Nov; Djoser 8 -> 7, owner 13 Nov: passes the 20% stronger test): heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
   const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
   const TEST_FAST = 10, DRUM_LEAD = 1.5; // Ctrl test speed-up; seconds the drumroll may start before the load moves
