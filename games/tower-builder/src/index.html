@@ -414,6 +414,8 @@
     block:  { shape: "box", hx: 1.0, hy: 0.5, densityScale: 1.0, skin: "block", half: "block-half" },
     column: { shape: "box", hx: 0.3, hy: 1.2, densityScale: 1.0, skin: "column", half: "column-half" },
     beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 0.85, skin: "beam", half: "beam-half" },
+    // plank (new, owner 13 Nov): a long wooden beam, 6 m, three blocks long: two blocks on it spread their weight into three below (Ziggurat)
+    plank:  { shape: "box", hx: 3.0, hy: 0.25, densityScale: 0.85, skin: "beam", half: "plank-half" },
     // capital (new, fourth standard size): a flat slab laid on a pillar; an upright block (2 m) plus a capital is one column high
     capital: { shape: "box", hx: 0.8, hy: 0.2, densityScale: 1.0, skin: "beam", half: "capital-half" },
     // abacus (new): a small oblong block, half a capital; two stacked make a column's capital (Karnak)
@@ -430,6 +432,7 @@
     "block-half":  { shape: "box", hx: 0.5, hy: 0.5, densityScale: 1.0, skin: "block" },
     "column-half": { shape: "box", hx: 0.3, hy: 0.6, densityScale: 1.0, skin: "column" },
     "beam-half":   { shape: "box", hx: 0.8, hy: 0.25, densityScale: 0.85, skin: "beam" },
+    "plank-half":  { shape: "box", hx: 1.5, hy: 0.25, densityScale: 0.85, skin: "beam" },
     "capital-half": { shape: "box", hx: 0.4, hy: 0.2, densityScale: 1.0, skin: "beam" },
     drum:   { shape: "circle", r: 0.6, densityScale: 1.0, skin: "drum" },
     // arch stone: narrow end down; about ten make a half circle
@@ -1677,7 +1680,62 @@
     return M;
   }
 
+  // Owner (13 Nov): weight is shared fairly. The physics engine works through the contacts one after another, so a
+  // piece resting on several supports gave most of its weight to one of them: in a symmetric ziggurat the left middle
+  // brick carried twice the right one. The weight on each piece is traced instead, from the top down: every piece
+  // passes its own weight plus what rests on it to the pieces under it, as a stiff piece on equal springy supports
+  // would: by how much of it lies on each, shifted towards the side its weight leans to.
+  const SUPPORT_NY = 0.3; // a contact facing up at least this much carries weight (arch stones included)
+  function shareWeight(W, xbar, sup) { // sup: [{c, w}] -> forces, summing to W, balanced about xbar
+    let act = sup.map((s, i) => i), f = sup.map(() => 0);
+    for (let it = 0; it <= sup.length; it++) {
+      let S0 = 0, S1 = 0, S2 = 0;
+      for (const i of act) { const { c, w } = sup[i]; S0 += w; S1 += w * c; S2 += w * c * c; }
+      const det = S0 * S2 - S1 * S1;
+      let al, be;
+      if (det < 1e-9 * S0 * S0) { al = W / S0; be = 0; } else { al = (W * S2 - W * xbar * S1) / det; be = (W * xbar * S0 - W * S1) / det; }
+      f = sup.map(() => 0); for (const i of act) f[i] = sup[i].w * (al + be * sup[i].c);
+      const neg = act.filter((i) => f[i] < 0);
+      if (!neg.length) return f;
+      if (act.length - neg.length < 1) break;
+      act = act.filter((i) => f[i] >= 0); // a support it would have to pull on: the piece lifts off it
+    }
+    // weight beyond every support's edge: all of it on the support nearest the side it leans to
+    let k = 0; for (let i = 1; i < sup.length; i++) if (Math.abs(sup[i].c - xbar) < Math.abs(sup[k].c - xbar)) k = i;
+    f = sup.map(() => 0); f[k] = W; return f;
+  }
+  function traceLoads() {
+    const info = new Map();
+    const add = (b) => info.set(b, { W: b.getMass() * GRAVITY, M: b.getMass() * GRAVITY * b.getWorldCenter().x, recv: 0, sup: [], y: b.getWorldCenter().y });
+    for (const p of pieces) if (!p.ghost && !p.auto && p.heldBy == null) add(p.body);
+    for (const l of loads) if (l.released) add(l.body);
+    const wm = new planck.WorldManifold();
+    for (let c = world.getContactList(); c; c = c.getNext()) {
+      if (!c.isTouching()) continue;
+      const A = c.getFixtureA().getBody(), B = c.getFixtureB().getBody();
+      if (!info.has(A) && !info.has(B)) continue;
+      c.getWorldManifold(wm); const n = wm.normal; // from A to B
+      if (Math.abs(n.y) < SUPPORT_NY) continue;
+      const up = n.y > 0 ? B : A, low = up === A ? B : A, iu = info.get(up);
+      if (!iu) continue;
+      // where it rests: the width the two pieces share (a tiny tilt leaves the physics only one corner touching,
+      // which must not move the weight); the touching points when they share no width (a corner on a face)
+      const ba = c.getFixtureA().getAABB(0), bb = c.getFixtureB().getAABB(0);
+      let x0 = Math.max(ba.lowerBound.x, bb.lowerBound.x), x1 = Math.min(ba.upperBound.x, bb.upperBound.x);
+      if (x1 - x0 < 0.05) { x0 = Infinity; x1 = -Infinity; for (let i = 0; i < c.getManifold().pointCount; i++) { x0 = Math.min(x0, wm.points[i].x); x1 = Math.max(x1, wm.points[i].x); } }
+      if (x0 > x1) continue;
+      iu.sup.push({ low, c: (x0 + x1) / 2, w: Math.max(0.05, x1 - x0) });
+    }
+    for (const [, it] of [...info].sort((a, b) => b[1].y - a[1].y)) {
+      if (!it.sup.length) continue;
+      const W = it.W + it.recv, f = shareWeight(W, it.M / W, it.sup);
+      it.sup.forEach((s, i) => { const il = info.get(s.low); if (il) { il.recv += f[i]; il.M += f[i] * s.c; } });
+    }
+    return info;
+  }
+
   function updateStrain() {
+    const traced = traceLoads();
     for (const p of pieces.slice()) {
       if (p.material !== "mudbrick" && !p.canSnap) continue;
       // hard landing: a mudbrick whose speed changed by more than MUD_SHATTER_SPEED in one step crumbles at once
@@ -1693,7 +1751,7 @@
       if (p.heldBy == null) {
         if (p.material === "mudbrick") { // the weight resting on it (read from its contacts, also while the stack sleeps), smoothed
           // over a few steps: the contacts jitter by more than the gap between holding and crumbling (seven mudbricks against four and two stones)
-          const w = weightOnTop(p.body);
+          const w = traced.has(p.body) ? traced.get(p.body).recv : 0;
           p.crushAvg = p.crushAvg == null ? w : p.crushAvg + (w - p.crushAvg) * 0.15;
           const bend = p.body.isAwake() ? bendMoment(p, MUD_SPAN_MIN) > MUD_SNAP_MOMENT : !!p.wasBent; p.wasBent = bend;
           over = p.crushAvg > crushLimit(p) || bend; time = STRAIN_TIME.crumble; }

@@ -37,7 +37,7 @@ WEDGE = [(-2 * WT, -0.5), (2 * WT, -0.5), (3 * WT, 0.5), (-3 * WT, 0.5)]
 R_C = 2.0  # arch form: the wedges' inner faces lie 2.0 m from the centre
 SHAPES = {
     "block": box(-1, -0.5, 1, 0.5), "square": box(-0.5, -0.5, 0.5, 0.5), "column": box(-0.3, -1.2, 0.3, 1.2),
-    "beam": box(-1.6, -0.25, 1.6, 0.25), "capital": box(-0.8, -0.2, 0.8, 0.2), "abacus": box(-0.4, -0.2, 0.4, 0.2),
+    "beam": box(-1.6, -0.25, 1.6, 0.25), "plank": box(-3.0, -0.25, 3.0, 0.25), "capital": box(-0.8, -0.2, 0.8, 0.2), "abacus": box(-0.4, -0.2, 0.4, 0.2),
     "wedge": Polygon(WEDGE),
     **{k: Polygon(v) for k, v in LEVEL_PIECES.items()},
 }
@@ -119,11 +119,13 @@ level("djoser", "Πυραμίδα του Ζοζέρ", "c. 2650 BC", "build tall 
              W("a top-step block more than half off the step below", "build", moved(s, lambda e: near(e[2], 1) and near(e[3], 4.5), dx=2.2))])
 # 3 Ziggurat of Ur
 s = (row("stone", -5, 5, 0.5) + [["beam", "wood", x, 1.25, 0] for x in (-3.2, 0, 3.2)] + [tri_rest(-5, 0, "right", "stone")] +
-     row("stone", -4, 4, 2.0) + row("mudbrick", -4, 4, 3.0) + [["beam", "wood", x, 3.75, 0] for x in (-1.6, 1.6)] + row("mudbrick", -2, 2, 4.5))
+     row("mudbrick", -4, 4, 2.0) + staggered("mudbrick", -4, 4, 3.0) + [["plank", "wood", 0, 3.75, 0]] + row("mudbrick", -2, 2, 4.5))
+# owner (13 Nov): only the bottom row stone; the courses staggered and one long plank under the top terrace, so the weight of two blocks spreads into three
 level("ziggurat", "Ζιγκουράτ της Ουρ", "c. 2100 BC", "three terraces with reed-mat courses, a stairway, the temple on top",
       "Britannica: mudbrick core strengthened with reed matting, three tiers, staircases, temple of Nanna on top (not preserved); wood courses stand for the reed mats; the stairway is one triangle",
       s, [rect(-1.5, 5, 1.5, 6.0)], woodRole="courses",
-      wrong=[W("mudbrick in the base, stone in the top terrace", "material", [[e[0], "mudbrick" if near(e[3], 0.5) and e[0] == "block" else "stone" if near(e[3], 4.5) else e[1], e[2], e[3], e[4]] for e in s]),
+      spare=[("block", "mudbrick", 2)],  # owner (13 Nov): no spare stone; five more mudbrick blocks than the old pile (16)
+      wrong=[W("mudbrick in the bottom row too", "material", recolour(s, lambda e: e[0] == "block" and near(e[3], 0.5), "mudbrick")),
              W("a top-terrace block more than half off the terrace below", "build", moved(s, lambda e: near(e[2], 1) and near(e[3], 4.5), dx=3.2))])
 # 4 Lion Gate (owner, 13 Nov: before Karnak, it is easier): the lion triangle (headpiece) is lowered onto the lintel between the stepped-in stones
 gate = rect(-1, 0, 1, 2)
