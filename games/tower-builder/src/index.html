@@ -2831,6 +2831,7 @@
   const peopleImg = {};
   for (const n of PEOPLE) peopleImg[n] = { walk: Object.assign(new Image(), { src: PEOPLE_ART[n][0] }), idle: Object.assign(new Image(), { src: PEOPLE_ART[n][1] }) };
   const PEOPLE_TOP = { Boy: 23, Girl: 24, Man: 14, Old_man: 16, Old_woman: 17, Woman: 15 }; // first row of each villager's head in its 48 px frame (from the art)
+  const PEOPLE_FEET = { Boy: 12, Girl: 11.5, Man: 14.5, Old_man: 13, Old_woman: 10.5, Woman: 12.5 }; // column of each villager's feet in its 48 px frame (from the art)
   const HEAD_ROWS = 10, PERSON_H = 40; // frame rows of a head; map pixels a 48 px frame is drawn tall
   const WALK_SPEED = BOAT_SPEED, MAX_ON_FOOT = 3, VISIT_TIME = 4, PERSON_GAP = 9; // map px/s, sites, seconds, map px between walkers
   const groups = boats.map((b) => ({ state: "boat", boat: b, onFoot: 0, stops: 0, recent: [], plan: null }));
@@ -2990,7 +2991,7 @@
       if (!im.complete || !im.naturalWidth) return;
       const f = Math.floor(t * (a === "walk" ? 10 : 5) + k * 1.7) % frames;
       ctx.save(); ctx.translate(q.x, q.y); if (Array.isArray(flip) ? flip[k] : flip) ctx.scale(-1, 1);
-      ctx.drawImage(im, f * 48, 0, 48, 48, -H / 2, -H, H, H);
+      ctx.drawImage(im, f * 48, 0, 48, 48, (-PEOPLE_FEET[n] * H) / 48, -H, H, H); // feet on the point, so turning round does not move them
       ctx.restore();
     });
     ctx.restore();
