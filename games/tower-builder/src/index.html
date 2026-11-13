@@ -62,17 +62,18 @@
     mapImage(ctx, img, x, y, w, h) {
       if (img.complete && img.naturalWidth) ctx.drawImage(img, x, y, w, h);
     },
-    // Sea: the owner's animated water (OpenGameArt "animated water texture 128px", CC0), square frames stacked
-    // in one picture, tiled over the map; each frame fades into the next, one round every four seconds.
+    // Sea: the owner's water picture (royalty free, owner 13 Nov), 1.5x its own size, tiled over the map. Its
+    // frames jump, so instead two of them drift slowly the same way across its diagonal bands, one over the other.
     mapWater(ctx, img, v, t) {
-      const s = img.naturalWidth, n = Math.max(1, Math.floor(img.naturalHeight / s));
+      const s = img.naturalWidth, n = Math.max(1, Math.floor(img.naturalHeight / s)), SC = 1.5;
       if (!img._frames) img._frames = Array.from({ length: n }, (_, i) => { const c = document.createElement("canvas"); c.width = c.height = s; c.getContext("2d").drawImage(img, 0, i * s, s, s, 0, 0, s, s); return c; });
-      const ph = ((t / 4) * n) % n, f = Math.floor(ph), mix = ph - f, tile = s * 1.25, sc = 1.25; // a little bigger than the picture's own size
-      const w = (cssWidth - v.ox) / sc, h = (cssHeight - v.oy) / sc;
-      ctx.save(); ctx.translate(v.ox, v.oy); ctx.scale(sc, sc);
-      ctx.fillStyle = ctx.createPattern(img._frames[f], "repeat"); ctx.fillRect(0, 0, w, h);
-      ctx.globalAlpha = mix; ctx.fillStyle = ctx.createPattern(img._frames[(f + 1) % n], "repeat"); ctx.fillRect(0, 0, w, h);
-      ctx.restore();
+      const w = (cssWidth - v.ox) / SC + s, h = (cssHeight - v.oy) / SC + s;
+      const layer = (fr, dx, dy, alpha) => { // dx, dy: picture pixels per second
+        const ox = (((t * dx) % s) + s) % s, oy = (((t * dy) % s) + s) % s;
+        ctx.save(); ctx.globalAlpha = alpha; ctx.translate(v.ox, v.oy); ctx.scale(SC, SC); ctx.translate(ox - s, oy - s);
+        ctx.fillStyle = ctx.createPattern(img._frames[fr], "repeat"); ctx.fillRect(0, 0, w + s, h + s); ctx.restore();
+      };
+      layer(0, 5, 5, 1); layer(Math.floor(n / 2), 3.5, 3.5, 0.5);
     },
     // A boat on the map, drawn centred at (x, y), `size` pixels wide, mirrored when sailing left.
     mapBoat(ctx, img, x, y, size, flip, tilt) {
@@ -2719,7 +2720,7 @@
   const MAP_W = 2176, MAP_H = 1408;
   const mapImg = new Image(); mapImg.src = "art/map.jpg";
   const landCut = new Image(); landCut.src = "art/map-land.png"; // the picture's land; water is see-through
-  const waterImg = new Image(); waterImg.src = "art/water.png"; // owner's water (OpenGameArt, CC0), frames one under another
+  const waterImg = new Image(); waterImg.src = "art/water.png"; // owner's water (royalty free), frames one under another
   let mapLand = null; // the picture with its water cut out, at the current screen size
   function mapLandCanvas(v) {
     if (!mapImg.naturalWidth || !landCut.naturalWidth) return null;

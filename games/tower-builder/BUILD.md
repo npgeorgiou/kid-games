@@ -296,6 +296,12 @@ Owner's words: "I dont know in what screen you test, but for me halicarnassus is
 - Visitors walk over land at walking speed to the circle, then along it to their place, look, and return the same way (`admireTour`, `landRoutes`).
 - Checked by opening the map at 1366x768 and 1920x1080 with all sites finished. `harness.py map` (long run) was not rerun on the last version.
 
+## Current state, update 17 (13 Nov 2026, map water and placement)
+
+- Travellers' feet stay on their spot when they turn (sprites drawn by their feet column, PEOPLE_FEET), no jump.
+- Sites by the sea placed first; a site is never moved to another land; only the lower half of the circle (where the building stands) must be on its land. Valens just south of Constantinople (owner) so it is never at the top edge. Pharos on the delta coast.
+- Sea: owner's first water picture (`src/art/water.png`, royalty free per owner), 1.5x its size, two frames drifting slowly the same way (owner chose this from test files: frame swapping and the 40-frame OpenGameArt water were rejected).
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
