@@ -259,6 +259,10 @@ Ninth list, the owner's own words (13 Nov 2026, verbatim):
 
 Eleventh list, the owner's own words (13 Nov 2026, verbatim): "write test for all thigs related with mouse strength and objects motion, because you are too often changing them and messing them up. WEIRD STICKINESS WHEN i PULL SQUARE FROM TOP OF BLOCK??? actually in all lifts where lifted object A is sitting on object B REVERT MYCENAI TO PREVIOUS LOWER VERSION, AND MOVE EXCHANGE LEVELS BETWEEN MYCENAI AND KARNAK, BECAUSE MYCENAI IS EASIER. I have told you to fix so many things that I lost count. AFTER ALSO FIXING THE ABOVE, compile a list with everything I told you to fix. I will test it against the game. dont fucking miss anything, but group things that can be tested together."
 
+## Current state, update 14 (13 Nov 2026, end of chat)
+
+- The parent key is Ctrl instead of Tab (opens every site, quick build button, fast test). Owner: "change so that tab button is replaced with CTRL. remove all open items. after this this caht is done". Open items dropped from the lists (Valens pile, Mausoleum posts, long stone beam swing, Djoser play-test); nothing is waiting on the owner.
+
 ### Seventh and eighth lists: the owner's own words (12 Nov 2026, verbatim)
 
 Seventh list, with a screenshot saved as `owner-shots/list7-item5-mudbrick-column-holds-3-stones.png` (Karnak: an upright mudbrick column holding three stone blocks):

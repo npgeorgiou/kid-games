@@ -240,7 +240,7 @@
         ctx.stroke();
       },
     },
-    // two arrowheads on a button: the test will run fast (Tab)
+    // two arrowheads on a button: the test will run fast (Ctrl)
     fastBadge(ctx, x, y, size) {
       const r = size * 0.2, cx = x + size * 0.36, cy = y + size * 0.36;
       ctx.save();
@@ -1995,12 +1995,12 @@
   const TEST_LOAD_DENSITY = [5, 8, 5, 25, 75, 4, 60, 12, 13, 14]; // kg/m^2, per level: heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
   const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
   const QUAKE_HZ = 1.6;
-  const TEST_FAST = 10, DRUM_LEAD = 1.5; // Tab test speed-up; seconds the drumroll may start before the load moves
+  const TEST_FAST = 10, DRUM_LEAD = 1.5; // Ctrl test speed-up; seconds the drumroll may start before the load moves
   const DRUM_ROLL = 5.5; // s: the roll in drumroll.mp3; the rest of the file (to 10.3 s) is a quiet fade
   const PHASE_TIME = { settle: 1.2, wind: 3.5, loadSettle: 1.5, quake: 3, pass: 3.5, fail: 3, why: 2 };
 
   // Suggested builds (src/levels.js, made by tools/make-levels.py), in building order: [shape, material, x, y, angle]
-  // in level coordinates. The quick build (Tab, then the button on the pile) builds these; the pile is made from them.
+  // in level coordinates. The quick build (Ctrl, then the button on the pile) builds these; the pile is made from them.
   const SOLUTIONS = Object.fromEntries(LEVELS.map((L) => [L.key, L.solution]));
   // The pile = the suggested build (wooden supports used again after a 'pull' step counted once) plus the level's
   // wrong-material pieces (LEVELS[i].extra, from tools/make-levels.py); nothing else is left over.
@@ -2031,15 +2031,15 @@
   let allOpen = false;   // parent override
   let cornerHold = null; // { id, t } while the map's top-left corner is held
 
-  // Tab held down opens every site for as long as it is held (a second parent override).
-  // It stays on for 3 seconds after Tab is let go: laptop touchpads ignore clicks while a key is held.
+  // Ctrl held down opens every site for as long as it is held (a second parent override).
+  // It stays on for 3 seconds after Ctrl is let go: laptop touchpads ignore clicks while a key is held.
   let tabDown = false, tabUpAt = -Infinity;
-  window.addEventListener("keydown", (e) => { if (e.key === "Tab") { e.preventDefault(); tabDown = true; } });
-  window.addEventListener("keyup", (e) => { if (e.key === "Tab") { tabDown = false; tabUpAt = performance.now(); } });
+  window.addEventListener("keydown", (e) => { if (e.key === "Control") { e.preventDefault(); tabDown = true; } }); // owner: Ctrl, not Tab
+  window.addEventListener("keyup", (e) => { if (e.key === "Control") { tabDown = false; tabUpAt = performance.now(); } });
   window.addEventListener("blur", () => { if (tabDown) { tabDown = false; tabUpAt = performance.now(); } });
   const TAB_LATCH = 3000;
   const tabHeldNow = () => tabDown || performance.now() - tabUpAt < TAB_LATCH;
-  let mapEnteredAt = 0; // a Tab latch from before the map was shown does not open every site on it
+  let mapEnteredAt = 0; // a Ctrl latch from before the map was shown does not open every site on it
   const tabOnMap = () => tabDown || (tabUpAt > mapEnteredAt && performance.now() - tabUpAt < TAB_LATCH);
   function levelOpen(i) {
     return i >= 0 && (allOpen || (mode === "map" ? tabOnMap() : tabHeldNow()) || i === 0 || !!progress.done[LEVELS[i - 1].key]);
@@ -2272,7 +2272,7 @@
     layout();
   }
 
-  // --- quick build (parent override): with Tab held a button appears on the pile; it tidies
+  // --- quick build (parent override): with Ctrl held a button appears on the pile; it tidies
   // everything back into the pile, then builds the suggested way, piece by piece, very fast.
   const AUTO_SPEED = 60, AUTO_PAUSE = 0.03; // m/s flying in, s between pieces
   let auto = null; // { queue, cur, wait }
@@ -2360,7 +2360,7 @@
   }
   function startTest() {
     if (currentLevel == null || test) return;
-    // Tab held (parent override): the test runs even when the building is not ready
+    // Ctrl held (parent override): the test runs even when the building is not ready
     const ready = testReady() || tabHeldNow();
     if (!ready) {
       // grey button pressed: show why it is not ready yet
@@ -2396,7 +2396,7 @@
       // The roll lasts exactly as long as the load is lowered, from its start, at nearly its own
       // speed (0.9-1.1x). A short drop (tall building) starts it up to DRUM_LEAD seconds before the
       // load moves; a long drop lowers the load faster instead of stretching the sound.
-      // All in real seconds (Tab: test 10x faster).
+      // All in real seconds (Ctrl: test 10x faster).
       const sp = test.fast ? TEST_FAST : 1, R = soundLength("drumroll") ? DRUM_ROLL / sp : 0;
       const drop = Math.max(0.3, ...loads.map((l) => l.body.getPosition().y - l.ty));
       const T = drop / LOAD_SPEED / sp;
