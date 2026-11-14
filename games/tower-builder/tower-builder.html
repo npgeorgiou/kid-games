@@ -450,6 +450,27 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       ctx.fillStyle = "rgba(224, 71, 59, 0.45)"; ctx.strokeStyle = "#7a2a1e"; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     },
+    // cues (SECTION CUES): the glow round what a line talks about (k 0..1 pulses), a circle {x, y, r} or a path
+    glow(ctx, g, k) {
+      ctx.save(); ctx.strokeStyle = `rgba(255, 220, 60, ${0.35 + 0.6 * k})`; ctx.lineWidth = 4 + 4 * k; ctx.shadowColor = "#ffd84a"; ctx.shadowBlur = 14;
+      if (g.path) ctx.stroke(g.path); else { ctx.beginPath(); ctx.arc(g.x, g.y, g.r * (1 + 0.08 * k), 0, Math.PI * 2); ctx.stroke(); }
+      ctx.restore();
+    },
+    // the see-through hand that acts an action out; its fingertip is at (x, y)
+    ghostHand(ctx, x, y, pressed, alpha) {
+      ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); if (pressed) ctx.scale(0.9, 0.9);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.8)"; ctx.strokeStyle = "rgba(40, 40, 40, 0.85)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(-7, 0, 14, 34, 7); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(-12, 26, 40, 34, 12); ctx.fill(); ctx.stroke();
+      if (pressed) { ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.restore();
+    },
+    // a damaged site on the map: red rings spreading out (t 0..1)
+    ringFlash(ctx, x, y, r, t) {
+      ctx.save(); ctx.lineWidth = 4;
+      for (let k = 0; k < 3; k++) { const u = t * 1.5 - k * 0.25; if (u < 0 || u > 1) continue; ctx.strokeStyle = `rgba(224, 60, 45, ${1 - u})`; ctx.beginPath(); ctx.arc(x, y, r * (1 + u * 1.2), 0, Math.PI * 2); ctx.stroke(); }
+      ctx.restore();
+    },
   };
 
   // ---------------------------------------------------------------------
@@ -603,6 +624,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   const pieces = [];
   let nextPieceId = 1;
 
+  let demo = null; // SECTION CUES: the demo running, if any; pieces made meanwhile are its see-through pieces
   function spawnPiece(defKey, worldX, worldY, angle, materialKey = selectedMaterial) {
     const def = PIECE_DEFS[defKey];
     const material = MATERIALS[materialKey];
@@ -629,6 +651,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     const piece = { id: nextPieceId++, defKey, material: materialKey, body, hx: def.hx, hy: def.hy, r: def.r, verts: def.verts };
     piece.strain = 0; piece.crush = 0; piece.sup = []; piece.loads = []; piece.impacts = []; // SECTION BREAKING
     piece.canSnap = materialKey === "wood" && def.shape === "box" && !!def.half;
+    if (demo) piece.demo = true;
     body.piece = piece;
     pieces.push(piece);
     return piece;
@@ -832,7 +855,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   function undoButton() { const size = Math.max(44, Math.min(64, cssHeight * 0.09)); return { x: 10 + size / 2, y: 10 + size / 2, size }; }
   function startHold(piece, worldPt, pointerId, clientX, clientY, centred = false) {
     if (pointers.has(pointerId) || piece.heldBy != null) return;
-    commitSnap();
+    commitSnap(); onPickup(piece.material);
     piece.heldBy = pointerId;
 
     // the fingers close on the piece at the point under the finger (no jump towards the click)
@@ -889,6 +912,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   function onPointerDown(e) {
     e.preventDefault();
     startAudio();
+    if (cueSwallow()) return; // a blocking line or a demo: hands off (a tap ends a pause)
     if (mode === "map") { onMapPointerDown(e); return; }
     if (e.pointerType === "mouse" && e.button !== 0) return;
     if (pointers.has(e.pointerId)) return;
@@ -914,6 +938,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
         return;
       }
       if (btn.kind === "broom") {
+        cueEv.broom++;
         if (currentLevel != null) { // levels: start again with the level's own pile, in its starting order
           clearAllPieces();
           fillPile(stockItems(currentLevel));
@@ -976,6 +1001,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       piece.taps = (piece.taps || []).filter((t) => now - t < 900);
       piece.taps.push(now);
       if (piece.taps.length >= 3 && pieces.includes(piece)) {
+        cueEv.taps3++;
         playSound("take-back", 1);
         if (currentLevel != null) returnToPile(piece); else removePiece(piece);
         return;
@@ -1159,6 +1185,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     while (accumulator >= STEP && steps < maxSteps) {
       advanceHeldTargets();
       autoTick(STEP);
+      demoTick(STEP);
       testTick(STEP);
       world.step(STEP, 10, 5);
       settleResting();
@@ -1195,9 +1222,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   function drawPiece(piece) {
     const pos = piece.body.getPosition();
     const s = worldToScreen(pos.x, pos.y);
-    if (piece.ghost) { ctx.save(); ctx.globalAlpha = 0.55; }
+    const see = piece.ghost ? 0.55 : piece.demo ? 0.5 * (1 - ((demo && demo.fade) || 0)) : 1;
+    if (see < 1) { ctx.save(); ctx.globalAlpha = see; }
     drawPieceShape(piece.defKey, piece.material, s.x, s.y, piece.body.getAngle(), scale, piece.strain, piece.seed || (piece.seed = newSeed()));
-    if (piece.ghost) ctx.restore();
+    if (see < 1) ctx.restore();
   }
 
   // Real textures (owner, 13 Nov): an option, switched by the button on the map, off by default. Owner's seamless
@@ -1803,6 +1831,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     }
     playSound("crumble", 1);
     shake = Math.max(shake, 4);
+    onBreak("crumble", p);
     noteBroken(p);
     removePiece(p);
   }
@@ -1813,6 +1842,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     const along = p.hx >= p.hy, L = (along ? p.hx : p.hy) / 2;
     const ux = along ? Math.cos(a) : -Math.sin(a), uy = along ? Math.sin(a) : Math.cos(a);
     const vx = v.x, vy = v.y;
+    onBreak("snap", p);
     noteBroken(p);
     removePiece(p);
     for (const s of [-1, 1]) {
@@ -1966,7 +1996,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   // keeps its angle; grabbed near an end it hangs and swings, so it can be turned
   // upright (or laid down) before it is dragged out.
   function startPileHold(pointerId, body, pt, forceCentre) {
-    commitSnap();
+    commitSnap(); onPickup(body.pileItem.material);
     const d = PIECE_DEFS[body.pileItem.defKey], l = body.getLocalPoint(pt);
     const short = (h, o) => (h < o * 0.8 ? h * 0.8 : h / 3);
     const bx = d.r != null ? d.r / 3 : short(d.hx, d.hy), by = d.r != null ? d.r / 3 : short(d.hy, d.hx);
@@ -2290,12 +2320,12 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     if (d.shape === "circle") return q.x * q.x + q.y * q.y <= d.r * d.r;
     return inRing(q.x, q.y, d.verts);
   }
-  function runCheck() {
+  function runCheck(skip) {
     const g = grid, cov = g.cov, v = planck.Vec2(0, 0);
     cov.fill(0);
     let far = 0;
     for (const p of pieces) {
-      if (p.heldBy != null || p.auto) continue;
+      if (p.heldBy != null || p.auto || p.demo || (skip && skip.includes(p))) continue;
       const code = p.material === "wood" ? 1 : 2, cells = [];
       let outside = false, touchesSite = false;
       for (let f = p.body.getFixtureList(); f; f = f.getNext()) {
@@ -2379,8 +2409,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   }
   function goMap() { // leaving a level for the map: a finished site is kept as it is now
     const testing = !!test; // leaving mid-test: a pass is saved by the test itself, anything else is undone
+    const leftTest = testing && test.phase !== "pass";
     cancelAuto(); releaseAllPointers(); abortTest(); if (!testing) syncSite(true);
     mode = "map"; mapEnteredAt = performance.now();
+    onGoMap(currentLevel, leftTest);
   }
   function updateCheck(dt) {
     if (failShow && failShow.until != null && performance.now() > failShow.until) failShow = null;
@@ -2536,11 +2568,13 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
         check = runCheck();
         failShow = { cells: failingCells(check, CHECK.fill), loads: [], loadZone: check.load > CHECK.loadCells, unfilled: true, until: performance.now() + PHASE_TIME.why * 1000 };
         playSound("not-ready", 1);
+        cueEv.testPress++; say(70, { kind: "teach" });
       }
       return;
     }
     releaseAllPointers();
     failShow = null;
+    cueEv.testStart++; say(71, { duringTest: true, holdsTest: true }); // before the test runs: the test waits for it
     for (const l of loads) world.destroyBody(l.body); // a finished site's load: the test lowers a new one
     loads = [];
     // the building first finishes settling (until every piece is still): what it settles into does not depend on
@@ -2586,18 +2620,19 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   // Wait, then check; go on to `next` or stop with the reason shown.
   function settleThenCheck(next) { test.after = next; nextPhase("settle"); }
   function checkpoint() {
+    const part = test.phase === "load" ? "load" : test.after === "load" ? "wind" : test.after === "pass" ? "quake" : null; // the part that just ran
     const c = runCheck();
     const badLoads = loads.filter((l) => !loadInPlace(l));
     if (test.broken.length) { // something broke: show where it was
       failShow = { cells: test.broken.slice(), loads: [], unfilled: false, until: null };
-      nextPhase("fail"); playSound("fail", 1);
+      nextPhase("fail"); playSound("fail", 1); onFail(part);
       return false;
     }
     if (c.fill < CHECK.fillAfter || badLoads.length) {
       failShow = badLoads.length ? { cells: [], loads: badLoads, unfilled: false, until: null } // only the load's place is red
         : { cells: failingCells(c, CHECK.fillAfter), loads: [], unfilled: true, until: null };
       nextPhase("fail");
-      playSound("fail", 1);
+      playSound("fail", 1); onFail(part);
       return false;
     }
     return true;
@@ -2607,6 +2642,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     test.t += dt;
     const lv = currentLevel, T = test.t;
     if (test.phase === "supports") {
+      if (cueHoldsTest()) return; // line 71 plays before the test runs
       if (test.toPull.length) {
         if (T >= 0.25) {
           const p = test.toPull.shift();
@@ -2616,8 +2652,8 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       } else settleThenCheck("wind");
     } else if (test.phase === "settle") {
       if (T >= PHASE_TIME.settle && checkpoint()) {
-        if (test.after === "pass") { nextPhase("pass"); celebrate(); playSound("cheer", 1); }
-        else nextPhase(test.after);
+        if (test.after === "pass") { nextPhase("pass"); celebrate(); playSound("cheer", 1); onWin(lv); }
+        else enterPart(test.after);
       }
     } else if (test.phase === "wind") {
       // from the left, a one-second lull, then from the right
@@ -2649,7 +2685,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
         }
       }
       if (all && test.loop) { test.loop.stop(0.4); test.loop = null; }
-      if (all && T >= PHASE_TIME.loadSettle && checkpoint()) nextPhase("quake");
+      if (all && T >= PHASE_TIME.loadSettle && checkpoint()) enterPart("quake");
     } else if (test.phase === "quake") {
       const D = PHASE_TIME.quake, env = Math.sin((Math.PI * Math.min(T, D)) / D);
       groundBody.setLinearVelocity(planck.Vec2(TEST_QUAKE[lv] * env * Math.sin(2 * Math.PI * QUAKE_HZ * T), 0));
@@ -2658,7 +2694,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     } else if (test.phase === "pass") {
       if (T >= PHASE_TIME.pass) { saveMonument(); finishTest(true); } // stays on the building; the map button goes back (owner 14 Nov)
     } else if (test.phase === "fail") {
-      if (T >= PHASE_TIME.fail) restoreSnapshot();
+      if (T >= PHASE_TIME.fail && !cueHoldsTest()) restoreSnapshot(); // the red place stays while its first-time lines play
     }
   }
 
@@ -3193,7 +3229,8 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     return { x: size * 1.15, y: cssHeight - size * 0.95, size }; // far enough in for its label
   }
   function restartAll() {
-    progress.done = {};
+    progress.done = {}; cueReset(); // the cue memory is part of the progress
+
     try { localStorage.removeItem(SAVE_KEY); } catch (err) { /* ignore */ }
     allOpen = false; cornerHold = null;
     if (currentLevel != null) { releaseAllPointers(); clearAllPieces(); fillPile([]); freshWorld(); currentLevel = null; grid = null; check = null; failShow = null; }
@@ -3241,7 +3278,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     const fb = freePlayButton();
     if (Math.hypot(e.clientX - fb.x, e.clientY - fb.y) <= fb.size / 2) { startFree(); return; }
     const rb = restartButton();
-    if (Math.hypot(e.clientX - rb.x, e.clientY - rb.y) <= rb.size / 2) { restartAll(); return; }
+    if (Math.hypot(e.clientX - rb.x, e.clientY - rb.y) <= rb.size / 2) { restartPress(); return; }
     if (e.clientX < 90 && e.clientY < 90) { cornerHold = { id: e.pointerId, t: performance.now() }; return; }
     const v = mapView();
     let best = -1, bestD = Infinity; // nearest marker wins where big ones overlap
@@ -3250,7 +3287,404 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       const i = LEVELS.findIndex((L) => L.key === site.key);
       if (d <= m.r * 1.15 && d < bestD && (levelOpen(i) || progress.done[site.key])) { best = i; bestD = d; }
     }
-    if (best >= 0) startLevel(best);
+    if (best >= 0) { startLevel(best); onEnterSite(best); return; }
+    for (const site of SITES) { // a locked site: line 13, and the site to build next glows
+      const m = siteMarker(v, site);
+      if (Math.hypot(e.clientX - m.x, e.clientY - m.y) <= m.r * 1.15) { lockedTap(); return; }
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // SECTION: CUES -- voice lines (text boxes until recorded), glows, the ghost hand, the first-site teaching, demos (cues.md)
+  // ---------------------------------------------------------------------
+  // The cue model (games/tower-builder/cues.md, sections 1-5 and 9), three parts:
+  // 1. One voice channel. Lines wait in one queue and play one at a time, in order; a line plays while its text box is up
+  //    (ESC takes it down) or while its recording plays. Background lines are skipped when anything is playing or waiting;
+  //    a flavour line fired at the same moment as a teaching line is dropped; during a test only the lines marked for it
+  //    start. A blocking line freezes the game while it plays (a pause also ends at a tap).
+  // 2. What a line shows while it plays: glows and the ghost hand. A line that waits for an action keeps them (the hand
+  //    repeating every GHOST_REPEAT s) until the child does it; doing it also takes the line down.
+  // 3. One saved record (progress.cues): first times ever and per site, each group's recent lines, demos played, the
+  //    first site's teaching step. The restart clears it with the rest of the progress.
+  const VOICE_TEXT = {"1": "Καλώς ήρθες, αρχιτέκτονα, στην Αίγυπτο, γύρω στο 3000 π.Χ. Ως τώρα οι νεκροί θάβονταν σε λάκκους στην άμμο. Οι νέοι άρχοντες όμως θέλουν τάφους αντάξιούς τους: μαστάμπες, πλατιούς τάφους σαν πάγκους. Για πρώτη φορά θα χτίσεις με πλίνθους, τούβλα από λάσπη του Νείλου στεγνωμένα στον ήλιο. Η ιστορία σου αρχίζει εδώ. Χτίσε το!", "2": "Καλώς ήρθες ξανά, αρχιτέκτονα, στη Σακκάρα, το ιερό νεκροταφείο της Μέμφιδας, γύρω στο 2650 π.Χ. Οι μαστάμπες σου στέκονται περήφανες, μα ο φαραώ Ζοζέρ θέλει τάφο που να αγγίζει τον ουρανό. Οραματίζεται μαστάμπες τη μία πάνω στην άλλη, ως τους θεούς. Οι πλίνθοι όμως δεν αντέχουν τόσο βάρος. Για πρώτη φορά θα χτίσεις και με πέτρα, η οποία αντέχει πολύ βάρος πάνω της. Εμπρός!", "3": "Καλώς ήρθες, αρχιτέκτονα, στην πόλη Ουρ. Είμαστε γύρω στο 2100 π.Χ., στη Μεσοποταμία, τη χώρα ανάμεσα στον Τίγρη και τον Ευφράτη. Όπως ο Ζοζέρ, κι ο βασιλιάς Ουρ-Νάμμου θέλει κάτι θεόρατο. Το δικό του όμως δεν είναι τάφος. Είναι σκάλα για τους θεούς, με ναό στην κορυφή για τον Νάννα, τον θεό της Σελήνης. Η πέτρα εδώ σπανίζει, γι' αυτό κράτησέ τη για τη βάση. Από πάνω θα βάλεις πλίνθους, και για πρώτη φορά θα στρώσεις ανάμεσά τους ξύλινες σανίδες. Η σανίδα απλώνει το βάρος σε πολλές πλίνθους από κάτω, κι έτσι δεν θρυμματίζονται. Χτίσε το!", "4": "Καλώς ήρθες, αρχιτέκτονα, στις Μυκήνες, γύρω στο 1250 π.Χ., στην εποχή των ηρώων που θα τραγουδήσει ο Όμηρος. Στην Ουρ η πέτρα ήταν σπάνια. Εδώ, στα βουνά της Ελλάδας, υπάρχει παντού. Ο βασιλιάς Αγαμέμνονας ζώνει την ακρόπολη με τείχη τόσο γιγάντια, που θα λένε πως τα σήκωσαν οι Κύκλωπες. Για πρώτη φορά θα απλώσεις ένα πέτρινο ανώφλι πάνω σε δύο όρθιους λίθους. Από πάνω θα βάλεις το τρίγωνο με τα δύο λιοντάρια. Χτίσε το!", "5": "Καλώς ήρθες ξανά στην Αίγυπτο, αρχιτέκτονα, στη Θήβα, γύρω στο 1290 π.Χ. Την ίδια εποχή που οι Μυκηναίοι υψώνουν την πύλη τους, εδώ βασιλεύει ο φαραώ Σέτι ο Πρώτος, κι ύστερα ο γιος του, ο Ραμσής ο Μέγας. Θέλουν για τον θεό Άμμωνα ένα κτίριο με πολλούς κίονες, ένα πέτρινο δάσος. Στις Μυκήνες δύο λίθοι κράτησαν ένα ανώφλι. Εδώ θα στήσεις κίονες και θα απλώσεις από τον έναν στον άλλον πέτρινα δοκάρια. Χτίσε το!", "6": "Καλώς ήρθες, αρχιτέκτονα, στη Βαβυλώνα, γύρω στο 575 π.Χ., μια από τις λαμπρότερες πόλεις του κόσμου, στις όχθες του Ευφράτη. Ο βασιλιάς Ναβουχοδονόσορ θέλει μια πύλη για την Ιστάρ, τη θεά της πόλης. Τα δοκάρια του Καρνάκ όμως γεφυρώνουν μόνο μικρά ανοίγματα. Για μια μεγάλη πύλη χρειάζεσαι κάτι καινούργιο. Για πρώτη φορά θα χτίσεις καμάρα, πάνω σε ξύλινο καλούπι που θα βγάλεις μόλις σταθεί. Μετά από σένα, οι τεχνίτες θα τη ντύσουν με γαλάζια γυαλιστερά τούβλα, με δράκους και ταύρους. Χτίσε το!", "7": "Καλώς ήρθες στην Αθήνα, αρχιτέκτονα, το 447 π.Χ. Οι Πέρσες, που κυρίευσαν τη Βαβυλώνα, έφτασαν ως εδώ και έκαψαν τους ναούς της Ακρόπολης. Νικήθηκαν όμως, κι η Αθήνα ζει τώρα τον χρυσό της αιώνα. Ο Περικλής θέλει στη θέση τους τον ωραιότερο ναό του κόσμου, για τη θεά Αθηνά. Τον σχεδιάζουν ο Ικτίνος και ο Καλλικράτης, με μάρμαρο της Πεντέλης. Για πρώτη φορά θα υψώσεις κίονες σπόνδυλο τον σπόνδυλο, με κιονόκρανα και αέτωμα. Χτίσε το!", "8": "Καλώς ήρθες, αρχιτέκτονα, στην Αλικαρνασσό, στην απέναντι ακτή του Αιγαίου, γύρω στο 350 π.Χ. Εδώ κυβερνά ο Μαύσωλος. Δεν είναι Έλληνας, μα αγαπά ό,τι είναι ελληνικό. Για τον τάφο του φέρνει τους καλύτερους Έλληνες γλύπτες. Ελληνικοί κίονες σαν του Παρθενώνα θα σηκώσουν μια πυραμίδα με σκαλιά. Από το όνομά του, κάθε μεγάλος τάφος θα λέγεται μαυσωλείο. Για πρώτη φορά θα απλώσεις δοκάρια στον αέρα, πάνω σε ξύλινους στύλους, ώσπου να τα πατήσει η στέγη. Χτίσε το!", "9": "Καλώς ήρθες, αρχιτέκτονα, στην Αλεξάνδρεια, γύρω στο 280 π.Χ. Ο Μέγας Αλέξανδρος νίκησε τους Πέρσες και ίδρυσε στην Αίγυπτο αυτή την πόλη με το όνομά του. Όταν πέθανε, ο στρατηγός του, ο Πτολεμαίος, έγινε βασιλιάς της Αιγύπτου. Τώρα οι Πτολεμαίοι θέλουν στο νησάκι Φάρος έναν πύργο τόσο ψηλό, που η φωτιά του θα οδηγεί τα καράβια μέσα στη νύχτα. Από αυτό το νησί κάθε φάρος θα πάρει το όνομά του. Για πρώτη φορά θα χτίσεις ψηλά και κούφια, με δύο τοίχους δεμένους με ξύλινα δοκάρια. Χτίσε το!", "10": "Καλώς ήρθες, αρχιτέκτονα, στην Κωνσταντινούπολη, τη νέα πρωτεύουσα της Ρωμαϊκής Αυτοκρατορίας. Ο Μέγας Κωνσταντίνος την ίδρυσε, εδώ στον Βόσπορο. Η καινούργια πόλη όμως διψά, κι ο αυτοκράτορας Ουάλης θέλει να της φέρει νερό πάνω από την κοιλάδα. Οι Ρωμαίοι είναι μάστορες της καμάρας που γνώρισες στη Βαβυλώνα. Τώρα θα στήσεις δύο σειρές από καμάρες, τη μία πάνω στην άλλη. Έχεις όμως μόνο ένα καλούπι για τις καμάρες. Γι' αυτό, από κάθε καμάρα που τελειώνεις, βγάλε το καλούπι για να το ξαναχρησιμοποιήσεις. Εμπρός! Υδροδότησε την πόλη!", "11": "Καλώς ήρθες στον αρχαίο κόσμο, αρχιτέκτονα! Φαραώ, βασιλιάδες και αυτοκράτορες περιμένουν να τους χτίσεις θαύματα. Πάμε!", "12": "Καλώς ήρθες ξανά, αρχιτέκτονα! Τα έργα σου σε περιμένουν.", "13": "Αυτός ο τόπος σε περιμένει. Πρώτα χτίσε τον προηγούμενο!", "14": "Ο άρχοντας θα αναπαυθεί σε τάφο αντάξιό του. Μπράβο, αρχιτέκτονα!", "15": "Ο Ζοζέρ θα ανεβαίνει στον ουρανό από τα σκαλιά σου!", "16": "Ο Νάννα θα κατεβαίνει από τη Σελήνη στη σκάλα σου!", "17": "Τα λιοντάρια φυλάνε πια τις Μυκήνες. Μπράβο, αρχιτέκτονα!", "18": "Το πέτρινο δάσος του Άμμωνα στέκει περήφανο!", "19": "Η Ιστάρ έχει την πύλη της, κι η Βαβυλώνα λάμπει!", "20": "Η Αθηνά έχει τον ωραιότερο ναό του κόσμου. Μπράβο, αρχιτέκτονα!", "21": "Το όνομα του Μαύσωλου θα ζει για πάντα!", "22": "Η φωτιά του Φάρου θα οδηγεί τα καράβια μέσα στη νύχτα!", "23": "Το νερό τρέχει στην Κωνσταντινούπολη! Η πόλη δεν διψά πια.", "24": "Η μαστάμπα σου στέκει δίπλα στον Νείλο. Ο πρώτος σου τάφος!", "25": "Η πυραμίδα σου υψώνεται πάνω από τη Σακκάρα. Τη βλέπουν από μακριά.", "26": "Στην κορυφή της ζιγκουράτ σου οι ιερείς ανάβουν φωτιές για τον Νάννα.", "27": "Οι πολεμιστές των Μυκηνών περνούν περήφανοι κάτω από την πύλη σου.", "28": "Οι ιερείς περπατούν στη σκιά του πέτρινου δάσους σου.", "29": "Οι πομπές της Βαβυλώνας περνούν κάτω από τη γαλάζια καμάρα σου.", "30": "Ο ναός σου λάμπει πάνω στην Ακρόπολη. Όλη η Αθήνα τον κοιτάζει.", "31": "Το μαυσωλείο σου φαίνεται από τη θάλασσα. Οι ναύτες το δείχνουν ο ένας στον άλλον.", "32": "Απόψε η φωτιά του Φάρου σου θα φέρει τα καράβια σπίτι τους.", "33": "Το νερό κυλά πάνω από τις καμάρες σου. Η πόλη ξεδιψά.", "34": "Ένας νέος βασιλιάς σε καλεί!", "35": "Η φήμη σου ταξίδεψε μακριά. Σε ζητούν σε νέο τόπο!", "36": "Κάποιος ψάχνει τον καλύτερο αρχιτέκτονα του κόσμου. Εσένα!", "37": "Ένα καινούργιο έργο σε περιμένει. Δες πού!", "38": "Από τον Νείλο ως τον Βόσπορο, ωραΐσες την οικουμένη με τα έργα σου!", "39": "Το έργο σου χάλασε! Έλα να το φτιάξεις.", "40": "Οι άνθρωποι του Νείλου έλεγαν πως ο θάνατος είναι δρόμος προς τη Δύση, εκεί όπου πεθαίνει κάθε βράδυ ο ήλιος. Γι' αυτό έχτιζαν στους νεκρούς τους σπίτια για την αιωνιότητα.", "41": "Όταν ο Σείριος ξαναφαινόταν πριν από την αυγή, ο Νείλος φούσκωνε και σκέπαζε τη γη. Κι όταν αποτραβιόταν, άφηνε τη μαύρη λάσπη, το δώρο του, από την οποία πλάστηκαν οι πλίνθοι σου.", "42": "Πίστευαν πως όσο λέγεται το όνομα ενός νεκρού, εκείνος δεν χάνεται ολότελα. Κι ίσως είχαν δίκιο, γιατί κάποια ονόματα τα λέμε ακόμα, πέντε χιλιάδες χρόνια μετά.", "43": "Πριν από τον Ζοζέρ, κανείς δεν είχε υψώσει βουνό από πέτρα κάτω από τον ουρανό. Κι όσοι έχτισαν ύστερα, όλοι πάτησαν στα σκαλιά του.", "44": "Ο Ιμχοτέπ ήταν χτίστης, γιατρός και σοφός, κι η φήμη του ξεπέρασε τον θάνατο. Αιώνες αργότερα οι άνθρωποι τον προσκυνούσαν σαν θεό.", "45": "Δεκατέσσερις πύλες είχε το τείχος του, μα μόνο μία άνοιγε για τους ζωντανούς. Από τις άλλες περνούσαν μόνο τα πνεύματα.", "46": "Η γη ανάμεσα στα δύο ποτάμια ήταν επίπεδη ως την άκρη του ουρανού. Γι' αυτό οι Σουμέριοι έχτισαν μόνοι τους ένα βουνό, για να φτάσουν τους θεούς.", "47": "Εδώ οι άνθρωποι έμαθαν, από τους πρώτους στον κόσμο, να γράφουν σε πηλό με την άκρη ενός καλαμιού. Οι πινακίδες κοιμήθηκαν στη γη χιλιάδες χρόνια, ώσπου ξύπνησαν και μίλησαν ξανά.", "48": "Η Ουρ έγινε σκόνη, κι ο Ευφράτης την εγκατέλειψε κι άλλαξε δρόμο. Μα η ζιγκουράτ στέκει ακόμα στην έρημο, και θυμάται.", "49": "Όταν οι Έλληνες των κατοπινών χρόνων είδαν αυτά τα τείχη, δεν πίστεψαν πως τα σήκωσαν άνθρωποι. Είπαν πως τα έχτισαν οι Κύκλωπες, οι μονόφθαλμοι γίγαντες, κι έτσι τα λέμε ως σήμερα κυκλώπεια.", "50": "Από εδώ, λέει ο θρύλος, ξεκίνησε ο βασιλιάς Αγαμέμνονας για την Τροία. Δέκα χρόνια κράτησε ο πόλεμος, κι όταν γύρισε, η πύλη τον περίμενε ακόμα.", "51": "Τα λιοντάρια της πύλης είναι το παλαιότερο μεγάλο γλυπτό της Ευρώπης. Τα κεφάλια τους χάθηκαν μέσα στους αιώνες, μα στέκονται ακόμα στη θέση τους και φυλάνε μια πόλη που δεν υπάρχει πια.", "52": "Πάνω από δύο χιλιάδες χρόνια έχτιζαν οι φαραώ στο Καρνάκ, κι ο καθένας πρόσθετε κάτι δικό του. Κανείς δεν το τελείωσε, γιατί ένας τέτοιος ναός δεν τελειώνει ποτέ.", "53": "Οι κίονες έχουν το σχήμα του πάπυρου, του καλαμιού του Νείλου. Οι Αιγύπτιοι πίστευαν πως στην αρχή του κόσμου υπήρχαν μόνο νερά και καλαμιές, κι ο ναός ήταν εκείνος ο πρώτος βάλτος, γινωμένος πέτρα.", "54": "Κάποτε οι κίονες ήταν βαμμένοι με λαμπερά χρώματα. Ο ήλιος κι οι αιώνες τα έσβησαν ένα ένα, μα οι σκαλισμένες μορφές θυμούνται ακόμα το σχήμα τους.", "55": "Γαλάζια σαν τον ουρανό ήταν η πύλη, με ταύρους και δράκους να βαδίζουν πάνω στα γυαλιστερά τούβλα. Όποιος περνούσε από κάτω ήξερε πως έμπαινε σε μια από τις μεγαλύτερες πόλεις του κόσμου.", "56": "Λένε πως στη Βαβυλώνα υπήρχαν κήποι κρεμασμένοι στον αέρα, ένα από τα επτά θαύματα του κόσμου. Μα κανείς ως σήμερα δεν βρήκε τα ίχνη τους, κι ίσως κοιμούνται ακόμα κάτω από την άμμο.", "57": "Οι σοφοί της Βαβυλώνας κοίταζαν τον ουρανό κάθε νύχτα και κατέγραφαν την πορεία των άστρων. Με τα χρόνια έμαθαν να προλέγουν πότε η Σελήνη θα σκοτεινιάσει.", "58": "Λίγες γραμμές στον Παρθενώνα είναι αληθινά ίσιες. Οι χτίστες του ήξεραν πως το μάτι ξεγελιέται, κι έτσι τον λύγισαν απαλά, ώστε να φαίνεται τέλειος σε όποιον τον κοιτάζει.", "59": "Μέσα στο μισόφωτο του ναού στεκόταν η Αθηνά του Φειδία, ψηλή σαν δέντρο, ντυμένη χρυσάφι κι ελεφαντόδοντο. Χάθηκε πριν από πολλούς αιώνες, κι από τη λάμψη της έμειναν μόνο ιστορίες.", "60": "Στην Αθήνα, για πρώτη φορά, οι πολίτες ψήφιζαν οι ίδιοι για τους νόμους τους. Κι ο ναός της θεάς δεν χτίστηκε με διαταγή βασιλιά, αλλά με απόφαση του λαού.", "61": "Ο Μαύσωλος πέθανε πριν τελειώσει ο τάφος του, κι ύστερα πέθανε κι η Αρτεμισία, η γυναίκα του. Μα οι γλύπτες δεν άφησαν το έργο· έμειναν και το τελείωσαν, για τη δόξα της τέχνης τους.", "62": "Ήταν ένα από τα επτά θαύματα του κόσμου και στάθηκε πάνω από χίλια πεντακόσια χρόνια. Ώσπου ήρθαν οι σεισμοί και το γκρέμισαν.", "63": "Ιππότες από μακρινή χώρα μάζεψαν τις πέτρες του κι έχτισαν ένα κάστρο, που στέκει ως σήμερα. Έτσι οι πέτρες του θαύματος δεν χάθηκαν· απλώς άλλαξαν όνομα.", "64": "Τη νύχτα, στην κορυφή του πύργου, έκαιγε μια φωτιά που φαινόταν από μακριά στο πέλαγος. Κι οι ναύτες, βλέποντάς την, ήξεραν πως ο δρόμος για το σπίτι ήταν ανοιχτός.", "65": "Λένε πως ο χτίστης του, ο Σώστρατος, χάραξε το όνομά του στην πέτρα, το σκέπασε με σοβά κι από πάνω έγραψε το όνομα του βασιλιά. Τα χρόνια έφαγαν τον σοβά, κι έμεινε μόνο το όνομα του αρχιτέκτονα.", "66": "Πάνω από χίλια πεντακόσια χρόνια φύλαγε το λιμάνι, ώσπου οι σεισμοί τον έριξαν στη θάλασσα. Οι πέτρες του κείτονται ακόμα στον βυθό, κι οι δύτες κατεβαίνουν να τις βρουν.", "67": "Από μακρινά βουνά ερχόταν το νερό, μέσα από αυλάκια που έτρεχαν εκατοντάδες χιλιόμετρα. Κι όλο τον δρόμο κατέβαινε τόσο απαλά, που κυλούσε μόνο του, χωρίς καμία μηχανή.", "68": "Αυτοκράτορες ήρθαν κι έφυγαν, κι ύστερα σουλτάνοι, κι η πόλη άλλαξε όνομα. Μα το υδραγωγείο έφερνε νερό σε όλους, για πάνω από χίλια πεντακόσια χρόνια.", "69": "Στέκει ακόμα σήμερα, κι από κάτω του περνούν κάθε μέρα άνθρωποι βιαστικοί. Λίγοι σηκώνουν τα μάτια, μα οι καμάρες περιμένουν, όπως περιμένουν εδώ και χίλια εξακόσια χρόνια.", "70": "Λείπουν ακόμα κομμάτια από το σχέδιο.", "71": "Ας δούμε αν θα αντέξει!", "72": "Η λάσπη θρυμματίστηκε κάτω από το βάρος.", "73": "Το ξύλο έσπασε πάνω από το κενό.", "74": "Ο άνεμος το γκρέμισε. Ξαναδοκίμασε!", "75": "Δεν άντεξε το βάρος. Ξαναδοκίμασε!", "76": "Ο σεισμός το γκρέμισε. Ξαναδοκίμασε!", "77": "Πού πας, αρχιτέκτονα; Κομμάτια και σπαράγματα θα σε περιμένουν!", "78": "Πλίνθοι από λάσπη: ελαφριοί, μα δεν αντέχουν μεγάλο βάρος.", "79": "Η πέτρα είναι βαριά, μα αιώνια.", "80": "Το ξύλο γεφυρώνει κενά, μα σπάει αν το φορτώσεις πολύ.", "81": "Κοίτα! Άνθρωποι φτάνουν από μακριά να θαυμάσουν τα έργα σου!", "82": "Ένα καλό θεμέλιο δεν το βλέπει κανείς. Χωρίς αυτό όμως, τίποτα δεν στέκει.", "83": "Α! Τι ωραία βαρκούλα! Θα 'θελα να 'χα μια βαρκούλα.", "84": "Τι ωραία που είναι εδώ…", "85": "Η γνώση… το πιο πολύτιμο στο σύμπαν. Την είδαν λίγοι, κι ελάχιστοι τη μοιράστηκαν.", "87": "Λοιπόν, εγώ είμαι ο γκρεμιστής, γιατί είμαι εγώ κι ο χτίστης!", "88": "Κοίτα τον ουρανό, αρχιτέκτονα. Όσο ψηλά κι αν χτίσεις, εκείνος θα είναι πάντα λίγο ψηλότερα.", "89": "Τα κτίρια ζουν περισσότερο από αυτούς που τα χτίζουν. Τα έργα σου θα τα δουν παιδιά που δεν έχουν γεννηθεί ακόμα.", "90": "Ποιο έργο σου θα στέκει σε χίλια χρόνια; Οι καλοί αρχιτέκτονες το σκέφτονται πάντα.", "91": "Αυτό το κουμπί σβήνει όλη σου την πρόοδο, κι αρχίζεις το χτίσιμο από την αρχή. Αν αυτό θέλεις, ξαναπάτα το.", "92": "Πάτα εδώ για να ξεκινήσεις!", "93": "Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.", "94": "Αν πατήσεις ένα κομμάτι τρεις φορές γρήγορα, γυρίζει πίσω στον σωρό. Δοκίμασε!", "95": "Πάτα το φτυάρι!", "96": "Το φτυάρι μαζεύει όλα τα κομμάτια και τα γυρίζει στον σωρό. Έτσι ξαναρχίζεις από την αρχή.", "97": "Βάλε κάθε τούβλο πάνω σε δύο από κάτω, όχι πάνω σε ένα. Έτσι ο τοίχος δένει.", "98": "Τώρα χτίσε! Γέμισε όλο το σχέδιο.", "99": "Αυτό είναι το κουμπί της δοκιμής. Όσο είναι κόκκινο, το κτίριο δεν είναι έτοιμο. Όταν γεμίσεις το σχέδιο, θα γίνει πράσινο.", "100": "Το κουμπί πρασίνισε! Πάτα το να δεις αν το κτίριο αντέχει.", "101": "Πρώτα έρχεται ο άνεμος. Θα σπρώξει το κτίριο από τη μια μεριά κι από την άλλη.", "102": "Τώρα θα κατέβει ένα βάρος πάνω στο κτίριο. Θα το αντέξει;", "103": "Και τώρα σεισμός! Η γη θα τρέμει.", "104": "Άντεξε τον άνεμο, το βάρος και τον σεισμό. Το έργο σου στέκει!", "105": "Το κόκκινο δείχνει πού χάλασε. Φτιάξ' το εκεί και ξαναδοκίμασε!", "106": "Πάτα εδώ για να γυρίσεις στον χάρτη.", "107": "Τελείωσαν τα κομμάτια. Με το φτυάρι τα μαζεύεις όλα και ξαναρχίζεις.", "108": "Σε αυτά τα σημεία μπαίνει ξύλο.", "109": "Αυτό το άνοιγμα μένει άδειο. Μην το κλείσεις!", "110": "Αν βάλεις πλίνθους κάτω, θρυμματίζονται κάτω από το βάρος.", "111": "Η πέτρα είναι γερή: βάλ' την κάτω, εκεί που πέφτει όλο το βάρος. Οι πλίνθοι πάνε ψηλά.", "112": "Με δύο κοντά δοκάρια, όλο το βάρος πέφτει στη μέση, και τα τούβλα θρυμματίζονται.", "113": "Η μακριά σανίδα απλώνει το βάρος σε όλα τα τούβλα από κάτω, κι έτσι αντέχουν.", "114": "Πάνω σε κάθε κίονα βάζεις δύο μικρές πέτρες. Το δοκάρι πατάει με κάθε άκρη του πάνω τους.", "115": "Πρώτα στήνεις το ξύλινο καλούπι.", "116": "Πάνω του βάζεις τις σφήνες, από τις δύο μεριές.", "117": "Η τελευταία σφήνα μπαίνει στην κορυφή και κλειδώνει την καμάρα.", "118": "Τώρα βγάζεις το καλούπι. Η καμάρα στέκει μόνη της!", "119": "Η καμάρα στέκει. Τώρα βγάλε το ξύλινο καλούπι!", "120": "Αν βγάλεις τον στύλο πριν πατήσει η στέγη, το δοκάρι πέφτει.", "121": "Στήριξε πρώτα το δοκάρι σε έναν ξύλινο στύλο. Όταν πατήσει η στέγη από πάνω, βγάζεις τον στύλο.", "122": "Με τρία γρήγορα πατήματα, το καλούπι γυρίζει στον σωρό, έτοιμο για την επόμενη καμάρα."};
+  const VOICE_FILES = {}; // line number -> recording; build.py fills it from src/sounds/voice/NN.mp3
+  const GHOST_REPEAT = 8, IDLE_TIME = 60, DAMAGE_EVERY = 60, DEMO_SPEED = 12, DEMO_PAUSE = 0.35; // s, s, s, m/s (the ghost hand carrying: about a second across the screen), s
+  const voice = { cur: null, queue: [] };
+  const cueEv = { taps3: 0, broom: 0, testPress: 0, testStart: 0 }; // what the child did, counted
+  let shown = [], whens = [], flashes = [], visit = {}, cueFrame = 0, lastInput = performance.now(), damageT = 0, formCheckT = 0, cueAudio = null;
+  const cueBox = document.createElement("div");
+  cueBox.style.cssText = "position:fixed;left:50%;bottom:6%;transform:translateX(-50%);max-width:70%;background:#fff;color:#222;font:22px/1.35 sans-serif;padding:14px 20px;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;display:none;z-index:10";
+  document.body.appendChild(cueBox);
+  window.addEventListener("keydown", (e) => { lastInput = performance.now(); if (e.key === "Escape" && voice.cur) endLine(voice.cur); });
+
+  // part 3: the saved record
+  function cueMem() { return progress.cues || (progress.cues = { ever: {}, site: {}, recent: {}, seq: 0 }); }
+  function cueSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (err) { /* ignore */ } }
+  function firstEver(k) { const m = cueMem(); if (m.ever[k]) return false; m.ever[k] = 1; cueSave(); return true; }
+  function firstAtSite(key, k) { const m = cueMem(), s = m.site[key] || (m.site[key] = {}); if (s[k]) return false; s[k] = 1; cueSave(); return true; }
+  // a group: random, never one of the last n played, n = half the group rounded down (`allowed`: the ones that fit now)
+  function pickFrom(name, lines, allowed = lines) {
+    const m = cueMem(), rec = m.recent[name] || (m.recent[name] = []), n = Math.floor(lines.length / 2);
+    const last = n ? rec.slice(-n) : [], ok = allowed.filter((l) => !last.includes(l)), pool = ok.length ? ok : allowed;
+    if (!pool.length) return null;
+    const l = pool[Math.floor(Math.random() * pool.length)];
+    rec.push(l); if (rec.length > lines.length) rec.shift(); cueSave();
+    return l;
+  }
+  function cueReset() {
+    progress.cues = null; voice.queue.length = 0; if (voice.cur) endLine(voice.cur);
+    shown = []; whens = []; flashes = []; visit = {};
+  }
+
+  // part 1: the voice channel
+  // o: kind "teach" | "queued" | "bg"; block (freezes the game); pause (a tap ends the freeze); duringTest (may start during a
+  // test); holdsTest (the test waits while it is queued or playing); demo; after (s before it may start); glow; ghost; wait; then
+  function say(n, o = {}) {
+    const c = Object.assign({ n, kind: "queued", frame: cueFrame, mode, at: performance.now() + (o.after || 0) * 1000 }, o);
+    const teachNow = voice.queue.some((q) => q.frame === cueFrame && q.kind === "teach");
+    if (!(VOICE_FILES[n] || VOICE_TEXT[n]) || (c.kind === "bg" && (voice.cur || voice.queue.length)) || (c.kind !== "teach" && teachNow)) {
+      if (c.then) c.then();
+      return null;
+    }
+    if (c.kind === "teach") voice.queue = voice.queue.filter((q) => q.frame !== cueFrame || q.kind === "teach");
+    voice.queue.push(c);
+    return c;
+  }
+  // a glow or ghost hand with no line (ends after `until` s, or when `wait` is done)
+  function guide(o) {
+    const t0 = performance.now(), c = Object.assign({ n: null, ended: true, mode, t0 }, o);
+    if (o.until) c.wait = () => performance.now() > t0 + o.until * 1000;
+    shown.push(c);
+  }
+  function cueWhen(cond, fire) { whens.push({ cond, fire, mode }); }
+  function startLine(c) {
+    voice.cur = c; c.t0 = performance.now(); shown.push(c);
+    const show = () => { if (voice.cur === c) { cueBox.textContent = VOICE_TEXT[c.n] || ""; cueBox.style.display = "block"; } };
+    if (VOICE_FILES[c.n]) {
+      cueAudio = new Audio(VOICE_FILES[c.n]);
+      cueAudio.onended = () => endLine(c);
+      cueAudio.play().catch(show);
+    } else show();
+  }
+  function endLine(c) {
+    if (voice.cur !== c) return;
+    voice.cur = null; c.ended = true; cueBox.style.display = "none";
+    if (cueAudio) { cueAudio.onended = null; cueAudio.pause(); cueAudio = null; }
+  }
+  function finish(c) { if (c.fin) return; c.fin = true; if (c.then) c.then(); }
+  const visual = (c) => !!(c.glow || c.ghost || c.wait || c.block);
+  const waitDone = (c) => !c.wait || c.wait();
+  function cueFrozen() { const c = voice.cur; return !!(c && c.block && !c.tapped); }
+  function cueHoldsTest() { return !!((voice.cur && voice.cur.holdsTest) || voice.queue.some((q) => q.holdsTest)); }
+  function cueSwallow() {
+    lastInput = performance.now();
+    const c = voice.cur;
+    if (c && c.block && !c.tapped) { if (c.pause) c.tapped = true; return true; }
+    return !!demo;
+  }
+  function cueTick(dt) {
+    cueFrame++;
+    const now = performance.now();
+    // done before its turn, or left behind on the other screen: it goes (a done one still leads on)
+    voice.queue = voice.queue.filter((c) => {
+      if (c.wait && c.wait()) { finish(c); return false; }
+      return !(c.mode !== mode && visual(c));
+    });
+    if (voice.cur && ((voice.cur.wait && voice.cur.wait()) || (voice.cur.mode !== mode && visual(voice.cur)))) endLine(voice.cur);
+    if (!voice.cur) { // the next one in order; lines held back only by a test or a demo let later ones marked for it go first
+      for (const c of voice.queue) {
+        if (now < c.at) break;
+        if ((test && !c.duringTest) || (demo && demo.go && !c.demo)) continue;
+        voice.queue.splice(voice.queue.indexOf(c), 1); startLine(c); break;
+      }
+    }
+    shown = shown.filter((c) => {
+      if (c.mode !== mode && visual(c) && !(c.wait && c.wait())) { endLine(c); return false; }
+      if ((c.ended || (c.pause && c.tapped)) && waitDone(c)) { finish(c); return false; }
+      return true;
+    });
+    whens = whens.filter((w) => { if (w.mode !== mode) return false; if (w.cond()) { w.fire(); return false; } return true; });
+    flashes = flashes.filter((f) => now - f.t0 < 2000);
+    // idle: no input for IDLE_TIME s, not during a test (group 81-90; 81 only on the map while visitors walk to a site; 86 only recorded)
+    if (now - lastInput > IDLE_TIME * 1000 && !test && !demo) {
+      lastInput = now;
+      if (!voice.cur && !voice.queue.length) {
+        const all = [81, 82, 83, 84, 85, 86, 87, 88, 89, 90];
+        const ok = all.filter((n) => (n !== 81 || (mode === "map" && groups.some((g) => g.state === "walk"))) && (n !== 86 || VOICE_FILES[86]));
+        say(pickFrom("idle", all, ok), { kind: "bg" });
+      }
+    }
+    if (mode === "map") mapCues(dt);
+    else if (currentLevel != null && grid && !test && !auto && !demo) buildCues(dt);
+  }
+
+  // part 2: what lines show. A target is { btn }, { site }, { pile: body }, { piece, anyPiece }, { world, size }, { rings }, { fail }, { side }
+  function pieceExtent(defKey) {
+    const d = PIECE_DEFS[defKey];
+    if (d.r != null) return d.r;
+    if (d.hx != null) return Math.max(d.hx, d.hy);
+    return d.verts ? Math.max(...d.verts.map(([x, y]) => Math.hypot(x, y))) : 1;
+  }
+  const planPieces = () => pieces.filter((p) => !p.demo && !p.auto && !p.ghost && p.heldBy == null);
+  function targetGeom(t) {
+    if (t.btn) { if (mode !== "build") return null; const b = buttonLayout().find((q) => q.def.kind === t.btn); return b ? { x: b.x, y: b.y, r: b.size / 2 + 4 } : null; }
+    if (t.site) { if (mode !== "map") return null; const m = siteMarker(mapView(), SITES.find((q) => q.key === t.site)); return { x: m.x, y: m.y, r: m.r + 6 }; }
+    if (mode !== "build") return null;
+    if (t.pile) {
+      const b = pileBodies().includes(t.pile) ? t.pile : null;
+      if (!b || !pileBinRect) return null;
+      const q = b.getPosition();
+      return { x: pileBinRect.x + q.x * pileScale, y: pileBinRect.y + pileBinRect.h - q.y * pileScale, r: pieceExtent(b.pileItem.defKey) * pileScale + 6, item: b.pileItem, sc: pileScale, a: b.getAngle() };
+    }
+    if (t.piece || t.anyPiece) {
+      const p = t.piece && pieces.includes(t.piece) ? t.piece : t.anyPiece ? planPieces().slice(-1)[0] : null;
+      if (!p) return null;
+      const q = p.body.getPosition(), s = worldToScreen(q.x, q.y);
+      return { x: s.x, y: s.y, r: pieceExtent(p.defKey) * scale + 6, item: p, sc: scale, a: p.body.getAngle() };
+    }
+    if (t.world) { const s = worldToScreen(t.world.x, t.world.y); return { x: s.x, y: s.y, r: (t.size || 1) * scale + 6, sc: scale }; }
+    if (t.rings) return { path: screenPath(t.rings) };
+    if (t.fail) { // the red place of a failed test
+      if (!failShow) return null;
+      if (failShow.loads.length) { const q = failShow.loads[0].body.getPosition(), s = worldToScreen(q.x, q.y); return { x: s.x, y: s.y, r: 2 * scale }; }
+      if (!failShow.cells.length) return null;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const k of failShow.cells) { const x = (k % GX) * CELL, y = Math.floor(k / GX) * CELL; x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + CELL); y1 = Math.max(y1, y + CELL); }
+      return { path: screenPath([[[x0 - 0.2, y0 - 0.2], [x1 + 0.2, y0 - 0.2], [x1 + 0.2, y1 + 0.2], [x0 - 0.2, y1 + 0.2]]]) };
+    }
+    if (t.side) return { x: buildingWidthPx + sidebarWidthPx / 2, y: cssHeight * 0.6, r: 30 };
+    return null;
+  }
+  // the ghost hand acting out { tap: target, count } or { drag: target, to: target }, t seconds into it
+  function drawGhost(g, t) {
+    if (g.tap) {
+      const q = targetGeom(g.tap); if (!q) return;
+      const n = g.count || 1, k = Math.floor((t - 0.5) / 0.35), u = (t - 0.5) % 0.35;
+      if (t > 0.9 + n * 0.35) return;
+      SKIN.ghostHand(ctx, q.x + Math.max(0, 0.5 - t) * 80, q.y + Math.max(0, 0.5 - t) * 80, t >= 0.5 && k < n && u < 0.15, Math.min(1, t / 0.3) * 0.85);
+      return;
+    }
+    if (g.drag) {
+      const a = targetGeom(g.drag), b = targetGeom(g.to); if (!a || !b || t > 2.6) return;
+      const u = Math.max(0, Math.min(1, (t - 0.5) / 1.5)), e = u * u * (3 - 2 * u);
+      const x = a.x + (b.x - a.x) * e, y = a.y + (b.y - a.y) * e, held = t >= 0.4 && t < 2.1;
+      if (held && a.item) { ctx.save(); ctx.globalAlpha = 0.45; drawPieceShape(a.item.defKey, a.item.material, x, y, a.a || 0, a.sc + ((b.sc || a.sc) - a.sc) * e, 0, 7); ctx.restore(); }
+      SKIN.ghostHand(ctx, x, y, held, (t < 0.3 ? t / 0.3 : t > 2.1 ? Math.max(0, (2.6 - t) / 0.5) : 1) * 0.85);
+    }
+  }
+  function drawCues() {
+    const now = performance.now(), k = 0.5 + 0.5 * Math.sin(now / 160);
+    for (const c of shown) for (const t of c.glow || []) { const g = targetGeom(t); if (g) SKIN.glow(ctx, g, k); }
+    if (mode === "map" && flashes.length) {
+      const v = mapView();
+      for (const f of flashes) { const m = siteMarker(v, SITES.find((s) => s.key === f.key)); SKIN.ringFlash(ctx, m.x, m.y, m.r, (now - f.t0) / 2000); }
+    }
+    const c = [...shown].reverse().find((q) => q.ghost);
+    if (c) drawGhost(c.ghost, ((now - c.t0) / 1000) % (c.wait ? GHOST_REPEAT : 1e9));
+    if (demo && demo.hand && mode === "build") SKIN.ghostHand(ctx, demo.hand.x, demo.hand.y, !!demo.hand.pressed, 0.85);
+  }
+
+  // --- what fires the cues (cues.md sections 6 and 7)
+  function welcome() { // the map at start, and after the restart
+    if (Object.keys(progress.done).length || !firstEver("welcome")) { firstEver("welcome"); say(12); return; }
+    const open = SITES.find((s) => levelOpen(LEVELS.findIndex((L) => L.key === s.key)) && !progress.done[s.key]);
+    say(11, { then: () => { if (open && mode === "map") say(92, { kind: "teach", glow: [{ site: open.key }], ghost: { tap: { site: open.key } }, wait: () => mode === "build" }); } });
+  }
+  function nextSite() { return SITES.find((s) => levelOpen(LEVELS.findIndex((L) => L.key === s.key)) && !progress.done[s.key]); }
+  function lockedTap() { const s = nextSite(); say(13, { kind: "teach", glow: s ? [{ site: s.key }] : null }); }
+  function restartPress() { // the first press says what it does (91); pressing again while 91 plays erases everything
+    const c = voice.cur && voice.cur.n === 91 ? voice.cur : voice.queue.find((q) => q.n === 91);
+    if (!c) { say(91, { kind: "teach" }); return; }
+    restartAll(); welcome();
+  }
+  function mapCues(dt) {
+    const broken = SITES.filter((s) => progress.done[s.key] && progress.done[s.key].broken);
+    if (!broken.length) { damageT = 0; return; }
+    if (firstEver("damaged")) say(39, { kind: "teach", glow: [{ site: broken[0].key }], ghost: { tap: { site: broken[0].key } } });
+    if ((damageT += dt) >= DAMAGE_EVERY) { damageT = 0; for (const s of broken) flashes.push({ key: s.key, t0: performance.now() }); say(39, { kind: "bg" }); }
+  }
+  function onGoMap(i, leftTest) {
+    if (leftTest) say(77);
+    if (i == null) return;
+    const L = LEVELS[i], done = progress.done[L.key];
+    if (!done || done.broken || !firstAtSite(L.key, "mapwin")) return; // first return to the map after a win, once per site
+    const allDone = LEVELS.every((l) => progress.done[l.key]), next = LEVELS[i + 1];
+    const opened = !allDone && next && !progress.done[next.key] && levelOpen(i + 1);
+    const glow = opened && firstEver("newsite:" + next.key) ? [{ site: next.key }] : null;
+    const ghost = glow && firstEver("firstwinmap") ? { tap: { site: next.key } } : null; // the first site's step 12
+    say(24 + i, { glow, ghost });
+    if (allDone) say(38);
+    else if (opened) say(pickFrom("newsite", [34, 35, 36, 37]), { glow, ghost });
+  }
+  function onEnterSite(i) {
+    visit = {};
+    const key = LEVELS[i].key, done = progress.done[key];
+    for (const b of pileBodies()) if (firstEver("shape:" + b.pileItem.defKey)) guide({ glow: [{ pile: b }], until: 4 }); // a new shape glows once
+    if (done && !done.broken) { say(pickFrom("facts:" + key, [40 + 3 * i, 41 + 3 * i, 42 + 3 * i])); return; }
+    say(1 + i, { then: () => afterIntro(i) });
+  }
+  function afterIntro(i) {
+    if (mode !== "build" || currentLevel !== i) return;
+    const key = LEVELS[i].key, m = cueMem();
+    if (key === "mastaba" && m.seq < SEQ.length) { SEQ[m.seq](); return; }
+    if (DEMOS[key] && key !== "mastaba" && !(m.site[key] || {}).demo) { startDemo(key, () => planCues(i)); return; }
+    planCues(i);
+  }
+  function planCues(i) {
+    if (mode !== "build" || currentLevel !== i) return;
+    if (grid.wood.length && grid.L.woodRole === "courses" && firstEver("woodplaces")) say(108, { kind: "teach", glow: [{ rings: grid.wood }] });
+    if (grid.holes.length && firstEver("openings")) say(109, { kind: "teach", glow: [{ rings: grid.holes }] });
+  }
+  function buildCues(dt) {
+    if (!cueMem().ever.emptypile && pileBodies().length === 0 && pointers.size === 0 && check && !checkPasses(check) && firstEver("emptypile"))
+      say(107, { kind: "teach", glow: [{ btn: "broom" }] });
+    // everything ready except the wooden form still standing (first time ever): the hand shows taking it out
+    if (grid.L.woodRole === "support" && !cueMem().ever.formout && (formCheckT += dt) >= 0.5) {
+      formCheckT = 0;
+      const sup = supportPieces();
+      if (sup.length && pointers.size === 0 && piecesAtRest() && checkPasses(runCheck(sup)) && firstEver("formout"))
+        say(119, { kind: "teach", glow: sup.map((p) => ({ piece: p })), ghost: { drag: { piece: sup[0] }, to: { side: true } }, wait: () => !supportPieces().length });
+      check = runCheck();
+    }
+  }
+  function onPickup(material) {
+    if (demo) return;
+    const n = { mudbrick: 78, stone: 79, wood: 80 }[material];
+    if (n && firstEver("pick:" + material)) say(n, { kind: "teach" });
+  }
+  function onBreak(kind, p) { // the first crumble and snap ever: a pause with the broken piece glowing; then background, once a visit
+    if (p.demo || demo) return;
+    const q = p.body.getPosition(), n = kind === "crumble" ? 72 : 73;
+    if (firstEver(kind)) say(n, { kind: "teach", block: true, pause: true, glow: [{ world: { x: q.x, y: q.y }, size: pieceExtent(p.defKey) }] });
+    else if (!visit[kind]) { visit[kind] = 1; say(n, { kind: "bg" }); }
+  }
+  function enterPart(ph) { // the start of the wind, load and earthquake, the first time ever: the test pauses for its line
+    const n = { wind: 101, load: 102, quake: 103 }[ph];
+    if (!n || !firstEver("part:" + ph)) { nextPhase(ph); return; }
+    test.phase = "cue"; test.t = 0;
+    say(n, { kind: "teach", block: true, pause: true, duringTest: true, then: () => { if (test && test.phase === "cue") nextPhase(ph); } });
+  }
+  function onFail(part) {
+    const n = { wind: 74, load: 75, quake: 76 }[part], at = soundLength("fail");
+    if (!n) return;
+    if (firstEver("fail:" + part)) {
+      const o = { kind: "teach", duringTest: true, holdsTest: true, glow: [{ fail: true }] };
+      say(n, Object.assign({ after: at }, o)); say(105, o);
+    } else say(n, { duringTest: true, after: at });
+  }
+  function onWin(i) {
+    const first = firstEver("win");
+    say(14 + i, { after: soundLength("cheer"), then: () => {
+      if (!first) return;
+      say(104, { kind: "teach" });
+      say(106, { kind: "teach", glow: [{ btn: "home" }], ghost: { tap: { btn: "home" } }, wait: () => mode === "map" });
+    } });
+  }
+
+  // --- the first site, first visit ever, after intro 1 (cues.md section 6); every step waits for the child
+  const since = (k) => { const base = cueEv[k]; return () => cueEv[k] > base; };
+  function seqNext() { cueMem().seq++; cueSave(); if (mode === "build" && currentLevel === 0 && cueMem().seq < SEQ.length) SEQ[cueMem().seq](); }
+  function dragStep() {
+    const b = pileBodies().find((q) => q.pileItem.material === "mudbrick") || pileBodies()[0];
+    if (!b) { seqNext(); return; }
+    const sp = SOLUTIONS[LEVELS[0].key].find((q) => q[0] === b.pileItem.defKey && q[1] === b.pileItem.material) || [0, 0, 0, 0.5];
+    const base = planPieces().length;
+    say(93, { kind: "teach", glow: [{ pile: b }], ghost: { drag: { pile: b }, to: { world: { x: sp[2] + LEVEL_X0, y: sp[3] } } }, wait: () => planPieces().length > base, then: seqNext });
+  }
+  const SEQ = [
+    dragStep,
+    () => say(94, { kind: "teach", glow: [{ anyPiece: true, piece: null }], ghost: { tap: { anyPiece: true, piece: null }, count: 3 }, wait: since("taps3"), then: seqNext }),
+    dragStep,
+    () => say(95, { kind: "teach", glow: [{ btn: "broom" }], ghost: { tap: { btn: "broom" } }, wait: since("broom"), then: () => { say(96, { kind: "teach" }); seqNext(); } }),
+    () => startDemo("mastaba", () => { say(98, { kind: "teach" }); seqNext(); }),
+    () => cueWhen(() => planPieces().length >= 2, () => { // the red button; pressing it plays line 70 and shows the red marks
+      const pressed = since("testPress"), started = since("testStart");
+      guide({ glow: [{ btn: "test" }], ghost: { tap: { btn: "test" } }, wait: () => pressed() || started(), then: () => { say(99, { kind: "teach" }); seqNext(); } });
+    }),
+    () => cueWhen(() => testReady(), () => say(100, { kind: "teach", glow: [{ btn: "test" }], ghost: { tap: { btn: "test" } }, wait: since("testStart"), then: seqNext })),
+  ];
+
+  // --- demos (cues.md section 6, "Demos, per site"): see-through pieces carried in by the ghost hand at a hand's speed, in their
+  // real places; a number is that piece of the site's suggested build. The child's own pieces are put aside and come back after.
+  const B = (m, x, y) => ["block", m, x, y, 0];
+  const DEMOS = {
+    mastaba: [["put", 1, 2, 6], ["wait", 0.5], ["say", 97], ["fade"]],
+    djoser: [["put", B("mudbrick", -1, 0.5), B("mudbrick", 1, 0.5), B("stone", -1, 1.5), B("stone", 1, 1.5), B("stone", -1, 2.5), B("stone", 1, 2.5), B("stone", -1, 3.5), B("stone", 1, 3.5)],
+      ["wait", 3], ["say", 110], ["fade"],
+      ["put", B("stone", -1, 0.5), B("stone", 1, 0.5), B("mudbrick", -1, 1.5), B("mudbrick", 1, 1.5), B("mudbrick", 0, 2.5)], ["wait", 1], ["say", 111], ["fade"]],
+    // Ur: the wrong way (two short beams, line 112) is left out: built in the game, no brick crumbles under it (owner to decide)
+    ziggurat: [["put", B("mudbrick", -2, 0.5), B("mudbrick", 0, 0.5), B("mudbrick", 2, 0.5), ["plank", "wood", 0, 1.25, 0], B("mudbrick", -1, 2), B("mudbrick", 1, 2)], ["wait", 1], ["say", 113], ["fade"]],
+    karnak: [["put", 0, 1, 5, 6, 7, 8, 9, 10, 11], ["wait", 1], ["say", 114], ["fade"]],
+    ishtar: [["put", 1, 2, 5, 6, 18, 19, 20, 21, 22], ["say", 115], ["put", 23, 24, 25, 26, 27, 28, 29, 30], ["say", 116], ["put", 31], ["say", 117],
+      ["pull"], ["wait", 1.5], ["say", 118], ["fade"]],
+    mausoleum: [["put", 1, 2, 6, 7, 8, 15, 18], ["wait", 0.5], ["pull"], ["wait", 2.5], ["say", 120], ["fade"],
+      ["put", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35], // the beams hold only under the whole roof
+      ["wait", 0.5], ["pull"], ["wait", 2], ["say", 121], ["fade"]],
+    valens: [["put", 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], ["wait", 0.5], ["taps", "centering"], ["wait", 1], ["say", 122], ["fade"]],
+  };
+  const demoPieces = () => pieces.filter((p) => p.demo);
+  function startDemo(key, then) {
+    releaseAllPointers();
+    const keep = takeSnap().pieces;
+    for (const p of pieces.slice()) removePiece(p);
+    demo = { key, ops: DEMOS[key].map((o) => o.slice()), k: 0, wait: 0.5, then, keep, hand: null };
+  }
+  function endDemo() {
+    const d = demo;
+    for (const p of demoPieces()) removePiece(p);
+    demo = null;
+    for (const [dk, m, x, y, a, sd] of d.keep) spawnPiece(dk, x, y, a, m).seed = sd;
+    firstAtSite(d.key, "demo");
+    if (d.then) d.then();
+  }
+  function demoCarry(piece, tx, ty, ta, out) {
+    piece.body.setKinematic();
+    for (let f = piece.body.getFixtureList(); f; f = f.getNext()) f.setSensor(true);
+    piece.auto = true;
+    demo.cur = { piece, tx, ty, ta, out };
+  }
+  function demoTick(dt) {
+    const d = demo;
+    if (!d || d.saying) return;
+    if (!d.go) { if (voice.cur || voice.queue.length) return; d.go = true; } // it starts once the lines before it have played
+    if (d.cur) { // the ghost hand carries a piece in (or out)
+      const c = d.cur, b = c.piece.body, q = b.getPosition(), dx = c.tx - q.x, dy = c.ty - q.y, dist = Math.hypot(dx, dy);
+      d.hand = Object.assign(worldToScreen(q.x, q.y), { pressed: true });
+      if (dist <= DEMO_SPEED * dt) { if (c.out) removePiece(c.piece); else { placeAuto(c); c.piece.placedY = c.ty; } d.cur = null; d.hand = null; d.wait = DEMO_PAUSE; return; }
+      b.setLinearVelocity(planck.Vec2((dx / dist) * DEMO_SPEED, (dy / dist) * DEMO_SPEED));
+      b.setAngularVelocity((c.ta - b.getAngle()) / Math.max(dt, dist / DEMO_SPEED));
+      return;
+    }
+    if (d.tap) { // the ghost finger taps three times; the piece goes back
+      const t = (d.tap.t += dt), q = d.tap.piece.body.getPosition();
+      d.hand = Object.assign(worldToScreen(q.x, q.y), { pressed: t % 0.35 < 0.15 });
+      if (t >= 1.05) { playSound("take-back", 1); removePiece(d.tap.piece); d.tap = null; d.hand = null; d.ops.shift(); d.wait = DEMO_PAUSE; }
+      return;
+    }
+    if ((d.wait -= dt) > 0) return;
+    const op = d.ops[0];
+    if (!op) { endDemo(); return; }
+    if (op[0] === "put") {
+      const it = op[1 + d.k];
+      if (it == null) { d.ops.shift(); d.k = 0; return; }
+      d.k++;
+      const [defKey, material, x, y, a] = typeof it === "number" ? SOLUTIONS[d.key][it] : it;
+      demoCarry(spawnPiece(defKey, viewX0 + worldWidth - pieceExtent(defKey), y + 0.02, 0, material), x + LEVEL_X0, y + 0.02, a, false);
+    } else if (op[0] === "wait") { d.ops.shift(); d.wait = op[1]; }
+    else if (op[0] === "say") { d.ops.shift(); d.saying = true; say(op[1], { kind: "teach", block: true, demo: true, then: () => { d.saying = false; } }); }
+    else if (op[0] === "pull") {
+      const p = supportPieces().find((q) => q.demo);
+      if (!p) { d.ops.shift(); return; }
+      const q = p.body.getPosition();
+      demoCarry(p, viewX0 + worldWidth + 1, q.y, p.body.getAngle(), true);
+    } else if (op[0] === "taps") {
+      const p = demoPieces().find((q) => q.defKey === op[1]);
+      if (!p) { d.ops.shift(); return; }
+      d.tap = { piece: p, t: 0 };
+    } else if (op[0] === "fade") {
+      d.fade = (d.fade || 0) + dt / 0.8;
+      if (d.fade >= 1) { for (const p of demoPieces()) removePiece(p); d.fade = 0; d.ops.shift(); }
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -3262,26 +3696,32 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     lastTime = time;
     updateMusic(false);
     updateDragSounds();
+    cueTick(dt);
     if (mode === "map") {
       renderMap(dt);
+      drawCues();
       requestAnimationFrame(frame);
       return;
     }
-    const fast = test && test.fast && test.phase !== "fail" && test.phase !== "pass" ? TEST_FAST : 1;
-    stepPhysics(dt * fast, MAX_STEPS * fast);
-    cleanupOutOfBounds();
-    updateCheck(dt);
-    updateFeel(dt);
+    if (!cueFrozen()) { // a blocking line freezes the game (SECTION CUES)
+      const fast = test && test.fast && test.phase !== "fail" && test.phase !== "pass" ? TEST_FAST : 1;
+      stepPhysics(dt * fast, MAX_STEPS * fast);
+      cleanupOutOfBounds();
+      updateCheck(dt);
+      updateFeel(dt);
+    }
     ctx.save();
     if (shake > 0) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
     render();
     drawFeel();
     ctx.restore();
+    drawCues();
     requestAnimationFrame(frame);
   }
   // Try sound right away (browsers may hold it until the first press or key; it then starts).
   startAudio();
   for (const ev of ["pointerdown", "touchstart", "mousedown", "keydown"]) window.addEventListener(ev, startAudio, { capture: true });
+  welcome();
   requestAnimationFrame(frame);
 })();
 </script>

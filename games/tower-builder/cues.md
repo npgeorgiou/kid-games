@@ -1,6 +1,6 @@
 # Tower Builder: cues (voice, visuals, teaching) — master doc
 
-Owner decisions of 14 Nov 2026, from the chat that planned flavour and teaching voice-over. This replaces the earlier handoff "Tower Builder: voice lines and sound hooks". Nothing here is built yet, except where marked BUILT.
+Owner decisions of 14 Nov 2026, from the chat that planned flavour and teaching voice-over. This replaces the earlier handoff "Tower Builder: voice lines and sound hooks". Sections 2-6 are BUILT with text boxes (14 Nov; BUILD.md update 39), except the Ur wrong-way demo (open).
 
 The child plays without reading. The game talks to them, shows them what to do with a see-through hand, and makes things glow. The first site teaches everything step by step. Each later site shows its new way of building in a short demo. After that the child plays alone, and the game only adds flavour: stories, facts and the odd remark.
 

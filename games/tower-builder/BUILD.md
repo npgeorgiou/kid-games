@@ -494,10 +494,15 @@ Open, from the owner, for the next chat (ask before building, per the hard stops
 - With an uneven mouse, whirling in this version broke in a real-mouse recording (update 37 found the cause: the finger is read per game step).
 - The owner test group `owner list` was written for update 37; some checks (12, 9b, throw ranges) describe that version.
 
+## Current state, update 39 (14 Nov 2026): cues built
+
+`cues.md` sections 2-6 are built with text boxes (section 9), in `src/index.html` SECTION: CUES (the model is the three-part list at its top). Voice recordings: put `src/sounds/voice/NN.mp3` and run `build.py`; that line then plays instead of its box. Check: `tools/harness.py cues` (each demo: what broke or fell when its line comes; the first-site steps in order; the queue rules).
+Readings taken (not decided by the owner): Djoser wrong demo = two mudbricks with stone blocks three high on them (they crumble); the Ur demo is built on the bottom row's places; restart erases when pressed again while line 91 is up; no step in section 6 asks for dimming, so it is not used; line 86 is skipped until recorded; Pharos has no marked wood places, so line 108 first plays at Ur; nothing can be touched during a demo, the child's pieces are put aside and come back after; the test waits for line 71; after a first-ever fail in a part the red place stays until 74-76 and 105 are taken down; the Mausoleum right demo builds the whole roof (about 40 s), because the beam holds only under all of it.
+Open (owner): Ur wrong demo (two short beams, line 112): built in the game, no brick crumbles under it, so it is left out; the Ur demo shows only the right way (line 113).
+
 ## Task list
 
-### Cues (owner, 14 Nov): build everything in `cues.md`
-- Build sections 2-6 of `cues.md` exactly as written, with text boxes instead of voice (section 9) and the hook points in section 10. One cue model (section 1 and 3), no per-cue special cases.
+No open items.
 
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
