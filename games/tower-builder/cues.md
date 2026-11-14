@@ -72,7 +72,7 @@ All steps wait for the child.
 - First crumble (72) and first snap (73): queued teaching, with a pause and the broken piece glowing. Afterwards background flavour, at most once per visit.
 - The pile is empty and the button is still red: the shovel glows. Line 107.
 - A new piece shape in the pile: it glows once, no voice.
-- A plan has places marked for wood: they glow. Line 108.
+- A plan has places marked for wood that stays in the building (wood rows, as at Ur and Pharos): they glow. Line 108. Never for wooden supports or forms; those are taught only by the demos and the Ishtar prompt.
 - A plan has an opening (door, arch, space between columns): it glows. Line 109.
 - A damaged site (red rings) on the map: line 39 queued, the rings glow, the ghost hand taps the site. Afterwards line 39 is background flavour every 60 s while the site is damaged.
 
@@ -105,7 +105,7 @@ Files: `sounds/voice/NN.mp3`, NN = the line number. The owner records in numbere
 #### Level intros: entering a site that is not finished yet (queued flavour, every time)
 1. Mastaba: "Καλώς ήρθες, αρχιτέκτονα, στην Αίγυπτο, γύρω στο 3000 π.Χ. Ως τώρα οι νεκροί θάβονταν σε λάκκους στην άμμο. Οι νέοι άρχοντες όμως θέλουν τάφους αντάξιούς τους: μαστάμπες, πλατιούς τάφους σαν πάγκους. Για πρώτη φορά θα χτίσεις με πλίνθους, τούβλα από λάσπη του Νείλου στεγνωμένα στον ήλιο. Η ιστορία σου αρχίζει εδώ. Χτίσε το!"
 2. Djoser: "Καλώς ήρθες ξανά, αρχιτέκτονα, στη Σακκάρα, το ιερό νεκροταφείο της Μέμφιδας, γύρω στο 2650 π.Χ. Οι μαστάμπες σου στέκονται περήφανες, μα ο φαραώ Ζοζέρ θέλει τάφο που να αγγίζει τον ουρανό. Οραματίζεται μαστάμπες τη μία πάνω στην άλλη, ως τους θεούς. Οι πλίνθοι όμως δεν αντέχουν τόσο βάρος. Για πρώτη φορά θα χτίσεις και με πέτρα, η οποία αντέχει πολύ βάρος πάνω της. Εμπρός!"
-3. Ur: "Καλώς ήρθες, αρχιτέκτονα, στην πόλη Ουρ. Είμαστε γύρω στο 2100 π.Χ., στη Μεσοποταμία, τη χώρα ανάμεσα στον Τίγρη και τον Ευφράτη. Όπως ο Ζοζέρ, κι ο βασιλιάς Ουρ-Νάμμου θέλει κάτι θεόρατο. Το δικό του όμως δεν είναι τάφος. Είναι σκάλα για τους θεούς, με ναό στην κορυφή για τον Νάννα, τον θεό της Σελήνης. Η πέτρα εδώ σπανίζει, γι' αυτό κράτησέ τη για τη βάση. Από πάνω θα βάλεις πλίνθους, και για πρώτη φορά θα στρώσεις ανάμεσά τους ψάθες από καλάμια. Χτίσε το!"
+3. Ur: "Καλώς ήρθες, αρχιτέκτονα, στην πόλη Ουρ. Είμαστε γύρω στο 2100 π.Χ., στη Μεσοποταμία, τη χώρα ανάμεσα στον Τίγρη και τον Ευφράτη. Όπως ο Ζοζέρ, κι ο βασιλιάς Ουρ-Νάμμου θέλει κάτι θεόρατο. Το δικό του όμως δεν είναι τάφος. Είναι σκάλα για τους θεούς, με ναό στην κορυφή για τον Νάννα, τον θεό της Σελήνης. Η πέτρα εδώ σπανίζει, γι' αυτό κράτησέ τη για τη βάση. Από πάνω θα βάλεις πλίνθους, και για πρώτη φορά θα στρώσεις ανάμεσά τους ξύλινες σανίδες. Η σανίδα απλώνει το βάρος σε πολλές πλίνθους από κάτω, κι έτσι δεν θρυμματίζονται. Χτίσε το!" (CHANGED 14 Nov: the wood spreads the weight)
 4. Lion Gate: "Καλώς ήρθες, αρχιτέκτονα, στις Μυκήνες, γύρω στο 1250 π.Χ., στην εποχή των ηρώων που θα τραγουδήσει ο Όμηρος. Στην Ουρ η πέτρα ήταν σπάνια. Εδώ, στα βουνά της Ελλάδας, υπάρχει παντού. Ο βασιλιάς Αγαμέμνονας ζώνει την ακρόπολη με τείχη τόσο γιγάντια, που θα λένε πως τα σήκωσαν οι Κύκλωπες. Για πρώτη φορά θα απλώσεις ένα πέτρινο ανώφλι πάνω σε δύο όρθιους λίθους. Από πάνω θα βάλεις το τρίγωνο με τα δύο λιοντάρια. Χτίσε το!"
 5. Karnak: "Καλώς ήρθες ξανά στην Αίγυπτο, αρχιτέκτονα, στη Θήβα, γύρω στο 1290 π.Χ. Την ίδια εποχή που οι Μυκηναίοι υψώνουν την πύλη τους, εδώ βασιλεύει ο φαραώ Σέτι ο Πρώτος, κι ύστερα ο γιος του, ο Ραμσής ο Μέγας. Θέλουν για τον θεό Άμμωνα ένα κτίριο με πολλούς κίονες, ένα πέτρινο δάσος. Στις Μυκήνες δύο λίθοι κράτησαν ένα ανώφλι. Εδώ θα στήσεις κίονες και θα απλώσεις από τον έναν στον άλλον πέτρινα δοκάρια. Χτίσε το!"
 6. Ishtar (CHANGED 14 Nov: αψίδα → καμάρα): "Καλώς ήρθες, αρχιτέκτονα, στη Βαβυλώνα, γύρω στο 575 π.Χ., μια από τις λαμπρότερες πόλεις του κόσμου, στις όχθες του Ευφράτη. Ο βασιλιάς Ναβουχοδονόσορ θέλει μια πύλη για την Ιστάρ, τη θεά της πόλης. Τα δοκάρια του Καρνάκ όμως γεφυρώνουν μόνο μικρά ανοίγματα. Για μια μεγάλη πύλη χρειάζεσαι κάτι καινούργιο. Για πρώτη φορά θα χτίσεις καμάρα, πάνω σε ξύλινο καλούπι που θα βγάλεις μόλις σταθεί. Μετά από σένα, οι τεχνίτες θα τη ντύσουν με γαλάζια γυαλιστερά τούβλα, με δράκους και ταύρους. Χτίσε το!"
@@ -256,4 +256,27 @@ Files: `sounds/voice/NN.mp3`, NN = the line number. The owner records in numbere
 
 - Mausoleum (owner, 14 Nov): the posts stay; when he builds, the beams fall without them. The demo shows that failure.
 - Valens (owner, 14 Nov): the level now has one form on one block; the quick build makes the arches one after another, taking the form out of each. Built and pushed.
-- Lines 06 and 10 changed (καμάρα; one form). If they were already recorded, they need recording again.
+- Lines 03, 06 and 10 changed (wood spreads the weight; καμάρα; one form). If they were already recorded, they need recording again.
+
+## 9. Build now: text instead of voice (owner, 14 Nov)
+
+Until the recordings exist, every voice line is shown as its Greek text on a white box. The recordings replace the box later through the same hook (line number = file number).
+
+- One model: a line "plays" while its box is up. The box goes away when the owner presses ESC. So everything in section 3 holds as written: one line at a time, the queue waits for ESC, background lines are skipped while a box is up.
+- Blocking boxes freeze the game (physics, test, input) until ESC, as the paused voice line would: the pauses (start of wind, load and earthquake the first time; first crumble; first snap) and every line of a demo (the demo goes on to its next step after ESC).
+- All other boxes do not block: the child can keep playing while the box is up. Teaching steps that wait for an action end when the action is done, and their box goes with them.
+- When `sounds/voice/NN.mp3` exists, it plays instead of the box, and ends on its own.
+
+## 10. Where the hooks go in the code (`src/index.html`)
+
+Map the code with `grep -n "SECTION:"` first. Hook points, by what the child does:
+
+- Sounds: `playSound` and the `SOUNDS` table (FEEL section). Voice is a separate single channel next to it.
+- Saved progress: `progress`, saved with `SAVE_KEY` (LEVELS section). Cue memory goes in the same saved record, so `restartAll()` (MAP section), which removes it, clears the cues too.
+- Map: tapping a site, locked or open; the red-ring flashing of a damaged site uses `headpieceOut()` / `syncSite()`; the visitors' tour and the boats are in the MAP section.
+- Entering a site: `startLevel(i)`. Back to the map: `goMap()` (the home button).
+- Pointer: buttons in POINTER HANDLING (`home`, `broom` = the shovel, `test`); three taps send a piece back at `piece.taps.length >= 3`; `undo()`.
+- Test button: `startTest()`, its not-ready branch (the `not-ready` sound, red marks) and its ready branch; ready state is `readySince`.
+- Test parts and result: the phase names in the LEVELS section (supports, settle, wind, load, quake, fail, pass); leaving mid-test is `abortTest()`; a win is `celebrate()`.
+- Breaking: `crumble()` and `snapWood()` (BREAKING section).
+- The quick build's step list (`solution` in `src/levels.js`, with its `pull` steps) is what the demos replay at normal speed, as see-through pieces, limited to the part each demo shows.
