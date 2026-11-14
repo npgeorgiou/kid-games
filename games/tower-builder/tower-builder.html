@@ -1059,9 +1059,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   // - The arm: a steady arm, not a spring (no rubber band). Each step it wants the grab point to head for the finger
   //   at a speed that closes the gap in ARM_EASE (never above ARM_SPEED), and pushes with the force that gets that
   //   speed within ARM_REACT, plus holding up the weight carried (the piece plus the share of weight resting on it,
-  //   from what rests on what). It never uses more than the load needs: the weight carried plus HAND_GRIP x that weight
-  //   for moving it, shrinking to nothing as the weight nears ARM_STRENGTH (owner 12-14 Nov: strength the job needs,
-  //   heavier lags, above two stone blocks it cannot lift). Like a person carrying a load, it never moves it faster
+  //   from what rests on what). The arm has ARM_STRENGTH in all; what is left after holding up the weight moves the
+  //   load, but the brain never uses more than HAND_GRIP x the weight for moving it (owner 12-14 Nov: strength the
+  //   job needs, so a small stone cannot shove a big block; heavier lags; above two stone blocks it cannot lift).
+  //   So light pieces are quick and heavy ones slow, and a quick sweep of the hand throws a piece. Like a person carrying a load, it never moves it faster
   //   than that strength could stop within ARM_RUN, and never speeds it up or slows it down harder than what rests on
   //   it can follow without sliding (its friction). So a piece stops by itself when the finger stops, running on a
   //   little, and settles back without swinging back and forth; a stack carried by its bottom piece stays together.
@@ -1072,8 +1073,8 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   //   never turns however the hand moves (a stack lifted by its bottom piece too); grabbed farther out, the weight
   //   wins, the wrist gives way and it falls round almost as freely as gravity makes it.
   const ARM_STRENGTH = 210; // N: a stone block weighs 100 N, so two blocks lift slowly and a bit more does not
-  const ARM_SPEED = 11, ARM_EASE = 0.08, ARM_REACT = 0.05, ARM_RUN = 0.6, ARM_CARE = 0.8; // m/s, s, s, m, share of the friction
-  const HAND_GRIP = 2.5; // strength for moving, as a multiple of the weight carried
+  const ARM_SPEED = 11, ARM_EASE = 0.08, ARM_REACT = 0.05, ARM_RUN = 1.8, ARM_CARE = 0.8; // m/s, s, s, m, share of the friction
+  const HAND_GRIP = 3; // most strength the brain uses for moving, as a multiple of the weight carried
   const WRIST_HOLD = 0.4, WRIST_SLIP = 0.05, WRIST_GIVE = 0.3; // m, m, rad/s (how quickly it goes from holding to slipping)
   const HAND_MASS = 0.2; // kg: the hand, moved along with the piece
   const dIn = new planck.DistanceInput(), dOut = new planck.DistanceOutput(), dCache = new planck.SimplexCache();
@@ -1108,7 +1109,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       if (!piece || !piece.desired || !piece.grip) continue;
       if (!traced) traced = traceLoads(true);
       const body = piece.body, t = traced.get(body), W = body.getMass() * GRAVITY + (t ? t.recv : 0), M = W / GRAVITY;
-      const most = Math.min(W, ARM_STRENGTH) + HAND_GRIP * W * Math.max(0, 1 - W / ARM_STRENGTH);
+      const most = Math.min(W, ARM_STRENGTH) + Math.min(HAND_GRIP * W, Math.max(0, ARM_STRENGTH - W));
       // what rests on it, and how hard it can be moved without that sliding
       let A = (most - Math.min(W, most)) / M;
       for (const [b, it] of traced) if (it.sup.some((q) => q.low === body)) A = Math.min(A, ARM_CARE * GRAVITY * Math.sqrt(b.getFixtureList().getFriction() * body.getFixtureList().getFriction()));

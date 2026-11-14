@@ -434,6 +434,16 @@ The hand now (PHYSICS STEP, "THE HAND"), replacing updates 26-31: no spring, no 
 - New owner tests in group `swing`: standing block grabbed at the outer side lifted turns down (0.55 s); two stacked blocks carried sideways and stopped: nothing tips (stone, mudbrick, wood); middle grab no tilt; small quick circles; running on past a stopped finger (0.3-0.9 m); whirling by the end with circles 0.8, 1.2, 1.6 m across.
 - Failing, reported to the owner: whirling by the end with 1.2 m circles (stone 0.3 turns in 4 circles, mudbrick 1.1, wood 1.4); at one circle a second that needs about six times the stone block's weight of pull and the arm has 2.3 times it. Dragging a block up while pressing 1.5 m into a wall of stone sticks at 0.6-0.7 m of 1.5 m (pressing 0.5 m: only wood, 1.34 of 1.5); this passed before only through the slowing before other pieces, removed on the owner's request. Small oblong stone pushed hard into a stone block: 0.1 m (limit under 0.1).
 
+## Current state, update 33 (14 Nov 2026): throwing, material differences back
+
+Owner's words: "wood drags too slowly. its as if weight differenced between materials are lost. also, teh strength of the hand is too weak, I cant drop things with force, as I could before: at full speed of a mudbrick motion, it should be able to be thrown from the height of the middle of the screen, 9 meters to the side till it reached ground. ... also, please show me a picture where you amkae to circle things by grabbing and rotating, I cant, and you cant, so what is happening"
+
+- Arm strength: ARM_STRENGTH 210 N in all; holding up the weight first, the rest for moving, but never more than HAND_GRIP 3 x the weight for moving (was 2.5 x weight x (1 - weight/210)). ARM_RUN 1.8 m (was 0.6), so a quick sweep throws.
+- New owner test `throw`: block swept sideways at full speed and let go at 5 m height: mudbrick 8.5 m, wood 9.1 m, stone 5.9 m.
+- Carry 4 m: stone 0.88 s, mudbrick 0.61 s, wood about 0.57 s (approved feel: wood 0.38 s). Wood quicker needs HAND_GRIP about 5, and then a small oblong stone (about the weight of a wooden block) pushed into a stone block shoves it: asked of the owner.
+- Consequences reported: a piece runs on about 1.1-1.3 m past a finger that stops at full speed; a small oblong stone rammed fast into a stone block moves it 0.6 m, pushed hard 0.2 m (owner rule: hardly moves); the wall-pressing case of update 32.
+- Picture `owner-shots/whirl-4-circles.png` (`tools/harness.py whirlpic`): wood, mudbrick and stone blocks held at one end, four hand circles 1.2 m across, one a second; none goes round cleanly (stone 0.65 turns, mudbrick 1.16, wood 0.65 in 4 circles).
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.

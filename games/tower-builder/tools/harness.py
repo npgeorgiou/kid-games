@@ -101,6 +101,21 @@ with sync_playwright() as p:
                     if st: done[i]=st
         for i,q in pages: print('%-9s %-4s %s'%(q.evaluate('(i)=>__tb.LEVELS[i].key',i),'PASS' if done.get(i,'').endswith('PASS') else 'FAIL','2 real game loop: '+done.get(i,'timeout')),flush=True)
         levels=[]
+    if 'whirlpic' in sys.argv:  # owner 14 Nov: picture of a block held at one end whirled by circles of the hand as big as the round stone
+        import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
+        tr=pg.evaluate("""()=>{const T=__tb,res={};T.mode="build";T.startLevel(0);T.clearAllPieces();T.fillPile([]);
+          for(const m of ["wood","mudbrick","stone"]){T.clearAllPieces();const p=T.spawnPiece("block",20,6,0,m);for(let k=0;k<6;k++){T.stepPhysics(1/60,5);}
+            const g0=p.body.getWorldPoint({x:0.9,y:0}),g={x:g0.x,y:g0.y};T.startHold(p,g,87,0,0);p.desired={x:g.x,y:g.y};for(let k=0;k<150;k++)T.stepPhysics(1/60,5);
+            const fr=[],hand=[];for(let k=0;k<240;k++){const th=k/60*2*Math.PI;p.desired={x:g.x+0.6*Math.sin(th),y:g.y+0.6-0.6*Math.cos(th)};T.stepPhysics(1/60,5);
+              hand.push([p.desired.x,p.desired.y]);if(k%5==0){const c=[[-1,-0.5],[1,-0.5],[1,0.5],[-1,0.5]].map(([x,y])=>{const w=p.body.getWorldPoint({x,y});return[w.x,w.y]});fr.push(c);}}
+            T.releaseHold(87);res[m]={fr,hand};}return res;}""")
+        fig,ax=plt.subplots(1,3,figsize=(15,5.5))
+        for a_,m in zip(ax,["wood","mudbrick","stone"]):
+            n=len(tr[m]['fr'])
+            for i,c in enumerate(tr[m]['fr']): a_.fill(*zip(*c),alpha=0.08+0.5*i/n,color='tab:brown' if m=='wood' else ('tab:orange' if m=='mudbrick' else 'grey'),ec='k',lw=0.3)
+            h=tr[m]['hand']; a_.plot([q[0] for q in h],[q[1] for q in h],'r-',lw=2); a_.set_aspect('equal'); a_.set_xlim(16.5,23.5); a_.set_ylim(1.5,9.5)
+            a_.set_title(m+' block held at one end: 4 circles of the hand (red), 1 a second'); a_.title.set_fontsize(9)
+        plt.tight_layout(); plt.savefig(os.path.join(HERE,'..','owner-shots','whirl-4-circles.png'),dpi=90); print('saved')
     if 'owner' in sys.argv:  # the owner's sixth list: tests that repeat what he does in the game (tools/owner-tests.js)
         names=[a for a in sys.argv[2:] if not a.isdigit()]
         for name,ok,det in pg.evaluate(open(os.path.join(HERE,'owner-tests.js')).read(),names):

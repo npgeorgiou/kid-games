@@ -180,6 +180,19 @@
         out.push(["14 Nov a " + m + " block held at one end whirls round with hand circles as big as the round stone (1.2 m across)", res[1.2] >= 3, "turns in 4 circles of the hand, by circle size across (m): " + JSON.stringify(res)]); } }
   }
 
+  // --- 14 Nov (owner): a mudbrick block swept sideways at full speed and let go at the middle of the screen's height
+  // flies about 9 m to the side before it reaches the ground
+  if (want("throw")) {
+    T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
+    const res = {}; for (const m of ["wood", "mudbrick", "stone"]) { T.clearAllPieces(); const p = T.spawnPiece("block", X - 7, 5, 0, m); const c = p.body.getWorldCenter(), g = { x: c.x, y: c.y };
+      T.startHold(p, g, 88, 0, 0); p.desired = { x: g.x, y: g.y }; run(0.2);
+      for (let k = 0; k < 40; k++) { p.desired = { x: g.x + k * 0.25, y: g.y }; frame(1 / 60); } // the finger still sweeping when it lets go
+      const x0 = p.body.getPosition().x; T.releaseHold(88); let land = null;
+      for (let k = 0; k < 240 && land == null; k++) { frame(1 / 60); if (p.body.getPosition().y < 0.6) land = p.body.getPosition().x - x0; }
+      res[m] = land == null ? null : +land.toFixed(1); }
+    out.push(["14 Nov a mudbrick block swept sideways at full speed and let go at mid-screen height flies about 9 m", res.mudbrick != null && res.mudbrick >= 8 && res.mudbrick <= 11, "flew to the side (m): " + JSON.stringify(res)]);
+  }
+
   if (want("triangle")) {
     T.mode = "build"; T.startLevel(5); T.clearAllPieces(); T.quiet0();
     const t = T.spawnPiece("trib", X, 0.7, 0, "stone"); run(1); const q = t.body.getPosition(), d = T.PIECE_DEFS.trib;
