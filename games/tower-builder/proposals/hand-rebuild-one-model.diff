@@ -1,0 +1,367 @@
+diff --git a/games/tower-builder/src/index.html b/games/tower-builder/src/index.html
+index b7d6812..374d67c 100644
+--- a/games/tower-builder/src/index.html
++++ b/games/tower-builder/src/index.html
+@@ -406,14 +406,10 @@
+   // SECTION: PIECE DEFINITIONS -- materials, piece shapes/sizes, sidebar buttons
+   // ---------------------------------------------------------------------
+   const MATERIALS = {
+-    // maxLiftSpeed: how fast the material can be carried by hand (m/s) --
+-    // this, not sluggish acceleration, is what should make stone feel heavy.
+-    // maxSpin: hard cap on angular velocity while held (rad/s) -- heavier
+-    // material resists being spun around in the hand more.
+-    wood:  { label: "WOOD",  density: 1.1,  friction: 0.5,  restitution: 0.015, maxLiftSpeed: 13, maxSpin: 3.0, maxAccel: 30 },
++    wood:  { label: "WOOD",  density: 1.1,  friction: 0.5,  restitution: 0.015 },
+     // mudbrick: between wood and stone in weight; crumbles under heavy weight (SECTION BREAKING)
+-    mudbrick: { label: "MUDBRICK", density: 3.2, friction: 0.7, restitution: 0.0, maxLiftSpeed: 6.3, maxSpin: 1.7, maxAccel: 21 },
+-    stone: { label: "STONE", density: 5.0,  friction: 0.6,  restitution: 0.0,  maxLiftSpeed: 5,  maxSpin: 1.1, maxAccel: 17 },
++    mudbrick: { label: "MUDBRICK", density: 3.2, friction: 0.7, restitution: 0.0 },
++    stone: { label: "STONE", density: 5.0,  friction: 0.6,  restitution: 0.0 },
+   };
+   let selectedMaterial = "wood";
+ 
+@@ -789,30 +785,12 @@
+     if (pointers.has(pointerId) || piece.heldBy != null) return;
+     commitSnap();
+     piece.heldBy = pointerId;
+-    piece.wtSlow = null;
+-
+-    // A generous central balance zone avoids accidental tipping. Outside it,
+-    // the real grab point is used as a lever arm and produces torque.
+-    const localGrab = piece.body.getLocalPoint(planck.Vec2(worldPt.x, worldPt.y));
+-    // "Center third of the block": the zone spans the middle third of each
+-    // full dimension, i.e. one third of the half-extent either side of centre.
+-    // Across the short side of a long piece the zone is most of the width, so a standing
+-    // column or plank picked anywhere across it is carried upright.
+-    const shortSide = (h, o) => (h < o * 0.8 ? h * 0.8 : h / 3);
+-    const balanceX = piece.r != null ? piece.r / 3 : shortSide(piece.hx, piece.hy);
+-    const balanceY = piece.r != null ? piece.r / 3 : shortSide(piece.hy, piece.hx);
+-    const inBalanceZone = centred ||
+-      (localGrab.x * localGrab.x) / (balanceX * balanceX) +
+-      (localGrab.y * localGrab.y) / (balanceY * balanceY) <= 1;
+-
+-    // The grab point stays under the finger (no jump towards the click).
+-    // Outside the balance zone the grab point is a lever and tilts the piece.
+-    piece.grabLocal = localGrab;
+-    piece.lever = !inBalanceZone;
++
++    // the grab point stays under the finger (no jump towards the click)
++    piece.grabLocal = piece.body.getLocalPoint(planck.Vec2(worldPt.x, worldPt.y));
+     piece.holdAngle = piece.body.getAngle();
+     piece.desired = { x: worldPt.x, y: worldPt.y };
+     piece.controlMode = "hand";
+-    piece.handT = { x: worldPt.x, y: worldPt.y };
+     piece.joint = world.createJoint(planck.MouseJoint({ maxForce: 1, frequencyHz: HOLD_HZ, dampingRatio: HOLD_DAMP }, anchorBody, piece.body, planck.Vec2(worldPt.x, worldPt.y)));
+     
+     pointers.set(pointerId, {
+@@ -833,7 +811,6 @@
+     if (!piece) return;
+     if (piece.joint && pieces.includes(piece)) { try { world.destroyJoint(piece.joint); } catch (err) { /* body already gone */ } }
+     piece.joint = null;
+-    piece.handT = null;
+     // let go while still passing through other pieces: it was never placed, so it goes back to the pile
+     if (piece.ghost && currentLevel != null && pieces.includes(piece)) { piece.heldBy = null; returnToPile(piece); return; }
+     piece.heldBy = null;
+@@ -842,7 +819,6 @@
+     piece.desired = null;
+     piece.prevDesired = null;
+     piece.uSmooth = null;
+-    piece.lever = false;
+     piece.body.setAngularDamping(0.08);
+   }
+ 
+@@ -1028,79 +1004,21 @@
+   // piece's actual current position, once per tick, bounds that regardless
+   // of how bursty the input was.
+   //
+-  // The hand is a force with limits, not a teleport. Each tick it pushes the
+-  // grab point towards the pointer with at most the material's acceleration,
+-  // carries the piece's own weight, and never presses down on other pieces: pressing a piece
+-  // into another one rests it there with only its own weight, so nothing gets
+-  // crushed into overlap and launched, and a dragged piece cannot shove the
+-  // pieces under it harder than its weight allows.
+   const GRAVITY = 10;
+-  // Hand strength in free air beyond the piece's own weight, in newtons.
+-  const HAND_LIFT = 350;
+-  // Owner: the hand uses the strength the job needs: the piece and everything resting on it, by weight only (never by
+-  // size); heavier lags more; above the weight of two big stone blocks it cannot lift.
+-  const HAND_MAX_WEIGHT = 2 * 2 * 5.0 * GRAVITY; // N: two stone blocks (2 m^2 each, stone 5 kg/m^2)
+-  const HAND_LIFT_EXTRA = 0.3; // lifts with 30% more than the weight it carries
+-  // weight pressing down on a body from the pieces resting on it (contact forces of the last step)
+-  function weightOnTop(body) {
+-    let w = 0;
+-    for (let ce = body.getContactList(); ce; ce = ce.next) {
+-      const c = ce.contact, o = ce.other;
+-      if (!c.isTouching() || !(o.piece || o.isLoad) || (o.piece && (o.piece.ghost || o.piece.auto))) continue;
+-      const man = c.getManifold(), wm = new planck.WorldManifold(); c.getWorldManifold(wm);
+-      let j = 0; for (let i = 0; i < man.pointCount; i++) j += man.points[i].normalImpulse;
+-      const fy = (c.getFixtureA().getBody() === body ? -wm.normal.y : wm.normal.y) * j / STEP; // force on this body, up
+-      if (fy < 0) w -= fy;
+-    }
+-    return w;
+-  }
+-  const PUSH_ACCEL = 8; // m/s^2: hand force while touching = 0.8 x own weight ...
+-  // (no fixed extra strength: what a held piece pushes against resists by its own weight, so a piece pushes along only what is about as heavy as itself)
+-  const NEAR_GAP = 0.25, NEAR_SPEED = 1.5; // within this gap of another piece the held piece moves at most this fast (no sudden ramming)
+-  // Within NEAR_GAP of another piece only the speed towards it is capped; moving along
+-  // or away from it stays at full speed (capping all of it made dragging over the building lag).
++  // THE HAND (owner 14 Nov 2026: one model, real physics, no special cases).
++  // The finger pulls the point where the piece was grabbed with a spring (planck's MouseJoint, the Box2D drag);
++  // everything else is the physics engine. The spring's strength is the hand's: GRIP x the weight it carries (the
++  // piece plus the share of weight resting on it, from what rests on what) plus GRIP_EXTRA, never more than HAND_TOP.
++  // What follows from that alone: a light piece follows the finger quickly and a heavy one lags; held up in the air
++  // part of the strength holds the weight, so less is left to push sideways, but a piece moving fast hits with its
++  // speed; a small stone cannot shove a big one; equal weights behave alike, one piece or a stack; above HAND_TOP (a
++  // little over two stone blocks) nothing lifts. The wrist keeps the piece at the angle it was picked up at, with a
++  // torque no bigger than the strength x WRIST_ARM, so a heavy piece held at one end swings down and round.
++  const GRIP = 1.2, GRIP_EXTRA = 15, HAND_TOP = 210; // -, N, N (a stone block weighs 100 N)
++  const HOLD_HZ = 10, HOLD_DAMP = 0.9; // the spring: Hz, damping ratio
++  const WRIST_HZ = 4, WRIST_DAMP = 0.9, WRIST_ARM = 0.25; // Hz, damping ratio, m
++  function handStrength(W) { return Math.min(HAND_TOP, GRIP * W + GRIP_EXTRA); }
+   const dIn = new planck.DistanceInput(), dOut = new planck.DistanceOutput(), dCache = new planck.SimplexCache();
+-  let nearSeen = false; // set by capApproach: another piece within NEAR_GAP
+-  // pieces resting on the held piece: it carries them, it does not push against them (owner 14 Nov: a big stone square
+-  // and two blocks stacked lift the same)
+-  let riding = new Set();
+-  function ridersOf(body) {
+-    const r = new Set();
+-    for (let ce = body.getContactList(); ce; ce = ce.next) {
+-      const c = ce.contact, o = ce.other;
+-      if (!c.isTouching() || !(o.piece || o.isLoad)) continue;
+-      const wm = new planck.WorldManifold(); c.getWorldManifold(wm);
+-      if (wm.normal.y * (c.getFixtureA().getBody() === body ? 1 : -1) > 0.7) r.add(o);
+-    }
+-    return r;
+-  }
+-  function capApproach(body, vx, vy, cap) {
+-    for (let f = body.getFixtureList(); f; f = f.getNext()) {
+-      const bb = f.getAABB(0);
+-      const box = planck.AABB(planck.Vec2(bb.lowerBound.x - NEAR_GAP, bb.lowerBound.y - NEAR_GAP), planck.Vec2(bb.upperBound.x + NEAR_GAP, bb.upperBound.y + NEAR_GAP));
+-      world.queryAABB(box, (fx) => {
+-        const b = fx.getBody();
+-        if (b === body || riding.has(b) || !(b.piece || b.isLoad) || (b.piece && (b.piece.ghost || b.piece.auto))) return true;
+-        dIn.proxyA.set(f.getShape(), 0); dIn.proxyB.set(fx.getShape(), 0);
+-        dIn.transformA.set(body.getTransform()); dIn.transformB.set(b.getTransform());
+-        dIn.useRadii = true; dCache.count = 0;
+-        planck.Distance(dOut, dCache, dIn);
+-        const d = dOut.distance;
+-        if (d >= NEAR_GAP) return true; // far
+-        if (d < 0.003) { // touching it: moving towards it (from centre to centre) counts as near, moving away does not
+-          const a = body.getWorldCenter(), o = b.getWorldCenter();
+-          if (vx * (o.x - a.x) + vy * (o.y - a.y) > 0) nearSeen = true;
+-          return true; // (the push force is limited then)
+-        }
+-        const ux = (dOut.pointB.x - dOut.pointA.x) / d, uy = (dOut.pointB.y - dOut.pointA.y) / d;
+-        const toward = vx * ux + vy * uy;
+-        if (toward > 0) nearSeen = true; // moving towards it, not away
+-        if (toward > cap) { vx -= (toward - cap) * ux; vy -= (toward - cap) * uy; }
+-        return true;
+-      });
+-    }
+-    return [vx, vy];
+-  }
+   // distance from a body down to the nearest piece under it, if closer than `reach`
+   function gapBelow(body, reach) {
+     let best = null;
+@@ -1118,17 +1036,6 @@
+     }
+     return best;
+   }
+-  // the hand pushes the held piece into a piece it touches (dx, dy: where the hand pulls it)
+-  function pressesInto(body, dx, dy) {
+-    for (let ce = body.getContactList(); ce; ce = ce.next) {
+-      const c = ce.contact, o = ce.other;
+-      if (!c.isTouching() || riding.has(o) || !(o.piece || o.isLoad) || (o.piece && (o.piece.ghost || o.piece.auto))) continue;
+-      const wm = new planck.WorldManifold(); c.getWorldManifold(wm);
+-      const s = c.getFixtureA().getBody() === body ? 1 : -1; // normal from this piece to the other
+-      if ((dx * wm.normal.x + dy * wm.normal.y) * s > 0.01) return true;
+-    }
+-    return false;
+-  }
+   function touchesOtherPiece(body) {
+     if (body.piece && body.piece.ghost) return false;
+     for (let ce = body.getContactList(); ce; ce = ce.next) {
+@@ -1136,109 +1043,25 @@
+     }
+     return false;
+   }
+-  // The hand is a soft point constraint at the grab point (planck MouseJoint, the Box2D testbed's
+-  // drag): solved inside the physics step together with the contacts, so the piece swings, hangs and
+-  // goes round like a real pendulum without the rocking that impulses applied outside the solver gave.
+-  // The joint's target is the hand, which eases towards the pointer once per tick (bursty pointer
+-  // events are filtered), moves at most at the material's carry speed, stays within HOLD_LEAD of the
+-  // grab point, and while touching another piece never goes below the grab point (no pressing down).
+-  const HOLD_HZ = 10, HOLD_DAMP = 0.9, HOLD_LEAD = 0.5; // Hz, -, s, m
+-  const FREE_AIR_ACCEL = 400; // m/s^2: the hand keeps hold of a piece touching nothing however it is swung (its speed stays capped)
+-  // the hand eases to the pointer and carries by weight (CARRY_*, compared with a stone block),
+-  // and the grip on an off-centre piece is firmest for stone, so it swings least
+-  const CARRY_REF_MASS = 2 * 5.0, CARRY_EASE = 0.07, CARRY_SPEED = 4.6; // a stone block: kg, s, m/s (owner: stone heavy to carry)
+-  const GRIP_DAMP = { wood: 4, mudbrick: 4, stone: 7 }, GRIP_MAX = { wood: 0.4, mudbrick: 0.4, stone: 0.7 }, HELD_EXTRA_G = 0.8; // HELD_EXTRA_G: held off-centre in free air it weighs 1.8x, so it swings less and settles faster // 1/s: the grip's friction, so a piece held off-centre swings and settles (amplitude halves in about 0.55 s)
+   function advanceHeldTargets() {
++    let traced = null;
+     for (const hand of pointers.values()) {
+       const piece = hand.piece;
+       if (!piece || !piece.desired || !piece.joint) continue;
+-      const body = piece.body;
+-      const material = MATERIALS[piece.material];
+-      const m = body.getMass() || 1;
+-      const touching = touchesOtherPiece(body);
+-      const p = body.getWorldPoint(piece.grabLocal);
+-      const T = piece.handT;
+-      // what the hand carries: the piece and everything resting on it
+-      // what rests on it presses harder while the piece speeds up going up: take that out, so a stack reads its weight
+-      // like one piece of the same weight does (owner 14 Nov: the top block jumped when two blocks read as too heavy)
+-      const vyNow = body.getLinearVelocity().y, ay = piece.vyPrev == null ? 0 : (vyNow - piece.vyPrev) / STEP; piece.vyPrev = vyNow;
+-      const Wt = m * GRAVITY + (touching ? weightOnTop(body) * GRAVITY / Math.max(GRAVITY * 0.5, GRAVITY + ay) : 0), mt = Wt / GRAVITY;
+-      // too heavy or not: judged on the weight over the last half second, not the extra push of the pieces on top while it rises
+-      piece.wtSlow = piece.wtSlow == null ? Wt : piece.wtSlow + (Wt - piece.wtSlow) * (STEP / 0.5);
+-      // owner: carrying goes by the weight carried compared with a stone block, whatever the material: the hand eases
+-      // in proportion to it and its carry speed goes with 1/sqrt(it), so the same weight carries the same
+-      const mr = Math.min(3.5, Math.max(0.1, mt / CARRY_REF_MASS));
+-      const k = Math.min(1, STEP / (CARRY_EASE * mr));
+-      let vx = ((piece.desired.x - T.x) * k) / STEP, vy = ((piece.desired.y - T.y) * k) / STEP;
+-      const vlen = Math.hypot(vx, vy), vcap = CARRY_SPEED / Math.sqrt(mr);
+-      if (vlen > vcap) { vx *= vcap / vlen; vy *= vcap / vlen; }
+-      nearSeen = false;
+-      riding = touching ? ridersOf(body) : new Set();
+-      // carrying something on top: going up, the hand slows no faster than things fall, so it stays sitting (real: a
+-      // sharper stop throws it off; owner 14 Nov: the top block jumped)
+-      if (riding.size && piece.tvy > 0 && vy < piece.tvy - 0.7 * GRAVITY * STEP) vy = piece.tvy - 0.7 * GRAVITY * STEP;
+-      piece.tvy = vy;
+-      if (!piece.ghost) [vx, vy] = capApproach(body, vx, vy, Math.min(NEAR_SPEED, vcap));
+-      T.x += vx * STEP; T.y += vy * STEP;
+-      // a spring tracking a moving point trails it by 2 x damping / stiffness x speed; aim that far ahead so the grab point stays on the hand
+-      const lead = (2 * HOLD_DAMP) / (2 * Math.PI * HOLD_HZ);
+-      let dx = T.x + vx * lead - p.x, dy = T.y + vy * lead - p.y;
+-      if (touching && dy < 0) dy = 0;
+-      // pulled up while pressed against the side of another piece: the hand lifts first and presses sideways at most
+-      // its pushing strength's share (owner 14 Nov: dragging up and towards a wall stuck); a level push keeps its full power
+-      // the lift goes through the hand at full strength, the press sideways is a separate push of the usual strength
+-      let sidePush = 0;
+-      if (touching && dy > 0.02 && pressesInto(body, dx, 0) && !pressesInto(body, 0, dy)) { sidePush = dx; dx = 0; }
+-      const d = Math.hypot(dx, dy);
+-      if (d > HOLD_LEAD) { dx *= HOLD_LEAD / d; dy *= HOLD_LEAD / d; }
+-      piece.joint.setTarget(planck.Vec2(p.x + dx, p.y + dy));
+-      // pressing into (or about to hit) another piece: no free-air strength, so it cannot ram what it meets; lifting a
+-      // piece off another, or pulling it away, keeps the full strength (owner: no stickiness when lifting off)
+-      const close = !sidePush && (nearSeen || (touching && pressesInto(body, dx, dy)));
+-      if (sidePush) body.applyForceToCenter(planck.Vec2(Math.sign(sidePush) * Math.min(1, Math.abs(sidePush) / HOLD_LEAD) * mt * PUSH_ACCEL, 0), true);
+-      // Force: its own weight plus the hand's strength; touching another piece only a gentle push
+-      // (0.8 x own weight + HAND_PUSH), so what it pushes resists by its own mass.
+-      const W = m * GRAVITY;
+-      const extra = piece.lever && !touching ? HELD_EXTRA_G * W : 0;
+-      if (extra) body.applyForceToCenter(planck.Vec2(0, -extra), true);
+-      // every part of the hand's strength goes with the weight it holds (owner: a small stone must not shove big ones away)
+-      riding = new Set();
+-      // the strength goes by everything carried (the piece and what rests on it), so equal weights lift alike
+-      piece.joint.setMaxForce(piece.wtSlow > HAND_MAX_WEIGHT ? HAND_MAX_WEIGHT // too heavy: it cannot lift it
+-        // a hand has a top strength that falls off smoothly towards the limit, so crossing it never yanks
+-        : !close ? Math.min(Wt + extra + mt * FREE_AIR_ACCEL, HAND_MAX_WEIGHT * (1 + HAND_LIFT_EXTRA) + (HAND_MAX_WEIGHT - piece.wtSlow) * 40 + extra)
+-        : Math.hypot(Wt * (1 + HAND_LIFT_EXTRA), mt * Math.min(material.maxAccel, PUSH_ACCEL)));
+-      if (piece.lever) {
+-        // grip friction: a torque against the swing, scaled by the inertia about the grab point (a body's own
+-        // angular damping acts only about its centre and barely slows a pendulum)
+-        // angular damping acts only about its centre and barely slows a pendulum). Like real friction it is
+-        // capped (GRIP_MAX x the weight's turning force at the arm), so a hard whirl still swings it round.
+-        const c = body.getWorldCenter(), r2 = (c.x - p.x) ** 2 + (c.y - p.y) ** 2, lc = body.getLocalCenter();
+-        const Ip = body.getInertia() - m * (lc.x * lc.x + lc.y * lc.y) + m * r2, w = body.getAngularVelocity();
+-        const tq = Math.min(GRIP_DAMP[piece.material] * Ip * Math.abs(w), GRIP_MAX[piece.material] * m * GRAVITY * Math.sqrt(r2));
+-        body.applyAngularImpulse(-Math.sign(w) * tq * STEP, true);
+-      } else {
+-        // centred grab: hold the pick-up angle with limited torque
+-        const I = body.getInertia();
+-        const rc = piece.r != null ? piece.r : Math.max(piece.hx, piece.hy);
+-        const tl = m * (touching ? PUSH_ACCEL : material.maxAccel) * rc * STEP;
+-        const wDes = Math.max(-material.maxSpin, Math.min(material.maxSpin, (piece.holdAngle - body.getAngle()) * 10));
+-        body.applyAngularImpulse(Math.max(-tl, Math.min(tl, I * (wDes - body.getAngularVelocity()))), true);
+-      }
+-    }
+-  }
+-
+-  // Heavier material resists being spun around in the hand; a piece held off-centre
+-  // swinging under its own weight may turn up to LEVER_SPIN.
+-  const LEVER_SPIN = 12; // rad/s
+-  function clampHeldSpin() {
+-    for (const hand of pointers.values()) {
+-      const piece = hand.piece;
+-      if (!piece) continue;
+-      const maxSpin = piece.lever ? Math.max(LEVER_SPIN, MATERIALS[piece.material].maxSpin) : MATERIALS[piece.material].maxSpin;
+-      const w = piece.body.getAngularVelocity();
+-      if (w > maxSpin) piece.body.setAngularVelocity(maxSpin);
+-      else if (w < -maxSpin) piece.body.setAngularVelocity(-maxSpin);
++      const body = piece.body, m = body.getMass();
++      if (!traced) traced = traceLoads(true);
++      const t = traced.get(body), Wc = m * GRAVITY + (t ? t.recv : 0), S = handStrength(Wc);
++      piece.joint.setTarget(planck.Vec2(piece.desired.x, piece.desired.y));
++      piece.joint.setMaxForce(S);
++      // the arm's spring is set for everything it carries, not only the piece it grips (planck sets it from the piece's mass)
++      const r = Math.max(1, Wc / GRAVITY / m);
++      piece.joint.setFrequency(HOLD_HZ * Math.sqrt(r)); piece.joint.setDampingRatio(HOLD_DAMP * Math.sqrt(r));
++      // the wrist: a turning spring about the grab point, as limited as the hand
++      const p = body.getWorldPoint(piece.grabLocal), c = body.getWorldCenter(), lc = body.getLocalCenter();
++      const Ip = body.getInertia() - m * (lc.x * lc.x + lc.y * lc.y) + m * ((c.x - p.x) ** 2 + (c.y - p.y) ** 2);
++      const wn = 2 * Math.PI * WRIST_HZ, da = Math.atan2(Math.sin(piece.holdAngle - body.getAngle()), Math.cos(piece.holdAngle - body.getAngle()));
++      const tq = Ip * (wn * wn * da - 2 * WRIST_DAMP * wn * body.getAngularVelocity()), lim = S * WRIST_ARM;
++      body.applyTorque(Math.max(-lim, Math.min(lim, tq)), true);
+     }
+   }
+ 
+@@ -1251,7 +1074,6 @@
+       testTick(STEP);
+       world.step(STEP, 10, 5);
+       settleResting();
+-      clampHeldSpin();
+       updateStrain();
+       solidifyGhosts();
+       if (currentLevel != null) { drivePileHands(); pileWorld.step(STEP, 10, 6); for (const h of pointers.values()) if (h.pileBody) capPileHand(h.pileBody); settlePile(); rescuePile(); }
+@@ -1575,18 +1397,7 @@
+     }
+     return vn;
+   }
+-  onWorld("pre-solve", (contact) => { contact.tbVn = approachSpeed(contact); sideRub(contact); });
+-  // A held piece pressed against the side of another slides along it (owner 14 Nov: dragging a block up against a wall
+-  // stuck). Only side contacts lose their rubbing; what rests on top of a held piece, or under it, keeps it. Pushing is unchanged.
+-  const SIDE_RUB = 0.02;
+-  const sideWm = new planck.WorldManifold();
+-  function sideRub(contact) {
+-    const a = contact.getFixtureA().getBody(), b = contact.getFixtureB().getBody();
+-    const held = (x) => x.piece && x.piece.joint;
+-    if (!(held(a) || held(b)) || !((a.piece || a.isLoad) && (b.piece || b.isLoad))) { contact.resetFriction(); return; }
+-    contact.getWorldManifold(sideWm);
+-    if (Math.abs(sideWm.normal.y) < 0.5) contact.setFriction(SIDE_RUB); else contact.resetFriction();
+-  }
++  onWorld("pre-solve", (contact) => { contact.tbVn = approachSpeed(contact);  });
+   function feelContact(contact, impulse, pile) {
+     const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
+     const n = Math.max(...impulse.normalImpulses.slice(0, contact.getManifold().pointCount));
+@@ -1818,10 +1629,10 @@
+     let k = 0; for (let i = 1; i < sup.length; i++) if (Math.abs(sup[i].c - xbar) < Math.abs(sup[k].c - xbar)) k = i;
+     f = sup.map(() => 0); f[k] = W; return f;
+   }
+-  function traceLoads() {
++  function traceLoads(withHeld = false) {
+     const info = new Map();
+     const add = (b) => info.set(b, { W: b.getMass() * GRAVITY, M: b.getMass() * GRAVITY * b.getWorldCenter().x, recv: 0, sup: [], y: b.getWorldCenter().y });
+-    for (const p of pieces) if (!p.ghost && !p.auto && p.heldBy == null) add(p.body);
++    for (const p of pieces) if (!p.ghost && !p.auto && (withHeld || p.heldBy == null)) add(p.body);
+     for (const l of loads) if (l.released) add(l.body);
+     const wm = new planck.WorldManifold();
+     for (let c = world.getContactList(); c; c = c.getNext()) {
+@@ -2183,7 +1994,7 @@
+   function worldToPile(pointerId, hand, px, py) {
+     // held at the same point, moving and turning as it was (screen speed kept across the two scales);
+     // only nudged sideways as far as needed to be inside the bin
+-    const piece = hand.piece, a = piece.body.getAngle(), lever = piece.lever, g = lever ? piece.grabLocal : piece.body.getLocalCenter();
++    const piece = hand.piece, a = piece.body.getAngle(), g = piece.grabLocal;
+     const k = scale / pileScale, vg = piece.body.getLinearVelocityFromWorldPoint(piece.body.getWorldPoint(g)), om = piece.body.getAngularVelocity();
+     piece.ghost = false;
+     releaseHold(pointerId);
+@@ -2196,7 +2007,7 @@
+     for (let f = b.getFixtureList(); f; f = f.getNext()) { const bb = f.getAABB(0); lo = Math.min(lo, bb.lowerBound.x); hi = Math.max(hi, bb.upperBound.x); bot = Math.min(bot, bb.lowerBound.y); }
+     const sx = lo < 0 ? -lo + 0.01 : hi > W ? W - hi - 0.01 : 0, sy = bot < 0 ? -bot + 0.01 : 0;
+     if (sx || sy) b.setTransform(planck.Vec2(b.getPosition().x + sx, b.getPosition().y + sy), a);
+-    startPileHold(pointerId, b, b.getWorldPoint(g), !lever);
++    startPileHold(pointerId, b, b.getWorldPoint(g), false);
+     const c = b.getWorldCenter(), q = b.getWorldPoint(g);
+     b.setLinearVelocity(planck.Vec2(vg.x * k - om * (c.y - q.y), vg.y * k + om * (c.x - q.x)));
+     b.setAngularVelocity(om);

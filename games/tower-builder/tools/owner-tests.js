@@ -53,6 +53,12 @@
       const p = T.spawnPiece(k, X, 8, 0, m), area = d.shape === "circle" ? Math.PI * d.r * d.r : d.verts ? Math.abs(d.verts.reduce((a, [x, y], i) => { const [x2, y2] = d.verts[(i + 1) % d.verts.length]; return a + x * y2 - x2 * y; }, 0)) / 2 : 4 * d.hx * d.hy;
       const b = T.spawnPiece("block", X + 6, 8, 0, m), want = b.body.getMass() * area / 2, got = p.body.getMass(); T.clearAllPieces();
       if (Math.abs(got - want) > 0.03 * want) out.push(["weights: " + m + " " + k + " weighs its size in blocks", false, (got / b.body.getMass()).toFixed(2) + " blocks, should be " + (area / 2).toFixed(2)]); }
+    // owner 14 Nov: the same stack lifted again behaves the same (it lifted once, then did not)
+    { T.clearAllPieces(); const a = T.spawnPiece("block", X, 0.503, 0, "stone"); run(0.5); T.spawnPiece("block", X, 1.506, 0, "stone"); run(1.5); const rises = [];
+      for (let t = 0; t < 3; t++) { const c0 = a.body.getWorldCenter(), g = { x: c0.x, y: c0.y }, y0 = g.y; T.startHold(a, { x: g.x, y: g.y }, 91, 0, 0);
+        for (let k = 0; k < 150; k++) { a.desired = { x: g.x, y: g.y + Math.min(1.5, k * 1.5 / 60) }; frame(1 / 60); } rises.push(+(a.body.getPosition().y - y0).toFixed(2));
+        for (let k = 0; k < 120; k++) { a.desired = { x: g.x, y: g.y + 0.01 }; frame(1 / 60); } T.releaseHold(91); run(1.5); }
+      out.push(["14 Nov two stacked stone blocks lifted three times rise the same each time", rises.every((r) => Math.abs(r - rises[0]) < 0.05 && r > 1.0), JSON.stringify(rises)]); }
     out.push(["3 hand: heavier lags more", res[cases[0][0]].t1 < res[cases[3][0]].t1, res[cases[0][0]].t1 + " s (square) vs " + res[cases[3][0]].t1 + " s (two blocks)"]);
   }
 
@@ -155,6 +161,13 @@
     out.push(["9 a small oblong stone pushed hard into a big stone block hardly moves it", a < 0.1, "moved " + a + " m"]);
     out.push(["9 a stone block pushes a stone block along (as heavy as itself)", b > 0.5, "moved " + b + " m"]);
     out.push(["9 a small oblong stone pushes another small one along", c > 0.5, "moved " + c + " m"]);
+    // owner 14 Nov: held up in the air the hand spends strength on the weight, so it pushes sideways less; with speed it hits harder
+    const pushAir = (speed) => { T.clearAllPieces(); const t = T.spawnPiece("block", X + 1.5, 0.503, 0, "stone"); run(1); const p = T.spawnPiece("block", X - 2, 0.85, 0, "stone");
+      const x0 = t.body.getPosition().x, c0 = p.body.getWorldCenter(), g = { x: c0.x, y: c0.y }; T.startHold(p, g, 96, 0, 0); run(0.5);
+      for (let k = 0; k < 240; k++) { p.desired = { x: g.x + Math.min(6, k * speed / 60), y: g.y }; frame(1 / 60); } T.releaseHold(96); run(1); return +(t.body.getPosition().x - x0).toFixed(2); };
+    const air = pushAir(1.5), hit = pushAir(12);
+    out.push(["14 Nov a stone block held up in the air pushes a stone block less than one sliding on the ground", air < b, "moved " + air + " m (on the ground: " + b + " m)"]);
+    out.push(["14 Nov a stone block swung fast into a stone block knocks it along", hit > 0.3, "moved " + hit + " m"]);
   }
 
   // --- 14 Nov: dragging a piece up and towards a wall of pieces slides up it, not stuck by rubbing (owner)

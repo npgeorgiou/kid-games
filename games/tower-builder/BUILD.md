@@ -365,6 +365,14 @@ Owner's words: "now the 2 blocks on top of each otehr lifting from the bot, make
 - Owner test `hand`: lifted from the bottom, what rests on it stays sitting (two small oblong stones, two blocks, four squares); same lift time for two blocks, four squares, big square, long block.
 - Material weights unchanged (wood 1.1, mudbrick 3.2, stone 5.0 per square metre since before 13 Nov).
 
+## Current state, update 25 (14 Nov 2026): hand rebuild, waiting for the owner
+
+Owner's words: "can you stop your hacks and see what you fundamentally do wrong ... the first time I lift 2 stacked blocks they lift, the second time they dont ... put in claude.md instructions so for all kinds of situations and games THIS HAPPENS NEVER AGAIN. also, seek instructions online on how to do it. and no, I disagree, a small stone in my hand doesnt push the big stone the same way, because my hand cant push that strongly on the side with a big stone, unless it has inertia, because my hand is using strength to fight gravity too. ... write tests that keep the correct current behaviours and nail down all correct behaviour. rebuild hand logic"
+
+- CLAUDE.md: new section "One model, never patches".
+- Owner tests added (pass on the current game): the same two-block stack lifted three times rises the same; a stone block held up in the air pushes a stone block less than one sliding on the ground; swung fast it knocks it along.
+- Rebuild tried (standard technique: a force-limited spring from finger to grab point, Box2D mouse joint, strength a multiple of the weight carried, capped; a wrist torque as limited as the hand). Saved, not in the game: `proposals/hand-rebuild-one-model.diff`. Against the owner's approved behaviours it fails: carrying and lifting about twice as slow as approved; a stone block held at one end no longer whirls round; dragging a block up into a wall sticks; a lifted stack's top hops a few cm when stopping; a small stone pushed hard still nudges a block (0.14 m). A hand quick enough for the approved speeds is also strong enough for a small stone to shove a big block. Owner to choose; the game keeps the current hand until then.
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
