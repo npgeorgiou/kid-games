@@ -38,7 +38,6 @@ R_C = 2.0  # arch form: the wedges' inner faces lie 2.0 m from the centre
 SHAPES = {
     "block": box(-1, -0.5, 1, 0.5), "square": box(-0.5, -0.5, 0.5, 0.5), "column": box(-0.3, -1.2, 0.3, 1.2),
     "beam": box(-1.6, -0.25, 1.6, 0.25), "plank": box(-3.0, -0.25, 3.0, 0.25), "capital": box(-0.8, -0.2, 0.8, 0.2), "abacus": box(-0.4, -0.2, 0.4, 0.2),
-    "plank10": box(-5.0, -0.25, 5.0, 0.25), "plank14": box(-7.0, -0.25, 7.0, 0.25),
     "wedge": Polygon(WEDGE),
     **{k: Polygon(v) for k, v in LEVEL_PIECES.items()},
 }
@@ -119,25 +118,15 @@ level("djoser", "Πυραμίδα του Ζοζέρ", "c. 2650 BC", "build tall 
       wrong=[W("mudbrick in the bottom row", "material", recolour(s, lambda e: e[3] < 1, "mudbrick")),
              W("a top-step block more than half off the step below", "build", moved(s, lambda e: near(e[2], 1) and near(e[3], 4.5), dx=2.2))])
 # 3 Ziggurat of Ur
-def zig(wood):  # five rows of whole mudbrick blocks, 7 at the bottom, each row one block shorter; wood[k]: pieces laid on row k
-    out, y = [], 0.0
-    for k in range(5):
-        n = 7 - k; out += row("mudbrick", -n, n, y + 0.5); y += 1
-        if k < 4 and wood[k]:
-            for d, x in wood[k]: out.append([d, "wood", x, y + 0.25, 0])
-            y += 0.5
-    return out, y
-# owner (14 Nov): all whole mudbrick blocks, 7 at the bottom, five rows; wood as long as the row it lies on spreads the weight
-# evenly over that row (measured: bottom bricks at 83% of their limit; a 14 m plank on the bottom row and a 10 m plank on the
-# third row were the best; wood on every row slid in the earthquake)
-ZWOOD = [[["plank14", 0]], [], [["plank10", 0]], []]
-s, ZTOP = zig(ZWOOD)
-level("ziggurat", "Ζιγκουράτ της Ουρ", "c. 2100 BC", "five rows of whole mudbricks with long reed-mat courses, the temple on top",
+s = (row("mudbrick", -5, 5, 0.5) + [["beam", "wood", x, 1.25, 0] for x in (-3.2, 0, 3.2)] +
+     row("mudbrick", -4, 4, 2.0) + staggered("mudbrick", -4, 4, 3.0) + [["plank", "wood", 0, 3.75, 0]] + row("mudbrick", -2, 2, 4.5))
+# owner (13 Nov): all mudbrick; the courses staggered and one long plank under the top terrace, so the weight of two blocks spreads into three
+level("ziggurat", "Ζιγκουράτ της Ουρ", "c. 2100 BC", "three terraces with reed-mat courses, the temple on top",
       "Britannica: mudbrick core strengthened with reed matting, three tiers, staircases, temple of Nanna on top (not preserved); wood courses stand for the reed mats; no stairway piece (owner, 13 Nov: the triangle removed from this level for good)",
-      s, [rect(-1.5, ZTOP, 1.5, ZTOP + 1.0)], woodRole="courses",
-      spare=[("block", "mudbrick", 2), ("plank", "wood", 2)],  # two spare mudbricks; two 6 m planks tempt as the shorter wood; no stone
-      wrong=[W("6 m planks instead of the long planks", "material", [[("plank" if e[0] in ("plank10", "plank14") else e[0])] + e[1:] for e in s]),
-             W("a top-row block more than half off the row below", "build", moved(s, lambda e: near(e[2], 2) and near(e[3], ZTOP - 0.5), dx=3.2))])
+      s, [rect(-1.5, 5, 1.5, 6.0)], woodRole="courses",
+      spare=[("block", "mudbrick", 2)],  # owner (13 Nov): 16 mudbrick blocks; no stone in this pile
+      wrong=[W("two short beams instead of the long plank", "material", [p for e in s for p in ([["beam", "wood", -1.6, 3.75, 0], ["beam", "wood", 1.6, 3.75, 0]] if e[0] == "plank" else [e])]),
+             W("a top-terrace block more than half off the terrace below", "build", moved(s, lambda e: near(e[2], 1) and near(e[3], 4.5), dx=3.2))])
 # 4 Lion Gate (owner, 13 Nov: before Karnak, it is easier): the lion triangle (headpiece) is lowered onto the lintel between the stepped-in stones
 gate = rect(-1, 0, 1, 2)
 s = (mirror([["block", "stone", -5, 0.5, 0], ["block", "stone", -3, 0.5, 0], ["square", "stone", -5.5, 1.5, 0], ["block", "stone", -4, 1.5, 0], ["square", "stone", -2.5, 1.5, 0],
