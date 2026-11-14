@@ -348,6 +348,15 @@ Owner's words: "sandbox: mudbrick add ball. stone add a big square. wood, make t
 - The Karnak "red seams" owner test varied between runs because it counted red on screen while the red pulses with the clock; it now measures at one fixed moment and gives the same result every run (passes). The game itself gave the same result for the same placement.
 - Known, before this change: `harness.py owner restart` stops with an error in the map travellers drawing.
 
+## Current state, update 23 (14 Nov 2026)
+
+Owner's words: "the big stone you added is not as heavy as 2 blocks that together make the same size as the big stone. recheck all weights, using the regular rectangular block as the base. ... and do the undo, and put the button on top left."
+
+- Weights: every piece weighs its size in blocks of its material (beams and planks were 15% light; now not). Owner test `hand` checks every piece and material.
+- The hand's strength goes by everything it carries (the piece and what rests on it); pieces resting on the held one are carried, not pushed against. A big stone square or a long block lifts like two stacked blocks (was 0.8 s vs 1.9 s to rise 1 m). Too heavy to lift (over two blocks) now holds for single pieces too.
+- Undo button, top left in free play and levels: each press puts back the building (and in levels the pile) as it was before the last piece was picked up, with whatever fell or broke since. Remembers up to 40 steps; cleared on entering a level or free play. Harness `sandbox` does it by mouse.
+- Level runs and wrong choices (3 placements) pass after the weight change.
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.

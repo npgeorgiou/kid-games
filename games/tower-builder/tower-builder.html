@@ -429,6 +429,13 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
         ctx.fill();
         ctx.stroke();
         ctx.restore();
+      } else if (name === "undo") {
+        // a hooked arrow turning back to the left
+        const R = s * 0.62;
+        ctx.lineWidth = s * 0.26; ctx.strokeStyle = "#e8dcc5"; ctx.lineCap = "butt";
+        ctx.beginPath(); ctx.arc(s * 0.1, s * 0.15, R, 0, -Math.PI, true); ctx.stroke();
+        const ex = s * 0.1 - R, ey = s * 0.15;
+        ctx.beginPath(); ctx.moveTo(ex - s * 0.4, ey); ctx.lineTo(ex + s * 0.4, ey); ctx.lineTo(ex, ey + s * 0.5); ctx.closePath(); ctx.fill();
       } else if (name === "restart") {
         // a circular arrow: start again
         const R = s * 0.7, a = -Math.PI * 0.3; // the arrow's end, top right; the arc runs round from there
@@ -470,13 +477,13 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   const PIECE_DEFS = {
     block:  { shape: "box", hx: 1.0, hy: 0.5, densityScale: 1.0, skin: "block", half: "block-half" },
     column: { shape: "box", hx: 0.3, hy: 1.2, densityScale: 1.0, skin: "column", half: "column-half" },
-    beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 0.85, skin: "beam", half: "beam-half" },
+    beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 1.0, skin: "beam", half: "beam-half" },
     // plank (new, owner 13 Nov): a long wooden beam, 6 m, three blocks long: two blocks on it spread their weight into three below (Ziggurat)
-    plank:  { shape: "box", hx: 3.0, hy: 0.25, densityScale: 0.85, skin: "beam", half: "plank-half" },
+    plank:  { shape: "box", hx: 3.0, hy: 0.25, densityScale: 1.0, skin: "beam", half: "plank-half" },
     // big square (new, owner 14 Nov): 2 m x 2 m, two blocks stacked; free play only
     bigsquare: { shape: "box", hx: 1.0, hy: 1.0, densityScale: 1.0, skin: "block" },
     // long plank (new, owner 14 Nov): 9 m; free play only
-    longplank: { shape: "box", hx: 4.5, hy: 0.25, densityScale: 0.85, skin: "beam", half: "longplank-half" }, // 9 m (owner 14 Nov, was 12)
+    longplank: { shape: "box", hx: 4.5, hy: 0.25, densityScale: 1.0, skin: "beam", half: "longplank-half" }, // 9 m (owner 14 Nov, was 12)
     // long block (new, owner 14 Nov): two stone blocks end to end, 4 m; free play only
     longblock: { shape: "box", hx: 2.0, hy: 0.5, densityScale: 1.0, skin: "block" },
     // capital (new, fourth standard size): a flat slab laid on a pillar; an upright block (2 m) plus a capital is one column high
@@ -494,9 +501,9 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     // what a snapped wooden piece breaks into (two halves along its length; they do not snap again)
     "block-half":  { shape: "box", hx: 0.5, hy: 0.5, densityScale: 1.0, skin: "block" },
     "column-half": { shape: "box", hx: 0.3, hy: 0.6, densityScale: 1.0, skin: "column" },
-    "beam-half":   { shape: "box", hx: 0.8, hy: 0.25, densityScale: 0.85, skin: "beam" },
-    "longplank-half": { shape: "box", hx: 2.25, hy: 0.25, densityScale: 0.85, skin: "beam" },
-    "plank-half":  { shape: "box", hx: 1.5, hy: 0.25, densityScale: 0.85, skin: "beam" },
+    "beam-half":   { shape: "box", hx: 0.8, hy: 0.25, densityScale: 1.0, skin: "beam" },
+    "longplank-half": { shape: "box", hx: 2.25, hy: 0.25, densityScale: 1.0, skin: "beam" },
+    "plank-half":  { shape: "box", hx: 1.5, hy: 0.25, densityScale: 1.0, skin: "beam" },
     "capital-half": { shape: "box", hx: 0.4, hy: 0.2, densityScale: 1.0, skin: "beam" },
     drum:   { shape: "circle", r: 0.6, densityScale: 1.0, skin: "drum" },
     // arch stone: narrow end down; about ten make a half circle
@@ -817,8 +824,27 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   }
 
 
+  // --- undo (owner 14 Nov): each pick-up by the player remembers the building (and the pile) as it was just before;
+  // the undo button puts back the last one, with anything that fell or broke since
+  const undoStack = [];
+  let pendingSnap = null;
+  function takeSnap() {
+    return { pieces: pieces.filter((p) => !p.ghost).map((p) => { const q = p.body.getPosition(); return [p.defKey, p.material, q.x, q.y, p.body.getAngle(), p.seed]; }),
+             pile: currentLevel != null ? pileItems().map((it) => ({ ...it })) : null };
+  }
+  function commitSnap() { if (pendingSnap) { undoStack.push(pendingSnap); if (undoStack.length > 40) undoStack.shift(); pendingSnap = null; } }
+  function undo() {
+    const snap = undoStack.pop();
+    if (!snap || test || auto) return;
+    releaseAllPointers(); failShow = null;
+    clearAllPieces(); freshWorld();
+    if (snap.pile) fillPile(snap.pile);
+    for (const [d, m, x, y, a, sd] of snap.pieces) spawnPiece(d, x, y, a, m).seed = sd;
+  }
+  function undoButton() { const size = Math.max(44, Math.min(64, cssHeight * 0.09)); return { x: 10 + size / 2, y: 10 + size / 2, size }; }
   function startHold(piece, worldPt, pointerId, clientX, clientY, centred = false) {
     if (pointers.has(pointerId) || piece.heldBy != null) return;
+    commitSnap();
     piece.heldBy = pointerId;
     piece.wtSlow = null;
 
@@ -901,6 +927,8 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     const px = e.clientX, py = e.clientY;
 
+    pendingSnap = test || auto ? null : takeSnap();
+    { const ub = undoButton(); if (Math.hypot(px - ub.x, py - ub.y) <= ub.size / 2) { if (!test && !auto) undo(); return; } }
     const material = hitMaterial(px, py);
     if (material) {
       selectedMaterial = material;
@@ -1090,13 +1118,26 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   // or away from it stays at full speed (capping all of it made dragging over the building lag).
   const dIn = new planck.DistanceInput(), dOut = new planck.DistanceOutput(), dCache = new planck.SimplexCache();
   let nearSeen = false; // set by capApproach: another piece within NEAR_GAP
+  // pieces resting on the held piece: it carries them, it does not push against them (owner 14 Nov: a big stone square
+  // and two blocks stacked lift the same)
+  let riding = new Set();
+  function ridersOf(body) {
+    const r = new Set();
+    for (let ce = body.getContactList(); ce; ce = ce.next) {
+      const c = ce.contact, o = ce.other;
+      if (!c.isTouching() || !(o.piece || o.isLoad)) continue;
+      const wm = new planck.WorldManifold(); c.getWorldManifold(wm);
+      if (wm.normal.y * (c.getFixtureA().getBody() === body ? 1 : -1) > 0.7) r.add(o);
+    }
+    return r;
+  }
   function capApproach(body, vx, vy, cap) {
     for (let f = body.getFixtureList(); f; f = f.getNext()) {
       const bb = f.getAABB(0);
       const box = planck.AABB(planck.Vec2(bb.lowerBound.x - NEAR_GAP, bb.lowerBound.y - NEAR_GAP), planck.Vec2(bb.upperBound.x + NEAR_GAP, bb.upperBound.y + NEAR_GAP));
       world.queryAABB(box, (fx) => {
         const b = fx.getBody();
-        if (b === body || !(b.piece || b.isLoad) || (b.piece && (b.piece.ghost || b.piece.auto))) return true;
+        if (b === body || riding.has(b) || !(b.piece || b.isLoad) || (b.piece && (b.piece.ghost || b.piece.auto))) return true;
         dIn.proxyA.set(f.getShape(), 0); dIn.proxyB.set(fx.getShape(), 0);
         dIn.transformA.set(body.getTransform()); dIn.transformB.set(b.getTransform());
         dIn.useRadii = true; dCache.count = 0;
@@ -1138,7 +1179,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   function pressesInto(body, dx, dy) {
     for (let ce = body.getContactList(); ce; ce = ce.next) {
       const c = ce.contact, o = ce.other;
-      if (!c.isTouching() || !(o.piece || o.isLoad) || (o.piece && (o.piece.ghost || o.piece.auto))) continue;
+      if (!c.isTouching() || riding.has(o) || !(o.piece || o.isLoad) || (o.piece && (o.piece.ghost || o.piece.auto))) continue;
       const wm = new planck.WorldManifold(); c.getWorldManifold(wm);
       const s = c.getFixtureA().getBody() === body ? 1 : -1; // normal from this piece to the other
       if ((dx * wm.normal.x + dy * wm.normal.y) * s > 0.01) return true;
@@ -1186,6 +1227,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       const vlen = Math.hypot(vx, vy), vcap = CARRY_SPEED / Math.sqrt(mr);
       if (vlen > vcap) { vx *= vcap / vlen; vy *= vcap / vlen; }
       nearSeen = false;
+      riding = touching ? ridersOf(body) : new Set();
       if (!piece.ghost) [vx, vy] = capApproach(body, vx, vy, Math.min(NEAR_SPEED, vcap));
       T.x += vx * STEP; T.y += vy * STEP;
       // a spring tracking a moving point trails it by 2 x damping / stiffness x speed; aim that far ahead so the grab point stays on the hand
@@ -1210,8 +1252,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       const extra = piece.lever && !touching ? HELD_EXTRA_G * W : 0;
       if (extra) body.applyForceToCenter(planck.Vec2(0, -extra), true);
       // every part of the hand's strength goes with the weight it holds (owner: a small stone must not shove big ones away)
-      piece.joint.setMaxForce(!close ? W + extra + m * FREE_AIR_ACCEL
-        : piece.wtSlow > HAND_MAX_WEIGHT ? HAND_MAX_WEIGHT // too heavy: it cannot lift it
+      riding = new Set();
+      // the strength goes by everything carried (the piece and what rests on it), so equal weights lift alike
+      piece.joint.setMaxForce(piece.wtSlow > HAND_MAX_WEIGHT ? HAND_MAX_WEIGHT // too heavy: it cannot lift it
+        : !close ? Wt + extra + mt * FREE_AIR_ACCEL
         : Math.hypot(Wt * (1 + HAND_LIFT_EXTRA), mt * Math.min(material.maxAccel, PUSH_ACCEL)));
       if (piece.lever) {
         // grip friction: a torque against the swing, scaled by the inertia about the grab point (a body's own
@@ -1445,6 +1489,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     }
 
     if (currentLevel != null) drawPile();
+    { const ub = undoButton(); SKIN.button(ctx, "undo", ub.x, ub.y, ub.size, !undoStack.length || !!test || !!auto); }
     for (const t of shapeTiles()) {
       ctx.fillStyle = "#6e5d4a"; ctx.strokeStyle = "#3c3226"; ctx.lineWidth = 1.5;
       ctx.fillRect(t.x, t.y, t.w, t.h); ctx.strokeRect(t.x, t.y, t.w, t.h);
@@ -2071,6 +2116,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   // keeps its angle; grabbed near an end it hangs and swings, so it can be turned
   // upright (or laid down) before it is dragged out.
   function startPileHold(pointerId, body, pt, forceCentre) {
+    commitSnap();
     const d = PIECE_DEFS[body.pileItem.defKey], l = body.getLocalPoint(pt);
     const short = (h, o) => (h < o * 0.8 ? h * 0.8 : h / 3);
     const bx = d.r != null ? d.r / 3 : short(d.hx, d.hy), by = d.r != null ? d.r / 3 : short(d.hy, d.hx);
@@ -2498,7 +2544,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   }
 
   function startLevel(i) {
-    releaseAllPointers();
+    releaseAllPointers(); undoStack.length = 0;
     // a finished site always opens as it was saved when it was left (owner: its headpiece must always be there)
     const fresh = currentLevel !== i || !!progress.done[LEVELS[i].key];
     if (fresh) { clearAllPieces(); fillPile([]); freshWorld(); }
@@ -2537,7 +2583,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     }
   }
   function startFree() {
-    releaseAllPointers();
+    releaseAllPointers(); undoStack.length = 0;
     if (currentLevel != null) clearAllPieces();
     currentLevel = null; grid = null; check = null; failShow = null;
     mode = "build";

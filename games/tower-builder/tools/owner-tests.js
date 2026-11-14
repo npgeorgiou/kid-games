@@ -33,6 +33,8 @@
       ["a stone square with two stone blocks on it", [["square", S], ["block", S], ["block", S]]],
       ["a mudbrick block with three mudbrick blocks on it", [["block", "mudbrick"], ["block", "mudbrick"], ["block", "mudbrick"], ["block", "mudbrick"]]],
       ["a wooden block with two stone blocks on it", [["block", "wood"], ["block", S], ["block", S]]],
+      ["a big stone square alone (as heavy as two blocks, owner 14 Nov)", [["bigsquare", S]]],
+      ["a long stone block alone (as heavy as two blocks)", [["longblock", S]]],
     ];
     const LIM = 2 * blockW(), res = {};
     for (const [n, st] of cases) {
@@ -42,6 +44,13 @@
     const same = (a, b) => { const x = res[a].t1, y = res[b].t1; return x != null && y != null && Math.abs(x - y) <= 0.25 * Math.max(x, y) + 0.05; };
     out.push(["3 hand: same weight, same lift (small oblong pair vs slab)", same(cases[1][0], cases[2][0]), res[cases[1][0]].t1 + " s vs " + res[cases[2][0]].t1 + " s"]);
     out.push(["3 hand: same weight, same lift (two blocks vs four squares)", same(cases[3][0], cases[4][0]), res[cases[3][0]].t1 + " s vs " + res[cases[4][0]].t1 + " s"]);
+    out.push(["3 hand: same weight, same lift (two blocks vs big square)", same(cases[3][0], cases[9][0]), res[cases[3][0]].t1 + " s vs " + res[cases[9][0]].t1 + " s"]);
+    out.push(["3 hand: same weight, same lift (two blocks vs long block)", same(cases[3][0], cases[10][0]), res[cases[3][0]].t1 + " s vs " + res[cases[10][0]].t1 + " s"]);
+    // weights: every piece weighs its area in blocks of its material (owner 14 Nov: the regular block is the base)
+    for (const [k, d] of Object.entries(T.PIECE_DEFS)) for (const m of ["wood", "mudbrick", "stone"]) {
+      const p = T.spawnPiece(k, X, 8, 0, m), area = d.shape === "circle" ? Math.PI * d.r * d.r : d.verts ? Math.abs(d.verts.reduce((a, [x, y], i) => { const [x2, y2] = d.verts[(i + 1) % d.verts.length]; return a + x * y2 - x2 * y; }, 0)) / 2 : 4 * d.hx * d.hy;
+      const b = T.spawnPiece("block", X + 6, 8, 0, m), want = b.body.getMass() * area / 2, got = p.body.getMass(); T.clearAllPieces();
+      if (Math.abs(got - want) > 0.03 * want) out.push(["weights: " + m + " " + k + " weighs its size in blocks", false, (got / b.body.getMass()).toFixed(2) + " blocks, should be " + (area / 2).toFixed(2)]); }
     out.push(["3 hand: heavier lags more", res[cases[0][0]].t1 < res[cases[3][0]].t1, res[cases[0][0]].t1 + " s (square) vs " + res[cases[3][0]].t1 + " s (two blocks)"]);
   }
 

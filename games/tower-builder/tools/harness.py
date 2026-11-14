@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 import os, re
 HERE=os.path.dirname(os.path.abspath(__file__))
 src=open(os.path.join(HERE,'..','tower-builder.html')).read()
-hook='''window.__tb={startFree:typeof startFree!=='undefined'?startFree:null,shapeTiles:typeof shapeTiles!=='undefined'?shapeTiles:null,set mat(v){selectedMaterial=v},traceLoads,crushLimit,TEST_LOAD_DENSITY,renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,testReady,stockItems,TEST_WIND,PIECE_DEFS,levelSidebar,pileLayout,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
+hook='''window.__tb={get undoStack(){return typeof undoStack!=='undefined'?undoStack:null},undoButton:typeof undoButton!=='undefined'?undoButton:null,startFree:typeof startFree!=='undefined'?startFree:null,shapeTiles:typeof shapeTiles!=='undefined'?shapeTiles:null,set mat(v){selectedMaterial=v},traceLoads,crushLimit,TEST_LOAD_DENSITY,renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,testReady,stockItems,TEST_WIND,PIECE_DEFS,levelSidebar,pileLayout,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
 get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale},set failShow(v){failShow=v},worldToScreen,failingCells,CHECK,TEST_QUAKE,get doneSites(){return typeof doneSites!=='undefined'?doneSites:null},get goMap(){return typeof goMap!=='undefined'?goMap:null},get siteLook(){return typeof siteLook!=='undefined'?siteLook:null},get restartButton(){return typeof restartButton!=='undefined'?restartButton:null},get readySince(){return readySince},ageReady(){if(readySince!=null)readySince-=1000},get removePiece(){return removePiece},get hitPiece(){return hitPiece},music(){return {ctx:actx&&actx.state,name:musicName,on:!!music}},isLand,massAt,siteMass,mapView,siteMarker,SITES,tourPeople,trailPoints,DONE_SIZE,DONE_RING,siteRadius,WALK_SPEED,get cssW(){return cssWidth}};
 window.requestAnimationFrame=()=>0;
 '''
@@ -161,6 +161,18 @@ with sync_playwright() as p:
         r=pg.evaluate('''()=>{const T=__tb; T.mode="build"; delete T.progress.done[T.LEVELS[0].key]; T.startLevel(0); T.quiet0(); T.startAutoBuild(); let n=0; while(T.auto&&n<18000){T.stepPhysics(1/60);n++;}
           for(let k=0;k<180;k++){T.stepPhysics(1/60);T.updateCheck(1/60);} T.setTab(true); T.startTest(); T.setTab(false); T.test.fast=true; let k=0; while(T.test&&k<20000){const f=T.test.fast&&T.test.phase!=="fail"&&T.test.phase!=="pass"?10:1;T.stepPhysics(f/60,5*f);T.cleanupOutOfBounds();T.updateCheck(1/60);k++;}
           return {mode:T.mode,saved:!!T.progress.done[T.LEVELS[0].key]};}''')
+        # undo (owner 14 Nov): by mouse, as he does: take a block from the sidebar, drop it on another, press undo -> as before
+        st=lambda n: pg.evaluate('(n)=>{for(let k=0;k<n;k++){__tb.stepPhysics(1/60);__tb.cleanupOutOfBounds();}}',n)
+        t=pg.evaluate('()=>{const T=__tb;T.mode="build";T.startFree();T.mat="stone";T.clearAllPieces();T.spawnPiece("block",8,0.503,0,"stone");T.render();const t=T.shapeTiles().find(t=>t.def==="block");return [t.x+t.w/2,t.y+t.h/2]}')
+        bp=pg.evaluate('()=>{const s=__tb.worldToScreen(8,2.2);const r=document.querySelector("canvas").getBoundingClientRect();return [s.x+r.left,s.y+r.top]}')
+        pg.mouse.move(*t); pg.mouse.down(); st(5)
+        for k in range(1,31): pg.mouse.move(t[0]+(bp[0]-t[0])*k/30, t[1]+(bp[1]-t[1])*k/30); st(4)
+        st(60); pg.mouse.up(); st(120)
+        n1=pg.evaluate('()=>__tb.pieces.length')
+        u=pg.evaluate('()=>{const u=__tb.undoButton();const r=document.querySelector("canvas").getBoundingClientRect();return [u.x+r.left,u.y+r.top]}')
+        pg.mouse.click(*u); st(30)
+        ru=pg.evaluate('()=>({n:__tb.pieces.length,y:+__tb.pieces[0].body.getPosition().y.toFixed(2),left:__tb.undoStack.length})')
+        print('undo: block put on a block by mouse, then undo',n1,ru,'OK' if n1==2 and ru['n']==1 and abs(ru['y']-0.5)<0.02 else 'FAIL')
         print('pass stays on building',r,'OK' if r['mode']=='build' and r['saved'] else 'FAIL')
         levels=[]
     if 'shot' in sys.argv:  # screenshot of each level after the quick build (before the test): /tmp/shot<i>.png
