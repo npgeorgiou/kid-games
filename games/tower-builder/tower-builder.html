@@ -473,8 +473,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 0.85, skin: "beam", half: "beam-half" },
     // plank (new, owner 13 Nov): a long wooden beam, 6 m, three blocks long: two blocks on it spread their weight into three below (Ziggurat)
     plank:  { shape: "box", hx: 3.0, hy: 0.25, densityScale: 0.85, skin: "beam", half: "plank-half" },
-    // long plank (new, owner 14 Nov): 12 m, two planks end to end; free play only
-    longplank: { shape: "box", hx: 6.0, hy: 0.25, densityScale: 0.85, skin: "beam", half: "longplank-half" },
+    // big square (new, owner 14 Nov): 2 m x 2 m, two blocks stacked; free play only
+    bigsquare: { shape: "box", hx: 1.0, hy: 1.0, densityScale: 1.0, skin: "block" },
+    // long plank (new, owner 14 Nov): 9 m; free play only
+    longplank: { shape: "box", hx: 4.5, hy: 0.25, densityScale: 0.85, skin: "beam", half: "longplank-half" }, // 9 m (owner 14 Nov, was 12)
     // long block (new, owner 14 Nov): two stone blocks end to end, 4 m; free play only
     longblock: { shape: "box", hx: 2.0, hy: 0.5, densityScale: 1.0, skin: "block" },
     // capital (new, fourth standard size): a flat slab laid on a pillar; an upright block (2 m) plus a capital is one column high
@@ -493,7 +495,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     "block-half":  { shape: "box", hx: 0.5, hy: 0.5, densityScale: 1.0, skin: "block" },
     "column-half": { shape: "box", hx: 0.3, hy: 0.6, densityScale: 1.0, skin: "column" },
     "beam-half":   { shape: "box", hx: 0.8, hy: 0.25, densityScale: 0.85, skin: "beam" },
-    "longplank-half": { shape: "box", hx: 3.0, hy: 0.25, densityScale: 0.85, skin: "beam" },
+    "longplank-half": { shape: "box", hx: 2.25, hy: 0.25, densityScale: 0.85, skin: "beam" },
     "plank-half":  { shape: "box", hx: 1.5, hy: 0.25, densityScale: 0.85, skin: "beam" },
     "capital-half": { shape: "box", hx: 0.4, hy: 0.2, densityScale: 1.0, skin: "beam" },
     drum:   { shape: "circle", r: 0.6, densityScale: 1.0, skin: "drum" },
@@ -527,8 +529,8 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   // the levels use, except the long mudbricks (owner: long mudbricks make no sense), plus the long plank and long block.
   const SANDBOX_SHAPES = {
     wood: [["square", "block"], ["column", "drum"], ["beam", "plank"], ["longplank"], ["centering"]],
-    mudbrick: [["square", "block"], ["abacus"]],
-    stone: [["square", "block"], ["longblock"], ["abacus", "capital"], ["beam"], ["column", "drum"], ["wedge", "tri"], ["trib"], ["gableL", "gableR"]],
+    mudbrick: [["square", "block"], ["abacus", "drum"]],
+    stone: [["square", "block"], ["bigsquare"], ["longblock"], ["abacus", "capital"], ["beam"], ["column", "drum"], ["wedge", "tri"], ["trib"], ["gableL", "gableR"]],
   };
   const BUTTONS = [
     { kind: "piece", def: "block", angle: 0, icon: "block" },
@@ -1190,12 +1192,18 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       const lead = (2 * HOLD_DAMP) / (2 * Math.PI * HOLD_HZ);
       let dx = T.x + vx * lead - p.x, dy = T.y + vy * lead - p.y;
       if (touching && dy < 0) dy = 0;
+      // pulled up while pressed against the side of another piece: the hand lifts first and presses sideways at most
+      // its pushing strength's share (owner 14 Nov: dragging up and towards a wall stuck); a level push keeps its full power
+      // the lift goes through the hand at full strength, the press sideways is a separate push of the usual strength
+      let sidePush = 0;
+      if (touching && dy > 0.02 && pressesInto(body, dx, 0) && !pressesInto(body, 0, dy)) { sidePush = dx; dx = 0; }
       const d = Math.hypot(dx, dy);
       if (d > HOLD_LEAD) { dx *= HOLD_LEAD / d; dy *= HOLD_LEAD / d; }
       piece.joint.setTarget(planck.Vec2(p.x + dx, p.y + dy));
       // pressing into (or about to hit) another piece: no free-air strength, so it cannot ram what it meets; lifting a
       // piece off another, or pulling it away, keeps the full strength (owner: no stickiness when lifting off)
-      const close = nearSeen || (touching && pressesInto(body, dx, dy));
+      const close = !sidePush && (nearSeen || (touching && pressesInto(body, dx, dy)));
+      if (sidePush) body.applyForceToCenter(planck.Vec2(Math.sign(sidePush) * Math.min(1, Math.abs(sidePush) / HOLD_LEAD) * mt * PUSH_ACCEL, 0), true);
       // Force: its own weight plus the hand's strength; touching another piece only a gentle push
       // (0.8 x own weight + HAND_PUSH), so what it pushes resists by its own mass.
       const W = m * GRAVITY;
@@ -1571,7 +1579,18 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     }
     return vn;
   }
-  onWorld("pre-solve", (contact) => { contact.tbVn = approachSpeed(contact); });
+  onWorld("pre-solve", (contact) => { contact.tbVn = approachSpeed(contact); sideRub(contact); });
+  // A held piece pressed against the side of another slides along it (owner 14 Nov: dragging a block up against a wall
+  // stuck). Only side contacts lose their rubbing; what rests on top of a held piece, or under it, keeps it. Pushing is unchanged.
+  const SIDE_RUB = 0.02;
+  const sideWm = new planck.WorldManifold();
+  function sideRub(contact) {
+    const a = contact.getFixtureA().getBody(), b = contact.getFixtureB().getBody();
+    const held = (x) => x.piece && x.piece.joint;
+    if (!(held(a) || held(b)) || !((a.piece || a.isLoad) && (b.piece || b.isLoad))) { contact.resetFriction(); return; }
+    contact.getWorldManifold(sideWm);
+    if (Math.abs(sideWm.normal.y) < 0.5) contact.setFriction(SIDE_RUB); else contact.resetFriction();
+  }
   function feelContact(contact, impulse, pile) {
     const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
     const n = Math.max(...impulse.normalImpulses.slice(0, contact.getManifold().pointCount));

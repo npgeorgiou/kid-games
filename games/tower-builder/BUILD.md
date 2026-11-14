@@ -338,6 +338,16 @@ Owner's words: "friction when I drag a block upwards and towards another block f
 - Open, waiting for the owner: (a) friction: answered, no change yet; proposal: while the hand pushes a piece against another, it presses sideways only lightly and keeps its full lift. (b) undo: what one step back undoes, owner to choose. (c) Mausoleum's pile has a long mudbrick beam and Karnak's a tall mudbrick column (tempting wrong pieces); keep them in those levels or not.
 - Known, before this change: `harness.py owner` stops with an error in the map travellers check (also on the previous version).
 
+## Current state, update 22 (14 Nov 2026)
+
+Owner's words: "sandbox: mudbrick add ball. stone add a big square. wood, make teh 12, 9m. Friction: you ahvent changed anything have you? I want you to stop this behaviour, but still be able to push anotehr block with the dragged block without reduction in power. undo: your suggestion numner 1, would that include number 2?"
+
+- Free play: mudbrick ball; stone big square 2 m x 2 m (`bigsquare`); long plank 9 m.
+- Dragging up against the side of another piece: the hand lifts at full strength and presses sideways with a separate push of the usual strength; side contacts of a held piece barely rub (`sideRub`, hand code `sidePush`). Pushing along the ground unchanged. Owner test `slide`: a block dragged up and towards a wall of stone blocks rises as far as with no wall (wood, mudbrick, stone).
+- Undo: owner chose "the last piece you let go goes back to before you picked it up, with anything that fell or broke because of it" (= the whole building as before that move). Not built yet: waiting for his go.
+- The Karnak "red seams" owner test varied between runs because it counted red on screen while the red pulses with the clock; it now measures at one fixed moment and gives the same result every run (passes). The game itself gave the same result for the same placement.
+- Known, before this change: `harness.py owner restart` stops with an error in the map travellers drawing.
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.

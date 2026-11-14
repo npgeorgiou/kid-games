@@ -146,6 +146,19 @@
     out.push(["9 a small oblong stone pushes another small one along", c > 0.5, "moved " + c + " m"]);
   }
 
+  // --- 14 Nov: dragging a piece up and towards a wall of pieces slides up it, not stuck by rubbing (owner)
+  if (want("slide")) {
+    T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
+    const slide = (m, side, wall = true) => { T.clearAllPieces(); const hy = T.PIECE_DEFS.block.hy;
+      if (wall) T.spawnPiece("block", X + 1.0, hy + 0.003, 0, "stone"); if (wall) T.spawnPiece("block", X + 1.0, 3 * hy + 0.01, 0, "stone"); if (wall) T.spawnPiece("block", X + 1.0, 5 * hy + 0.02, 0, "stone");
+      const p = T.spawnPiece("block", X - 1.02, hy + 0.003, 0, m); run(1);
+      const c0 = p.body.getWorldCenter(), g = { x: c0.x, y: c0.y }, y0 = c0.y; T.startHold(p, g, 95, 0, 0);
+      for (let k = 0; k < 120; k++) { p.desired = { x: g.x + Math.min(side, k * side / 60), y: g.y + Math.min(1.5, k * 1.5 / 60) }; frame(1 / 60); }
+      const r = +(p.body.getWorldCenter().y - y0).toFixed(2); T.releaseHold(95); return r; };
+    for (const m of ["wood", "mudbrick", "stone"]) for (const side of [0.5, 1.5]) {
+      const r = slide(m, side), f = slide(m, 0, false); out.push(["14 Nov a " + m + " block dragged up and " + side + " m towards a wall of stone blocks slides up it as high as lifted with no wall", r >= 0.9 * f, "rose " + r + " m, " + f + " m with no wall"]); }
+  }
+
   // --- eleventh list: lifting a piece off the piece it sits on is not sticky, and the hand's feel is locked
   if (want("motion")) {
     T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
@@ -292,7 +305,7 @@
         let s = i + 7; const r2 = () => ((s = (s * 16807) % 2147483647) / 2147483647 - 0.5);
         T.SOLUTIONS[key] = j ? orig.map((e) => e[0] === "pull" ? e : [e[0], e[1], e[2] + r2() * 0.06, e[3] + Math.abs(r2()) * 0.03, e[4]]) : orig;
         T.startAutoBuild(); T.SOLUTIONS[key] = orig; let n = 0; while (T.auto && n < 20000) { frame(1 / 60); n++; } run(2);
-        T.failShow = { cells: [], loads: [], unfilled: true, until: null }; T.render();
+        T.failShow = { cells: [], loads: [], unfilled: true, until: null }; const pn = performance.now; performance.now = () => 0; T.render(); performance.now = pn; // red pulses with the clock: measure at one moment
         const cv = document.querySelector("canvas"), cx = cv.getContext("2d"), dpr = window.devicePixelRatio || 1, im = cx.getImageData(0, 0, cv.width, cv.height).data;
         let red = 0; for (let k = 0; k < im.length; k += 4) if (im[k] > 170 && im[k + 1] < 120 && im[k + 2] < 110) red++;
         T.failShow = null; return red / (dpr * dpr) / (T.scale * T.scale); };
