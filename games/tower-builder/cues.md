@@ -4,6 +4,18 @@ Owner decisions of 14 Nov 2026, from the chat that planned flavour and teaching 
 
 The child plays without reading. The game talks to them, shows them what to do with a see-through hand, and makes things glow. The first site teaches everything step by step. Each later site shows its new way of building in a short demo. After that the child plays alone, and the game only adds flavour: stories, facts and the odd remark.
 
+## 0. Owner changes, 14 Nov evening (override the sections below where they differ; BUILT, BUILD.md update 41)
+
+- Every text box lasts 2 s, with a blue bar on top running out, then closes (a recording lasts its own length).
+- Attention: while any line plays (background lines aside) the screen darkens and the game freezes. A step that waits for the child darkens all but what it points at, and only that can be touched. A demo darkens all but the building and takes no touch. Ctrl held (parent) is never held back. No "tap ends the pause" any more.
+- Highlight: whatever a line talks about (button, site, piece, place in the plan) glows from its own outline (a plank's glow is long, a triangle's is a triangle) with a slow ring spreading out; yellow, or green/red for a green/red thing (the test button, a finished or damaged site).
+- A waiting step says its line again, with its ghost hand, every 5 s until the child does it. The ghost hand is a drawn hand and moves slowly (a drag takes about 3.5 s).
+- Every button shows pressed while held and acts when let go over it.
+- The first site's red-button step has its own line (99); pressing the red button there does not say line 70.
+- Demos play on every visit until the site is finished, and freeze everything else. Every demo part says what is done before it is built (lines 123-131) and what came of it after.
+- The three test explanations (101-103) play only in the first test ever.
+- Pieces of a shape or a material never seen before all glow once, after the intro (and after the first site's teaching).
+
 ## 1. Words
 
 - **Cue**: something happens in the game, and the game answers with a voice line, a visual sign, a pause, or a mix.
@@ -251,6 +263,18 @@ Files: `sounds/voice/NN.mp3`, NN = the line number. The owner records in numbere
 120. Mausoleum demo, wrong: "Αν βγάλεις τον στύλο πριν πατήσει η στέγη, το δοκάρι πέφτει."
 121. Mausoleum demo, right: "Στήριξε πρώτα το δοκάρι σε έναν ξύλινο στύλο. Όταν πατήσει η στέγη από πάνω, βγάζεις τον στύλο."
 122. Valens reminder: "Με τρία γρήγορα πατήματα, το καλούπι γυρίζει στον σωρό, έτοιμο για την επόμενη καμάρα."
+
+### Demo "what we do" lines (123-131; owner, 14 Nov evening: each demo part says what is done, then what came of it)
+123. Mastaba demo, before: "Δες: δύο πλίνθοι δίπλα δίπλα, και ένας από πάνω, στη μέση."
+124. Djoser demo, wrong, before: "Δες τι γίνεται αν βάλουμε τους πλίνθους κάτω και τις πέτρες από πάνω."
+125. Djoser demo, right, before: "Τώρα ανάποδα: πέτρες κάτω, πλίνθοι από πάνω."
+126. Ur demo, wrong, before (not used while the Ur wrong way is open): "Δες τι γίνεται με δύο κοντά δοκάρια πάνω στους πλίνθους."
+127. Ur demo, right, before: "Τώρα μια μακριά σανίδα πάνω σε τρεις πλίνθους, και δύο πλίνθοι από πάνω."
+128. Karnak demo, before: "Δες: ένας κίονας με δύο μικρές πέτρες από πάνω, άλλος ένας ίδιος, και ένα δοκάρι ανάμεσά τους."
+129. Mausoleum demo, wrong, before: "Δες: ένα δοκάρι πάνω σε ξύλινο στύλο. Βγάζουμε τον στύλο πριν μπει η στέγη."
+130. Mausoleum demo, right, before: "Τώρα ξανά, αλλά πρώτα χτίζουμε όλη τη στέγη, και μετά βγάζουμε τους στύλους."
+131. Valens reminder, before: "Θυμήσου την καμάρα της Βαβυλώνας: καλούπι, σφήνες, και η σφήνα της κορυφής."
+Ishtar's 115-118 already say what is done; each now plays before its part.
 
 ## 8. Notes
 
