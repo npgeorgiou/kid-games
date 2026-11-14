@@ -465,6 +465,15 @@ Results (hand list + older hand tests): 102 of 119 pass. Failing:
 - Old test "a stone block held at one end swings round in big circles": 0.13 turns (damping).
 Points 3 and 5 marks changed from my proposals to the pieces' own swing: hang within 1.5 s, standing block falls round within 0.8 s.
 
+## Current state, update 36 (14 Nov 2026): whirling works, no tilt when dragged, a bit less throw
+
+Owner's words: "1. stones, when dragged horizontally through the air, tilt too much, as if the air resistance can tilt them. you ahve to make stone heavier, and all amterials in proportion, and the strength in proportiona s well so no differnece is felt. 2. after that, make strength a bit les,s because no I can throw mroe than what I imagine correct. 3. you ahve to make whirling work, I dont know why you ahve so many difficulties. explain why, adn what is this connection with boincing"
+
+- Not done: scaling every weight and the strength together changes nothing in the game (every speed and turn stays the same). The tilt came from the wrist: a block grabbed in the middle of its length but near its top or bottom edge counted as an outer third. Now the wrist holds fully against the hand's own speeding up and slowing down (the brain keeps what it moves steady); against the weight it holds as far as the middle third reaches (point 2 unchanged). New test "list 1b".
+- Throw: ARM_RUN 1.8 -> 1.4: mudbrick 7.1 m, wood 8.6 m, stone 4.9 m (test 16 now 6.5-7.6 m).
+- Whirling: the wrist's damping now acts against swinging relative to the finger's own turning (from the finger's last 2 x WRIST_SEEN steps; a person whirling turns the wrist with the circles, held still it calms the swing), capped at the weight's turning pull at the grab point; and pulling a piece by a point away from its middle, like a rope, the arm is ARM_PULL (5) times its weight stronger. A block held at one end now goes round once per hand circle as big as the round stone, at one circle every 1, 1.5 or 2 s, smoothly, for stone, mudbrick and wood; hanging still it settles without bouncing. Picture `owner-shots/whirl-4-circles.png` (redrawn).
+- Hand tests: 112 of 125 pass. Still failing, waiting for the owner's answers (asked in update 35): coming back at 2-3 m/s, wood carry 0.57 s, small oblong stone pushed hard moves a stone block 0.3 m, dragging up while pressing hard into a wall sticks half way.
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.

@@ -1062,7 +1062,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   //   after holding up the weight moves the load, but the brain never uses more than HAND_GRIP x the weight for moving
   //   it (owner 12-14 Nov: strength the job needs, so a small stone cannot shove a big block; heavier lags; above two
   //   stone blocks it cannot lift). It speeds a load up over at most one sweep of the arm, ARM_RUN (owner 14 Nov: a
-  //   mudbrick block dragged sideways at full speed and let go at mid-screen height flies 9 m; every other piece by
+  //   mudbrick block dragged sideways at full speed and let go at mid-screen height flies 9 m, then 'a bit less'; every other piece by
   //   its weight), and never harder than what rests on it can follow without sliding (its friction). Heading for the
   //   finger it never goes faster than it can still stop at the finger (the standard time-optimal approach), so a
   //   piece runs on as its speed and the arm's strength make it and comes back without springing past the finger.
@@ -1076,9 +1076,9 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   //   (owner 14 Nov, every piece by its own size; a stack lifted by its bottom piece too); grabbed in an outer third,
   //   the weight wins, the wrist gives way and it falls round, settling hanging without bouncing.
   const ARM_STRENGTH = 210; // N: a stone block weighs 100 N, so two blocks lift slowly and a bit more does not
-  const ARM_SPEED = 11, ARM_EASE = 0.08, ARM_REACT = 0.05, ARM_RUN = 1.8, ARM_CARE = 0.8; // m/s, s, s, m, share of the friction
+  const ARM_SPEED = 11, ARM_EASE = 0.08, ARM_REACT = 0.05, ARM_RUN = 1.4, ARM_CARE = 0.8; // m/s, s, s, m, share of the friction
   const HAND_GRIP = 3.8; // most strength the brain uses for moving, as a multiple of the weight carried
-  const WRIST_SLIP = 0.1, WRIST_GIVE = 0.3, WRIST_DAMP = 0.35, WRIST_TURNED = 0.3; // share, rad/s (holding to slipping), share of critical, rad (turned in the fingers)
+  const WRIST_SLIP = 0.1, WRIST_GIVE = 0.3, WRIST_DAMP = 0.35, WRIST_TURNED = 0.3, WRIST_SEEN = 4, ARM_PULL = 5; // share, rad/s (holding to slipping), share of critical, rad (turned in the fingers)
   const HAND_MASS = 0.2; // kg: the hand, moved along with the piece
   const dIn = new planck.DistanceInput(), dOut = new planck.DistanceOutput(), dCache = new planck.SimplexCache();
   // distance from a body down to the nearest piece under it, if closer than `reach`
@@ -1119,22 +1119,33 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       const p = body.getWorldPoint(piece.grabLocal), v = body.getLinearVelocityFromWorldPoint(p), f = piece.desired;
       const dx = f.x - p.x, dy = f.y - p.y, d = Math.hypot(dx, dy), vmax = Math.min(ARM_SPEED, Math.sqrt(2 * A * ARM_RUN));
       const s = d > 1e-6 ? Math.min(vmax, d / ARM_EASE, Math.sqrt(2 * A * d)) / d : 0;
-      let ax = (dx * s - v.x) / ARM_REACT, ay = (dy * s - v.y) / ARM_REACT; const al = Math.hypot(ax, ay);
-      if (al > A) { ax *= A / al; ay *= A / al; }
-      let Fx = M * ax, Fy = M * ay + W; const Fl = Math.hypot(Fx, Fy);
-      if (Fl > most) { Fx *= most / Fl; Fy *= most / Fl; }
-      body.applyForce(planck.Vec2(Fx, Fy), p, true);
-      // the wrist: how far the middle third reaches towards the grab point, from the piece's own size
-      const def = PIECE_DEFS[piece.defKey], hx = def.hx || def.r, hy = def.hy || def.r || hx, lc = body.getLocalCenter();
+      // pulling a piece by a point away from its middle (like a rope) the arm is much stronger than pushing or lifting
+      const c = body.getWorldCenter(), def = PIECE_DEFS[piece.defKey], hx = def.hx || def.r, hy = def.hy || def.r || hx, lc = body.getLocalCenter();
       const lx = piece.grabLocal.x - lc.x, ly = piece.grabLocal.y - lc.y, r = Math.hypot(lx, ly);
+      let ax = (dx * s - v.x) / ARM_REACT, ay = (dy * s - v.y) / ARM_REACT; const al = Math.hypot(ax, ay);
+      const pull = r > 1e-6 && al > 1e-6 ? Math.max(0, (ax * (p.x - c.x) + ay * (p.y - c.y)) / (al * r)) * r / (r + 0.3) : 0;
+      const Ap = A + pull * ARM_PULL * GRAVITY;
+      if (al > Ap) { ax *= Ap / al; ay *= Ap / al; }
+      let Fx = M * ax, Fy = M * ay + W; const Fl = Math.hypot(Fx, Fy), cap = most + pull * ARM_PULL * W;
+      if (Fl > cap) { Fx *= cap / Fl; Fy *= cap / Fl; }
+      body.applyForce(planck.Vec2(Fx, Fy), p, true);
+      // the wrist: against the weight it holds as far as the middle third reaches towards the grab point (the piece's
+      // own size); against the hand's own speeding up and slowing down it holds fully (the brain keeps what it moves steady)
       const reach = r < 1e-6 ? 1e3 : r * Math.min(Math.abs(lx) > 1e-6 ? hx / 3 / Math.abs(lx) : 1e3, Math.abs(ly) > 1e-6 ? hy / 3 / Math.abs(ly) : 1e3);
-      const w = body.getAngularVelocity(), hold = Math.max(W, Math.hypot(Fx, Fy)) * reach;
+      const w = body.getAngularVelocity(), hold = reach * W + r * Math.hypot(Fx, Fy - W);
       // the fingers hold firmly only in the position they closed on; once the piece has turned in them, loosely
       const turned = Math.exp(-Math.abs(piece.grip.getJointAngle()) / WRIST_TURNED);
       piece.grip.setMaxMotorTorque(hold * turned * (WRIST_SLIP + (1 - WRIST_SLIP) * Math.exp(-Math.abs(w) / WRIST_GIVE)));
-      // its damping, against swinging (a share of what would stop a hanging swing without bouncing)
-      const Ip = body.getInertia() + body.getMass() * r * r;
-      body.applyTorque(-WRIST_DAMP * 2 * Math.sqrt(Ip * W * Math.max(r, 0.05)) * w, true);
+      // its damping, against swinging relative to the finger's own turning (a person whirling turns the wrist with the
+      // circles; held still it calms the swing): the finger's turning from its last WRIST_SEEN steps, counted only as
+      // much as the finger is really moving; never more than the weight's own turning pull at the grab point
+      const hist = piece.fingerHist || (piece.fingerHist = []); hist.push({ x: f.x, y: f.y }); if (hist.length > 2 * WRIST_SEEN + 1) hist.shift();
+      let wf = 0;
+      if (hist.length === 2 * WRIST_SEEN + 1) { const h0 = hist[0], h1 = hist[WRIST_SEEN], h2 = hist[2 * WRIST_SEEN], ux = h1.x - h0.x, uy = h1.y - h0.y, vx2 = h2.x - h1.x, vy2 = h2.y - h1.y;
+        const sp = Math.min(Math.hypot(ux, uy), Math.hypot(vx2, vy2)) / (WRIST_SEEN * STEP);
+        wf = Math.atan2(ux * vy2 - uy * vx2, ux * vx2 + uy * vy2) / (WRIST_SEEN * STEP) * sp * sp / (sp * sp + 0.09); }
+      const Ip = body.getInertia() + body.getMass() * r * r, tq = -WRIST_DAMP * 2 * Math.sqrt(Ip * W * Math.max(r, 0.05)) * (w - wf);
+      body.applyTorque(Math.max(-r * W, Math.min(r * W, tq)), true);
     }
   }
   function dropHand(piece) { // let go: the fingers open and the arm goes away

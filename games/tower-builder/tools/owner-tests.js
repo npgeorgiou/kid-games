@@ -158,6 +158,10 @@
       let down = 0; { const p = piece(d, X - 2, 4, 0, m); const g = grab(p, hx * 0.85, 0);
         for (let k = 0; k < 90; k++) { p.desired = { x: g.x, y: g.y + Math.min(1.5, k / 20) }; frame(1 / 60); down = Math.max(down, Math.abs(p.body.getAngle())); } let_go(); }
       P("2", m + " " + d + ": grabbed in its middle third stays level, in an outer third turns down", t < 0.1 && down > 0.8, "middle third tilted " + deg(t) + ", outer third turned " + deg(down) + " degrees"); }
+    // 1b (owner 14 Nov): a block grabbed in the middle along its length, near its top or bottom edge, dragged sideways fast through the air: no tilt
+    for (const m of MATS) for (const ly of [0.45, -0.45]) { const p = piece("block", X - 3, 5, 0, m); const g = grab(p, 0, ly); run(0.5); let t = 0;
+      for (let k = 0; k < 150; k++) { const u = Math.min(1, Math.max(0, k / 20)); p.desired = { x: g.x + 5 * u, y: g.y }; frame(1 / 60); t = Math.max(t, Math.abs(p.body.getAngle())); } let_go();
+      P("1b", m + " block grabbed near its " + (ly > 0 ? "top" : "bottom") + " edge in the middle, dragged sideways fast, does not tilt", t < 0.1, "tilted " + deg(t) + " degrees"); }
     // 3, 4: grabbed at one end: hangs within about a second, no bouncing up and down
     for (const m of MATS) { const p = piece("block", X, 5, 0, m); const g = grab(p, 0.9, 0); let at1 = null, wob = 0;
       for (let k = 0; k < 180; k++) { p.desired = { x: g.x, y: g.y + Math.min(1, k / 18) }; frame(1 / 60); const off = Math.abs(Math.abs(p.body.getAngle()) - Math.PI / 2); if (k === 90) at1 = off; if (k > 90) wob = Math.max(wob, off); }
@@ -206,7 +210,7 @@
       for (let k = 0; k < 40 && !still; k++) { p.desired = { x: g.x + speed * k / 60, y: g.y }; frame(1 / 60); }
       const x0 = p.body.getPosition().x; let_go(); for (let k = 0; k < 240; k++) { frame(1 / 60); if (p.body.getPosition().y < 0.6) break; } return +(p.body.getPosition().x - x0).toFixed(2); };
     { const r = {}; for (const m of MATS) r[m] = fling(m, 15);
-      P("16", "mudbrick block swept at full speed, let go at mid-screen height, lands 8-10 m away", r.mudbrick >= 8 && r.mudbrick <= 10, "m: " + JSON.stringify(r));
+      P("16", "mudbrick block swept at full speed, let go at mid-screen height, lands a bit less than 8 m (owner: 9 m, then a bit less)", r.mudbrick >= 6.5 && r.mudbrick <= 7.6, "m: " + JSON.stringify(r));
       P("17", "wood flies further than mudbrick, stone less far", r.wood > r.mudbrick && r.mudbrick > r.stone, "m: " + JSON.stringify(r));
       const n = {}; for (const m of MATS) n[m] = fling(m, 2); P("18", "let go during a normal drag (2 m/s) at mid-screen height, lands where real falling puts it (about 2 m)", Object.values(n).every((v) => v >= 1.5 && v <= 2.5), "m: " + JSON.stringify(n));
       const s0 = {}; for (const m of MATS) s0[m] = fling(m, 0, true); P("19", "let go while held still, drops straight down", Object.values(s0).every((v) => Math.abs(v) < 0.1), "m: " + JSON.stringify(s0)); }
