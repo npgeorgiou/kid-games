@@ -101,6 +101,33 @@ with sync_playwright() as p:
                     if st: done[i]=st
         for i,q in pages: print('%-9s %-4s %s'%(q.evaluate('(i)=>__tb.LEVELS[i].key',i),'PASS' if done.get(i,'').endswith('PASS') else 'FAIL','2 real game loop: '+done.get(i,'timeout')),flush=True)
         levels=[]
+    if 'whirlvideo' in sys.argv:  # owner 14 Nov: a video of whirling with the real mouse in the running game (real time)
+        import math, glob, shutil, subprocess
+        shutil.rmtree('/tmp/vid',ignore_errors=True)
+        ctx=b.new_context(viewport={'width':1280,'height':800},record_video_dir='/tmp/vid',record_video_size={'width':1280,'height':800}); v=ctx.new_page()
+        v.goto('file:///tmp/tb-real.html'); v.wait_for_timeout(800)
+        v.evaluate("""()=>{const d=document.createElement('div');d.style.cssText='position:fixed;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:rgba(255,0,0,.85);pointer-events:none;z-index:99';document.body.appendChild(d);
+          addEventListener('pointermove',e=>{d.style.left=e.clientX+'px';d.style.top=e.clientY+'px'},true);
+          const s=document.createElementNS('http://www.w3.org/2000/svg','svg');s.style.cssText='position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:98';s.innerHTML='<circle id=gc fill=none stroke=red stroke-dasharray=6,6 stroke-width=2 r=0 />';document.body.appendChild(s);}""")
+        sc=lambda x,y: v.evaluate('([x,y])=>{const s=__tb.worldToScreen(x,y);const r=document.querySelector("canvas").getBoundingClientRect();return [s.x+r.left,s.y+r.top]}',[x,y])
+        for m in ['stone','wood']:
+            v.evaluate('(m)=>{const T=__tb;T.mode="build";T.startFree();T.mat=m;T.clearAllPieces();T.spawnPiece("block",20,0.503,0,m);}',m); v.wait_for_timeout(700)
+            g=sc(20.9,0.503); v.mouse.move(*g); v.mouse.down(); v.wait_for_timeout(100)
+            for k in range(1,31): v.mouse.move(*sc(20.9,0.503+3*k/30)); v.wait_for_timeout(16)
+            fps=v.evaluate('()=>new Promise(res=>{let n=0;const t0=performance.now();const f=()=>{n++;if(performance.now()-t0<1000)requestAnimationFrame(f);else res(n)};requestAnimationFrame(f)})'); print('frames per second in the recording:',fps,flush=True)
+            v.wait_for_timeout(2000); c=sc(20.9,4.103); r=sc(20.9+0.6,4.103)[0]-c[0]
+            v.evaluate('([x,y,r])=>{const g=document.getElementById("gc");g.setAttribute("cx",x);g.setAttribute("cy",y);g.setAttribute("r",r)}',[c[0],c[1],r])
+            t0=v.evaluate('()=>performance.now()'); nm=0
+            while True:
+                t=(v.evaluate('()=>performance.now()')-t0)/1000
+                if t>6: break
+                th=t*2*math.pi; v.mouse.move(*sc(20.9+0.6*math.sin(th),3.503+0.6-0.6*math.cos(th))); nm+=1; v.wait_for_timeout(8)
+            print('mouse moves per second:',nm/6,flush=True)
+            v.wait_for_timeout(300); v.mouse.up(); v.wait_for_timeout(1200)
+            v.evaluate('()=>{document.getElementById("gc").setAttribute("r",0)}')
+        ctx.close(); src=glob.glob('/tmp/vid/*.webm')[0]; out=os.path.join(HERE,'..','owner-shots','whirl-real-mouse.mp4')
+        subprocess.run(['ffmpeg','-y','-loglevel','error','-i',src,'-c:v','libx264','-preset','veryfast','-pix_fmt','yuv420p',out]); print('video',out)
+        levels=[]
     if 'mousewhirl' in sys.argv:  # owner 14 Nov: can a person whirl with the real mouse? stone block held at one end, circles as big as the round stone, once a second
         st=lambda n: pg.evaluate('(n)=>{for(let k=0;k<n;k++){__tb.stepPhysics(1/60);__tb.cleanupOutOfBounds();}}',n)
         sc=lambda x,y: pg.evaluate('([x,y])=>{const s=__tb.worldToScreen(x,y);const r=document.querySelector("canvas").getBoundingClientRect();return [s.x+r.left,s.y+r.top]}',[x,y])

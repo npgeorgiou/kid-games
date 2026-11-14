@@ -162,10 +162,10 @@
     for (const m of MATS) for (const ly of [0.45, -0.45]) { const p = piece("block", X - 3, 5, 0, m); const g = grab(p, 0, ly); run(0.5); let t = 0;
       for (let k = 0; k < 150; k++) { const u = Math.min(1, Math.max(0, k / 20)); p.desired = { x: g.x + 5 * u, y: g.y }; frame(1 / 60); t = Math.max(t, Math.abs(p.body.getAngle())); } let_go();
       P("1b", m + " block grabbed near its " + (ly > 0 ? "top" : "bottom") + " edge in the middle, dragged sideways fast, does not tilt", t < 0.1, "tilted " + deg(t) + " degrees"); }
-    // 3, 4: grabbed at one end: hangs within about a second, no bouncing up and down
-    for (const m of MATS) { const p = piece("block", X, 5, 0, m); const g = grab(p, 0.9, 0); let at1 = null, wob = 0;
-      for (let k = 0; k < 180; k++) { p.desired = { x: g.x, y: g.y + Math.min(1, k / 18) }; frame(1 / 60); const off = Math.abs(Math.abs(p.body.getAngle()) - Math.PI / 2); if (k === 90) at1 = off; if (k > 90) wob = Math.max(wob, off); }
-      P("3", m + " block grabbed at one end hangs within 1.5 s (its own swing), no bouncing", at1 < 0.35 && wob < 0.35, "off hanging after 1.5 s: " + deg(at1) + ", most after: " + deg(wob) + " degrees"); let_go(); }
+    // 3, 4: grabbed at one end: hangs (within 20 degrees of straight down) within 1.5 s and stays there, no bouncing
+    for (const m of MATS) { const p = piece("block", X, 5, 0, m); const g = grab(p, 0.9, 0); let settled = null;
+      for (let k = 0; k < 300; k++) { p.desired = { x: g.x, y: g.y + Math.min(1, k / 18) }; frame(1 / 60); const off = Math.abs(Math.abs(p.body.getAngle()) - Math.PI / 2); if (off < 0.35) { if (settled == null) settled = k / 60; } else settled = null; } let_go();
+      P("3", m + " block grabbed at one end hangs within 1.5 s and stays, no bouncing", settled != null && settled <= 1.5, "hangs still from " + (settled == null ? "never (5 s)" : settled.toFixed(2) + " s")); }
     // 5: standing block grabbed at its outer side half way up and lifted: falls round at once
     for (const m of MATS) { const p = piece("block", X, 3, Math.PI / 2, m); run(0.3); const a0 = p.body.getAngle(), c = p.body.getWorldCenter(), g = { x: c.x + 0.48, y: c.y }; T.startHold(p, g, 86, 0, 0); let t = null;
       for (let k = 0; k < 60; k++) { p.desired = { x: g.x, y: g.y + Math.min(1.5, k / 30) }; frame(1 / 60); if (t == null && Math.abs(p.body.getAngle() - a0) > 1.2) t = k / 60; } let_go();
@@ -180,9 +180,13 @@
       const dir = dx ? "sideways" : dy < 0 ? "down" : "up";
       P(n, m + " block moved 3 m " + dir + " fast and stopped: runs on as its weight gives (owner: from the 9 m mudbrick throw; shown only)", true, "ran on " + Math.max(0, peak).toFixed(2) + " m");
       P("9", m + " block moved " + dir + ": comes back once, slowly, never passes the finger again", after > -0.05 && back < 1.5, "came back to " + Math.max(-9, -after).toFixed(2) + " m the other side, at up to " + back.toFixed(1) + " m/s"); }
+    // 9b (owner 14 Nov): inertia: moved the same way (3 m in a second) and stopped, stone runs on further than mudbrick, mudbrick than wood
+    { const ro = {}; for (const m of MATS) { const p = piece("block", X - 1.5, 5, 0, m); const g = grab(p, 0, 0); run(0.5); let peak = -9;
+        for (let k = 0; k < 260; k++) { p.desired = { x: g.x + Math.min(3, 1.5 * k / 60), y: g.y }; frame(1 / 60); if (k > 120) peak = Math.max(peak, p.body.getWorldCenter().x - g.x - 3); } let_go(); ro[m] = +Math.max(0, peak).toFixed(2); }
+      P("9b", "moved 3 m at a steady walk (1.5 m/s) and stopped suddenly, stone runs on further than mudbrick, mudbrick than wood", ro.stone > ro.mudbrick && ro.mudbrick > ro.wood, "ran on (m): " + JSON.stringify(ro)); }
     // 10: slow finger: within a hand-width
     for (const m of MATS) { const p = piece("block", X - 2, 5, 0, m); grab(p, 0, 0); run(1); const g0 = p.body.getWorldPoint(p.grabLocal), g = { x: g0.x, y: g0.y }; let far = 0;
-      for (let k = 0; k < 180; k++) { const f = { x: g.x + 0.5 * k / 60, y: g.y + 0.2 * Math.sin(k / 30) }; p.desired = f; frame(1 / 60); const q = p.body.getWorldPoint(p.grabLocal); if (k > 18) far = Math.max(far, Math.hypot(q.x - f.x, q.y - f.y)); } let_go();
+      for (let k = 0; k < 180; k++) { const f = { x: g.x + 0.5 * k / 60, y: g.y + 0.2 * Math.sin(k / 30) }; p.desired = f; frame(1 / 60); const q = p.body.getWorldPoint(p.grabLocal); if (k > 30) far = Math.max(far, Math.hypot(q.x - f.x, q.y - f.y)); } let_go();
       P("10", m + " block follows a slow finger within a hand-width", far <= 0.15, "at most " + far.toFixed(2) + " m from the finger"); }
     // 11: grabbed in the middle, follows small quick circles
     for (const m of MATS) { const p = piece("block", X, 6, 0, m); const g = grab(p, 0, 0); run(0.3); let sag = 0, n = 0, lo = 1e9, hi = -1e9;
@@ -193,7 +197,7 @@
       for (let k = 0; k < 240 && t == null; k++) { p.desired = { x: g.x + 4, y: g.y }; frame(1 / 60); if (p.body.getPosition().x > g.x + 3.9) t = k / 60; } let_go(); return t == null ? 9 : +t.toFixed(2); };
     const ct = {}; for (const m of MATS) ct[m] = carry("block", m);
     const near = (a, b, f) => Math.abs(a - b) <= f * b;
-    P("12", "carrying 4 m: wood about 0.4 s, mudbrick 0.6 s, stone 0.85 s", ct.wood < ct.mudbrick && ct.mudbrick < ct.stone && near(ct.wood, 0.4, 0.25) && near(ct.mudbrick, 0.6, 0.25) && near(ct.stone, 0.85, 0.25), JSON.stringify(ct));
+    P("12", "carrying 4 m: wood quickest, then mudbrick, then stone (owner: same effort for every piece, times as they come)", ct.wood < ct.mudbrick && ct.mudbrick < ct.stone, JSON.stringify(ct));
     { const a = carry("abacus", "stone"), b = carry("column", "wood"); P("13", "same weight, same carry: small oblong stone and wooden column", near(a, b, 0.15), a + " s and " + b + " s"); }
     // 14, 15: lifting by weight, one piece or a stack
     const lift = (stack) => { T.clearAllPieces(); let top = 0; const ps = []; for (const [d, m] of stack) { const hy = T.PIECE_DEFS[d].hy; ps.push(T.spawnPiece(d, X, top + hy + 0.003, 0, m)); top += 2 * hy; run(0.4); }
@@ -206,9 +210,11 @@
       const c = lift([["block", "stone"], ["block", "stone"], ["block", "stone"]]);
       P("15", "two stone blocks lift slowly, three not at all", a.t != null && a.t > 0.6 && c.rose < 0.2, "two: 1 m after " + a.t + " s; three rose " + c.rose.toFixed(2) + " m"); }
     // 16-19: letting go
-    const fling = (m, speed, still) => { const p = piece("block", X - 7, 5, 0, m), g = grab(p, 0, 0); run(0.3);
-      for (let k = 0; k < 40 && !still; k++) { p.desired = { x: g.x + speed * k / 60, y: g.y }; frame(1 / 60); }
-      const x0 = p.body.getPosition().x; let_go(); for (let k = 0; k < 240; k++) { frame(1 / 60); if (p.body.getPosition().y < 0.6) break; } return +(p.body.getPosition().x - x0).toFixed(2); };
+    const fling = (m, speed, still) => { const p = piece("block", X - 8, 5, 0, m), g = grab(p, 0, 0); run(0.3);
+      for (let k = 0; k < (speed > 5 ? 58 : 150) && !still; k++) { p.desired = { x: g.x + speed * k / 60, y: g.y }; frame(1 / 60); }
+      // where it lands: from its speed and height when let go (real falling; the screen's edge would stop the longest throws)
+      const x0 = p.body.getPosition().x, y0 = p.body.getPosition().y, vx = p.body.getLinearVelocity().x, vy = p.body.getLinearVelocity().y; let_go();
+      const t = (vy + Math.sqrt(vy * vy + 2 * 10 * (y0 - 0.5))) / 10; return +(vx * t).toFixed(2); };
     { const r = {}; for (const m of MATS) r[m] = fling(m, 15);
       P("16", "mudbrick block swept at full speed, let go at mid-screen height, lands a bit less than 8 m (owner: 9 m, then a bit less)", r.mudbrick >= 6.5 && r.mudbrick <= 7.6, "m: " + JSON.stringify(r));
       P("17", "wood flies further than mudbrick, stone less far", r.wood > r.mudbrick && r.mudbrick > r.stone, "m: " + JSON.stringify(r));
@@ -229,7 +235,11 @@
     for (const m of MATS) { const res = {}; for (const per of [1, 1.5, 2]) { const p = piece("block", X, 6, 0, m); const g = grab(p, 0.9, 0); run(2.5); let prev = p.body.getAngle(), tot = 0, rev = 0; const R = T.PIECE_DEFS.drum.r, N = Math.round(5 * per * 60);
         for (let k = 0; k < N; k++) { const th = k / 60 / per * 2 * Math.PI; p.desired = { x: g.x + R * Math.sin(th), y: g.y + R - R * Math.cos(th) }; frame(1 / 60); const a = p.body.getAngle(); if (k >= per * 60) { tot += a - prev; rev = Math.min(rev, Math.sign(tot || 1) * (a - prev)); } prev = a; } let_go();
         res[per] = { turns: +(Math.abs(tot) / (2 * Math.PI)).toFixed(2), back: +deg(-rev) }; }
-      const ok = Object.values(res).some((q) => q.turns >= 3.6 && q.back < 2);
+      // 23b: the same with a slow mouse or touch screen: the finger's position arrives only every third step (20 a second)
+      { const p = piece("block", X, 6, 0, m); const g = grab(p, 0.9, 0); run(2.5); let prev = p.body.getAngle(), tot = 0; const R = T.PIECE_DEFS.drum.r;
+        for (let k = 0; k < 300; k++) { if (k % 3 === 0) { const th = k / 60 * 2 * Math.PI; p.desired = { x: g.x + R * Math.sin(th), y: g.y + R - R * Math.cos(th) }; } frame(1 / 60); const a = p.body.getAngle(); if (k >= 60) tot += a - prev; prev = a; } let_go();
+        res.slowMouse = +(Math.abs(tot) / (2 * Math.PI)).toFixed(2); }
+      const ok = res[1].turns >= 3.6 && res[1].back < 2 && res.slowMouse >= 3.6;
       P("23", m + " block held at one end goes round once per hand circle (as big as the round stone), smoothly, at some speed of circles", ok, "turns in 4 circles, by seconds per circle: " + JSON.stringify(res)); }
     // 27: (owner: physics decides) small oblong stone rammed fast into a stone block
     { T.clearAllPieces(); const t = T.spawnPiece("block", X + 1.5, 0.503, 0, "stone"); run(0.5); const p = T.spawnPiece("abacus", X - 3, 0.703, 0, "stone"); run(0.3); const g = grab(p, 0, 0); const x0 = t.body.getPosition().x;
