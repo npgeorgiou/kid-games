@@ -473,6 +473,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 0.85, skin: "beam", half: "beam-half" },
     // plank (new, owner 13 Nov): a long wooden beam, 6 m, three blocks long: two blocks on it spread their weight into three below (Ziggurat)
     plank:  { shape: "box", hx: 3.0, hy: 0.25, densityScale: 0.85, skin: "beam", half: "plank-half" },
+    // long plank (new, owner 14 Nov): 12 m, two planks end to end; free play only
+    longplank: { shape: "box", hx: 6.0, hy: 0.25, densityScale: 0.85, skin: "beam", half: "longplank-half" },
+    // long block (new, owner 14 Nov): two stone blocks end to end, 4 m; free play only
+    longblock: { shape: "box", hx: 2.0, hy: 0.5, densityScale: 1.0, skin: "block" },
     // capital (new, fourth standard size): a flat slab laid on a pillar; an upright block (2 m) plus a capital is one column high
     capital: { shape: "box", hx: 0.8, hy: 0.2, densityScale: 1.0, skin: "beam", half: "capital-half" },
     // abacus (new): a small oblong block, half a capital; two stacked make a column's capital (Karnak)
@@ -489,6 +493,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     "block-half":  { shape: "box", hx: 0.5, hy: 0.5, densityScale: 1.0, skin: "block" },
     "column-half": { shape: "box", hx: 0.3, hy: 0.6, densityScale: 1.0, skin: "column" },
     "beam-half":   { shape: "box", hx: 0.8, hy: 0.25, densityScale: 0.85, skin: "beam" },
+    "longplank-half": { shape: "box", hx: 3.0, hy: 0.25, densityScale: 0.85, skin: "beam" },
     "plank-half":  { shape: "box", hx: 1.5, hy: 0.25, densityScale: 0.85, skin: "beam" },
     "capital-half": { shape: "box", hx: 0.4, hy: 0.2, densityScale: 1.0, skin: "beam" },
     drum:   { shape: "circle", r: 0.6, densityScale: 1.0, skin: "drum" },
@@ -518,6 +523,13 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     if (!PIECE_DEFS[k]) PIECE_DEFS[k] = { shape: "poly", verts, hx, hy, densityScale: 1.0, skin: "wedge" };
   }
 
+  // Free play: the shapes each material comes in, in groups (one row or more per group). Every shape and material
+  // the levels use, except the long mudbricks (owner: long mudbricks make no sense), plus the long plank and long block.
+  const SANDBOX_SHAPES = {
+    wood: [["square", "block"], ["column", "drum"], ["beam", "plank"], ["longplank"], ["centering"]],
+    mudbrick: [["square", "block"], ["abacus"]],
+    stone: [["square", "block"], ["longblock"], ["abacus", "capital"], ["beam"], ["column", "drum"], ["wedge", "tri"], ["trib"], ["gableL", "gableR"]],
+  };
   const BUTTONS = [
     { kind: "piece", def: "block", angle: 0, icon: "block" },
     { kind: "piece", def: "column", angle: 0, icon: "column" },
@@ -724,18 +736,35 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
 
   function buttonLayout() {
     if (currentLevel != null) return levelSidebar().buttons;
-    const defs = BUTTONS.filter((b) => b.kind !== "test" || currentLevel != null);
-    const n = defs.length;
-    const top = Math.max(76, Math.min(92, cssHeight * 0.16));
-    const bottom = 10;
-    const slot = Math.max(1, (cssHeight - top - bottom) / n);
-    const size = Math.min(sidebarWidthPx * 0.58, slot * 0.72);
-    const x = buildingWidthPx + sidebarWidthPx / 2;
-    const list = [];
-    for (let i = 0; i < n; i++) {
-      list.push({ def: defs[i], x, y: top + slot * (i + 0.5), size });
-    }
-    return list;
+    const defs = BUTTONS.filter((b) => b.kind === "broom" || b.kind === "home"), pad = 8;
+    const size = Math.min(56, (sidebarWidthPx - pad * 3) / 2), x0 = buildingWidthPx + sidebarWidthPx / 2 - (size + pad) / 2;
+    return defs.map((def, i) => ({ def, x: x0 + i * (size + pad), y: cssHeight - pad - size / 2, size }));
+  }
+  // Free play shape tiles for the chosen material: each group starts a new row, two tiles a row, a piece too long for
+  // half the width gets the whole row. All pieces at one size scale where they fit, so their sizes compare.
+  function shapeTiles() {
+    if (currentLevel != null) return [];
+    const pad = 6, gap = 4, x0 = buildingWidthPx + pad, W = sidebarWidthPx - pad * 2, half = (W - gap) / 2;
+    const m = materialLayout()[0], top = m ? m.y + m.h + 8 : 10, bottom = buttonLayout()[0].y - buttonLayout()[0].size / 2 - 8;
+    const ext = (k) => { const d = PIECE_DEFS[k]; return d.shape === "circle" ? [2 * d.r, 2 * d.r] : [2 * d.hx, 2 * d.hy]; };
+    const layout = (S) => {
+      const out = []; let y = top;
+      for (const group of SANDBOX_SHAPES[selectedMaterial]) {
+        let col = 0, rowH = 0;
+        for (const k of group) {
+          const [w, h] = ext(k), wide = w * S > half - 8;
+          if (col > 0 && (wide || col >= 2)) { y += rowH + gap; col = 0; rowH = 0; }
+          const tw = wide ? W : half, sc = Math.min(S, (tw - 8) / w), th = Math.max(30, h * sc + 10);
+          out.push({ def: k, x: x0 + col * (half + gap), y, w: tw, h: th, sc });
+          rowH = Math.max(rowH, th); col += wide ? 2 : 1;
+        }
+        y += rowH + gap + 4;
+      }
+      return { out, end: y };
+    };
+    let S = (half - 8) / 2; // a block fills half the width
+    for (let i = 0; i < 20; i++) { const r = layout(S); if (r.end <= bottom || S < 4) return r.out; S *= 0.9; }
+    return layout(S).out;
   }
 
   // ---------------------------------------------------------------------
@@ -876,6 +905,8 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       return;
     }
 
+    const tile = shapeTiles().find((t) => px >= t.x && px <= t.x + t.w && py >= t.y && py <= t.y + t.h);
+    if (tile) { spawnHeldAtEdge(tile.def, 0, selectedMaterial, e.pointerId, px, py); return; }
     const btn = hitButton(px, py);
     if ((test || auto) && !(btn && btn.kind === "home")) return; // hands off during the test and the quick build
     if (btn) {
@@ -1307,7 +1338,13 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     const tx = texFor(material);
     if (tx) { drawTextured(piece, tx, angle, seed); if (strain > 0.05) SKIN.crack(ctx, piece.hx != null ? piece.hx : piece.r, piece.hy != null ? piece.hy : piece.r, strain, material); ctx.restore(); return; }
     const fn = SKIN.piece[def.skin];
-    if (piece.r != null) fn(ctx, piece.r);
+    if (material === "wood") { // every wooden piece the same colour (the skins' own fills differ)
+      ctx.fillStyle = "#c9a36b"; ctx.strokeStyle = "#5a4a36"; ctx.lineWidth = 0.06; ctx.beginPath();
+      if (piece.r != null) ctx.arc(0, 0, piece.r, 0, Math.PI * 2);
+      else if (piece.verts) piece.verts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      else ctx.rect(-piece.hx, -piece.hy, piece.hx * 2, piece.hy * 2);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    } else if (piece.r != null) fn(ctx, piece.r);
     else fn(ctx, piece.hx * 2, piece.hy * 2, piece.material);
 
     // Wood is visibly striped; stone has a solid cool-grey finish.
@@ -1400,6 +1437,11 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     }
 
     if (currentLevel != null) drawPile();
+    for (const t of shapeTiles()) {
+      ctx.fillStyle = "#6e5d4a"; ctx.strokeStyle = "#3c3226"; ctx.lineWidth = 1.5;
+      ctx.fillRect(t.x, t.y, t.w, t.h); ctx.strokeRect(t.x, t.y, t.w, t.h);
+      drawPieceShape(t.def, selectedMaterial, t.x + t.w / 2, t.y + t.h / 2, 0, t.sc, 0, 7);
+    }
     const ab = currentLevel != null ? autoBuildButton() : null;
     if (ab) SKIN.button(ctx, "autobuild", ab.x, ab.y, ab.size, false);
     for (const b of buttonLayout()) {
@@ -2699,7 +2741,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       shake = Math.max(shake, 10 * env);
       if (T >= D) { resetGround(); settleThenCheck("pass"); }
     } else if (test.phase === "pass") {
-      if (T >= PHASE_TIME.pass) { saveMonument(); finishTest(true); mode = "map"; mapEnteredAt = performance.now(); }
+      if (T >= PHASE_TIME.pass) { saveMonument(); finishTest(true); } // stays on the building; the map button goes back (owner 14 Nov)
     } else if (test.phase === "fail") {
       if (T >= PHASE_TIME.fail) restoreSnapshot();
     }

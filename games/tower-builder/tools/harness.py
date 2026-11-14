@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 import os, re
 HERE=os.path.dirname(os.path.abspath(__file__))
 src=open(os.path.join(HERE,'..','tower-builder.html')).read()
-hook='''window.__tb={traceLoads,crushLimit,TEST_LOAD_DENSITY,renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,testReady,stockItems,TEST_WIND,PIECE_DEFS,levelSidebar,pileLayout,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
+hook='''window.__tb={startFree:typeof startFree!=='undefined'?startFree:null,shapeTiles:typeof shapeTiles!=='undefined'?shapeTiles:null,set mat(v){selectedMaterial=v},traceLoads,crushLimit,TEST_LOAD_DENSITY,renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,testReady,stockItems,TEST_WIND,PIECE_DEFS,levelSidebar,pileLayout,capApproach,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
 get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale},set failShow(v){failShow=v},worldToScreen,failingCells,CHECK,TEST_QUAKE,get doneSites(){return typeof doneSites!=='undefined'?doneSites:null},get goMap(){return typeof goMap!=='undefined'?goMap:null},get siteLook(){return typeof siteLook!=='undefined'?siteLook:null},get restartButton(){return typeof restartButton!=='undefined'?restartButton:null},get readySince(){return readySince},ageReady(){if(readySince!=null)readySince-=1000},get removePiece(){return removePiece},get hitPiece(){return hitPiece},music(){return {ctx:actx&&actx.state,name:musicName,on:!!music}},isLand,massAt,siteMass,mapView,siteMarker,SITES,tourPeople,trailPoints,DONE_SIZE,DONE_RING,siteRadius,WALK_SPEED,get cssW(){return cssWidth}};
 window.requestAnimationFrame=()=>0;
 '''
@@ -146,6 +146,22 @@ with sync_playwright() as p:
             b3=p.chromium.launch(args=['--autoplay-policy=user-gesture-required']); q=b3.new_page(viewport={'width':1280,'height':800}); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(2500)
             r0=q.evaluate('()=>__tb.music()'); q.mouse.click(640,30); q.wait_for_timeout(1500); r=q.evaluate('()=>__tb.music()')
             print('%-4s %-70s %s'%('PASS' if r['on'] and r['ctx']=='running' else 'FAIL','2 music at the first touch (PC holds sound back)','before '+json.dumps(r0)+' after '+json.dumps(r))); b3.close()
+        levels=[]
+    if 'sandbox' in sys.argv:  # owner 14 Nov: free play shapes per material fit the sidebar on every screen size, each one can be taken; a passed level stays on the building
+        for W,H in [(1280,800),(1366,768),(1920,1080),(1024,600)]:
+            pg.set_viewport_size({'width':W,'height':H}); pg.wait_for_timeout(200)
+            for m in ['wood','mudbrick','stone']:
+                r=pg.evaluate('''(m)=>{const T=__tb; T.mode="build"; T.startFree(); T.mat=m; T.clearAllPieces(); const ts=T.shapeTiles(); T.render();
+                  const over=ts.filter(t=>t.y+t.h>innerHeight-8||t.y<0).length, small=ts.filter(t=>t.h<30||t.w<30).length; let made=0;
+                  for(const t of ts){T.clearAllPieces(); const d=T.PIECE_DEFS[t.def]; const p=T.spawnPiece(t.def,8,(d.hy||d.r)+0.03,0,m); for(let k=0;k<60;k++)T.stepPhysics(1/60); if(T.pieces.includes(p))made++;}
+                  T.clearAllPieces(); T.render(); return {n:ts.length,over,small,made};}''',m)
+                pg.screenshot(path='/tmp/sandbox-%s-%d.png'%(m,W))
+                print('sandbox',W,H,m,r,'OK' if r['over']==0 and r['made']==r['n'] else 'FAIL')
+        pg.set_viewport_size({'width':1280,'height':800})
+        r=pg.evaluate('''()=>{const T=__tb; T.mode="build"; delete T.progress.done[T.LEVELS[0].key]; T.startLevel(0); T.quiet0(); T.startAutoBuild(); let n=0; while(T.auto&&n<18000){T.stepPhysics(1/60);n++;}
+          for(let k=0;k<180;k++){T.stepPhysics(1/60);T.updateCheck(1/60);} T.setTab(true); T.startTest(); T.setTab(false); T.test.fast=true; let k=0; while(T.test&&k<20000){const f=T.test.fast&&T.test.phase!=="fail"&&T.test.phase!=="pass"?10:1;T.stepPhysics(f/60,5*f);T.cleanupOutOfBounds();T.updateCheck(1/60);k++;}
+          return {mode:T.mode,saved:!!T.progress.done[T.LEVELS[0].key]};}''')
+        print('pass stays on building',r,'OK' if r['mode']=='build' and r['saved'] else 'FAIL')
         levels=[]
     if 'shot' in sys.argv:  # screenshot of each level after the quick build (before the test): /tmp/shot<i>.png
         for i in levels:

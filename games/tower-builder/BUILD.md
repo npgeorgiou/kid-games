@@ -327,6 +327,17 @@ Owner's words: "1. the restart arrow has a weird bulge. 2, change the material t
 - Explored, not built: a 5-row all-mudbrick ziggurat stands only with a plank as wide as the row under every row (12, 10, 8, 6 m); with 6-7 m planks the bottom bricks reach 120-130%. With full-width planks it failed 2 of 10 runs by something moving in the wind or earthquake (cause unknown). Owner kept the current ziggurat.
 - Known: owner test "no red seams" on Karnak fails on some runs, also before these changes (cause unknown).
 
+## Current state, update 21 (14 Nov 2026)
+
+Owner's words: "friction when I drag a block upwards and towards another block feels too much. am I wrong? do I not understnand just how much force you are using? / add an undo button that brings building to previous conditions (now, what is a condition? say ideas) / Add in the sandbox the shapes of every shape used in teh game. make sure textures/colors are consisntet (non-textured woods are different from each other). Add also 12 m long planks, stones that are 2x the regular oblong stone, and whatever other you can find. not all materials should ahve all shapes, for example it doesnt make sence to ahve very long oblong mudbricks. find a way to group shapes nicely. / change so that when you succeed a level it doesn't automatically go out to the main screen, you ahve to press button for that."
+
+- Free play: pick a material, the sidebar shows that material's shapes as tiles, grouped one group per row (`SANDBOX_SHAPES`), broom and map at the bottom. Wood: square, block, column, log, beam, plank, new 12 m plank (`longplank`), centering. Mudbrick: square, block, small oblong. Stone: square, block, new 4 m block (`longblock`), small oblong, capital, beam, column, drum, wedge, both triangles, both pediment halves. Long mudbricks left out.
+- Without textures every wooden piece has one colour.
+- A passed level stays on the building; the map button goes back.
+- Harness: `sandbox` (tiles fit at four screen sizes, every shape can be made, a passed level stays).
+- Open, waiting for the owner: (a) friction: answered, no change yet; proposal: while the hand pushes a piece against another, it presses sideways only lightly and keeps its full lift. (b) undo: what one step back undoes, owner to choose. (c) Mausoleum's pile has a long mudbrick beam and Karnak's a tall mudbrick column (tempting wrong pieces); keep them in those levels or not.
+- Known, before this change: `harness.py owner` stops with an error in the map travellers check (also on the previous version).
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
