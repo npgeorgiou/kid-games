@@ -74,6 +74,18 @@ The worst mistake so far: each complaint about the Tower Builder hand got its ow
 - Before changing the model: tests that pin every correct behaviour the owner has confirmed (the checklist), passing on the old code. After: the same tests pass. A test that fails after a rebuild is reported to the owner as a question, not patched over.
 - If a model needs more than a handful of rules to satisfy the owner, say so and propose a better model instead of adding rules. Rebuilding is cheaper than a pile of patches.
 
+## Building a behaviour without failing the owner (owner, 14 Nov 2026; every game)
+
+What went wrong with the Tower Builder hand, and the rule each failure gives:
+
+1. Home-made first, standard last. The hand was invented from scratch and patched for days; the standard Box2D/planck drag (mouse joint, strength a multiple of the weight held) was found only when the owner demanded an example. Rule: before writing any interactive or physical behaviour, search for how games and the engine's own demos do it, name the source in a code comment, and start from that.
+2. Not thinking like the real world. A small stone shoved a big boulder, a wooden block stayed level held at one end, a fixed "arm strength" pushed everything with full force. Rule: before shipping, write a short table of the owner's everyday cases (a small stone pushed into a big block, a block grabbed at one end, two stacked blocks lifted, a block dragged along a wall, a fast swing), what a real person sees in each, and what the model predicts. Any mismatch means the model is wrong; fix the model, not the case. People act with a brain: they use the effort the load needs and slow down before touching things.
+3. Constants never checked against real cases. Every number (strength, grip, speed, reach) gets checked against the case table above before it ships, not after the owner tries it.
+4. Shipping a half-built rebuild. A version that broke rules the owner had already given (a small stone must not move a big one) was pushed and handed over. Rule: never push a change that breaks one of the owner's rules; if the new model cannot satisfy it yet, say so and keep the old one in the game.
+5. Treating old numbers as rules. Test values recorded from the old, patched behaviour (exact carry times) were defended as requirements. Rule: the owner's words are the rules; numbers measured from an earlier build are only references. When they conflict with what he asks now, follow his words and tell him in one line what changed.
+6. Asking instead of deciding. When the owner says what he wants ("real, consistent, not hacky"), do not ask him to choose between that and something else; build it.
+7. Long chats and handoffs. Say early when a chat is getting long. Every handoff is in the reply itself, ready to paste: what the thing is now, what was done, what still differs from the owner's wishes, how to test, open questions. Before saying "pushed", check the remote has the commit.
+
 ## Testing (owner, 14 Nov 2026; overrides anything below that asks for more)
 
 - Every test run is reproducible: the same inputs give the same result. Never run the same test twice to "see if it varies". If two runs with the same inputs differ, find what leaks in (the clock, unseeded random numbers, state left over from an earlier run, a measurement of something that changes with time) and fix it; where chance is part of what is tested, the test fixes the seed.
