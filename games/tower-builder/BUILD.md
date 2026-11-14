@@ -511,10 +511,10 @@ Owner's words: "1. every button must also ahve a tapped state, and the actual th
 Built: `cues.md` section 0 lists the rules. Code: SECTION CUES (three-part model at its top: voice, attention, steps); every button is in one list (`screenButtons`, POINTER HANDLING) and acts on release. Checks: `tools/harness.py cues` (demos, first-site steps, 2 s lines, the 5 s repeat, restart line, no map lines in a site, intro freezes and blocks touch, Djoser demo on two visits, Ctrl test in the teaching, explanations only in the first test, a button acts when let go).
 Open (owner): a new way to document cues (proposals given in chat 14 Nov evening; nothing chosen yet).
 
-## Current state, update 42 (14 Nov 2026): five-row Ur tried, taken back out
+## Current state, update 42 (14 Nov 2026): Ur in five rows of whole mudbricks, long planks standing in the pile
 
-Owner's words: "Can I ahve Ur with all mud std rectangular blocks, starting at 7 base, and using new length wood beans ... so it can reach 5 levels (without counting headpiece)?" then "desired outcome: all mud, 5 levels. go", then "you amde sidebar smaller everywhere, revert it and never do that again. instead, make blocks for that level a tiny smaller, 10% smaller. also, see if adding wood on every level's top except of the top top food, would work too."
-Done: the game is back to the earlier Ur and the earlier sidebar (the sidebar size is chosen so every level's pile fits; a piece longer than the bin made it shrink to the minimum). Findings and the open question: `levels.md` section 3, last line.
+Owner's words: "Can I ahve Ur with all mud std rectangular blocks, starting at 7 base, and using new length wood beans ... so it can reach 5 levels (without counting headpiece)?"; "desired outcome: all mud, 5 levels. go"; "you amde sidebar smaller everywhere, revert it and never do that again. ... also, see if adding wood on every level's top except of the top top food, would work too."; "of course a 14 m plank fits, IF YOU FUCKING PUT IT VERTICALLy ON thR SIDE ... the file you8 gave me doest ahve the 7 base blocks Ur. 4. why would a plank slide out, thats tupid. give me the level to check myself."
+Built: Ur as in `levels.md` section 3 (five rows, 14 m and 10 m planks; pile also has 12 m and 8 m planks for the owner's every-row try). New pieces plank8/10/12/14 (also in free play). In the pile, a plank longer than the bin is wide stands on its end (PILE: `lying`); the sidebar size is unchanged (same as before tonight). Picture: `owner-shots/ur-five-rows-pile.png`. Checks: `harness.py spec 2` all pass (pile at 100% of the sidebar height). Open: the owner checks the every-row version himself; why it failed in my test is unknown.
 
 ## Task list
 

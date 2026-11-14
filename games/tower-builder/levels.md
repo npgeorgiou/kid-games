@@ -62,14 +62,15 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 
 ## 3. Ziggurat of Ur (c. 2100 BC)
 
-- Headpiece: the temple of Nanna on the top terrace (Britannica: temple on top, not preserved). LOCKED.
-- Pieces (owner, 13 Nov: all mudbrick, as the real one; each course staggered and one long plank under the top terrace, so the weight of two blocks spreads into three): 14 mudbrick blocks, 2 mudbrick half-blocks, 3 wooden beams (owner, 13 Nov: no triangle in this level, for good) and 1 wooden plank (6 m, new) in two courses; pile adds 2 mudbrick blocks (16 in all) and 2 wooden beams for the wrong choice; no stone (owner, 13 Nov). Temple lighter (load density 4, was 5) so the all-mudbrick build also passes the 20% stronger test.
-- New: wooden beams laid as courses (they stand for the reed matting that strengthened the mudbrick core, Britannica). Technique: three terraces, each narrower.
-- Hard: wood only where it lies fully supported; terraces centred.
-- Wrong material: two short beams under the top terrace instead of the long plank: the weight stays over the middle and the bottom bricks crumble.
-- Wrong build: a top-terrace block more than half off the terrace below: it falls.
+- Headpiece: the temple of Nanna on the top terrace (Britannica: temple on top, not preserved). LOCKED (same temple; raised to stand on the new top row).
+- Pieces (owner, 14 Nov: "all mud std rectangular blocks, starting at 7 base, ... so it can reach 5 levels"): 25 whole mudbrick blocks in five rows (7, 6, 5, 4, 3), each row half a block in on both sides; two wooden planks as long as the row they lie on: 14 m on the bottom row, 10 m on the third row. Pile adds 2 mudbrick blocks, 2 wooden 6 m planks (the wrong choice), and a 12 m and an 8 m plank so wood can go on every row but the top (owner wants to try that himself). No stone, no half-blocks.
+- Pile: planks longer than the sidebar is wide stand on their end in it (owner, 14 Nov); the sidebar keeps its size (owner: never make it smaller).
+- Measured: with the 14 m and 10 m planks the most loaded bottom brick carries 83% of what crumbles it. No wood: the middle bricks crumble. Wood on every row but the top (14, 12, 10, 8 m): in my quick build + test something moved in the earthquake and it failed; cause not looked into. Two shorter planks per row instead of one: the bottom bricks crumble.
+- New: wood laid as courses (they stand for the reed matting that strengthened the mudbrick core, Britannica). Technique: five rows, each narrower.
+- Hard: the long planks centred; rows centred.
+- Wrong material: 6 m planks instead of the long planks: the weight stays over the middle and the bottom bricks crumble.
+- Wrong build: a top-row block more than half off the row below: it falls.
 - Temporary wood: none.
-- Tried 14 Nov, not in the game: five rows of whole mudbricks (7, 6, 5, 4, 3). It stands only with one-piece planks as long as a row (a 14 m plank on the bottom row and a 10 m one on the third row, worst bottom brick at 83%), but the sidebar holds no piece longer than about 6.2 m, and making room for them shrank the sidebar on every level (owner: never again). Wood on every row except the top: with one-piece planks something slides in the earthquake; with two planks per row (each fitting the sidebar) the bottom bricks crumble, worse than no wood. Blocks 10% smaller (owner's idea) do not make the planks fit and the bottom bricks crumble with or without wood. Waiting for the owner.
 
 ## 4. Karnak hypostyle hall (c. 1290-1220 BC)
 
