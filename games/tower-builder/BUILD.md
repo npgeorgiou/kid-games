@@ -444,6 +444,12 @@ Owner's words: "wood drags too slowly. its as if weight differenced between mate
 - Consequences reported: a piece runs on about 1.1-1.3 m past a finger that stops at full speed; a small oblong stone rammed fast into a stone block moves it 0.6 m, pushed hard 0.2 m (owner rule: hardly moves); the wall-pressing case of update 32.
 - Picture `owner-shots/whirl-4-circles.png` (`tools/harness.py whirlpic`): wood, mudbrick and stone blocks held at one end, four hand circles 1.2 m across, one a second; none goes round cleanly (stone 0.65 turns, mudbrick 1.16, wood 0.65 in 4 circles).
 
+## Current state, update 34 (14 Nov 2026): owner verdict on update 33, open
+
+Owner's words: "rubbery inertia thing reappeared. and many mroe thigns are wrong. and things get thrown away more than what I want. and cicles still dont ahppen,a s evidenced by your pictures. and i dont read your long texts. and I am exhausted"
+
+Open for the next chat: the hand of updates 32-33 does not satisfy the owner (runs on too far, throws too far, no whirling with circles as big as the round stone). Before rebuilding: put the owner's cases into tests first (stack carried by the bottom stays together; grab near the middle never tilts; standing block grabbed at its outer side falls round at once; whirl by one long end with circles 1.2 m across; no rubber band; mudbrick thrown from mid-screen height about 9 m but not more than he wants; wood clearly quicker than mudbrick, mudbrick than stone; small stone does not shove a big one; dragging up a wall slides) and ask him yes/no before coding. Replies to him: a few short lines only.
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
