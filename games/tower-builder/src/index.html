@@ -166,7 +166,7 @@
     },
     // A site that can be played now: solid bright circle.
     mapSiteOpen(ctx, x, y, r) {
-      ctx.fillStyle = "#e0473b"; ctx.strokeStyle = "#5a4a36"; ctx.lineWidth = 3;
+      ctx.fillStyle = "#f2c230"; ctx.strokeStyle = "#5a4a36"; ctx.lineWidth = 3; // owner 14 Nov: open sites yellow (red means damaged)
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     },
     // A finished site; the player's own building is drawn on top of it.
@@ -300,7 +300,7 @@
       const r = size * (pressed ? 0.46 : 0.5);
       ctx.save();
       ctx.translate(x, y);
-      ctx.fillStyle = name === "test" ? (pressed ? "#77756c" : "#4f8a3c") : pressed ? "#5f5042" : "#6e5d4a";
+      ctx.fillStyle = name === "test" ? (pressed ? "#c0392b" : "#4f8a3c") : pressed ? "#5f5042" : "#6e5d4a";
       ctx.strokeStyle = "#3c3226";
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -345,15 +345,8 @@
         ctx.beginPath(); ctx.moveTo(-s * 0.33, -s * 0.8); ctx.lineTo(-s * 0.33, s * 0.6);
         ctx.moveTo(s * 0.33, -s * 0.6); ctx.lineTo(s * 0.33, s * 0.8); ctx.stroke();
       } else if (name === "test") {
-        // start the test: a little building with the orange load coming down onto it
-        if (pressed) ctx.fillStyle = "#a8a59a";
-        for (const [bx, by, bw, bh] of [[-0.95, 0.55, 0.9, 0.45], [0.05, 0.55, 0.9, 0.45], [-0.25, 0.1, 0.5, 0.45], [-0.75, -0.1, 1.5, 0.2]]) {
-          ctx.fillRect(bx * s, by * s, bw * s, bh * s); ctx.strokeRect(bx * s, by * s, bw * s, bh * s);
-        }
-        ctx.fillStyle = pressed ? "#b08a60" : "#e8912f"; ctx.strokeStyle = "#8a4f12";
-        ctx.beginPath();
-        ctx.moveTo(-0.3 * s, -0.25 * s); ctx.lineTo(0.3 * s, -0.25 * s); ctx.lineTo(0.38 * s, -0.7 * s); ctx.lineTo(0, -1.0 * s); ctx.lineTo(-0.38 * s, -0.7 * s);
-        ctx.closePath(); ctx.fill(); ctx.stroke();
+        // start the test: one plain "go" triangle (owner 14 Nov: red until ready, then green; simpler symbol)
+        ctx.beginPath(); ctx.moveTo(-0.45 * s, -0.6 * s); ctx.lineTo(0.65 * s, 0); ctx.lineTo(-0.45 * s, 0.6 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
       } else if (name === "autobuild") {
         // parent override: a little stack being built
         for (const [bx, by, bw] of [[-0.9, 0.35, 0.85], [0.05, 0.35, 0.85], [-0.42, -0.35, 0.85]]) {
