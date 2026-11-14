@@ -101,6 +101,23 @@ with sync_playwright() as p:
                     if st: done[i]=st
         for i,q in pages: print('%-9s %-4s %s'%(q.evaluate('(i)=>__tb.LEVELS[i].key',i),'PASS' if done.get(i,'').endswith('PASS') else 'FAIL','2 real game loop: '+done.get(i,'timeout')),flush=True)
         levels=[]
+    if 'mousewhirl' in sys.argv:  # owner 14 Nov: can a person whirl with the real mouse? stone block held at one end, circles as big as the round stone, once a second
+        st=lambda n: pg.evaluate('(n)=>{for(let k=0;k<n;k++){__tb.stepPhysics(1/60);__tb.cleanupOutOfBounds();}}',n)
+        sc=lambda x,y: pg.evaluate('([x,y])=>{const s=__tb.worldToScreen(x,y);const r=document.querySelector("canvas").getBoundingClientRect();return [s.x+r.left,s.y+r.top]}',[x,y])
+        import math
+        for m in ['stone','mudbrick','wood']:
+          for name,per_step,skip in [('one mouse move per game step',1,0),('two mouse moves per step',2,0),('a move every second step',1,1)]:
+            pg.evaluate('(m)=>{const T=__tb;T.mode="build";T.startFree();T.mat=m;T.clearAllPieces();T.spawnPiece("block",20,0.503,0,m);T.render();}',m); st(30)
+            g=sc(20.9,0.503); pg.mouse.move(*g); pg.mouse.down(); st(2)
+            for k in range(1,31): pg.mouse.move(*sc(20.9,0.503+3*k/30)); st(1)
+            st(150); c=(20.9,3.503); R=0.6; a0=pg.evaluate('()=>__tb.pieces[0].body.getAngle()'); tot=0; prev=a0; i=0
+            for k in range(240*per_step):
+                th=k/(60*per_step)*2*math.pi; pg.mouse.move(*sc(c[0]+R*math.sin(th),c[1]+R-R*math.cos(th)))
+                if (k+1)%per_step==0:
+                    i+=1
+                    if not skip or i%2==0: st(1 if not skip else 2)
+                    a=pg.evaluate('()=>__tb.pieces[0].body.getAngle()'); tot+=a-prev; prev=a
+            pg.mouse.up(); print('mousewhirl %-8s %-30s %.2f turns in 4 circles'%(m,name,abs(tot)/(2*math.pi)),flush=True)
     if 'whirlpic' in sys.argv:  # owner 14 Nov: picture of a block held at one end whirled by circles of the hand as big as the round stone
         import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
         tr=pg.evaluate("""()=>{const T=__tb,res={};T.mode="build";T.startLevel(0);T.clearAllPieces();T.fillPile([]);
