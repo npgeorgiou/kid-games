@@ -1060,8 +1060,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   // The standard drag of Box2D / planck (the "mouse joint"), whose strength is "usually expressed as some multiple of
   // the weight" (Box2D docs): the brain uses a strength in proportion to what the hand carries (owner 14 Nov: "a
   // brain that is not pushing with full strength to demolish things"), never more than the arm can, ARM_STRENGTH.
-  // The hand has a little mass of its own (HAND_MASS); the arm's spring pulls it to the finger with HAND_GRIP x the
-  // weight carried (the piece plus the share of weight resting on it, from what rests on what); the fingers hold the
+  // The arm holds up the weight carried (the piece plus the share of weight resting on it, from what rests on what)
+  // by itself, as a real arm does (gravity compensation, the usual way dragged things are kept from sagging), up to
+  // ARM_STRENGTH. For moving, the hand has a little mass of its own (HAND_MASS) and the arm's spring pulls it to the
+  // finger with HAND_GRIP x that weight, less as the weight nears what the arm can hold at all; the fingers hold the
   // piece at the point it was grabbed (a pin) and keep it from turning with WRIST_GRIP x the turning pull of that
   // weight about the grab point, so a piece held off-centre turns down smoothly, heavier or lighter alike.
   // Everything else is the physics engine: that strength holds up the weight and pushes and speeds things up, all
@@ -1071,10 +1073,12 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   // turns down in the fingers until it hangs.
   const ARM_STRENGTH = 210; // N: a stone block weighs 100 N, so two blocks lift slowly and a bit more does not
   // The brain moves the hand, not the finger: it heads for the finger at most BRAIN_SPEED, looks where it is going and
-  // only ever moves towards another piece as fast as it could still stop before touching it (stopping at BRAIN_STOP),
-  // and never gets more than BRAIN_REACH ahead of the piece in its fingers (it waits for it).
-  const BRAIN_SPEED = 11, BRAIN_EASE = 0.06, BRAIN_STOP = 15, BRAIN_TOUCH = 0.5, BRAIN_REACH = 0.3, BRAIN_LOOK = 1.0; // m/s, s, m/s^2, m/s, m, m
-  const HAND_GRIP = 4; // the strength used, as a multiple of the weight carried (a small stone presses with four times its weight)
+  // only ever moves towards another piece as fast as it could still stop before touching it,
+  // and never gets more than BRAIN_REACH ahead of the piece in its fingers (it waits for it). The same goes for the
+  // finger itself: it arrives there no faster than it can stop, so the piece does not run on past it. "Could still
+  // stop" is from what the hand has: BRAIN_SHARE of its moving strength, on the weight carried.
+  const BRAIN_SPEED = 11, BRAIN_EASE = 0.06, BRAIN_SHARE = 0.7, BRAIN_TOUCH = 0.5, BRAIN_REACH = 0.3, BRAIN_LOOK = 1.0; // m/s, s, m/s^2, m/s, m, m
+  const HAND_GRIP = 6; // the strength used for moving, as a multiple of the weight carried
   const WRIST_GRIP = 0.6, WRIST_REACH = 0.15; // the fingers resist turning with this share of the weight's pull (at least at WRIST_REACH m)
   const HAND_MASS = 0.2; // kg: the hand, moved along with the piece
   const ARM_HZ = 18, ARM_DAMP = 6; // the arm's spring: how quick, how well damped (measured on the hand's own mass)
@@ -1110,13 +1114,16 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       if (!piece || !piece.desired || !piece.joint) continue;
       if (!traced) traced = traceLoads(true);
       const body = piece.body, t = traced.get(body), W = body.getMass() * GRAVITY + (t ? t.recv : 0);
-      piece.joint.setMaxForce(Math.min(ARM_STRENGTH, HAND_GRIP * W));
+      const move = HAND_GRIP * W * Math.max(0, 1 - W / ARM_STRENGTH), stop = BRAIN_SHARE * move / (W / GRAVITY);
+      piece.joint.setMaxForce(move);
       const p = body.getWorldPoint(piece.grabLocal), c = body.getWorldCenter();
+      body.applyForce(planck.Vec2(0, Math.min(W, ARM_STRENGTH)), p, true);
       piece.grip.setMaxMotorTorque(WRIST_GRIP * W * Math.max(WRIST_REACH, Math.hypot(c.x - p.x, c.y - p.y)));
       // the brain's plan for the hand
       const T = piece.plan, f = piece.desired;
       let vx = (f.x - T.x) / BRAIN_EASE, vy = (f.y - T.y) / BRAIN_EASE; const vl = Math.hypot(vx, vy);
-      if (vl > BRAIN_SPEED) { vx *= BRAIN_SPEED / vl; vy *= BRAIN_SPEED / vl; }
+      const vmax = Math.min(BRAIN_SPEED, Math.sqrt(2 * stop * Math.hypot(f.x - T.x, f.y - T.y)));
+      if (vl > vmax) { vx *= vmax / vl; vy *= vmax / vl; }
       const riders = new Set(); for (const [b, it] of traced) if (it.sup.some((q) => q.low === body)) riders.add(b);
       for (let fx = body.getFixtureList(); fx; fx = fx.getNext()) {
         const bb = fx.getAABB(0);
@@ -1128,7 +1135,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
           let ux = dOut.pointB.x - dOut.pointA.x, uy = dOut.pointB.y - dOut.pointA.y; const d = Math.hypot(ux, uy);
           if (d < 1e-4) { const a = body.getWorldCenter(), o = b.getWorldCenter(); ux = o.x - a.x; uy = o.y - a.y; } // touching: towards its centre
           const ul = Math.hypot(ux, uy) || 1; ux /= ul; uy /= ul;
-          const toward = vx * ux + vy * uy, allowed = Math.sqrt(2 * BRAIN_STOP * d) + BRAIN_TOUCH;
+          const toward = vx * ux + vy * uy, allowed = Math.sqrt(2 * stop * d) + BRAIN_TOUCH;
           if (toward > allowed) { vx -= (toward - allowed) * ux; vy -= (toward - allowed) * uy; }
           return true;
         });

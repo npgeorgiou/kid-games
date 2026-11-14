@@ -400,6 +400,17 @@ Owner tests: all pass except: two small oblong stones lifted from the bottom, th
 - Valens: one wooden form on one block (owner); the suggested build makes the arches one after another, taking the form out of each. Its tests passed; the pile is 110% of the sidebar height (accepted before at 120%).
 - Mausoleum: the posts stay (owner: when he builds, the beams fall without them).
 
+## Current state, update 30 (14 Nov 2026): the arm holds the weight, the brain stops at the finger
+
+Owner's words: "the stone block should be able to be swung in circles. right now, all materials, incliding stone, get gragged down too much during an ttempted hold-and-rotate-movement, so I cant swing them in circled. at this motion, you ahve to apply stronger holding, like we do in real life. also, the genral thing than in a downward motion that stops the stuff keep going down, and in all directions follow inertia, must become smaller (in teh downwards motion too, like, the hand naturally tries to hold the item back, the item doest follow inertia and gravity uncontested. finally, this small hack that makes the object lose strength wen about to fall on another in OK, but it must become a bit smaller, it eats away too much strength now"
+
+Changed in the hand model (PHYSICS STEP, "THE HAND"), no new cases:
+- The arm holds up the weight carried by itself (an upward force at the grab point, min(weight, ARM_STRENGTH)); before, the weight came out of the moving strength, so pieces sank under the finger.
+- Moving strength: HAND_GRIP 6 (was 4) x the weight, times (1 - weight / ARM_STRENGTH), so the most it can lift is still ARM_STRENGTH (210 N).
+- The brain arrives at the finger no faster than it can stop (BRAIN_SHARE 0.7 of the moving strength on the weight carried). The same stopping power replaces the fixed BRAIN_STOP 15 m/s^2 for slowing before other pieces, so that slowing is weaker than before for single pieces.
+- New owner test group `swing` (circles without sinking; stopping after 3 m down, up, sideways). Before: a stone block sank 1.5 m under the circling finger and ran on 4.5 m after a fast move down. Now: 0.07 m and 0.2 m.
+- Owner tests hand, carry, push, slide, motion, triangle: same passes as before plus "lighter is quicker". Still failing as before: two small oblong stones lifted from the bottom (top lifts 4 cm, limit 2 cm); the stone block crosses 4 m in 0.58 s (the old "too light" mark is 0.8 s; it was 0.65 s); `motion` reference numbers from the earlier hand.
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.

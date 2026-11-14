@@ -139,6 +139,24 @@
   }
 
   // --- eighth list 1: a triangle is grabbed only on itself, and slides along like any other piece
+  // --- 14 Nov (owner): a piece held in the middle follows the finger round in circles without sinking under it,
+  // and when the finger stops the piece does not run on far past it (down, up or sideways)
+  if (want("swing")) {
+    T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
+    for (const m of ["stone", "mudbrick", "wood"]) {
+      T.clearAllPieces(); const p = T.spawnPiece("block", X, 7, 0, m), c = p.body.getWorldCenter(), g = { x: c.x, y: c.y };
+      T.startHold(p, { x: g.x, y: g.y }, 93, 0, 0); p.desired = { x: g.x, y: g.y }; run(0.5); let sag = 0, n = 0, lo = 1e9, hi = -1e9;
+      for (let k = 0; k < 180; k++) { const th = k / 60 * 2 * Math.PI, f = { x: g.x + Math.sin(th), y: g.y + 1 - Math.cos(th) }; p.desired = f; frame(1 / 60);
+        const q = p.body.getWorldCenter(); if (k >= 60) { sag += f.y - q.y; lo = Math.min(lo, q.y); hi = Math.max(hi, q.y); n++; } }
+      out.push(["14 Nov a " + m + " block follows the finger round in circles (1 m, once a second)", sag / n < 0.15 && hi - lo > 1, "on average " + (sag / n).toFixed(2) + " m under the finger, its own circle " + (hi - lo).toFixed(2) + " m across (the finger's: 2 m)"]);
+      for (const [name, dx, dy] of [["down", 0, -3], ["up", 0, 3], ["sideways", 3, 0]]) {
+        const s0 = { x: g.x, y: dy < 0 ? g.y + 1 : g.y - 2 }; p.desired = s0; run(1.5); let over = 0;
+        for (let k = 0; k < 90; k++) { const u = Math.min(1, k / 18); p.desired = { x: s0.x + dx * u, y: s0.y + dy * u }; frame(1 / 60);
+          const q = p.body.getWorldCenter(); over = Math.max(over, ((q.x - s0.x) * dx + (q.y - s0.y) * dy) / 3 - 3); }
+        out.push(["14 Nov a " + m + " block moved 3 m " + name + " quickly stops with the finger", over < 0.25, "runs on " + Math.max(0, over).toFixed(2) + " m past the finger"]); }
+      T.releaseHold(93); }
+  }
+
   if (want("triangle")) {
     T.mode = "build"; T.startLevel(5); T.clearAllPieces(); T.quiet0();
     const t = T.spawnPiece("trib", X, 0.7, 0, "stone"); run(1); const q = t.body.getPosition(), d = T.PIECE_DEFS.trib;
