@@ -782,10 +782,11 @@
     const at = planck.Vec2(worldPt.x, worldPt.y), v = piece.body.getLinearVelocityFromWorldPoint(at);
     piece.grabLocal = piece.body.getLocalPoint(at);
     piece.desired = { x: worldPt.x, y: worldPt.y };
+    piece.plan = { x: worldPt.x, y: worldPt.y };
     piece.controlMode = "hand";
     piece.handBody = world.createBody({ type: "dynamic", position: at, fixedRotation: true, gravityScale: 0, linearVelocity: v });
     piece.handBody.setMassData({ mass: HAND_MASS, center: planck.Vec2(0, 0), I: 1 });
-    piece.grip = world.createJoint(planck.RevoluteJoint({ enableMotor: true, maxMotorTorque: WRIST_STRENGTH, motorSpeed: 0 }, piece.handBody, piece.body, at));
+    piece.grip = world.createJoint(planck.RevoluteJoint({ enableMotor: true, maxMotorTorque: 0, motorSpeed: 0 }, piece.handBody, piece.body, at));
     piece.joint = world.createJoint(planck.MouseJoint({ maxForce: ARM_STRENGTH, frequencyHz: ARM_HZ, dampingRatio: ARM_DAMP }, anchorBody, piece.handBody, at));
     pointers.set(pointerId, {
       piece,
@@ -999,18 +1000,27 @@
   //
   const GRAVITY = 10;
   // THE HAND (owner 14 Nov 2026: real, consistent, one model, no special cases).
-  // Like a real arm: the hand has a little mass of its own (HAND_MASS), the arm's muscles pull it towards the finger
-  // with a spring that can never pull harder than ARM_STRENGTH, and the fingers hold the piece at the point it was
-  // grabbed (a pin), and hold it from turning, no harder than WRIST_STRENGTH.
-  // Everything else is the physics engine: the arm's one strength holds up the weight and pushes and speeds things
-  // up, all from the same budget. So: light things follow the finger quickly and heavy ones lag; held up in the air
+  // The standard drag of Box2D / planck (the "mouse joint"), whose strength is "usually expressed as some multiple of
+  // the weight" (Box2D docs): the brain uses a strength in proportion to what the hand carries (owner 14 Nov: "a
+  // brain that is not pushing with full strength to demolish things"), never more than the arm can, ARM_STRENGTH.
+  // The hand has a little mass of its own (HAND_MASS); the arm's spring pulls it to the finger with HAND_GRIP x the
+  // weight carried (the piece plus the share of weight resting on it, from what rests on what); the fingers hold the
+  // piece at the point it was grabbed (a pin) and keep it from turning with WRIST_GRIP x the turning pull of that
+  // weight about the grab point, so a piece held off-centre turns down smoothly, heavier or lighter alike.
+  // Everything else is the physics engine: that strength holds up the weight and pushes and speeds things up, all
+  // from the same budget. So: light things follow the finger quickly and heavy ones lag; held up in the air
   // a heavy piece has little strength left to push sideways, but moving fast it hits with its speed; equal weights
   // behave alike, one piece or a stack; a little over two stone blocks is the most it can lift; a piece held near one end
   // turns down in the fingers until it hangs.
   const ARM_STRENGTH = 210; // N: a stone block weighs 100 N, so two blocks lift slowly and a bit more does not
-  const HAND_MASS = 2; // kg: the hand and forearm, moved along with the piece
-  const ARM_HZ = 6, ARM_DAMP = 2; // the arm's spring: how quick, how well damped (measured on the hand's own mass)
-  const WRIST_STRENGTH = 8; // N*m: the fingers keep the piece from turning in the hand, at most this hard
+  // The brain moves the hand, not the finger: it heads for the finger at most BRAIN_SPEED, looks where it is going and
+  // only ever moves towards another piece as fast as it could still stop before touching it (stopping at BRAIN_STOP),
+  // and never gets more than BRAIN_REACH ahead of the piece in its fingers (it waits for it).
+  const BRAIN_SPEED = 11, BRAIN_EASE = 0.06, BRAIN_STOP = 15, BRAIN_TOUCH = 0.5, BRAIN_REACH = 0.3, BRAIN_LOOK = 1.0; // m/s, s, m/s^2, m/s, m, m
+  const HAND_GRIP = 4; // the strength used, as a multiple of the weight carried (a small stone presses with four times its weight)
+  const WRIST_GRIP = 0.6, WRIST_REACH = 0.15; // the fingers resist turning with this share of the weight's pull (at least at WRIST_REACH m)
+  const HAND_MASS = 0.2; // kg: the hand, moved along with the piece
+  const ARM_HZ = 18, ARM_DAMP = 6; // the arm's spring: how quick, how well damped (measured on the hand's own mass)
   const dIn = new planck.DistanceInput(), dOut = new planck.DistanceOutput(), dCache = new planck.SimplexCache();
   // distance from a body down to the nearest piece under it, if closer than `reach`
   function gapBelow(body, reach) {
@@ -1037,10 +1047,41 @@
     return false;
   }
   function advanceHeldTargets() {
+    let traced = null;
     for (const hand of pointers.values()) {
       const piece = hand.piece;
       if (!piece || !piece.desired || !piece.joint) continue;
-      piece.joint.setTarget(planck.Vec2(piece.desired.x, piece.desired.y));
+      if (!traced) traced = traceLoads(true);
+      const body = piece.body, t = traced.get(body), W = body.getMass() * GRAVITY + (t ? t.recv : 0);
+      piece.joint.setMaxForce(Math.min(ARM_STRENGTH, HAND_GRIP * W));
+      const p = body.getWorldPoint(piece.grabLocal), c = body.getWorldCenter();
+      piece.grip.setMaxMotorTorque(WRIST_GRIP * W * Math.max(WRIST_REACH, Math.hypot(c.x - p.x, c.y - p.y)));
+      // the brain's plan for the hand
+      const T = piece.plan, f = piece.desired;
+      let vx = (f.x - T.x) / BRAIN_EASE, vy = (f.y - T.y) / BRAIN_EASE; const vl = Math.hypot(vx, vy);
+      if (vl > BRAIN_SPEED) { vx *= BRAIN_SPEED / vl; vy *= BRAIN_SPEED / vl; }
+      const riders = new Set(); for (const [b, it] of traced) if (it.sup.some((q) => q.low === body)) riders.add(b);
+      for (let fx = body.getFixtureList(); fx; fx = fx.getNext()) {
+        const bb = fx.getAABB(0);
+        world.queryAABB(planck.AABB(planck.Vec2(bb.lowerBound.x - BRAIN_LOOK, bb.lowerBound.y - BRAIN_LOOK), planck.Vec2(bb.upperBound.x + BRAIN_LOOK, bb.upperBound.y + BRAIN_LOOK)), (ox) => {
+          const b = ox.getBody();
+          if (b === body || riders.has(b) || !(b.piece || b.isLoad) || (b.piece && (b.piece.ghost || b.piece.auto))) return true;
+          dIn.proxyA.set(fx.getShape(), 0); dIn.proxyB.set(ox.getShape(), 0); dIn.transformA.set(body.getTransform()); dIn.transformB.set(b.getTransform());
+          dIn.useRadii = true; dCache.count = 0; planck.Distance(dOut, dCache, dIn);
+          let ux = dOut.pointB.x - dOut.pointA.x, uy = dOut.pointB.y - dOut.pointA.y; const d = Math.hypot(ux, uy);
+          if (d < 1e-4) { const a = body.getWorldCenter(), o = b.getWorldCenter(); ux = o.x - a.x; uy = o.y - a.y; } // touching: towards its centre
+          const ul = Math.hypot(ux, uy) || 1; ux /= ul; uy /= ul;
+          const toward = vx * ux + vy * uy, allowed = Math.sqrt(2 * BRAIN_STOP * d) + BRAIN_TOUCH;
+          if (toward > allowed) { vx -= (toward - allowed) * ux; vy -= (toward - allowed) * uy; }
+          return true;
+        });
+      }
+      T.x += vx * STEP; T.y += vy * STEP;
+      const ex = T.x - p.x, ey = T.y - p.y, el = Math.hypot(ex, ey);
+      if (el > BRAIN_REACH) { T.x = p.x + ex * BRAIN_REACH / el; T.y = p.y + ey * BRAIN_REACH / el; }
+      // the arm's spring is damped against standing still; aim ahead along the planned motion so it damps only lagging
+      const lead = (2 * ARM_DAMP) / (2 * Math.PI * ARM_HZ);
+      piece.joint.setTarget(planck.Vec2(T.x + vx * lead, T.y + vy * lead));
     }
   }
   function dropHand(piece) { // let go: the fingers open and the arm goes away
@@ -1612,10 +1653,10 @@
     let k = 0; for (let i = 1; i < sup.length; i++) if (Math.abs(sup[i].c - xbar) < Math.abs(sup[k].c - xbar)) k = i;
     f = sup.map(() => 0); f[k] = W; return f;
   }
-  function traceLoads() {
+  function traceLoads(withHeld = false) {
     const info = new Map();
     const add = (b) => info.set(b, { W: b.getMass() * GRAVITY, M: b.getMass() * GRAVITY * b.getWorldCenter().x, recv: 0, sup: [], y: b.getWorldCenter().y });
-    for (const p of pieces) if (!p.ghost && !p.auto && p.heldBy == null) add(p.body);
+    for (const p of pieces) if (!p.ghost && !p.auto && (withHeld || p.heldBy == null)) add(p.body);
     for (const l of loads) if (l.released) add(l.body);
     const wm = new planck.WorldManifold();
     for (let c = world.getContactList(); c; c = c.getNext()) {

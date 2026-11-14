@@ -170,6 +170,11 @@
     const pushAir = (speed) => { T.clearAllPieces(); const t = T.spawnPiece("block", X + 1.5, 0.503, 0, "stone"); run(1); const p = T.spawnPiece("block", X - 2, 0.85, 0, "stone");
       const x0 = t.body.getPosition().x, c0 = p.body.getWorldCenter(), g = { x: c0.x, y: c0.y }; T.startHold(p, g, 96, 0, 0); run(0.5);
       for (let k = 0; k < 240; k++) { p.desired = { x: g.x + Math.min(6, k * speed / 60), y: g.y }; frame(1 / 60); } T.releaseHold(96); run(1); return +(t.body.getPosition().x - x0).toFixed(2); };
+    // owner 14 Nov: a small stone rammed fast into a stone block or the big stone square barely moves it
+    const ram = (td) => { T.clearAllPieces(); const t = T.spawnPiece(td, X + 2, T.PIECE_DEFS[td].hy + 0.003, 0, "stone"); run(1); const p = T.spawnPiece("abacus", X - 3, 0.25, 0, "stone"); run(0.5);
+      const x0 = t.body.getPosition().x, c0 = p.body.getWorldCenter(), g = { x: c0.x, y: c0.y }; T.startHold(p, g, 96, 0, 0);
+      for (let k = 0; k < 240; k++) { p.desired = { x: g.x + Math.min(8, k * 12 / 60), y: g.y }; frame(1 / 60); } T.releaseHold(96); run(1); return +(t.body.getPosition().x - x0).toFixed(2); };
+    for (const td of ["block", "bigsquare"]) { const r = ram(td); out.push(["14 Nov a small oblong stone rammed fast into a stone " + td + " barely moves it", r < 0.15, "moved " + r + " m"]); }
     const air = pushAir(1.5), hit = pushAir(12);
     out.push(["14 Nov a stone block held up in the air pushes a stone block less than one sliding on the ground", air < b, "moved " + air + " m (on the ground: " + b + " m)"]);
     out.push(["14 Nov a stone block swung fast into a stone block knocks it along", hit > 0.3, "moved " + hit + " m"]);

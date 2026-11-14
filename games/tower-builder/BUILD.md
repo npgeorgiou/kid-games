@@ -387,6 +387,13 @@ Tried this chat and dropped: a fixed push allowance (load x (g + 20 m/s^2)) made
 Owner tests still failing on the current game: small oblong stone pushed hard into a big stone block moves it 5.5 m (should hardly move); stone block dragged up while pressing 1.5 m into a wall sticks; stone block crosses 4 m in 0.68 s (the "too light" mark is 0.8 s); stone block whirled at one end turns 1.38 times in 4 circles (approved feel 1.69).
 Answer given to the owner: pushing a stone block (100 N) along stone takes about 60 N; the big stone square, about 120 N; the small oblong stone weighs 16 N; the arm can give 210 N.
 
+## Current state, update 28 (14 Nov 2026): the hand with a brain
+
+Owner's words: "a small stone still absolutely rams the huge boulder and MOVES IT; like this is impossible ... also, a stone should still be able to be rotated, currently gravity is pushing it too much down, at that point the hand becomes stronger to maintain smooth motion. ... is there not even 1 example of how to do this that you can copy? there are a million simple games like that."
+
+The hand now (PHYSICS STEP, "THE HAND"): Box2D/planck's standard drag (mouse joint) on a 0.2 kg hand body, strength a multiple of the weight carried (HAND_GRIP 4 x the piece plus what rests on it, from `traceLoads(true)`), capped at 210 N; fingers a pin; they resist turning with 0.6 x the weight's turning pull about the grab point (WRIST_GRIP), so off-centre pieces turn down smoothly and can be swung round. The brain plans the hand: heads for the finger at most 11 m/s, moves towards any other piece only as fast as it could still stop before it (15 m/s^2), never more than 0.3 m ahead of the piece; the spring aims ahead along the planned motion. Replaces update 27's plan.
+Owner tests: all pass except: two small oblong stones lifted from the bottom, the top lifts 3.8 cm off at the stop (limit 2 cm); light pieces cross 4 m in about 0.5 s (approved feel 0.37 s) and the stone block in 0.65 s (the "too light" mark is 0.8 s), so "lighter is quicker" holds only between stone blocks and the rest; a stone block whirls 2.45 times in 4 circles (approved 1.69).
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
