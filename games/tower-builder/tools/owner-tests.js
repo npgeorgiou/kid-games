@@ -146,15 +146,26 @@
     for (const m of ["stone", "mudbrick", "wood"]) {
       T.clearAllPieces(); const p = T.spawnPiece("block", X, 7, 0, m), c = p.body.getWorldCenter(), g = { x: c.x, y: c.y };
       T.startHold(p, { x: g.x, y: g.y }, 93, 0, 0); p.desired = { x: g.x, y: g.y }; run(0.5); let sag = 0, n = 0, lo = 1e9, hi = -1e9;
-      for (let k = 0; k < 180; k++) { const th = k / 60 * 2 * Math.PI, f = { x: g.x + Math.sin(th), y: g.y + 1 - Math.cos(th) }; p.desired = f; frame(1 / 60);
+      for (let k = 0; k < 180; k++) { const th = k / 60 * 2 * Math.PI * 1.5, f = { x: g.x + 0.3 * Math.sin(th), y: g.y + 0.3 - 0.3 * Math.cos(th) }; p.desired = f; frame(1 / 60);
         const q = p.body.getWorldCenter(); if (k >= 60) { sag += f.y - q.y; lo = Math.min(lo, q.y); hi = Math.max(hi, q.y); n++; } }
-      out.push(["14 Nov a " + m + " block follows the finger round in circles (1 m, once a second)", sag / n < 0.15 && hi - lo > 1, "on average " + (sag / n).toFixed(2) + " m under the finger, its own circle " + (hi - lo).toFixed(2) + " m across (the finger's: 2 m)"]);
+      out.push(["14 Nov a " + m + " block grabbed in the middle follows small quick circles of the finger (0.6 m across, 1.5 a second)", sag / n < 0.15 && hi - lo > 0.4, "on average " + (sag / n).toFixed(2) + " m under the finger, its own circle " + (hi - lo).toFixed(2) + " m across (the finger's: 0.6 m)"]);
       for (const [name, dx, dy] of [["down", 0, -3], ["up", 0, 3], ["sideways", 3, 0]]) {
         const s0 = { x: g.x, y: dy < 0 ? g.y + 1 : g.y - 2 }; p.desired = s0; run(1.5); let over = 0;
         for (let k = 0; k < 90; k++) { const u = Math.min(1, k / 18); p.desired = { x: s0.x + dx * u, y: s0.y + dy * u }; frame(1 / 60);
           const q = p.body.getWorldCenter(); over = Math.max(over, ((q.x - s0.x) * dx + (q.y - s0.y) * dy) / 3 - 3); }
-        out.push(["14 Nov a " + m + " block moved 3 m " + name + " quickly stops with the finger", over < 0.25, "runs on " + Math.max(0, over).toFixed(2) + " m past the finger"]); }
-      T.releaseHold(93); }
+        out.push(["14 Nov a " + m + " block moved 3 m " + name + " quickly runs on past the finger, not far (down: at least 0.3 m)", over < 1 && (name !== "down" || over > 0.3), "runs on " + Math.max(0, over).toFixed(2) + " m past the finger"]); }
+      T.releaseHold(93);
+      // grabbed roughly in the middle (0.3 m off), lifted and carried quickly: it does not tilt
+      { T.clearAllPieces(); const p = T.spawnPiece("block", X, 3, 0, m); run(0.1); const g0 = p.body.getWorldPoint({ x: 0.3, y: 0 }), g = { x: g0.x, y: g0.y }; let tilt = 0;
+        T.startHold(p, g, 92, 0, 0); p.desired = { x: g.x, y: g.y };
+        for (let k = 0; k < 150; k++) { const u = Math.min(1, Math.max(0, (k - 30) / 24)), w = Math.min(1, Math.max(0, (k - 60) / 30)); p.desired = { x: g.x + 3 * w, y: g.y + 2 * u }; frame(1 / 60); tilt = Math.max(tilt, Math.abs(p.body.getAngle())); }
+        T.releaseHold(92); out.push(["14 Nov a " + m + " block grabbed roughly in the middle, lifted and carried, does not tilt", tilt < 0.12, "tilted at most " + (tilt * 57.3).toFixed(0) + " degrees"]); }
+      // held at one end, whirled round by circles of the hand, once a second: how small can the circles be?
+      { const res = {}; for (const D of [0.6, 0.8, 1.0, 1.4]) { T.clearAllPieces(); const p = T.spawnPiece("block", X, 6, 0, m); run(0.1); const g0 = p.body.getWorldPoint({ x: 0.9, y: 0 }), g = { x: g0.x, y: g0.y };
+        T.startHold(p, g, 91, 0, 0); p.desired = { x: g.x, y: g.y }; run(2.5); let prev = p.body.getAngle(), tot = 0;
+        for (let k = 0; k < 360; k++) { const th = k / 60 * 2 * Math.PI; p.desired = { x: g.x + D / 2 * Math.sin(th), y: g.y + D / 2 - D / 2 * Math.cos(th) }; frame(1 / 60); const a = p.body.getAngle(); if (k >= 120) tot += a - prev; prev = a; }
+        T.releaseHold(91); res[D] = +(Math.abs(tot) / (2 * Math.PI)).toFixed(2); }
+        out.push(["14 Nov a " + m + " block held at one end whirls round with hand circles 0.8 m across", res[0.8] >= 3, "turns in 4 circles of the hand, by circle size across (m): " + JSON.stringify(res)]); } }
   }
 
   if (want("triangle")) {

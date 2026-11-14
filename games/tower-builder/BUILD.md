@@ -411,6 +411,19 @@ Changed in the hand model (PHYSICS STEP, "THE HAND"), no new cases:
 - New owner test group `swing` (circles without sinking; stopping after 3 m down, up, sideways). Before: a stone block sank 1.5 m under the circling finger and ran on 4.5 m after a fast move down. Now: 0.07 m and 0.2 m.
 - Owner tests hand, carry, push, slide, motion, triangle: same passes as before plus "lighter is quicker". Still failing as before: two small oblong stones lifted from the bottom (top lifts 4 cm, limit 2 cm); the stone block crosses 4 m in 0.58 s (the old "too light" mark is 0.8 s; it was 0.65 s); `motion` reference numbers from the earlier hand.
 
+## Current state, update 31 (14 Nov 2026): one force budget, grip by felt pull, inertia back
+
+Owner's words: "your motion and force when a block is about to hit anotehr is unnatural, it slows down unnaturealy. also, its not possible anymore to grab a block from its rough center and have it NOT tilt. also, its still not possible to swing in circles a standard (rectangular 2m) stone block, I dont knwo why you think I can. also, you should never modify mass of objects again, and if you did, revert it. also this swing I describe should happen with relatively small circular mvoements of the hand, not the huge oens required now. also, you removed inertia/gravity pull too much. please. please"
+
+The hand now (PHYSICS STEP, "THE HAND"), replacing update 30:
+- One force budget: the arm's spring pulls with up to the weight carried + HAND_GRIP 6 x weight x (1 - weight / 210 N). No separate holding-up force any more, so gravity pulls again when the hand works hard.
+- The brain's planned motion: top speed such that it could stop within BRAIN_RUN 0.8 m; speeding up and slowing down at most BRAIN_SHARE 0.8 of what the strength gives; it starts each grab with the piece's own motion. The stop-at-the-finger braking of update 30 is gone: a piece runs on 0.5-0.7 m past a finger that stops suddenly.
+- Slowing before other pieces: kept, gentler (BRAIN_STOP 30 m/s^2, was 15; BRAIN_TOUCH 0.8 m/s).
+- Fingers: squeeze in proportion to what the arm pulls with at that moment (the arm joint's own force, never contact forces); they hold WRIST_HOLD 1.2 x the turning pull at the grab point's distance from the middle, at most at WRIST_LEVER 0.3 m. Grabbed within about 0.3 m of the middle: no tilt (0-1 degrees in test); near an end: hangs down.
+- No piece weights changed (none were changed in update 30 either).
+- Tests: new `swing` group (small quick circles from the middle, running on, middle grab does not tilt, whirling by the end with hand circles 0.6-1.4 m across). All hand tests pass except: whirling by the end with small circles (no turns; with the old 2 m circles 1.2 turns in 4); stone block 4 m in 0.67 s (old "too light" mark 0.8 s); two small oblong stones lifted from the bottom, top lifts 4 cm.
+- Open, asked of the owner: with real physics, even a completely loose hand cannot whirl a hanging 2 m stone block with small circles (tried: about 1 turn in 4 with circles 1.4 m across). Whirling with small circles needs the wrist to turn along with the hand's circles. Tried: then a block lifted and then carried sideways also turns about 20 degrees on the bend. Removed until the owner answers.
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
