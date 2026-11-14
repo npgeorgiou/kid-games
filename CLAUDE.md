@@ -86,15 +86,20 @@ What went wrong with the Tower Builder hand, and the rule each failure gives:
 6. Asking instead of deciding. When the owner says what he wants ("real, consistent, not hacky"), do not ask him to choose between that and something else; build it.
 7. Long chats and handoffs. Say early when a chat is getting long. Every handoff is in the reply itself, ready to paste: what the thing is now, what was done, what still differs from the owner's wishes, how to test, open questions. Before saying "pushed", check the remote has the commit.
 
-## Why rules crept back into the hand (owner, 14 Nov 2026, evening) and the hard stops that prevent it
+## How I fail, and the hard stops against it (owner, 14 Nov 2026; every game, every kind of task)
 
-What happened: the hand was rebuilt as two parts, then every complaint got one more part (a squeeze, a stronger rope pull, a finger-turn drive, speed planning...) until it had about ten. Causes: (1) when physics gave a result the owner did not like, a rule was added to force the look instead of telling him what physics gives; (2) each fix was made to turn a failing test green, not to make the model more real; (3) tests moved a perfect fake finger, not the real mouse in the running game, so broken behaviour looked fine.
+My failure pattern, seen again and again: I build something simple, the owner reports a problem, and instead of fixing the cause I add one more rule on top. Each rule makes one complaint go away, the rules pile up and fight each other, and the thing becomes unpredictable. It happens because:
+1. When the honest answer is "the real world gives X", I add a rule to force the result he wants, instead of telling him what the real world gives and letting him choose.
+2. I treat a failing test as the goal and add whatever turns it green, instead of asking what is actually wrong.
+3. I test with perfect, made-up input (exact positions, exact timing, ideal cases), not what the owner really does (a real mouse at its real rate, rough placements, a four-year-old's hand), so broken things look fine to me and I report them as working.
+4. I report success from my own numbers, not from what he will see.
 
-Hard stops, every game:
-- The behaviour's code header lists its parts in plain words, numbered. Adding a part needs the owner's yes first: tell him "physics gives X; to get Y I would add Z", one line, and wait.
-- More than three parts: stop and propose a simpler model before writing code.
-- Never add a part to make a test pass. A test that real physics fails goes to the owner as a question.
-- Every behaviour the owner feels by hand is checked with the real mouse in the running game (`harness.py whirlvideo` style: real loop, real mouse events at a real rate), not only with set positions.
+Hard stops:
+- Every behaviour, system or rule set (a hand, a vehicle, a price, an enemy, a level rule) is written as a short numbered list of parts in plain words at the top of its code. Adding a part needs the owner's yes first: "the real world gives X; to get Y I would add Z", one line, then wait.
+- More than three parts: stop, say so, and propose a simpler whole before writing code.
+- Never add or change anything just to make a test pass. If the real world fails his test, that is a question for him.
+- Check everything he will feel or see the way he will meet it: the real program running, real input at a real rate, his screen, his actions. A test with made-up input is a supplement, never the proof.
+- Before saying something works, show it (a picture or video from the real program) whenever he has said it does not work.
 
 ## Testing (owner, 14 Nov 2026; overrides anything below that asks for more)
 
