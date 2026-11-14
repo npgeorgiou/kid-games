@@ -1000,25 +1000,28 @@
   // THE HAND (owner 14 Nov 2026: real, consistent, one model, nothing made up). Two parts, everything else is the
   // physics engine:
   // - The arm: a steady arm, not a spring (no rubber band). Each step it wants the grab point to head for the finger
-  //   at a speed that closes the gap in ARM_EASE (never above ARM_SPEED), and pushes with the force that gets that
-  //   speed within ARM_REACT, plus holding up the weight carried (the piece plus the share of weight resting on it,
-  //   from what rests on what). The arm has ARM_STRENGTH in all; what is left after holding up the weight moves the
-  //   load, but the brain never uses more than HAND_GRIP x the weight for moving it (owner 12-14 Nov: strength the
-  //   job needs, so a small stone cannot shove a big block; heavier lags; above two stone blocks it cannot lift).
-  //   So light pieces are quick and heavy ones slow, and a quick sweep of the hand throws a piece. Like a person carrying a load, it never moves it faster
-  //   than that strength could stop within ARM_RUN, and never speeds it up or slows it down harder than what rests on
-  //   it can follow without sliding (its friction). So a piece stops by itself when the finger stops, running on a
-  //   little, and settles back without swinging back and forth; a stack carried by its bottom piece stays together.
+  //   and pushes with the force that gets that speed within ARM_REACT, plus holding up the weight carried (the piece
+  //   plus the share of weight resting on it, from what rests on what). The arm has ARM_STRENGTH in all; what is left
+  //   after holding up the weight moves the load, but the brain never uses more than HAND_GRIP x the weight for moving
+  //   it (owner 12-14 Nov: strength the job needs, so a small stone cannot shove a big block; heavier lags; above two
+  //   stone blocks it cannot lift). It speeds a load up over at most one sweep of the arm, ARM_RUN (owner 14 Nov: a
+  //   mudbrick block dragged sideways at full speed and let go at mid-screen height flies 9 m; every other piece by
+  //   its weight), and never harder than what rests on it can follow without sliding (its friction). Heading for the
+  //   finger it never goes faster than it can still stop at the finger (the standard time-optimal approach), so a
+  //   piece runs on as its speed and the arm's strength make it and comes back without springing past the finger.
   // - The fingers hold the piece where it was grabbed (a pin, never slipping). The wrist resists turning like
-  //   friction with a static and a sliding level (the standard Stribeck friction curve): while still it holds up to
-  //   WRIST_HOLD m x the pull the arm feels, once turning only WRIST_SLIP m x it. A pull through the grab point turns
-  //   the piece by at most its distance from the piece's middle, so a piece grabbed within WRIST_HOLD of its middle
-  //   never turns however the hand moves (a stack lifted by its bottom piece too); grabbed farther out, the weight
-  //   wins, the wrist gives way and it falls round almost as freely as gravity makes it.
+  //   friction with a static and a sliding level (the standard Stribeck friction curve, with its viscous part): while
+  //   still it holds up to the pull the arm feels times the distance from the piece's middle to the edge of its middle
+  //   third (towards the grab point), once turning only WRIST_SLIP of that, less and less once the piece has
+  //   turned in the fingers (WRIST_TURNED, so it hangs straight rather than stopping part way), and it damps swinging (WRIST_DAMP of
+  //   critical). A pull through the grab point turns the piece by at most the grab
+  //   point's distance from the middle, so a piece grabbed in its middle third never turns however the hand moves
+  //   (owner 14 Nov, every piece by its own size; a stack lifted by its bottom piece too); grabbed in an outer third,
+  //   the weight wins, the wrist gives way and it falls round, settling hanging without bouncing.
   const ARM_STRENGTH = 210; // N: a stone block weighs 100 N, so two blocks lift slowly and a bit more does not
   const ARM_SPEED = 11, ARM_EASE = 0.08, ARM_REACT = 0.05, ARM_RUN = 1.8, ARM_CARE = 0.8; // m/s, s, s, m, share of the friction
-  const HAND_GRIP = 3; // most strength the brain uses for moving, as a multiple of the weight carried
-  const WRIST_HOLD = 0.4, WRIST_SLIP = 0.05, WRIST_GIVE = 0.3; // m, m, rad/s (how quickly it goes from holding to slipping)
+  const HAND_GRIP = 3.8; // most strength the brain uses for moving, as a multiple of the weight carried
+  const WRIST_SLIP = 0.1, WRIST_GIVE = 0.3, WRIST_DAMP = 0.35, WRIST_TURNED = 0.3; // share, rad/s (holding to slipping), share of critical, rad (turned in the fingers)
   const HAND_MASS = 0.2; // kg: the hand, moved along with the piece
   const dIn = new planck.DistanceInput(), dOut = new planck.DistanceOutput(), dCache = new planck.SimplexCache();
   // distance from a body down to the nearest piece under it, if closer than `reach`
@@ -1054,17 +1057,27 @@
       const body = piece.body, t = traced.get(body), W = body.getMass() * GRAVITY + (t ? t.recv : 0), M = W / GRAVITY;
       const most = Math.min(W, ARM_STRENGTH) + Math.min(HAND_GRIP * W, Math.max(0, ARM_STRENGTH - W));
       // what rests on it, and how hard it can be moved without that sliding
-      let A = (most - Math.min(W, most)) / M;
+      let A = Math.min((most - Math.min(W, most)) / M, HAND_GRIP * GRAVITY * Math.max(0, 1 - W / ARM_STRENGTH)); // lighter is always quicker
       for (const [b, it] of traced) if (it.sup.some((q) => q.low === body)) A = Math.min(A, ARM_CARE * GRAVITY * Math.sqrt(b.getFixtureList().getFriction() * body.getFixtureList().getFriction()));
       const p = body.getWorldPoint(piece.grabLocal), v = body.getLinearVelocityFromWorldPoint(p), f = piece.desired;
-      const dx = f.x - p.x, dy = f.y - p.y, d = Math.hypot(dx, dy), vmax = Math.min(ARM_SPEED, Math.sqrt(2 * A * ARM_RUN)), s = d > 1e-6 ? Math.min(vmax, d / ARM_EASE) / d : 0;
+      const dx = f.x - p.x, dy = f.y - p.y, d = Math.hypot(dx, dy), vmax = Math.min(ARM_SPEED, Math.sqrt(2 * A * ARM_RUN));
+      const s = d > 1e-6 ? Math.min(vmax, d / ARM_EASE, Math.sqrt(2 * A * d)) / d : 0;
       let ax = (dx * s - v.x) / ARM_REACT, ay = (dy * s - v.y) / ARM_REACT; const al = Math.hypot(ax, ay);
       if (al > A) { ax *= A / al; ay *= A / al; }
       let Fx = M * ax, Fy = M * ay + W; const Fl = Math.hypot(Fx, Fy);
       if (Fl > most) { Fx *= most / Fl; Fy *= most / Fl; }
       body.applyForce(planck.Vec2(Fx, Fy), p, true);
-      const turning = Math.abs(body.getAngularVelocity());
-      piece.grip.setMaxMotorTorque(Math.max(W, Math.hypot(Fx, Fy)) * (WRIST_SLIP + (WRIST_HOLD - WRIST_SLIP) * Math.exp(-turning / WRIST_GIVE)));
+      // the wrist: how far the middle third reaches towards the grab point, from the piece's own size
+      const def = PIECE_DEFS[piece.defKey], hx = def.hx || def.r, hy = def.hy || def.r || hx, lc = body.getLocalCenter();
+      const lx = piece.grabLocal.x - lc.x, ly = piece.grabLocal.y - lc.y, r = Math.hypot(lx, ly);
+      const reach = r < 1e-6 ? 1e3 : r * Math.min(Math.abs(lx) > 1e-6 ? hx / 3 / Math.abs(lx) : 1e3, Math.abs(ly) > 1e-6 ? hy / 3 / Math.abs(ly) : 1e3);
+      const w = body.getAngularVelocity(), hold = Math.max(W, Math.hypot(Fx, Fy)) * reach;
+      // the fingers hold firmly only in the position they closed on; once the piece has turned in them, loosely
+      const turned = Math.exp(-Math.abs(piece.grip.getJointAngle()) / WRIST_TURNED);
+      piece.grip.setMaxMotorTorque(hold * turned * (WRIST_SLIP + (1 - WRIST_SLIP) * Math.exp(-Math.abs(w) / WRIST_GIVE)));
+      // its damping, against swinging (a share of what would stop a hanging swing without bouncing)
+      const Ip = body.getInertia() + body.getMass() * r * r;
+      body.applyTorque(-WRIST_DAMP * 2 * Math.sqrt(Ip * W * Math.max(r, 0.05)) * w, true);
     }
   }
   function dropHand(piece) { // let go: the fingers open and the arm goes away

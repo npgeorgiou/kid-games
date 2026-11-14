@@ -450,6 +450,21 @@ Owner's words: "rubbery inertia thing reappeared. and many mroe thigns are wrong
 
 Open for the next chat: the hand of updates 32-33 does not satisfy the owner (runs on too far, throws too far, no whirling with circles as big as the round stone). Before rebuilding: put the owner's cases into tests first (stack carried by the bottom stays together; grab near the middle never tilts; standing block grabbed at its outer side falls round at once; whirl by one long end with circles 1.2 m across; no rubber band; mudbrick thrown from mid-screen height about 9 m but not more than he wants; wood clearly quicker than mudbrick, mudbrick than stone; small stone does not shove a big one; dragging up a wall slides) and ask him yes/no before coding. Replies to him: a few short lines only.
 
+## Current state, update 35 (14 Nov 2026): the owner's hand list as tests; hand rebuilt to it
+
+The owner approved a numbered list of hand behaviours (tests: `tools/harness.py owner list`, each check named "list N"). His answers: point 2 = every piece by its own size: grabbed in its middle third stays level, in an outer third turns down (no rotate button exists; turning comes only from grabbing off-centre); 18 = real falling decides; 6-8 = how far a piece runs on follows from the 9 m mudbrick throw ("the benchmark for other materials, according to their mass"); 23 = try slower circles; 27 = physics decides (shown only); pushing and hits are mass x speed, no special rules.
+
+The hand now: arm force at the grab point = weight carried + mass x acceleration towards the speed heading for the finger; that speed never above what it can still stop at the finger (time-optimal), nor above what one arm sweep (ARM_RUN 1.8 m) gives; acceleration at most min((210 N - weight)/mass, HAND_GRIP 3.8 x g x (1 - weight/210 N)) and at most 0.8 x the friction of what rests on it. Wrist: Stribeck friction, static hold = the arm's pull x the distance from the middle to the edge of the middle third towards the grab point; 10% once turning; fading once the piece has turned in the fingers (WRIST_TURNED 0.3 rad); viscous damping 0.35 of critical.
+
+Results (hand list + older hand tests): 102 of 119 pass. Failing:
+- 9: comes back without passing the finger, but at 2-3 m/s ("slowly" mark 1.5 m/s).
+- 12: carry 4 m stone 0.98 s, mudbrick 0.67 s, wood 0.55 s (wood mark 0.4 s). Wood and the small oblong stone weigh about the same; wood at 0.4 s needs about 2.5 times the moving strength.
+- 23: no whirling at circles of 1, 1.5 or 2 s: the wrist damping that stops a hanging block bouncing (point 3) also stops whirling.
+- 26 / old push tests: small oblong stone pushed hard into a stone block moves it 0.3 m, rammed 1 m: from the hit (mass x speed); a gentler hand (HAND_GRIP 2.6) still 0.16 m and breaks the 9 m throw.
+- 31: dragging up while pressing 1.5 m into a wall sticks half way (real friction; passed before only through the slowing near pieces, removed by the owner).
+- Old test "a stone block held at one end swings round in big circles": 0.13 turns (damping).
+Points 3 and 5 marks changed from my proposals to the pieces' own swing: hang within 1.5 s, standing block falls round within 0.8 s.
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
