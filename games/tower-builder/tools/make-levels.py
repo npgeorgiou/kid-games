@@ -201,7 +201,7 @@ level("mausoleum", "Μαυσωλείο της Αλικαρνασσού", "c. 350
       [rect(-4.5, 1, -0.5, 3.4), rect(0.5, 1, 4.5, 3.4)], "support",  # the walkways between the columns and the core; the acroteria stay on the lintel ends, moved in with them
       wrong=[W("mudbrick in the middle column", "material", recolour(s, lambda e: e[0] == "square" and near(e[2], 0) and 1 < e[3] < 3, "mudbrick")),
              W("mudbrick side columns", "material", recolour(s, lambda e: e[0] == "square" and abs(e[2]) > 4 and e[3] < 3, "mudbrick")),
-             W("one column left out", "build", without(s, lambda e: e[0] in ("square", "capital") and near(e[2], -5.0) and e[3] < 3.5))])  # posts pulled early no longer fails: the lintels now meet and hold each other
+             W("one column left out", "build", without(s, lambda e: e[0] in ("square", "capital") and near(e[2], -5.0) and e[3] < 3.5))])
 # 9 Lighthouse: tall hollow lowest tier, two thin walls round a shaft tied by wooden beams, a stone cap, a narrower tier, a round top, statue and Tritons
 def pharos(tied=True, cap="stone"):
     out = []
@@ -229,16 +229,15 @@ level("pharos", "Φάρος της Αλεξάνδρειας", "c. 280 BC", "a ta
              W("a mudbrick stone over the shaft", "material", pharos(cap="mudbrick")),
              W("no wooden ties (the walls stacked straight up)", "build", pharos(tied=False)),
              W("the upper tier set off centre", "build", moved(s, lambda e: e[3] > 7, dx=1.0))])
-# 10 Valens: two forms for four arches, moved from the lower to the upper arches
+# 10 Valens (owner, 14 Nov): one form for four arches, taken out of each finished arch and used again
 VX = ARCH_X  # arch centres; neighbouring arches touch at their feet
 def tier(sy):  # side walls a square wide, a big triangle in each corner beside the arches, flush with their tops
     return [p for k in range(3) for p in (["square", "stone", -(2 * VX + 0.5), sy + 0.5 + k, 0], ["square", "stone", 2 * VX + 0.5, sy + 0.5 + k, 0])] + \
         [tri_at(-2 * VX, sy + 3, 1, kind="trib"), tri_at(0, sy + 3, -1, kind="trib"), tri_at(0, sy + 3, 1, kind="trib"), tri_at(2 * VX, sy + 3, -1, kind="trib")]
 UPPER = 5.0
-lower = [["block", "stone", -2 * VX, 0.5, 0], ["block", "stone", 0, 0.5, 0], ["block", "stone", 2 * VX, 0.5, 0]] + arch(-VX, 1, 0, single=True) + arch(VX, 1, 0, single=True) + tier(1) + \
-    row("stone", -7, 7, UPPER - 0.5)
-s = lower + [PULL] + arch(-VX, UPPER, 0) + arch(VX, UPPER, 0) + tier(UPPER)
-level("valens", "Υδραγωγείο του Ουάλη", "AD 368", "two tiers of arches, two forms moved from arch to arch",
+lower = [["block", "stone", -2 * VX, 0.5, 0], ["block", "stone", 0, 0.5, 0], ["block", "stone", 2 * VX, 0.5, 0]] + arch(-VX, 1, 0, single=True)
+s = lower + [PULL] + arch(VX, 1, 0, single=True) + tier(1) + row("stone", -7, 7, UPPER - 0.5) + [PULL] + arch(-VX, UPPER, 0) + [PULL] + arch(VX, UPPER, 0) + tier(UPPER)
+level("valens", "Υδραγωγείο του Ουάλη", "AD 368", "two tiers of arches, one form moved from arch to arch",
       "real upper arches are smaller; same size here because there is one wedge size; three piers under the lower arches and a full course between the tiers",
       s, [rect(-(2 * VX + 1), UPPER + 3, 2 * VX + 1, UPPER + 3.6)], [arch_hole(-VX, 1, 0), arch_hole(VX, 1, 0), arch_hole(-VX, UPPER), arch_hole(VX, UPPER)], "support",
       wrong=[W("mudbrick piers", "material", recolour(s, lambda e: e[0] == "block" and near(e[3], 0.5), "mudbrick")),

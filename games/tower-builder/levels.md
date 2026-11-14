@@ -34,7 +34,7 @@ Run from `games/tower-builder/tools`: `python3 harness.py spec` (tests 1, 2, 3, 
 3. Each wrong choice below, swapped into the suggested build, fails: something crumbles, snaps, falls, or the headpiece comes off, and the result is not a building that lights the button and passes the test.
 4. Pile: it holds every piece the suggested build uses and, for every wrong choice, the pieces it puts in place of the right ones (rule above); arch forms only as many as listed; it fits the sidebar at 1280 x 800.
 5. Wood-support levels: the build without the supports, or with them taken out too early, falls (wrong builds of Ishtar, Mausoleum and Valens).
-6. Reuse (Valens): built with two forms, moved from the lower to the upper arches.
+6. Reuse (Valens): built with one form, moved from arch to arch (owner, 14 Nov).
 7. Lighthouse: without its wooden ties the walls fall in the wind.
 8. Outline matches the build: the exactly placed build, once settled, has every piece within 5 cm of its place, covers at least 85% of the outline (the building's shape; its uncovered slivers must still light the button) and has at most 2.5% of its pieces outside the outline.
 
@@ -123,11 +123,11 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 - Headpiece: the four-horse chariot on top, and two acroteria on the beam ends beside the roof (owner). LOCKED. 12 Nov: the acroteria moved in with the lintel ends (from 6.5 to 5.95 m out), so they still stand on them.
 - Pieces (owner, 12 Nov: the lintels meet with no gap, the roof a square narrower on each side, the top two triangles gone): 21 stone blocks (podium, core, five roof steps of 5, 4, 3, 2, 1 blocks), 6 small triangles (the roof's slope), 4 square drums and 3 capitals, 4 stone beams end to end, 2 wooden posts; pile adds 2 mudbrick blocks and 4 mudbrick half-blocks.
 - Openings: the two walkways between the columns and the core.
-- Owner (13 Nov): the middle column half as wide (two squares), with one capital wider than it, like the side columns, so the posts would be needed. Checked: the lintels still hold each other end to end, so pulling the posts early still does not fail.
+- Owner (13 Nov): the middle column half as wide (two squares), with one capital wider than it, like the side columns, so the posts would be needed.
 - New: wooden posts as temporary props. Technique: the walkway beams reach out from the solid core further than they can hold alone; they rest on wooden posts while the roof goes on, and hold once its weight (five steps over the core) presses their inner ends down. The posts then come out.
 - Hard: the posts must stand before the beams go on and stay until the roof is on.
 - Wrong material: mudbrick in the middle column crumbles; mudbrick side columns crumble.
-- Wrong build: one column left out: its lintel and the roof above it fall. (Checked 12 Nov and taken out because they no longer fail: the posts left out or pulled out early (the lintels now meet end to end and hold each other, so the posts are not needed any more; owner to decide whether the posts stay in this level) and wooden lintels (they snap while building, but the building then passes).)
+- Wrong build: one column left out: its lintel and the roof above it fall. (Owner, 14 Nov: the posts stay; when he builds, the beams fall without them. Wooden lintels were taken out as a wrong choice: they snap while building, but the building then passes.)
 - Temporary wood: two posts.
 - Historical: podium, 36 columns, a pyramid of 24 steps, a four-horse chariot (Pliny, corroborated by excavation, worldhistory.org); a solid core behind the columns carried the roof (Wikipedia); ceiling beams of the walkway were found (American Journal of Archaeology); lions stood at the base of the pyramid (worldhistory.org). The real roof was stepped with a low pitch; here the steps are filled out with triangles into a 45-degree slope (owner). The acroteria are the owner's addition. The posts are the game's way of building it.
 
@@ -147,14 +147,14 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 10. Valens Aqueduct, Constantinople (AD 368)
 
 - Headpiece: the water channel along the top. LOCKED.
-- Pieces (owner: back to the old design): 3 stone blocks as piers under the lower arches, 4 arches of 9 wedges, 8 big triangles, side walls a half-block wide in both tiers, a course of 7 stone blocks between the tiers, 2 wooden arch forms each on one wooden block; pile adds mudbrick for the wrong choice.
-- New: nothing new. Technique: two forms for four arches. The lower arches spring from the piers; take the forms out, use them again for the upper arches, which stand on the course between the tiers.
+- Pieces (owner: back to the old design): 3 stone blocks as piers under the lower arches, 4 arches of 9 wedges, 8 big triangles, side walls a half-block wide in both tiers, a course of 7 stone blocks between the tiers, 1 wooden arch form on one wooden block (owner, 14 Nov: one form); pile adds mudbrick for the wrong choice.
+- New: nothing new. Technique: one form for four arches (owner, 14 Nov). Build an arch on it, take it out, use it again for the next arch; the lower arches spring from the piers, the upper ones stand on the course between the tiers.
 - Hard: the piers carry everything.
 - Openings: the four arches.
 - Wrong material: mudbrick piers crumble.
 - Owner (13 Nov): the pile not fitting the sidebar is not an issue.
 - Wrong build: a form pulled out before the last wedge: the arch falls.
-- Temporary wood: two forms, no more.
+- Temporary wood: one form on one block, no more (owner, 14 Nov).
 - Historical: the real aqueduct stands on tall piers and its upper arches are smaller; here the arches are all one size.
 
 ## Game changes made for these levels (12 Nov 2026, second list)

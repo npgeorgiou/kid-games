@@ -394,6 +394,12 @@ Owner's words: "a small stone still absolutely rams the huge boulder and MOVES I
 The hand now (PHYSICS STEP, "THE HAND"): Box2D/planck's standard drag (mouse joint) on a 0.2 kg hand body, strength a multiple of the weight carried (HAND_GRIP 4 x the piece plus what rests on it, from `traceLoads(true)`), capped at 210 N; fingers a pin; they resist turning with 0.6 x the weight's turning pull about the grab point (WRIST_GRIP), so off-centre pieces turn down smoothly and can be swung round. The brain plans the hand: heads for the finger at most 11 m/s, moves towards any other piece only as fast as it could still stop before it (15 m/s^2), never more than 0.3 m ahead of the piece; the spring aims ahead along the planned motion. Replaces update 27's plan.
 Owner tests: all pass except: two small oblong stones lifted from the bottom, the top lifts 3.8 cm off at the stop (limit 2 cm); light pieces cross 4 m in about 0.5 s (approved feel 0.37 s) and the stone block in 0.65 s (the "too light" mark is 0.8 s), so "lighter is quicker" holds only between stone blocks and the rest; a stone block whirls 2.45 times in 4 circles (approved 1.69).
 
+## Current state, update 29 (14 Nov 2026, voice and teaching plan)
+
+- `cues.md` is the master doc for every voice line (01-122), what plays when, the teaching sequence from the first launch, and the per-site demos. Not built yet, apart from: test button red until ready then green with a plain triangle; open map sites yellow.
+- Valens: one wooden form on one block (owner); the suggested build makes the arches one after another, taking the form out of each. Its tests passed; the pile is 110% of the sidebar height (accepted before at 120%).
+- Mausoleum: the posts stay (owner: when he builds, the beams fall without them).
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.

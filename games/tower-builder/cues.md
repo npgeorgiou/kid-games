@@ -88,7 +88,7 @@ What is new comes from the level spec (`levels.md`), level by level.
 | 5 Karnak | columns, capitals of two small blocks, beams across | a column with two small blocks on it, a second the same, a beam across. Line 114 |
 | 6 Ishtar | wedges; the wooden form, taken out after the last wedge | the form on its four blocks (115); wedges from both sides (116); the top wedge (117); the ghost hand pulls the form out, the arch stands (118) |
 | 7 Parthenon | drums stacked straight; pediment stones | no demo |
-| 8 Mausoleum | wooden posts as temporary props | wrong: the post pulled out before the roof is on; the beam falls. Line 120. Right: post, beam from the core onto it, the roof steps, then the post pulled out. Line 121. See open question 1 |
+| 8 Mausoleum | wooden posts as temporary props | wrong: the post pulled out before the roof is on; the beam falls. Line 120. Right: post, beam from the core onto it, the roof steps, then the post pulled out. Line 121 |
 | 9 Pharos | hollow tower, two walls tied by wooden beams | no demo; the technique is in intro 9 |
 | 10 Valens | reusing the forms | no demo; intro 10 says it. A reminder visual: the Ishtar arch demo, then the ghost finger taps the form three times and it goes back to the pile. Line 122 |
 
@@ -112,7 +112,7 @@ Files: `sounds/voice/NN.mp3`, NN = the line number. The owner records in numbere
 7. Parthenon: "Καλώς ήρθες στην Αθήνα, αρχιτέκτονα, το 447 π.Χ. Οι Πέρσες, που κυρίευσαν τη Βαβυλώνα, έφτασαν ως εδώ και έκαψαν τους ναούς της Ακρόπολης. Νικήθηκαν όμως, κι η Αθήνα ζει τώρα τον χρυσό της αιώνα. Ο Περικλής θέλει στη θέση τους τον ωραιότερο ναό του κόσμου, για τη θεά Αθηνά. Τον σχεδιάζουν ο Ικτίνος και ο Καλλικράτης, με μάρμαρο της Πεντέλης. Για πρώτη φορά θα υψώσεις κίονες σπόνδυλο τον σπόνδυλο, με κιονόκρανα και αέτωμα. Χτίσε το!"
 8. Mausoleum: "Καλώς ήρθες, αρχιτέκτονα, στην Αλικαρνασσό, στην απέναντι ακτή του Αιγαίου, γύρω στο 350 π.Χ. Εδώ κυβερνά ο Μαύσωλος. Δεν είναι Έλληνας, μα αγαπά ό,τι είναι ελληνικό. Για τον τάφο του φέρνει τους καλύτερους Έλληνες γλύπτες. Ελληνικοί κίονες σαν του Παρθενώνα θα σηκώσουν μια πυραμίδα με σκαλιά. Από το όνομά του, κάθε μεγάλος τάφος θα λέγεται μαυσωλείο. Για πρώτη φορά θα απλώσεις δοκάρια στον αέρα, πάνω σε ξύλινους στύλους, ώσπου να τα πατήσει η στέγη. Χτίσε το!"
 9. Pharos: "Καλώς ήρθες, αρχιτέκτονα, στην Αλεξάνδρεια, γύρω στο 280 π.Χ. Ο Μέγας Αλέξανδρος νίκησε τους Πέρσες και ίδρυσε στην Αίγυπτο αυτή την πόλη με το όνομά του. Όταν πέθανε, ο στρατηγός του, ο Πτολεμαίος, έγινε βασιλιάς της Αιγύπτου. Τώρα οι Πτολεμαίοι θέλουν στο νησάκι Φάρος έναν πύργο τόσο ψηλό, που η φωτιά του θα οδηγεί τα καράβια μέσα στη νύχτα. Από αυτό το νησί κάθε φάρος θα πάρει το όνομά του. Για πρώτη φορά θα χτίσεις ψηλά και κούφια, με δύο τοίχους δεμένους με ξύλινα δοκάρια. Χτίσε το!" (Its technique, two walls tied by wooden beams, is already in it; no demo.)
-10. Valens (CHANGED 14 Nov: says the form is reused; see open question 2): "Καλώς ήρθες, αρχιτέκτονα, στην Κωνσταντινούπολη, τη νέα πρωτεύουσα της Ρωμαϊκής Αυτοκρατορίας. Ο Μέγας Κωνσταντίνος την ίδρυσε, εδώ στον Βόσπορο. Η καινούργια πόλη όμως διψά, κι ο αυτοκράτορας Ουάλης θέλει να της φέρει νερό πάνω από την κοιλάδα. Οι Ρωμαίοι είναι μάστορες της καμάρας που γνώρισες στη Βαβυλώνα. Τώρα θα στήσεις δύο σειρές από καμάρες, τη μία πάνω στην άλλη. Έχεις όμως μόνο ένα καλούπι για τις καμάρες. Γι' αυτό, από κάθε καμάρα που τελειώνεις, βγάλε το καλούπι για να το ξαναχρησιμοποιήσεις. Εμπρός! Υδροδότησε την πόλη!"
+10. Valens (CHANGED 14 Nov: one form, reused): "Καλώς ήρθες, αρχιτέκτονα, στην Κωνσταντινούπολη, τη νέα πρωτεύουσα της Ρωμαϊκής Αυτοκρατορίας. Ο Μέγας Κωνσταντίνος την ίδρυσε, εδώ στον Βόσπορο. Η καινούργια πόλη όμως διψά, κι ο αυτοκράτορας Ουάλης θέλει να της φέρει νερό πάνω από την κοιλάδα. Οι Ρωμαίοι είναι μάστορες της καμάρας που γνώρισες στη Βαβυλώνα. Τώρα θα στήσεις δύο σειρές από καμάρες, τη μία πάνω στην άλλη. Έχεις όμως μόνο ένα καλούπι για τις καμάρες. Γι' αυτό, από κάθε καμάρα που τελειώνεις, βγάλε το καλούπι για να το ξαναχρησιμοποιήσεις. Εμπρός! Υδροδότησε την πόλη!"
 
 #### Main screen
 11. First visit ever (no saved progress), queued: "Καλώς ήρθες στον αρχαίο κόσμο, αρχιτέκτονα! Φαραώ, βασιλιάδες και αυτοκράτορες περιμένουν να τους χτίσεις θαύματα. Πάμε!"
@@ -252,8 +252,8 @@ Files: `sounds/voice/NN.mp3`, NN = the line number. The owner records in numbere
 121. Mausoleum demo, right: "Στήριξε πρώτα το δοκάρι σε έναν ξύλινο στύλο. Όταν πατήσει η στέγη από πάνω, βγάζεις τον στύλο."
 122. Valens reminder: "Με τρία γρήγορα πατήματα, το καλούπι γυρίζει στον σωρό, έτοιμο για την επόμενη καμάρα."
 
-## 8. Open questions for the owner
+## 8. Notes
 
-1. Mausoleum: the level spec says the beams now hold each other end to end, so pulling the posts early does not make anything fall. Change the level so the beams fall without the posts? Yes: the level changes and the demo's failure is real. No: the Mausoleum demo shows only the right way (lines 120 dropped).
-2. Valens: the level has two forms ("two forms, no more" in the level spec); intro 10 and line 122 now say one. Change the level to one form? Yes: the pile has one form and the four arches are built one at a time. No: intro 10 says "δύο καλούπια για τέσσερις καμάρες".
-3. Lines 06 and 10 changed (καμάρα; the form). If they were already recorded, they need recording again.
+- Mausoleum (owner, 14 Nov): the posts stay; when he builds, the beams fall without them. The demo shows that failure.
+- Valens (owner, 14 Nov): the level now has one form on one block; the quick build makes the arches one after another, taking the form out of each. Built and pushed.
+- Lines 06 and 10 changed (καμάρα; one form). If they were already recorded, they need recording again.
