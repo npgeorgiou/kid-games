@@ -2234,8 +2234,8 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     let area = 0; verts.forEach(([x, y], j) => { const [x2, y2] = verts[(j + 1) % verts.length]; area += x * y2 - x2 * y; });
     return mass / Math.abs(area / 2);
   }
-  const TEST_LOAD_DENSITY = [5, 7, 4, 25, 75, 4, 60, 12, 13, 14]; // kg/m^2, per level (Ziggurat 5 -> 4 and all mudbrick, owner 13 Nov; Djoser 8 -> 7, owner 13 Nov: passes the 20% stronger test): heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
-  const TEST_QUAKE = [0.32, 0.35, 0.38, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level
+  const TEST_LOAD_DENSITY = [5, 7, 3.6, 25, 75, 4, 60, 12, 13, 14]; // kg/m^2, per level (Ziggurat 5 -> 4 and all mudbrick, owner 13 Nov; Djoser 8 -> 7, owner 13 Nov: passes the 20% stronger test): heavy enough that the wrong-material mudbrick crumbles (Djoser, Ziggurat, Karnak, Parthenon)
+  const TEST_QUAKE = [0.32, 0.35, 0.342, 0.42, 0.45, 0.48, 0.51, 0.54, 0.58, 0.61]; // peak ground speed m/s, per level (Ur 10% weaker, owner 15 Nov; its temple too: 4 -> 3.6)
   const QUAKE_HZ = 1.6;
   const TEST_FAST = 10, DRUM_LEAD = 1.5; // Ctrl test speed-up; seconds the drumroll may start before the load moves
   const DRUM_ROLL = 5.5; // s: the roll in drumroll.mp3; the rest of the file (to 10.3 s) is a quiet fade

@@ -540,6 +540,11 @@ Owner's list, verbatim, with what was done:
 16. "In the "piase ena kommati kai falto mesa sto sxedio" if I dont grap the highlighted piece, I cant grab anything." — the whole pile can be touched in that step; one piece glows.
 Darkening is now only where the table says: site welcome lines, first crumble and snap, the first test's three explanations, demo "after" lines (freeze); the waiting teaching steps (point).
 
+## Current state, update 44 (15 Nov 2026): Ur temple and earthquake 10% weaker
+
+Owner's words: "can you amke this level headpiece and earthquake 10% less strong? then I think it will survive"
+Built: Ur temple load density 4 -> 3.6, Ur earthquake 0.38 -> 0.342. Result: the quick build (plank on every row but the top) still fails in the earthquake: the bottom bricks under the bottom plank reach about three times what crumbles them while it rocks, and the plank with everything on it slides.
+
 ## Task list
 
 No open items.
