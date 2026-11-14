@@ -511,6 +511,11 @@ Owner's words: "1. every button must also ahve a tapped state, and the actual th
 Built: `cues.md` section 0 lists the rules. Code: SECTION CUES (three-part model at its top: voice, attention, steps); every button is in one list (`screenButtons`, POINTER HANDLING) and acts on release. Checks: `tools/harness.py cues` (demos, first-site steps, 2 s lines, the 5 s repeat, restart line, no map lines in a site, intro freezes and blocks touch, Djoser demo on two visits, Ctrl test in the teaching, explanations only in the first test, a button acts when let go).
 Open (owner): a new way to document cues (proposals given in chat 14 Nov evening; nothing chosen yet).
 
+## Current state, update 42 (14 Nov 2026): Ur in five rows of whole mudbricks
+
+Owner's words: "Can I ahve Ur with all mud std rectangular blocks, starting at 7 base, and using new length wood beans that will divide its length appropriately so it can reach 5 levels (without counting headpiece)?" then "you can also use math and see its what I ask is possible and what wooden beam length would spread weight optimally. desired outcome: all mud, 5 levels. go"
+Built: Ur is five rows of whole mudbrick blocks (7, 6, 5, 4, 3), a new 14 m plank on the bottom row and a new 10 m plank on the third row (`plank14`, `plank10`, also in free play); temple raised one row (level-spec.json); wrong choices: 6 m planks instead (crumbles), a top block off the row (falls). Findings in `levels.md` section 3. Checks: `harness.py spec 2` all pass; owner tests for Ur pass (20 same results, 1.2x test, re-entry). Hand tests in `owner` fail as before (not touched).
+
 ## Task list
 
 No open items.

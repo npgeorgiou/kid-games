@@ -448,6 +448,12 @@
     beam:   { shape: "box", hx: 1.6, hy: 0.25, densityScale: 1.0, skin: "beam", half: "beam-half" },
     // plank (new, owner 13 Nov): a long wooden beam, 6 m, three blocks long: two blocks on it spread their weight into three below (Ziggurat)
     plank:  { shape: "box", hx: 3.0, hy: 0.25, densityScale: 1.0, skin: "beam", half: "plank-half" },
+    // plank10, plank14 (new, owner 14 Nov): wooden planks as long as the ziggurat row they lie on (10 m on the five-block row,
+    // 14 m on the seven-block bottom row), so the rows above press evenly on every block of that row
+    plank10: { shape: "box", hx: 5.0, hy: 0.25, densityScale: 1.0, skin: "beam", half: "plank10-half" },
+    plank14: { shape: "box", hx: 7.0, hy: 0.25, densityScale: 1.0, skin: "beam", half: "plank14-half" },
+    "plank10-half": { shape: "box", hx: 2.5, hy: 0.25, densityScale: 1.0, skin: "beam" },
+    "plank14-half": { shape: "box", hx: 3.5, hy: 0.25, densityScale: 1.0, skin: "beam" },
     // big square (new, owner 14 Nov): 2 m x 2 m, two blocks stacked; free play only
     bigsquare: { shape: "box", hx: 1.0, hy: 1.0, densityScale: 1.0, skin: "block" },
     // long plank (new, owner 14 Nov): 9 m; free play only
@@ -503,7 +509,7 @@
   // Free play: the shapes each material comes in, in groups (one row or more per group). Every shape and material
   // the levels use, except the long mudbricks (owner: long mudbricks make no sense), plus the long plank and long block.
   const SANDBOX_SHAPES = {
-    wood: [["square", "block"], ["column", "drum"], ["beam", "plank"], ["longplank"], ["centering"]],
+    wood: [["square", "block"], ["column", "drum"], ["beam", "plank"], ["longplank"], ["plank10"], ["plank14"], ["centering"]],
     mudbrick: [["square", "block"], ["abacus", "drum"]],
     stone: [["square", "block"], ["bigsquare"], ["longblock"], ["abacus", "capital"], ["beam"], ["column", "drum"], ["wedge", "tri"], ["trib"], ["gableL", "gableR"]],
   };
