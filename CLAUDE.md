@@ -86,6 +86,16 @@ What went wrong with the Tower Builder hand, and the rule each failure gives:
 6. Asking instead of deciding. When the owner says what he wants ("real, consistent, not hacky"), do not ask him to choose between that and something else; build it.
 7. Long chats and handoffs. Say early when a chat is getting long. Every handoff is in the reply itself, ready to paste: what the thing is now, what was done, what still differs from the owner's wishes, how to test, open questions. Before saying "pushed", check the remote has the commit.
 
+## Why rules crept back into the hand (owner, 14 Nov 2026, evening) and the hard stops that prevent it
+
+What happened: the hand was rebuilt as two parts, then every complaint got one more part (a squeeze, a stronger rope pull, a finger-turn drive, speed planning...) until it had about ten. Causes: (1) when physics gave a result the owner did not like, a rule was added to force the look instead of telling him what physics gives; (2) each fix was made to turn a failing test green, not to make the model more real; (3) tests moved a perfect fake finger, not the real mouse in the running game, so broken behaviour looked fine.
+
+Hard stops, every game:
+- The behaviour's code header lists its parts in plain words, numbered. Adding a part needs the owner's yes first: tell him "physics gives X; to get Y I would add Z", one line, and wait.
+- More than three parts: stop and propose a simpler model before writing code.
+- Never add a part to make a test pass. A test that real physics fails goes to the owner as a question.
+- Every behaviour the owner feels by hand is checked with the real mouse in the running game (`harness.py whirlvideo` style: real loop, real mouse events at a real rate), not only with set positions.
+
 ## Testing (owner, 14 Nov 2026; overrides anything below that asks for more)
 
 - Every test run is reproducible: the same inputs give the same result. Never run the same test twice to "see if it varies". If two runs with the same inputs differ, find what leaks in (the clock, unseeded random numbers, state left over from an earlier run, a measurement of something that changes with time) and fix it; where chance is part of what is tested, the test fixes the seed.
