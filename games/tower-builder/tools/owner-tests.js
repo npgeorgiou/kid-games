@@ -59,6 +59,11 @@
         for (let k = 0; k < 150; k++) { a.desired = { x: g.x, y: g.y + Math.min(1.5, k * 1.5 / 60) }; frame(1 / 60); } rises.push(+(a.body.getPosition().y - y0).toFixed(2));
         for (let k = 0; k < 120; k++) { a.desired = { x: g.x, y: g.y + 0.01 }; frame(1 / 60); } T.releaseHold(91); run(1.5); }
       out.push(["14 Nov two stacked stone blocks lifted three times rise the same each time", rises.every((r) => Math.abs(r - rises[0]) < 0.05 && r > 1.0), JSON.stringify(rises)]); }
+    // owner 14 Nov: a lying piece grabbed at one end swings down (the wrist cannot hold it level)
+    for (const [d, m] of [["block", "wood"], ["block", "stone"], ["beam", "wood"]]) { T.clearAllPieces(); const pc = T.spawnPiece(d, X, T.PIECE_DEFS[d].hy + 0.003, 0, m); run(0.5);
+      const g0 = pc.body.getWorldPoint({ x: T.PIECE_DEFS[d].hx * 0.9, y: 0 }), g = { x: g0.x, y: g0.y }; T.startHold(pc, g, 92, 0, 0);
+      let turn = 0; for (let k = 0; k < 180; k++) { pc.desired = { x: g.x, y: g.y + Math.min(2.5, k * 2.5 / 60) }; frame(1 / 60); turn = Math.max(turn, Math.abs(pc.body.getAngle())); } T.releaseHold(92);
+      out.push(["14 Nov a " + m + " " + d + " grabbed at one end and lifted swings down", turn > 1.0, "turned down as far as " + turn.toFixed(2) + " (hanging straight down: 1.57)"]); }
     out.push(["3 hand: heavier lags more", res[cases[0][0]].t1 < res[cases[3][0]].t1, res[cases[0][0]].t1 + " s (square) vs " + res[cases[3][0]].t1 + " s (two blocks)"]);
   }
 

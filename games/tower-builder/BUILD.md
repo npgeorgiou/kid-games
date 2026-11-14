@@ -373,6 +373,20 @@ Owner's words: "I want it to be real, consistent, and NOT hacky. I cant belive t
 - Owner tests pass (hand, carry, triangle, motion/feel, undo by mouse) except, as consequences of real physics, waiting for the owner: (1) a small stone pressed hard into a big stone block pushes it along (the hand's full strength goes through it); (2) dragging a mudbrick or stone block up while pressing 1.5 m into a wall rubs and sticks (pressing 0.5 m into it slides up); (3) a stone block crosses 4 m in 0.7 s (the earlier "too light" mark was 0.8 s).
 - `harness.py probe` (old developer checks of the earlier hand) fails on hanging and swing-settling numbers; not owner tests.
 
+## Current state, update 27 (14 Nov 2026): handoff, next chat builds "the brain"
+
+Owner's words (answer to "a small stone pressed hard into a big stone block now pushes it along"): "because my hand is controlled by a brain that is not retarded, and is not pushing with full strength to demolish things left and right. do you know the strength that one must apply to have the tiniest rock of the game push away the big stone boulder? also, a wooden block now, grabbed from the side, is not swinging down, it remains horizontal."
+
+Done this chat: the fingers hold a piece from turning only as hard as WRIST_STRENGTH (8 N*m, no turning back to the start angle), so a wooden block, a stone block or a beam grabbed near one end swings down (owner test `hand`, "swings down").
+
+Next (the owner's reason, to go into the hand model, not as an exception): the brain uses the strength the load in the hand needs, not the arm's full strength. Plan, all from what things are, no special cases:
+1. The brain plans where the hand should be: a point that follows the finger but never more than a short reach ahead of the grab point (the brain waits for the piece), moving at most at a speed that falls with the load (heavier slower).
+2. The arm's spring is stiff in proportion to the load (load = the piece plus the share of weight resting on it, from what rests on what, as `traceLoads(true)` would give: add a `withHeld` option). Pressing into something that does not move then pushes with stiffness x reach: small for a small stone, large for a big one; the arm's top strength (210 N) still caps it.
+3. Keep: hand body, finger pin, WRIST_STRENGTH.
+Tried this chat and dropped: a fixed push allowance (load x (g + 20 m/s^2)) made all pieces equally quick and broke "lighter is quicker".
+Owner tests still failing on the current game: small oblong stone pushed hard into a big stone block moves it 5.5 m (should hardly move); stone block dragged up while pressing 1.5 m into a wall sticks; stone block crosses 4 m in 0.68 s (the "too light" mark is 0.8 s); stone block whirled at one end turns 1.38 times in 4 circles (approved feel 1.69).
+Answer given to the owner: pushing a stone block (100 N) along stone takes about 60 N; the big stone square, about 120 N; the small oblong stone weighs 16 N; the arm can give 210 N.
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.

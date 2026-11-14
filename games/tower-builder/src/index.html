@@ -1001,16 +1001,16 @@
   // THE HAND (owner 14 Nov 2026: real, consistent, one model, no special cases).
   // Like a real arm: the hand has a little mass of its own (HAND_MASS), the arm's muscles pull it towards the finger
   // with a spring that can never pull harder than ARM_STRENGTH, and the fingers hold the piece at the point it was
-  // grabbed (a pin), with a wrist that keeps the piece at the angle it was picked up at, no harder than WRIST_STRENGTH.
+  // grabbed (a pin), and hold it from turning, no harder than WRIST_STRENGTH.
   // Everything else is the physics engine: the arm's one strength holds up the weight and pushes and speeds things
   // up, all from the same budget. So: light things follow the finger quickly and heavy ones lag; held up in the air
   // a heavy piece has little strength left to push sideways, but moving fast it hits with its speed; equal weights
-  // behave alike, one piece or a stack; a little over two stone blocks is the most it can lift; a long piece held at
-  // one end is too much for the wrist and swings.
+  // behave alike, one piece or a stack; a little over two stone blocks is the most it can lift; a piece held near one end
+  // turns down in the fingers until it hangs.
   const ARM_STRENGTH = 210; // N: a stone block weighs 100 N, so two blocks lift slowly and a bit more does not
   const HAND_MASS = 2; // kg: the hand and forearm, moved along with the piece
   const ARM_HZ = 6, ARM_DAMP = 2; // the arm's spring: how quick, how well damped (measured on the hand's own mass)
-  const WRIST_STRENGTH = 30, WRIST_SPEED = 10; // N*m, 1/s: turns back towards the held angle at most this hard
+  const WRIST_STRENGTH = 8; // N*m: the fingers keep the piece from turning in the hand, at most this hard
   const dIn = new planck.DistanceInput(), dOut = new planck.DistanceOutput(), dCache = new planck.SimplexCache();
   // distance from a body down to the nearest piece under it, if closer than `reach`
   function gapBelow(body, reach) {
@@ -1041,7 +1041,6 @@
       const piece = hand.piece;
       if (!piece || !piece.desired || !piece.joint) continue;
       piece.joint.setTarget(planck.Vec2(piece.desired.x, piece.desired.y));
-      piece.grip.setMotorSpeed(Math.max(-WRIST_SPEED, Math.min(WRIST_SPEED, -WRIST_SPEED * piece.grip.getJointAngle())));
     }
   }
   function dropHand(piece) { // let go: the fingers open and the arm goes away
