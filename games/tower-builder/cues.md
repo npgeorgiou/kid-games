@@ -262,7 +262,7 @@ Files: `sounds/voice/NN.mp3`, NN = the line number. The owner records in numbere
 
 Until the recordings exist, every voice line is shown as its Greek text on a white box. The recordings replace the box later through the same hook (line number = file number).
 
-- One model: a line "plays" while its box is up. The box goes away when the owner presses ESC. So everything in section 3 holds as written: one line at a time, the queue waits for ESC, background lines are skipped while a box is up.
+- One model: a line "plays" while its box is up. The box lasts 2 s, with a blue bar on top running out, then closes by itself (owner, 14 Nov); ESC closes it early. So everything in section 3 holds as written: one line at a time, the queue waits for ESC, background lines are skipped while a box is up.
 - Blocking boxes freeze the game (physics, test, input) until ESC, as the paused voice line would: the pauses (start of wind, load and earthquake the first time; first crumble; first snap) and every line of a demo (the demo goes on to its next step after ESC).
 - All other boxes do not block: the child can keep playing while the box is up. Teaching steps that wait for an action end when the action is done, and their box goes with them.
 - When `sounds/voice/NN.mp3` exists, it plays instead of the box, and ends on its own.

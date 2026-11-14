@@ -7,7 +7,7 @@ import os, re
 HERE=os.path.dirname(os.path.abspath(__file__))
 src=open(os.path.join(HERE,'..','tower-builder.html')).read()
 hook='''window.__tb={get undoStack(){return typeof undoStack!=='undefined'?undoStack:null},undoButton:typeof undoButton!=='undefined'?undoButton:null,startFree:typeof startFree!=='undefined'?startFree:null,shapeTiles:typeof shapeTiles!=='undefined'?shapeTiles:null,set mat(v){selectedMaterial=v},traceLoads,crushLimit,TEST_LOAD_DENSITY,renderMap,get groups(){return groups},get boats(){return boats},drawFeel,updateFeel,testTick,get grid(){return grid},inRing,cellOf,SOLUTIONS,fillPile,testReady,stockItems,TEST_WIND,PIECE_DEFS,levelSidebar,pileLayout,render,startLevel,startAutoBuild,stepPhysics,cleanupOutOfBounds,updateCheck,runCheck,checkPasses,startTest,LEVELS,pileBodies,pieces,
-get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale},set failShow(v){failShow=v},worldToScreen,failingCells,CHECK,TEST_QUAKE,get doneSites(){return typeof doneSites!=='undefined'?doneSites:null},get goMap(){return typeof goMap!=='undefined'?goMap:null},get siteLook(){return typeof siteLook!=='undefined'?siteLook:null},get restartButton(){return typeof restartButton!=='undefined'?restartButton:null},get readySince(){return readySince},ageReady(){if(readySince!=null)readySince-=1000},get removePiece(){return removePiece},get hitPiece(){return hitPiece},music(){return {ctx:actx&&actx.state,name:musicName,on:!!music}},isLand,massAt,siteMass,mapView,siteMarker,SITES,tourPeople,trailPoints,DONE_SIZE,DONE_RING,siteRadius,WALK_SPEED,get cssW(){return cssWidth},get voice(){return voice},cueTick,endLine,get demo(){return demo},startDemo,DEMOS,cueMem,onEnterSite,goMap,get shown(){return shown},cueEv,say};
+get test(){return test},get auto(){return auto},get mode(){return mode},set mode(v){mode=v},setTab(v){tabDown=v},get loads(){return loads},get check(){return check},get failShow(){return failShow},progress,feelHits,spawnPiece,startHold,releaseHold,startPileHold,pilePoint,worldToPile,pileToWorld,clearAllPieces,get pilePx(){return pilePx},get scale(){return scale},quiet0(){pileQuietUntil=0},get pileBinRect(){return pileBinRect},get pointers(){return pointers},get pileScale(){return pileScale},set failShow(v){failShow=v},worldToScreen,failingCells,CHECK,TEST_QUAKE,get doneSites(){return typeof doneSites!=='undefined'?doneSites:null},get goMap(){return typeof goMap!=='undefined'?goMap:null},get siteLook(){return typeof siteLook!=='undefined'?siteLook:null},get restartButton(){return typeof restartButton!=='undefined'?restartButton:null},get readySince(){return readySince},ageReady(){if(readySince!=null)readySince-=1000},get removePiece(){return removePiece},get hitPiece(){return hitPiece},music(){return {ctx:actx&&actx.state,name:musicName,on:!!music}},isLand,massAt,siteMass,mapView,siteMarker,SITES,tourPeople,trailPoints,DONE_SIZE,DONE_RING,siteRadius,WALK_SPEED,get cssW(){return cssWidth},get voice(){return voice},cueTick,endLine,get demo(){return demo},startDemo,DEMOS,cueMem,onEnterSite,goMap,get shown(){return shown},cueEv,say,welcome,restartPress,frozen:cueFrozen,cueReset};
 window.requestAnimationFrame=()=>0;
 '''
 k=src.rindex('})();')
@@ -262,33 +262,39 @@ with sync_playwright() as p:
             ok=not r['circlesOffTheirLand'] and not r['overlapping'] and r['personFramesOnWater']==0 and r['lookingFrames']>0 and r['fastSteps']==0
             print('%-4s %-24s %s'%('PASS' if ok else 'FAIL','map %dx%d'%(vw,vh),json.dumps(r)),flush=True)
         levels=[]
-    if 'cues' in sys.argv:  # cues.md: each demo shows what its lines say (wrong ways break or fall, right ways stand); the voice queue
-        JS_DEMO='''(i)=>{const T=__tb,out=[];T.startLevel(i);const key=T.LEVELS[i].key;T.startDemo(key,null);
-          for(let k=0;k<60*240&&T.demo;k++){T.cueTick(1/60);const c=T.voice.cur;
-            if(c&&!c.block&&!c.demo){T.endLine(c);}if(c&&c.block){const ps=T.pieces.filter(p=>p.demo&&p.placedY!=null),mud=ps.filter(p=>p.material==='mudbrick').length;
-              const drop=Math.max(0,...ps.map(p=>p.placedY-p.body.getPosition().y));out.push(c.n+': '+ps.length+' pieces, '+mud+' mud, fell '+drop.toFixed(2)+' m');T.endLine(c);continue;}
-            T.stepPhysics(1/60);T.cleanupOutOfBounds();}
+    if 'cues' in sys.argv:  # cues.md: demos show what their lines say; the first-site steps; lines end on time; scenes; Ctrl test in the tutorial
+        pg.evaluate("""()=>{const T=__tb;window.__lines=[];window.__run=(sec)=>{for(let k=0;k<sec*60;k++){const c0=T.voice.cur;T.cueTick(1/60);const c=T.voice.cur;
+          if(c&&c!==c0)__lines.push(c.n);if(!T.frozen()){const f=T.test&&T.test.fast&&T.test.phase!=='fail'&&T.test.phase!=='pass'?10:1;T.stepPhysics(f/60,8*f);T.cleanupOutOfBounds();T.updateCheck(1/60);}}};
+          window.__fresh=()=>{T.progress.done={};T.cueReset();T.goMap();__lines.length=0;};}""")
+        JS_DEMO='''(i)=>{const T=__tb,out=[];__fresh();T.startLevel(i);T.onEnterSite(i);__run(2.5);const key=T.LEVELS[i].key;T.startDemo(key,null);
+          for(let k=0;k<60*240&&T.demo;k++){const c0=T.voice.cur;__run(1/60);const c=T.voice.cur;
+            if(c&&c!==c0&&c.block){const ps=T.pieces.filter(p=>p.demo&&p.placedY!=null),mud=ps.filter(p=>p.material==='mudbrick').length;
+              out.push(c.n+': '+ps.length+' pieces, '+mud+' mud, fell '+Math.max(0,...ps.map(p=>p.placedY-p.body.getPosition().y)).toFixed(2)+' m');}}
           return (T.demo?'STUCK ':'')+out.join(' | ');}'''
         for i in levels:
             k=pg.evaluate('(i)=>__tb.LEVELS[i].key',i)
             if k in ('mastaba','djoser','ziggurat','karnak','ishtar','mausoleum','valens'): print(' ',k,pg.evaluate(JS_DEMO,i))
-        JS_SEQ='''()=>{const T=__tb,log=[];const tick=(n=1)=>{for(let k=0;k<n;k++){T.cueTick(1/60);T.stepPhysics(1/60);}};
-          const cur=()=>T.voice.cur&&T.voice.cur.n;const esc=()=>{if(T.voice.cur)T.endLine(T.voice.cur);tick(2);};
-          T.progress.done={};T.progress.cues=null;T.startLevel(0);T.onEnterSite(0);tick(2);log.push('intro '+cur());esc();
-          log.push('seq'+T.cueMem().seq+' '+cur());T.spawnPiece('block',T.LEVELS?40:40,0.5,0,'mudbrick');tick(30);
-          log.push('seq'+T.cueMem().seq+' '+cur());T.cueEv.taps3++;tick(2);
-          log.push('seq'+T.cueMem().seq+' '+cur());T.spawnPiece('block',43,0.5,0,'mudbrick');tick(30);
-          log.push('seq'+T.cueMem().seq+' '+cur());T.cueEv.broom++;T.clearAllPieces();tick(2);log.push('then '+cur());esc();
-          for(let k=0;k<60*120&&T.demo;k++){tick();const c=T.voice.cur;if(c)T.endLine(c);} tick(2);
-          log.push('after demo seq'+T.cueMem().seq+' '+cur());esc();
-          T.spawnPiece('block',40,0.5,0,'mudbrick');T.spawnPiece('block',42,0.5,0,'mudbrick');tick(30);log.push('red glows '+T.shown.some(c=>c.glow&&c.glow[0].btn==='test'));
-          T.cueEv.testPress++;tick(2);log.push('seq'+T.cueMem().seq+' '+cur());
-          // rules: background skipped while busy; flavour dropped at the same moment as teaching
-          T.voice.queue.length=0;esc();T.say(12);T.say(84,{kind:'bg'});tick(1);const q1=T.voice.queue.length;esc();
-          T.voice.queue.length=0;T.say(12);T.say(70,{kind:'teach'});tick(1);log.push('bg skipped '+(q1===0)+', same moment '+cur());esc();
+        JS_SEQ='''()=>{const T=__tb,log=[];const cur=()=>T.voice.cur&&T.voice.cur.n;
+          __fresh();T.startLevel(0);T.onEnterSite(0);__run(2.5);log.push('seq'+T.cueMem().seq+' '+cur());
+          T.spawnPiece('block',40,0.5,0,'mudbrick');__run(1);log.push('seq'+T.cueMem().seq+' '+cur());T.cueEv.taps3++;__run(0.1);
+          log.push('seq'+T.cueMem().seq+' '+cur());T.spawnPiece('block',43,0.5,0,'mudbrick');__run(1);
+          log.push('seq'+T.cueMem().seq+' '+cur());T.cueEv.broom++;T.clearAllPieces();__run(0.1);log.push('then '+cur());
+          for(let k=0;k<240&&T.demo!==null||k<3;k++)__run(1);log.push('after demo seq'+T.cueMem().seq+' '+cur());__run(2);
+          T.spawnPiece('block',40,0.5,0,'mudbrick');T.spawnPiece('block',42,0.5,0,'mudbrick');__run(1);log.push('red glows '+T.shown.some(c=>c.glow&&c.glow[0].btn==='test'));
+          T.cueEv.testPress++;__run(0.1);log.push('seq'+T.cueMem().seq+' '+cur());
           return log.join(' | ');}'''
         print('  first site:', pg.evaluate(JS_SEQ))
-        print('  welcome line', pg.evaluate("()=>{__tb.cueTick(0);return __tb.voice.cur&&__tb.voice.cur.n}"))
+        JS_RULES='''()=>{const T=__tb,log=[];__fresh();__run(5);T.say(12);__run(1);log.push('line up after 1 s '+(T.voice.cur&&T.voice.cur.n));__run(1.1);log.push('gone after 2 s '+(T.voice.cur==null));
+          T.say(12);T.say(84,{kind:'bg'});__run(0.1);log.push('bg skipped '+(!T.voice.queue.length));__run(3);
+          T.say(12);T.say(70,{kind:'teach'});__run(0.1);log.push('same moment '+T.voice.cur.n);__run(3);
+          // owner: fresh game, restart pressed on the map, its line shows; leaving for a site drops map lines
+          __fresh();T.welcome();__run(0.5);__lines.length=0;T.restartPress();__run(6);log.push('restart line '+__lines.includes(91));
+          __fresh();T.welcome();__run(0.5);T.restartPress();T.startLevel(0);T.onEnterSite(0);__lines.length=0;__run(30);log.push('map lines in the site '+__lines.filter(n=>n>=11&&n<=13||n===91||n===92).length);
+          // owner: Ctrl quick build and Ctrl test in the first site's teaching
+          __fresh();T.startLevel(0);T.onEnterSite(0);__run(3);T.setTab(true);T.startAutoBuild();__run(8);T.startTest();__run(25);T.setTab(false);
+          log.push('Ctrl test in the teaching: '+(T.progress.done.mastaba?'passed':'not passed, phase '+(T.test&&T.test.phase)));
+          return log.join(' | ');}'''
+        print('  rules:', pg.evaluate(JS_RULES))
         print('  errors', errs[:3]); b.close(); sys.exit(0)
     if 'sizes' in sys.argv:
         for vw,vh in [(1920,1080),(1366,768),(1536,864),(2560,1440),(1280,1024),(1024,768)]:

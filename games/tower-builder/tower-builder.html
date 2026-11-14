@@ -2465,6 +2465,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     }
   }
   function startFree() {
+    newScene();
     releaseAllPointers(); undoStack.length = 0;
     if (currentLevel != null) clearAllPieces();
     currentLevel = null; grid = null; check = null; failShow = null;
@@ -2574,7 +2575,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     }
     releaseAllPointers();
     failShow = null;
-    cueEv.testStart++; say(71, { duringTest: true, holdsTest: true }); // before the test runs: the test waits for it
+    cueEv.testStart++; say(71, { duringTest: true }); // as the test starts
     for (const l of loads) world.destroyBody(l.body); // a finished site's load: the test lowers a new one
     loads = [];
     // the building first finishes settling (until every piece is still): what it settles into does not depend on
@@ -2642,7 +2643,6 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     test.t += dt;
     const lv = currentLevel, T = test.t;
     if (test.phase === "supports") {
-      if (cueHoldsTest()) return; // line 71 plays before the test runs
       if (test.toPull.length) {
         if (T >= 0.25) {
           const p = test.toPull.shift();
@@ -2694,7 +2694,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     } else if (test.phase === "pass") {
       if (T >= PHASE_TIME.pass) { saveMonument(); finishTest(true); } // stays on the building; the map button goes back (owner 14 Nov)
     } else if (test.phase === "fail") {
-      if (T >= PHASE_TIME.fail && !cueHoldsTest()) restoreSnapshot(); // the red place stays while its first-time lines play
+      if (T >= PHASE_TIME.fail) restoreSnapshot();
     }
   }
 
@@ -3298,24 +3298,30 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   // SECTION: CUES -- voice lines (text boxes until recorded), glows, the ghost hand, the first-site teaching, demos (cues.md)
   // ---------------------------------------------------------------------
   // The cue model (games/tower-builder/cues.md, sections 1-5 and 9), three parts:
-  // 1. One voice channel. Lines wait in one queue and play one at a time, in order; a line plays while its text box is up
-  //    (ESC takes it down) or while its recording plays. Background lines are skipped when anything is playing or waiting;
-  //    a flavour line fired at the same moment as a teaching line is dropped; during a test only the lines marked for it
-  //    start. A blocking line freezes the game while it plays (a pause also ends at a tap).
-  // 2. What a line shows while it plays: glows and the ghost hand. A line that waits for an action keeps them (the hand
-  //    repeating every GHOST_REPEAT s) until the child does it; doing it also takes the line down.
+  // 1. Voice: one line at a time, in the order fired. A line lasts its recording, or LINE_TIME as a text box whose blue bar
+  //    runs out (ESC ends it early). Every line belongs to the scene it was fired in (the map, or one visit to a site); a new
+  //    scene drops the lines still waiting and ends the one playing. Background lines are skipped when anything is playing
+  //    or waiting; a flavour line fired at the same moment as a teaching line is dropped; during a test only lines marked
+  //    for it start. Nothing else ever waits for a line: the game and the test go on (a pause or demo line freezes the game
+  //    while it plays; a tap ends a pause).
+  // 2. Steps: a line with what it shows (glows, the ghost hand) and, if it has one, the action it waits for. What it shows
+  //    lasts from the start of its line until the action is done (no action: until the line ends), the hand repeating
+  //    every GHOST_REPEAT s; doing the action also ends the line. Then the step's `then` runs. Steps belong to the scene too.
   // 3. One saved record (progress.cues): first times ever and per site, each group's recent lines, demos played, the
   //    first site's teaching step. The restart clears it with the rest of the progress.
   const VOICE_TEXT = {"1": "Καλώς ήρθες, αρχιτέκτονα, στην Αίγυπτο, γύρω στο 3000 π.Χ. Ως τώρα οι νεκροί θάβονταν σε λάκκους στην άμμο. Οι νέοι άρχοντες όμως θέλουν τάφους αντάξιούς τους: μαστάμπες, πλατιούς τάφους σαν πάγκους. Για πρώτη φορά θα χτίσεις με πλίνθους, τούβλα από λάσπη του Νείλου στεγνωμένα στον ήλιο. Η ιστορία σου αρχίζει εδώ. Χτίσε το!", "2": "Καλώς ήρθες ξανά, αρχιτέκτονα, στη Σακκάρα, το ιερό νεκροταφείο της Μέμφιδας, γύρω στο 2650 π.Χ. Οι μαστάμπες σου στέκονται περήφανες, μα ο φαραώ Ζοζέρ θέλει τάφο που να αγγίζει τον ουρανό. Οραματίζεται μαστάμπες τη μία πάνω στην άλλη, ως τους θεούς. Οι πλίνθοι όμως δεν αντέχουν τόσο βάρος. Για πρώτη φορά θα χτίσεις και με πέτρα, η οποία αντέχει πολύ βάρος πάνω της. Εμπρός!", "3": "Καλώς ήρθες, αρχιτέκτονα, στην πόλη Ουρ. Είμαστε γύρω στο 2100 π.Χ., στη Μεσοποταμία, τη χώρα ανάμεσα στον Τίγρη και τον Ευφράτη. Όπως ο Ζοζέρ, κι ο βασιλιάς Ουρ-Νάμμου θέλει κάτι θεόρατο. Το δικό του όμως δεν είναι τάφος. Είναι σκάλα για τους θεούς, με ναό στην κορυφή για τον Νάννα, τον θεό της Σελήνης. Η πέτρα εδώ σπανίζει, γι' αυτό κράτησέ τη για τη βάση. Από πάνω θα βάλεις πλίνθους, και για πρώτη φορά θα στρώσεις ανάμεσά τους ξύλινες σανίδες. Η σανίδα απλώνει το βάρος σε πολλές πλίνθους από κάτω, κι έτσι δεν θρυμματίζονται. Χτίσε το!", "4": "Καλώς ήρθες, αρχιτέκτονα, στις Μυκήνες, γύρω στο 1250 π.Χ., στην εποχή των ηρώων που θα τραγουδήσει ο Όμηρος. Στην Ουρ η πέτρα ήταν σπάνια. Εδώ, στα βουνά της Ελλάδας, υπάρχει παντού. Ο βασιλιάς Αγαμέμνονας ζώνει την ακρόπολη με τείχη τόσο γιγάντια, που θα λένε πως τα σήκωσαν οι Κύκλωπες. Για πρώτη φορά θα απλώσεις ένα πέτρινο ανώφλι πάνω σε δύο όρθιους λίθους. Από πάνω θα βάλεις το τρίγωνο με τα δύο λιοντάρια. Χτίσε το!", "5": "Καλώς ήρθες ξανά στην Αίγυπτο, αρχιτέκτονα, στη Θήβα, γύρω στο 1290 π.Χ. Την ίδια εποχή που οι Μυκηναίοι υψώνουν την πύλη τους, εδώ βασιλεύει ο φαραώ Σέτι ο Πρώτος, κι ύστερα ο γιος του, ο Ραμσής ο Μέγας. Θέλουν για τον θεό Άμμωνα ένα κτίριο με πολλούς κίονες, ένα πέτρινο δάσος. Στις Μυκήνες δύο λίθοι κράτησαν ένα ανώφλι. Εδώ θα στήσεις κίονες και θα απλώσεις από τον έναν στον άλλον πέτρινα δοκάρια. Χτίσε το!", "6": "Καλώς ήρθες, αρχιτέκτονα, στη Βαβυλώνα, γύρω στο 575 π.Χ., μια από τις λαμπρότερες πόλεις του κόσμου, στις όχθες του Ευφράτη. Ο βασιλιάς Ναβουχοδονόσορ θέλει μια πύλη για την Ιστάρ, τη θεά της πόλης. Τα δοκάρια του Καρνάκ όμως γεφυρώνουν μόνο μικρά ανοίγματα. Για μια μεγάλη πύλη χρειάζεσαι κάτι καινούργιο. Για πρώτη φορά θα χτίσεις καμάρα, πάνω σε ξύλινο καλούπι που θα βγάλεις μόλις σταθεί. Μετά από σένα, οι τεχνίτες θα τη ντύσουν με γαλάζια γυαλιστερά τούβλα, με δράκους και ταύρους. Χτίσε το!", "7": "Καλώς ήρθες στην Αθήνα, αρχιτέκτονα, το 447 π.Χ. Οι Πέρσες, που κυρίευσαν τη Βαβυλώνα, έφτασαν ως εδώ και έκαψαν τους ναούς της Ακρόπολης. Νικήθηκαν όμως, κι η Αθήνα ζει τώρα τον χρυσό της αιώνα. Ο Περικλής θέλει στη θέση τους τον ωραιότερο ναό του κόσμου, για τη θεά Αθηνά. Τον σχεδιάζουν ο Ικτίνος και ο Καλλικράτης, με μάρμαρο της Πεντέλης. Για πρώτη φορά θα υψώσεις κίονες σπόνδυλο τον σπόνδυλο, με κιονόκρανα και αέτωμα. Χτίσε το!", "8": "Καλώς ήρθες, αρχιτέκτονα, στην Αλικαρνασσό, στην απέναντι ακτή του Αιγαίου, γύρω στο 350 π.Χ. Εδώ κυβερνά ο Μαύσωλος. Δεν είναι Έλληνας, μα αγαπά ό,τι είναι ελληνικό. Για τον τάφο του φέρνει τους καλύτερους Έλληνες γλύπτες. Ελληνικοί κίονες σαν του Παρθενώνα θα σηκώσουν μια πυραμίδα με σκαλιά. Από το όνομά του, κάθε μεγάλος τάφος θα λέγεται μαυσωλείο. Για πρώτη φορά θα απλώσεις δοκάρια στον αέρα, πάνω σε ξύλινους στύλους, ώσπου να τα πατήσει η στέγη. Χτίσε το!", "9": "Καλώς ήρθες, αρχιτέκτονα, στην Αλεξάνδρεια, γύρω στο 280 π.Χ. Ο Μέγας Αλέξανδρος νίκησε τους Πέρσες και ίδρυσε στην Αίγυπτο αυτή την πόλη με το όνομά του. Όταν πέθανε, ο στρατηγός του, ο Πτολεμαίος, έγινε βασιλιάς της Αιγύπτου. Τώρα οι Πτολεμαίοι θέλουν στο νησάκι Φάρος έναν πύργο τόσο ψηλό, που η φωτιά του θα οδηγεί τα καράβια μέσα στη νύχτα. Από αυτό το νησί κάθε φάρος θα πάρει το όνομά του. Για πρώτη φορά θα χτίσεις ψηλά και κούφια, με δύο τοίχους δεμένους με ξύλινα δοκάρια. Χτίσε το!", "10": "Καλώς ήρθες, αρχιτέκτονα, στην Κωνσταντινούπολη, τη νέα πρωτεύουσα της Ρωμαϊκής Αυτοκρατορίας. Ο Μέγας Κωνσταντίνος την ίδρυσε, εδώ στον Βόσπορο. Η καινούργια πόλη όμως διψά, κι ο αυτοκράτορας Ουάλης θέλει να της φέρει νερό πάνω από την κοιλάδα. Οι Ρωμαίοι είναι μάστορες της καμάρας που γνώρισες στη Βαβυλώνα. Τώρα θα στήσεις δύο σειρές από καμάρες, τη μία πάνω στην άλλη. Έχεις όμως μόνο ένα καλούπι για τις καμάρες. Γι' αυτό, από κάθε καμάρα που τελειώνεις, βγάλε το καλούπι για να το ξαναχρησιμοποιήσεις. Εμπρός! Υδροδότησε την πόλη!", "11": "Καλώς ήρθες στον αρχαίο κόσμο, αρχιτέκτονα! Φαραώ, βασιλιάδες και αυτοκράτορες περιμένουν να τους χτίσεις θαύματα. Πάμε!", "12": "Καλώς ήρθες ξανά, αρχιτέκτονα! Τα έργα σου σε περιμένουν.", "13": "Αυτός ο τόπος σε περιμένει. Πρώτα χτίσε τον προηγούμενο!", "14": "Ο άρχοντας θα αναπαυθεί σε τάφο αντάξιό του. Μπράβο, αρχιτέκτονα!", "15": "Ο Ζοζέρ θα ανεβαίνει στον ουρανό από τα σκαλιά σου!", "16": "Ο Νάννα θα κατεβαίνει από τη Σελήνη στη σκάλα σου!", "17": "Τα λιοντάρια φυλάνε πια τις Μυκήνες. Μπράβο, αρχιτέκτονα!", "18": "Το πέτρινο δάσος του Άμμωνα στέκει περήφανο!", "19": "Η Ιστάρ έχει την πύλη της, κι η Βαβυλώνα λάμπει!", "20": "Η Αθηνά έχει τον ωραιότερο ναό του κόσμου. Μπράβο, αρχιτέκτονα!", "21": "Το όνομα του Μαύσωλου θα ζει για πάντα!", "22": "Η φωτιά του Φάρου θα οδηγεί τα καράβια μέσα στη νύχτα!", "23": "Το νερό τρέχει στην Κωνσταντινούπολη! Η πόλη δεν διψά πια.", "24": "Η μαστάμπα σου στέκει δίπλα στον Νείλο. Ο πρώτος σου τάφος!", "25": "Η πυραμίδα σου υψώνεται πάνω από τη Σακκάρα. Τη βλέπουν από μακριά.", "26": "Στην κορυφή της ζιγκουράτ σου οι ιερείς ανάβουν φωτιές για τον Νάννα.", "27": "Οι πολεμιστές των Μυκηνών περνούν περήφανοι κάτω από την πύλη σου.", "28": "Οι ιερείς περπατούν στη σκιά του πέτρινου δάσους σου.", "29": "Οι πομπές της Βαβυλώνας περνούν κάτω από τη γαλάζια καμάρα σου.", "30": "Ο ναός σου λάμπει πάνω στην Ακρόπολη. Όλη η Αθήνα τον κοιτάζει.", "31": "Το μαυσωλείο σου φαίνεται από τη θάλασσα. Οι ναύτες το δείχνουν ο ένας στον άλλον.", "32": "Απόψε η φωτιά του Φάρου σου θα φέρει τα καράβια σπίτι τους.", "33": "Το νερό κυλά πάνω από τις καμάρες σου. Η πόλη ξεδιψά.", "34": "Ένας νέος βασιλιάς σε καλεί!", "35": "Η φήμη σου ταξίδεψε μακριά. Σε ζητούν σε νέο τόπο!", "36": "Κάποιος ψάχνει τον καλύτερο αρχιτέκτονα του κόσμου. Εσένα!", "37": "Ένα καινούργιο έργο σε περιμένει. Δες πού!", "38": "Από τον Νείλο ως τον Βόσπορο, ωραΐσες την οικουμένη με τα έργα σου!", "39": "Το έργο σου χάλασε! Έλα να το φτιάξεις.", "40": "Οι άνθρωποι του Νείλου έλεγαν πως ο θάνατος είναι δρόμος προς τη Δύση, εκεί όπου πεθαίνει κάθε βράδυ ο ήλιος. Γι' αυτό έχτιζαν στους νεκρούς τους σπίτια για την αιωνιότητα.", "41": "Όταν ο Σείριος ξαναφαινόταν πριν από την αυγή, ο Νείλος φούσκωνε και σκέπαζε τη γη. Κι όταν αποτραβιόταν, άφηνε τη μαύρη λάσπη, το δώρο του, από την οποία πλάστηκαν οι πλίνθοι σου.", "42": "Πίστευαν πως όσο λέγεται το όνομα ενός νεκρού, εκείνος δεν χάνεται ολότελα. Κι ίσως είχαν δίκιο, γιατί κάποια ονόματα τα λέμε ακόμα, πέντε χιλιάδες χρόνια μετά.", "43": "Πριν από τον Ζοζέρ, κανείς δεν είχε υψώσει βουνό από πέτρα κάτω από τον ουρανό. Κι όσοι έχτισαν ύστερα, όλοι πάτησαν στα σκαλιά του.", "44": "Ο Ιμχοτέπ ήταν χτίστης, γιατρός και σοφός, κι η φήμη του ξεπέρασε τον θάνατο. Αιώνες αργότερα οι άνθρωποι τον προσκυνούσαν σαν θεό.", "45": "Δεκατέσσερις πύλες είχε το τείχος του, μα μόνο μία άνοιγε για τους ζωντανούς. Από τις άλλες περνούσαν μόνο τα πνεύματα.", "46": "Η γη ανάμεσα στα δύο ποτάμια ήταν επίπεδη ως την άκρη του ουρανού. Γι' αυτό οι Σουμέριοι έχτισαν μόνοι τους ένα βουνό, για να φτάσουν τους θεούς.", "47": "Εδώ οι άνθρωποι έμαθαν, από τους πρώτους στον κόσμο, να γράφουν σε πηλό με την άκρη ενός καλαμιού. Οι πινακίδες κοιμήθηκαν στη γη χιλιάδες χρόνια, ώσπου ξύπνησαν και μίλησαν ξανά.", "48": "Η Ουρ έγινε σκόνη, κι ο Ευφράτης την εγκατέλειψε κι άλλαξε δρόμο. Μα η ζιγκουράτ στέκει ακόμα στην έρημο, και θυμάται.", "49": "Όταν οι Έλληνες των κατοπινών χρόνων είδαν αυτά τα τείχη, δεν πίστεψαν πως τα σήκωσαν άνθρωποι. Είπαν πως τα έχτισαν οι Κύκλωπες, οι μονόφθαλμοι γίγαντες, κι έτσι τα λέμε ως σήμερα κυκλώπεια.", "50": "Από εδώ, λέει ο θρύλος, ξεκίνησε ο βασιλιάς Αγαμέμνονας για την Τροία. Δέκα χρόνια κράτησε ο πόλεμος, κι όταν γύρισε, η πύλη τον περίμενε ακόμα.", "51": "Τα λιοντάρια της πύλης είναι το παλαιότερο μεγάλο γλυπτό της Ευρώπης. Τα κεφάλια τους χάθηκαν μέσα στους αιώνες, μα στέκονται ακόμα στη θέση τους και φυλάνε μια πόλη που δεν υπάρχει πια.", "52": "Πάνω από δύο χιλιάδες χρόνια έχτιζαν οι φαραώ στο Καρνάκ, κι ο καθένας πρόσθετε κάτι δικό του. Κανείς δεν το τελείωσε, γιατί ένας τέτοιος ναός δεν τελειώνει ποτέ.", "53": "Οι κίονες έχουν το σχήμα του πάπυρου, του καλαμιού του Νείλου. Οι Αιγύπτιοι πίστευαν πως στην αρχή του κόσμου υπήρχαν μόνο νερά και καλαμιές, κι ο ναός ήταν εκείνος ο πρώτος βάλτος, γινωμένος πέτρα.", "54": "Κάποτε οι κίονες ήταν βαμμένοι με λαμπερά χρώματα. Ο ήλιος κι οι αιώνες τα έσβησαν ένα ένα, μα οι σκαλισμένες μορφές θυμούνται ακόμα το σχήμα τους.", "55": "Γαλάζια σαν τον ουρανό ήταν η πύλη, με ταύρους και δράκους να βαδίζουν πάνω στα γυαλιστερά τούβλα. Όποιος περνούσε από κάτω ήξερε πως έμπαινε σε μια από τις μεγαλύτερες πόλεις του κόσμου.", "56": "Λένε πως στη Βαβυλώνα υπήρχαν κήποι κρεμασμένοι στον αέρα, ένα από τα επτά θαύματα του κόσμου. Μα κανείς ως σήμερα δεν βρήκε τα ίχνη τους, κι ίσως κοιμούνται ακόμα κάτω από την άμμο.", "57": "Οι σοφοί της Βαβυλώνας κοίταζαν τον ουρανό κάθε νύχτα και κατέγραφαν την πορεία των άστρων. Με τα χρόνια έμαθαν να προλέγουν πότε η Σελήνη θα σκοτεινιάσει.", "58": "Λίγες γραμμές στον Παρθενώνα είναι αληθινά ίσιες. Οι χτίστες του ήξεραν πως το μάτι ξεγελιέται, κι έτσι τον λύγισαν απαλά, ώστε να φαίνεται τέλειος σε όποιον τον κοιτάζει.", "59": "Μέσα στο μισόφωτο του ναού στεκόταν η Αθηνά του Φειδία, ψηλή σαν δέντρο, ντυμένη χρυσάφι κι ελεφαντόδοντο. Χάθηκε πριν από πολλούς αιώνες, κι από τη λάμψη της έμειναν μόνο ιστορίες.", "60": "Στην Αθήνα, για πρώτη φορά, οι πολίτες ψήφιζαν οι ίδιοι για τους νόμους τους. Κι ο ναός της θεάς δεν χτίστηκε με διαταγή βασιλιά, αλλά με απόφαση του λαού.", "61": "Ο Μαύσωλος πέθανε πριν τελειώσει ο τάφος του, κι ύστερα πέθανε κι η Αρτεμισία, η γυναίκα του. Μα οι γλύπτες δεν άφησαν το έργο· έμειναν και το τελείωσαν, για τη δόξα της τέχνης τους.", "62": "Ήταν ένα από τα επτά θαύματα του κόσμου και στάθηκε πάνω από χίλια πεντακόσια χρόνια. Ώσπου ήρθαν οι σεισμοί και το γκρέμισαν.", "63": "Ιππότες από μακρινή χώρα μάζεψαν τις πέτρες του κι έχτισαν ένα κάστρο, που στέκει ως σήμερα. Έτσι οι πέτρες του θαύματος δεν χάθηκαν· απλώς άλλαξαν όνομα.", "64": "Τη νύχτα, στην κορυφή του πύργου, έκαιγε μια φωτιά που φαινόταν από μακριά στο πέλαγος. Κι οι ναύτες, βλέποντάς την, ήξεραν πως ο δρόμος για το σπίτι ήταν ανοιχτός.", "65": "Λένε πως ο χτίστης του, ο Σώστρατος, χάραξε το όνομά του στην πέτρα, το σκέπασε με σοβά κι από πάνω έγραψε το όνομα του βασιλιά. Τα χρόνια έφαγαν τον σοβά, κι έμεινε μόνο το όνομα του αρχιτέκτονα.", "66": "Πάνω από χίλια πεντακόσια χρόνια φύλαγε το λιμάνι, ώσπου οι σεισμοί τον έριξαν στη θάλασσα. Οι πέτρες του κείτονται ακόμα στον βυθό, κι οι δύτες κατεβαίνουν να τις βρουν.", "67": "Από μακρινά βουνά ερχόταν το νερό, μέσα από αυλάκια που έτρεχαν εκατοντάδες χιλιόμετρα. Κι όλο τον δρόμο κατέβαινε τόσο απαλά, που κυλούσε μόνο του, χωρίς καμία μηχανή.", "68": "Αυτοκράτορες ήρθαν κι έφυγαν, κι ύστερα σουλτάνοι, κι η πόλη άλλαξε όνομα. Μα το υδραγωγείο έφερνε νερό σε όλους, για πάνω από χίλια πεντακόσια χρόνια.", "69": "Στέκει ακόμα σήμερα, κι από κάτω του περνούν κάθε μέρα άνθρωποι βιαστικοί. Λίγοι σηκώνουν τα μάτια, μα οι καμάρες περιμένουν, όπως περιμένουν εδώ και χίλια εξακόσια χρόνια.", "70": "Λείπουν ακόμα κομμάτια από το σχέδιο.", "71": "Ας δούμε αν θα αντέξει!", "72": "Η λάσπη θρυμματίστηκε κάτω από το βάρος.", "73": "Το ξύλο έσπασε πάνω από το κενό.", "74": "Ο άνεμος το γκρέμισε. Ξαναδοκίμασε!", "75": "Δεν άντεξε το βάρος. Ξαναδοκίμασε!", "76": "Ο σεισμός το γκρέμισε. Ξαναδοκίμασε!", "77": "Πού πας, αρχιτέκτονα; Κομμάτια και σπαράγματα θα σε περιμένουν!", "78": "Πλίνθοι από λάσπη: ελαφριοί, μα δεν αντέχουν μεγάλο βάρος.", "79": "Η πέτρα είναι βαριά, μα αιώνια.", "80": "Το ξύλο γεφυρώνει κενά, μα σπάει αν το φορτώσεις πολύ.", "81": "Κοίτα! Άνθρωποι φτάνουν από μακριά να θαυμάσουν τα έργα σου!", "82": "Ένα καλό θεμέλιο δεν το βλέπει κανείς. Χωρίς αυτό όμως, τίποτα δεν στέκει.", "83": "Α! Τι ωραία βαρκούλα! Θα 'θελα να 'χα μια βαρκούλα.", "84": "Τι ωραία που είναι εδώ…", "85": "Η γνώση… το πιο πολύτιμο στο σύμπαν. Την είδαν λίγοι, κι ελάχιστοι τη μοιράστηκαν.", "87": "Λοιπόν, εγώ είμαι ο γκρεμιστής, γιατί είμαι εγώ κι ο χτίστης!", "88": "Κοίτα τον ουρανό, αρχιτέκτονα. Όσο ψηλά κι αν χτίσεις, εκείνος θα είναι πάντα λίγο ψηλότερα.", "89": "Τα κτίρια ζουν περισσότερο από αυτούς που τα χτίζουν. Τα έργα σου θα τα δουν παιδιά που δεν έχουν γεννηθεί ακόμα.", "90": "Ποιο έργο σου θα στέκει σε χίλια χρόνια; Οι καλοί αρχιτέκτονες το σκέφτονται πάντα.", "91": "Αυτό το κουμπί σβήνει όλη σου την πρόοδο, κι αρχίζεις το χτίσιμο από την αρχή. Αν αυτό θέλεις, ξαναπάτα το.", "92": "Πάτα εδώ για να ξεκινήσεις!", "93": "Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.", "94": "Αν πατήσεις ένα κομμάτι τρεις φορές γρήγορα, γυρίζει πίσω στον σωρό. Δοκίμασε!", "95": "Πάτα το φτυάρι!", "96": "Το φτυάρι μαζεύει όλα τα κομμάτια και τα γυρίζει στον σωρό. Έτσι ξαναρχίζεις από την αρχή.", "97": "Βάλε κάθε τούβλο πάνω σε δύο από κάτω, όχι πάνω σε ένα. Έτσι ο τοίχος δένει.", "98": "Τώρα χτίσε! Γέμισε όλο το σχέδιο.", "99": "Αυτό είναι το κουμπί της δοκιμής. Όσο είναι κόκκινο, το κτίριο δεν είναι έτοιμο. Όταν γεμίσεις το σχέδιο, θα γίνει πράσινο.", "100": "Το κουμπί πρασίνισε! Πάτα το να δεις αν το κτίριο αντέχει.", "101": "Πρώτα έρχεται ο άνεμος. Θα σπρώξει το κτίριο από τη μια μεριά κι από την άλλη.", "102": "Τώρα θα κατέβει ένα βάρος πάνω στο κτίριο. Θα το αντέξει;", "103": "Και τώρα σεισμός! Η γη θα τρέμει.", "104": "Άντεξε τον άνεμο, το βάρος και τον σεισμό. Το έργο σου στέκει!", "105": "Το κόκκινο δείχνει πού χάλασε. Φτιάξ' το εκεί και ξαναδοκίμασε!", "106": "Πάτα εδώ για να γυρίσεις στον χάρτη.", "107": "Τελείωσαν τα κομμάτια. Με το φτυάρι τα μαζεύεις όλα και ξαναρχίζεις.", "108": "Σε αυτά τα σημεία μπαίνει ξύλο.", "109": "Αυτό το άνοιγμα μένει άδειο. Μην το κλείσεις!", "110": "Αν βάλεις πλίνθους κάτω, θρυμματίζονται κάτω από το βάρος.", "111": "Η πέτρα είναι γερή: βάλ' την κάτω, εκεί που πέφτει όλο το βάρος. Οι πλίνθοι πάνε ψηλά.", "112": "Με δύο κοντά δοκάρια, όλο το βάρος πέφτει στη μέση, και τα τούβλα θρυμματίζονται.", "113": "Η μακριά σανίδα απλώνει το βάρος σε όλα τα τούβλα από κάτω, κι έτσι αντέχουν.", "114": "Πάνω σε κάθε κίονα βάζεις δύο μικρές πέτρες. Το δοκάρι πατάει με κάθε άκρη του πάνω τους.", "115": "Πρώτα στήνεις το ξύλινο καλούπι.", "116": "Πάνω του βάζεις τις σφήνες, από τις δύο μεριές.", "117": "Η τελευταία σφήνα μπαίνει στην κορυφή και κλειδώνει την καμάρα.", "118": "Τώρα βγάζεις το καλούπι. Η καμάρα στέκει μόνη της!", "119": "Η καμάρα στέκει. Τώρα βγάλε το ξύλινο καλούπι!", "120": "Αν βγάλεις τον στύλο πριν πατήσει η στέγη, το δοκάρι πέφτει.", "121": "Στήριξε πρώτα το δοκάρι σε έναν ξύλινο στύλο. Όταν πατήσει η στέγη από πάνω, βγάζεις τον στύλο.", "122": "Με τρία γρήγορα πατήματα, το καλούπι γυρίζει στον σωρό, έτοιμο για την επόμενη καμάρα."};
   const VOICE_FILES = {}; // line number -> recording; build.py fills it from src/sounds/voice/NN.mp3
-  const GHOST_REPEAT = 8, IDLE_TIME = 60, DAMAGE_EVERY = 60, DEMO_SPEED = 12, DEMO_PAUSE = 0.35; // s, s, s, m/s (the ghost hand carrying: about a second across the screen), s
+  const LINE_TIME = 2, GHOST_REPEAT = 8, IDLE_TIME = 60, DAMAGE_EVERY = 60, DEMO_SPEED = 12, DEMO_PAUSE = 0.35; // s, s, s, s, m/s (the ghost hand carrying: about a second across the screen), s
   const voice = { cur: null, queue: [] };
   const cueEv = { taps3: 0, broom: 0, testPress: 0, testStart: 0 }; // what the child did, counted
-  let shown = [], whens = [], flashes = [], visit = {}, cueFrame = 0, lastInput = performance.now(), damageT = 0, formCheckT = 0, cueAudio = null;
-  const cueBox = document.createElement("div");
-  cueBox.style.cssText = "position:fixed;left:50%;bottom:6%;transform:translateX(-50%);max-width:70%;background:#fff;color:#222;font:22px/1.35 sans-serif;padding:14px 20px;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;display:none;z-index:10";
+  let scene = 0, shown = [], whens = [], flashes = [], visit = {}, cueFrame = 0, cueClock = 0, lastInput = 0, damageT = 0, formCheckT = 0, cueAudio = null;
+  // the text box (SKIN-free DOM: it stands in for the recordings); the blue bar on top runs out, emptying from the left
+  const cueBox = document.createElement("div"), cueText = document.createElement("div"), cueBar = document.createElement("div");
+  cueBox.style.cssText = "position:fixed;left:50%;bottom:6%;transform:translateX(-50%);max-width:70%;background:#fff;color:#222;font:22px/1.35 sans-serif;padding:20px 20px 14px;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;display:none;z-index:10;overflow:hidden";
+  cueBar.style.cssText = "position:absolute;top:0;right:0;left:0;height:7px;background:#2f7fd8";
+  cueBox.append(cueBar, cueText);
   document.body.appendChild(cueBox);
-  window.addEventListener("keydown", (e) => { lastInput = performance.now(); if (e.key === "Escape" && voice.cur) endLine(voice.cur); });
+  window.addEventListener("keydown", (e) => { lastInput = cueClock; if (e.key === "Escape" && voice.cur) endLine(voice.cur); });
 
   // part 3: the saved record
   function cueMem() { return progress.cues || (progress.cues = { ever: {}, site: {}, recent: {}, seq: 0 }); }
@@ -3331,16 +3337,18 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     rec.push(l); if (rec.length > lines.length) rec.shift(); cueSave();
     return l;
   }
-  function cueReset() {
-    progress.cues = null; voice.queue.length = 0; if (voice.cur) endLine(voice.cur);
+  // a new scene (the map, a visit to a site, free play): what is left of the old one goes
+  function newScene() {
+    scene++; voice.queue.length = 0; if (voice.cur) endLine(voice.cur);
     shown = []; whens = []; flashes = []; visit = {};
   }
+  function cueReset() { progress.cues = null; newScene(); }
 
-  // part 1: the voice channel
-  // o: kind "teach" | "queued" | "bg"; block (freezes the game); pause (a tap ends the freeze); duringTest (may start during a
-  // test); holdsTest (the test waits while it is queued or playing); demo; after (s before it may start); glow; ghost; wait; then
+  // part 1: the voice
+  // o: kind "teach" | "queued" | "bg"; block (freezes the game while it plays); pause (a tap ends the freeze); duringTest (may
+  // start during a test); demo; after (s before it may start); glow; ghost; wait (the action); then
   function say(n, o = {}) {
-    const c = Object.assign({ n, kind: "queued", frame: cueFrame, mode, at: performance.now() + (o.after || 0) * 1000 }, o);
+    const c = Object.assign({ n, kind: "queued", frame: cueFrame, scene, at: cueClock + (o.after || 0) }, o); // times in s of the cue clock (game frames, so tests repeat exactly)
     const teachNow = voice.queue.some((q) => q.frame === cueFrame && q.kind === "teach");
     if (!(VOICE_FILES[n] || VOICE_TEXT[n]) || (c.kind === "bg" && (voice.cur || voice.queue.length)) || (c.kind !== "teach" && teachNow)) {
       if (c.then) c.then();
@@ -3350,21 +3358,21 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     voice.queue.push(c);
     return c;
   }
-  // a glow or ghost hand with no line (ends after `until` s, or when `wait` is done)
+  // a step with no line: a glow or the ghost hand (ends after `until` s, or when `wait` is done)
   function guide(o) {
-    const t0 = performance.now(), c = Object.assign({ n: null, ended: true, mode, t0 }, o);
-    if (o.until) c.wait = () => performance.now() > t0 + o.until * 1000;
+    const t0 = cueClock, c = Object.assign({ n: null, ended: true, scene, t0 }, o);
+    if (o.until) c.wait = () => cueClock > t0 + o.until;
     shown.push(c);
   }
-  function cueWhen(cond, fire) { whens.push({ cond, fire, mode }); }
+  function cueWhen(cond, fire) { whens.push({ cond, fire }); }
   function startLine(c) {
-    voice.cur = c; c.t0 = performance.now(); shown.push(c);
-    const show = () => { if (voice.cur === c) { cueBox.textContent = VOICE_TEXT[c.n] || ""; cueBox.style.display = "block"; } };
+    voice.cur = c; c.t0 = cueClock; shown.push(c);
+    const box = () => { if (voice.cur !== c) return; cueAudio = null; c.t0 = cueClock; cueText.textContent = VOICE_TEXT[c.n] || ""; cueBar.style.left = "0"; cueBox.style.display = "block"; };
     if (VOICE_FILES[c.n]) {
       cueAudio = new Audio(VOICE_FILES[c.n]);
       cueAudio.onended = () => endLine(c);
-      cueAudio.play().catch(show);
-    } else show();
+      cueAudio.play().catch(box);
+    } else box();
   }
   function endLine(c) {
     if (voice.cur !== c) return;
@@ -3372,41 +3380,35 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     if (cueAudio) { cueAudio.onended = null; cueAudio.pause(); cueAudio = null; }
   }
   function finish(c) { if (c.fin) return; c.fin = true; if (c.then) c.then(); }
-  const visual = (c) => !!(c.glow || c.ghost || c.wait || c.block);
   const waitDone = (c) => !c.wait || c.wait();
   function cueFrozen() { const c = voice.cur; return !!(c && c.block && !c.tapped); }
-  function cueHoldsTest() { return !!((voice.cur && voice.cur.holdsTest) || voice.queue.some((q) => q.holdsTest)); }
   function cueSwallow() {
-    lastInput = performance.now();
+    lastInput = cueClock;
     const c = voice.cur;
     if (c && c.block && !c.tapped) { if (c.pause) c.tapped = true; return true; }
     return !!demo;
   }
   function cueTick(dt) {
-    cueFrame++;
-    const now = performance.now();
-    // done before its turn, or left behind on the other screen: it goes (a done one still leads on)
-    voice.queue = voice.queue.filter((c) => {
-      if (c.wait && c.wait()) { finish(c); return false; }
-      return !(c.mode !== mode && visual(c));
-    });
-    if (voice.cur && ((voice.cur.wait && voice.cur.wait()) || (voice.cur.mode !== mode && visual(voice.cur)))) endLine(voice.cur);
+    cueFrame++; cueClock += dt;
+    const now = cueClock, c = voice.cur;
+    if (c) { // the line playing: its action done, or its time up (text box), ends it
+      const u = (now - c.t0) / LINE_TIME;
+      if (c.wait && c.wait()) endLine(c);
+      else if (!cueAudio) { if (u >= 1) endLine(c); else cueBar.style.left = (u * 100).toFixed(1) + "%"; }
+    }
+    voice.queue = voice.queue.filter((q) => { if (q.wait && q.wait()) { finish(q); return false; } return true; }); // done before its turn
     if (!voice.cur) { // the next one in order; lines held back only by a test or a demo let later ones marked for it go first
-      for (const c of voice.queue) {
-        if (now < c.at) break;
-        if ((test && !c.duringTest) || (demo && demo.go && !c.demo)) continue;
-        voice.queue.splice(voice.queue.indexOf(c), 1); startLine(c); break;
+      for (const q of voice.queue) {
+        if (now < q.at) break;
+        if ((test && !q.duringTest) || (demo && demo.go && !q.demo)) continue;
+        voice.queue.splice(voice.queue.indexOf(q), 1); startLine(q); break;
       }
     }
-    shown = shown.filter((c) => {
-      if (c.mode !== mode && visual(c) && !(c.wait && c.wait())) { endLine(c); return false; }
-      if ((c.ended || (c.pause && c.tapped)) && waitDone(c)) { finish(c); return false; }
-      return true;
-    });
-    whens = whens.filter((w) => { if (w.mode !== mode) return false; if (w.cond()) { w.fire(); return false; } return true; });
-    flashes = flashes.filter((f) => now - f.t0 < 2000);
+    shown = shown.filter((s) => { if ((s.ended || (s.pause && s.tapped)) && waitDone(s)) { finish(s); return false; } return true; });
+    whens = whens.filter((w) => { if (w.cond()) { w.fire(); return false; } return true; });
+    flashes = flashes.filter((f) => now - f.t0 < 2);
     // idle: no input for IDLE_TIME s, not during a test (group 81-90; 81 only on the map while visitors walk to a site; 86 only recorded)
-    if (now - lastInput > IDLE_TIME * 1000 && !test && !demo) {
+    if (now - lastInput > IDLE_TIME && !test && !demo) {
       lastInput = now;
       if (!voice.cur && !voice.queue.length) {
         const all = [81, 82, 83, 84, 85, 86, 87, 88, 89, 90];
@@ -3473,14 +3475,14 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     }
   }
   function drawCues() {
-    const now = performance.now(), k = 0.5 + 0.5 * Math.sin(now / 160);
+    const now = cueClock, k = 0.5 + 0.5 * Math.sin(now * 6);
     for (const c of shown) for (const t of c.glow || []) { const g = targetGeom(t); if (g) SKIN.glow(ctx, g, k); }
     if (mode === "map" && flashes.length) {
       const v = mapView();
-      for (const f of flashes) { const m = siteMarker(v, SITES.find((s) => s.key === f.key)); SKIN.ringFlash(ctx, m.x, m.y, m.r, (now - f.t0) / 2000); }
+      for (const f of flashes) { const m = siteMarker(v, SITES.find((s) => s.key === f.key)); SKIN.ringFlash(ctx, m.x, m.y, m.r, (now - f.t0) / 2); }
     }
     const c = [...shown].reverse().find((q) => q.ghost);
-    if (c) drawGhost(c.ghost, ((now - c.t0) / 1000) % (c.wait ? GHOST_REPEAT : 1e9));
+    if (c) drawGhost(c.ghost, (now - c.t0) % (c.wait ? GHOST_REPEAT : 1e9));
     if (demo && demo.hand && mode === "build") SKIN.ghostHand(ctx, demo.hand.x, demo.hand.y, !!demo.hand.pressed, 0.85);
   }
 
@@ -3501,9 +3503,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     const broken = SITES.filter((s) => progress.done[s.key] && progress.done[s.key].broken);
     if (!broken.length) { damageT = 0; return; }
     if (firstEver("damaged")) say(39, { kind: "teach", glow: [{ site: broken[0].key }], ghost: { tap: { site: broken[0].key } } });
-    if ((damageT += dt) >= DAMAGE_EVERY) { damageT = 0; for (const s of broken) flashes.push({ key: s.key, t0: performance.now() }); say(39, { kind: "bg" }); }
+    if ((damageT += dt) >= DAMAGE_EVERY) { damageT = 0; for (const s of broken) flashes.push({ key: s.key, t0: cueClock }); say(39, { kind: "bg" }); }
   }
   function onGoMap(i, leftTest) {
+    newScene();
     if (leftTest) say(77);
     if (i == null) return;
     const L = LEVELS[i], done = progress.done[L.key];
@@ -3517,21 +3520,19 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     else if (opened) say(pickFrom("newsite", [34, 35, 36, 37]), { glow, ghost });
   }
   function onEnterSite(i) {
-    visit = {};
+    newScene();
     const key = LEVELS[i].key, done = progress.done[key];
     for (const b of pileBodies()) if (firstEver("shape:" + b.pileItem.defKey)) guide({ glow: [{ pile: b }], until: 4 }); // a new shape glows once
     if (done && !done.broken) { say(pickFrom("facts:" + key, [40 + 3 * i, 41 + 3 * i, 42 + 3 * i])); return; }
     say(1 + i, { then: () => afterIntro(i) });
   }
   function afterIntro(i) {
-    if (mode !== "build" || currentLevel !== i) return;
     const key = LEVELS[i].key, m = cueMem();
     if (key === "mastaba" && m.seq < SEQ.length) { SEQ[m.seq](); return; }
     if (DEMOS[key] && key !== "mastaba" && !(m.site[key] || {}).demo) { startDemo(key, () => planCues(i)); return; }
     planCues(i);
   }
   function planCues(i) {
-    if (mode !== "build" || currentLevel !== i) return;
     if (grid.wood.length && grid.L.woodRole === "courses" && firstEver("woodplaces")) say(108, { kind: "teach", glow: [{ rings: grid.wood }] });
     if (grid.holes.length && firstEver("openings")) say(109, { kind: "teach", glow: [{ rings: grid.holes }] });
   }
@@ -3568,7 +3569,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     const n = { wind: 74, load: 75, quake: 76 }[part], at = soundLength("fail");
     if (!n) return;
     if (firstEver("fail:" + part)) {
-      const o = { kind: "teach", duringTest: true, holdsTest: true, glow: [{ fail: true }] };
+      const o = { kind: "teach", duringTest: true, glow: [{ fail: true }] };
       say(n, Object.assign({ after: at }, o)); say(105, o);
     } else say(n, { duringTest: true, after: at });
   }
@@ -3583,7 +3584,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
 
   // --- the first site, first visit ever, after intro 1 (cues.md section 6); every step waits for the child
   const since = (k) => { const base = cueEv[k]; return () => cueEv[k] > base; };
-  function seqNext() { cueMem().seq++; cueSave(); if (mode === "build" && currentLevel === 0 && cueMem().seq < SEQ.length) SEQ[cueMem().seq](); }
+  function seqNext() { cueMem().seq++; cueSave(); if (cueMem().seq < SEQ.length) SEQ[cueMem().seq](); }
   function dragStep() {
     const b = pileBodies().find((q) => q.pileItem.material === "mudbrick") || pileBodies()[0];
     if (!b) { seqNext(); return; }
