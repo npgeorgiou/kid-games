@@ -131,13 +131,13 @@ def zig(wood):  # five rows of whole mudbrick blocks, 7 at the bottom, each row 
 # owner (14 Nov): all whole mudbrick blocks, 7 at the bottom, five rows; wood as long as the row it lies on spreads the weight
 # evenly over that row (measured: bottom bricks at 83% of their limit; a 14 m plank on the bottom row and a 10 m plank on the
 # third row were the best; wood on every row slid in the earthquake)
-ZWOOD = [[["plank14", 0]], [], [["plank10", 0]], []]
+ZWOOD = [[["plank14", 0]], [["plank12", 0]], [["plank10", 0]], [["plank8", 0]]]  # owner (14 Nov): wood on every row but the top
 s, ZTOP = zig(ZWOOD)
 level("ziggurat", "Ζιγκουράτ της Ουρ", "c. 2100 BC", "five rows of whole mudbricks with long reed-mat courses, the temple on top",
       "Britannica: mudbrick core strengthened with reed matting, three tiers, staircases, temple of Nanna on top (not preserved); wood courses stand for the reed mats; no stairway piece (owner, 13 Nov: the triangle removed from this level for good)",
       s, [rect(-1.5, ZTOP, 1.5, ZTOP + 1.0)], woodRole="courses",
-      spare=[("block", "mudbrick", 2), ("plank", "wood", 2), ("plank12", "wood", 1), ("plank8", "wood", 1)],  # two spare mudbricks; two 6 m planks tempt as the shorter wood; no stone
-      wrong=[W("6 m planks instead of the long planks", "material", [[("plank" if e[0] in ("plank10", "plank14") else e[0])] + e[1:] for e in s]),
+      spare=[("block", "mudbrick", 2), ("plank", "wood", 2)],  # two spare mudbricks; two 6 m planks tempt as the shorter wood; no stone
+      wrong=[W("6 m planks instead of the long planks", "material", [[("plank" if e[0] in ("plank8", "plank10", "plank12", "plank14") else e[0])] + e[1:] for e in s]),
              W("a top-row block more than half off the row below", "build", moved(s, lambda e: near(e[2], 2) and near(e[3], ZTOP - 0.5), dx=3.2))])
 # 4 Lion Gate (owner, 13 Nov: before Karnak, it is easier): the lion triangle (headpiece) is lowered onto the lintel between the stepped-in stones
 gate = rect(-1, 0, 1, 2)

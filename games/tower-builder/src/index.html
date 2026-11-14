@@ -1924,19 +1924,19 @@
           if (used[j] || !plain(items[j])) continue;
           const [w2, h2] = size(items[j]);
           if (h2 > rowH + 1e-6) continue;
-          if (cy + h2 > y + rowH + 1e-6) { cx += cw + GAP; cw = 0; cy = y; }
+          if (cy + h2 > y + rowH + GAP) { cx += cw + GAP; cw = 0; cy = y; }
           if (cx + w2 > W - GAP) continue;
           let px = cx + w2 / 2, py = cy + h2 / 2;
           if (own(items[j])) { const [a0, , c0] = ext(PIECE_DEFS[items[j].defKey]); px = cx - a0; py = cy - c0; }
           out.push([items[j], px, py, lying(items[j]) ? Math.PI / 2 : 0]); used[j] = true;
-          cy += h2 + 0.02; cw = Math.max(cw, w2);
+          cy += h2 + 0.002; cw = Math.max(cw, w2); // blocks stacked touching, so a stack is as high as the row beside it
         }
       };
       for (let i = 0; i < items.length; i++) {
         if (used[i]) continue;
         const it = items[i];
         const [w, h] = size(it), nested = it.defKey === "wedge" || /^tri/.test(it.defKey);
-        const key = nested ? it.defKey + "/" + it.material : curved(it) ? "c" + h.toFixed(2) + "/" + it.material : h.toFixed(2); // a row holds one height (blocks and squares of any material share)
+        const key = nested ? it.defKey + "/" + it.material : curved(it) ? "c" + h.toFixed(2) + "/" + it.material : it.defKey !== "column" && lying(it) ? "stand/" + it.material : h.toFixed(2); // planks standing on end share one row; the blocks fill the floor beside them // a row holds one height (blocks and squares of any material share)
         const pairW = it.defKey === "wedge" ? 1.95 : /^tri/.test(it.defKey) ? w + 0.03 : w; // a nested pair's width
         const second = (it.defKey === "wedge" || /^tri/.test(it.defKey)) && key === rowKey && k % 2 === 1;
         if (key !== rowKey) k = 0;
@@ -1948,7 +1948,7 @@
           const lx = -Math.min(...c.map((v) => v[0])), ly = -Math.min(...c.map((v) => v[1]));
           px = x + (second ? w - lx + 0.03 : lx); py = y + (second ? h - ly + 0.03 : ly); a = second ? Math.PI : 0; }
         out.push([it, px, py, a]); rowH = Math.max(rowH, h); rowKey = key; k++;
-        if (second || !(it.defKey === "wedge" || /^tri/.test(it.defKey))) x += pairW + GAP;
+        if (second || !(it.defKey === "wedge" || /^tri/.test(it.defKey))) x += pairW + (it.defKey !== "column" && lying(it) ? 0.02 : GAP); // planks standing on end stand close together, leaving the floor for the blocks
       }
       return [out, y + rowH];
     };
