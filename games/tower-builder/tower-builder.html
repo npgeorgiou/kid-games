@@ -1216,7 +1216,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       const p = body.getWorldPoint(piece.grabLocal);
       const T = piece.handT;
       // what the hand carries: the piece and everything resting on it
-      const Wt = m * GRAVITY + (touching ? weightOnTop(body) : 0), mt = Wt / GRAVITY;
+      // what rests on it presses harder while the piece speeds up going up: take that out, so a stack reads its weight
+      // like one piece of the same weight does (owner 14 Nov: the top block jumped when two blocks read as too heavy)
+      const vyNow = body.getLinearVelocity().y, ay = piece.vyPrev == null ? 0 : (vyNow - piece.vyPrev) / STEP; piece.vyPrev = vyNow;
+      const Wt = m * GRAVITY + (touching ? weightOnTop(body) * GRAVITY / Math.max(GRAVITY * 0.5, GRAVITY + ay) : 0), mt = Wt / GRAVITY;
       // too heavy or not: judged on the weight over the last half second, not the extra push of the pieces on top while it rises
       piece.wtSlow = piece.wtSlow == null ? Wt : piece.wtSlow + (Wt - piece.wtSlow) * (STEP / 0.5);
       // owner: carrying goes by the weight carried compared with a stone block, whatever the material: the hand eases
@@ -1228,6 +1231,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       if (vlen > vcap) { vx *= vcap / vlen; vy *= vcap / vlen; }
       nearSeen = false;
       riding = touching ? ridersOf(body) : new Set();
+      // carrying something on top: going up, the hand slows no faster than things fall, so it stays sitting (real: a
+      // sharper stop throws it off; owner 14 Nov: the top block jumped)
+      if (riding.size && piece.tvy > 0 && vy < piece.tvy - 0.7 * GRAVITY * STEP) vy = piece.tvy - 0.7 * GRAVITY * STEP;
+      piece.tvy = vy;
       if (!piece.ghost) [vx, vy] = capApproach(body, vx, vy, Math.min(NEAR_SPEED, vcap));
       T.x += vx * STEP; T.y += vy * STEP;
       // a spring tracking a moving point trails it by 2 x damping / stiffness x speed; aim that far ahead so the grab point stays on the hand
@@ -1255,7 +1262,8 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       riding = new Set();
       // the strength goes by everything carried (the piece and what rests on it), so equal weights lift alike
       piece.joint.setMaxForce(piece.wtSlow > HAND_MAX_WEIGHT ? HAND_MAX_WEIGHT // too heavy: it cannot lift it
-        : !close ? Wt + extra + mt * FREE_AIR_ACCEL
+        // a hand has a top strength that falls off smoothly towards the limit, so crossing it never yanks
+        : !close ? Math.min(Wt + extra + mt * FREE_AIR_ACCEL, HAND_MAX_WEIGHT * (1 + HAND_LIFT_EXTRA) + (HAND_MAX_WEIGHT - piece.wtSlow) * 40 + extra)
         : Math.hypot(Wt * (1 + HAND_LIFT_EXTRA), mt * Math.min(material.maxAccel, PUSH_ACCEL)));
       if (piece.lever) {
         // grip friction: a torque against the swing, scaled by the inertia about the grab point (a body's own

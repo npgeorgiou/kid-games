@@ -357,6 +357,14 @@ Owner's words: "the big stone you added is not as heavy as 2 blocks that togethe
 - Undo button, top left in free play and levels: each press puts back the building (and in levels the pile) as it was before the last piece was picked up, with whatever fell or broke since. Remembers up to 40 steps; cleared on entering a level or free play. Harness `sandbox` does it by mouse.
 - Level runs and wrong choices (3 placements) pass after the weight change.
 
+## Current state, update 24 (14 Nov 2026)
+
+Owner's words: "now the 2 blocks on top of each otehr lifting from the bot, makes the top one jump after a while. ... can yiu mimic REAL physics? also im not sure 2stacks feel teh same as a big square. and , ahve yo changes the relative weights of materials? I am afraid you may have, somehow mudbrick and stone dont feel so different anymore"
+
+- Cause of the jump: two stacked blocks read as heavier than they are while rising (the top one presses harder while it speeds up), so the hand flickered at its "too heavy" limit, crept, then got its full strength back at once and yanked the stack. Fixed: what rests on the held piece is weighed without that extra push; the hand's strength falls off smoothly towards its limit; carrying something on top, the hand slows no faster than things fall going up.
+- Owner test `hand`: lifted from the bottom, what rests on it stays sitting (two small oblong stones, two blocks, four squares); same lift time for two blocks, four squares, big square, long block.
+- Material weights unchanged (wood 1.1, mudbrick 3.2, stone 5.0 per square metre since before 13 Nov).
+
 ## Task list
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.

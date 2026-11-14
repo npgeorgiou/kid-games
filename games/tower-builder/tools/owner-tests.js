@@ -15,12 +15,13 @@
       T.clearAllPieces(); let top = 0; const ps = [];
       for (const [d, m] of stack) { const hy = T.PIECE_DEFS[d].hy; const p = T.spawnPiece(d, X, top + hy + 0.003, 0, m); top += 2 * hy; ps.push(p); run(0.5); }
       run(1); const b = ps[0], y0 = b.body.getPosition().y, c0 = b.body.getWorldCenter(), g = { x: c0.x, y: c0.y };
-      T.startHold(b, { x: g.x, y: g.y }, 91, 0, 0); let t1 = null;
-      for (let k = 0; k < 240; k++) { b.desired = { x: g.x, y: g.y + Math.min(1.5, k * 1.5 / 60) }; frame(1 / 60); if (t1 == null && b.body.getPosition().y - y0 > 1.0) t1 = k / 60; }
+      T.startHold(b, { x: g.x, y: g.y }, 91, 0, 0); let t1 = null, jump = 0;
+      const gaps = () => { for (let i = 1; i < ps.length; i++) { const lo = ps[i - 1], hi = ps[i]; jump = Math.max(jump, (hi.body.getPosition().y - T.PIECE_DEFS[hi.defKey].hy) - (lo.body.getPosition().y + T.PIECE_DEFS[lo.defKey].hy)); } };
+      for (let k = 0; k < 240; k++) { b.desired = { x: g.x, y: g.y + Math.min(1.5, k * 1.5 / 60) }; frame(1 / 60); gaps(); if (t1 == null && b.body.getPosition().y - y0 > 1.0) t1 = k / 60; }
       const rise = b.body.getPosition().y - y0, w = ps.reduce((s, p) => s + p.body.getMass() * 10, 0);
       const carried = ps.every((p) => p.body.getPosition().y > 1.0 + 0.5);
       T.releaseHold(91); run(0.5);
-      return { w: Math.round(w), rise: +rise.toFixed(2), t1, carried };
+      return { w: Math.round(w), rise: +rise.toFixed(2), t1, carried, jump: +jump.toFixed(3) };
     };
     const S = "stone";
     const cases = [
@@ -39,6 +40,7 @@
     const LIM = 2 * blockW(), res = {};
     for (const [n, st] of cases) {
       const r = (res[n] = stackLift(st)), canLift = r.w <= LIM + 1;
+      if (st.length > 1 && canLift) out.push(["14 Nov lifted from the bottom, what rests on it stays sitting on it: " + n, r.jump < 0.02, "largest gap " + r.jump + " m"]);
       out.push(["3 hand: " + n, canLift ? r.rise > 1.0 && r.carried : r.rise < 0.2, (canLift ? "should lift" : "too heavy") + ": weight " + r.w + " N, rose " + r.rise + " m, 1 m after " + r.t1 + " s"]);
     }
     const same = (a, b) => { const x = res[a].t1, y = res[b].t1; return x != null && y != null && Math.abs(x - y) <= 0.25 * Math.max(x, y) + 0.05; };
