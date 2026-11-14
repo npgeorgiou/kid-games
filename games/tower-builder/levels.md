@@ -63,9 +63,9 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 3. Ziggurat of Ur (c. 2100 BC)
 
 - Headpiece: the temple of Nanna on the top terrace (Britannica: temple on top, not preserved). LOCKED (same temple; raised to stand on the new top row).
-- Pieces (owner, 14 Nov: "all mud std rectangular blocks, starting at 7 base, ... so it can reach 5 levels"; then "make it for me with wood at every level"): 25 whole mudbrick blocks in five rows (7, 6, 5, 4, 3), each row half a block in on both sides; a wooden plank on every row but the top, as long as the row it lies on: 14, 12, 10 and 8 m. Pile adds 2 mudbrick blocks and 2 wooden 6 m planks (the wrong choice). No stone, no half-blocks.
+- Pieces (owner, 14 Nov: "all mud std rectangular blocks, starting at 7 base, ... so it can reach 5 levels"; "make it for me with wood at every level"; 15 Nov: "2 blocks only at the top, and 3 at the one before the top"): 23 whole mudbrick blocks in five rows (7, 6, 5, 3, 2); a wooden plank on every row but the top, as long as the row it lies on: 14, 12, 10 and 6 m. Pile adds 2 mudbrick blocks and 2 wooden 6 m planks (the wrong choice). No stone, no half-blocks. Temple and earthquake 10% weaker than before (owner, 15 Nov).
 - Pile: planks longer than the sidebar is wide stand on their end, side by side; the blocks stand on the floor beside them in stacks as high as the tallest plank (owner, 14 Nov: "all the mudbricks to be on the floor, as 2 piles"); the sidebar keeps its size (owner: never make it smaller).
-- Measured: the quick build fails the test in the earthquake: the bottom plank, with everything on it, slides more than a metre. Cause not looked into; the owner checks it himself. With planks only on the bottom (14 m) and third (10 m) rows it passed, worst bottom brick at 83% of what crumbles it. No wood: the middle bricks crumble.
+- Measured: passes the test, also placed up to 3 cm off. With 4 and 3 blocks in the top rows it failed in the earthquake (bottom planks rocked, end bricks crumbled).
 - New: wood laid as courses (they stand for the reed matting that strengthened the mudbrick core, Britannica). Technique: five rows, each narrower.
 - Hard: the long planks centred; rows centred.
 - Wrong material: 6 m planks instead of the long planks: the weight stays over the middle and the bottom bricks crumble.

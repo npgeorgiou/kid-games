@@ -545,6 +545,11 @@ Darkening is now only where the table says: site welcome lines, first crumble an
 Owner's words: "can you amke this level headpiece and earthquake 10% less strong? then I think it will survive"
 Built: Ur temple load density 4 -> 3.6, Ur earthquake 0.38 -> 0.342. Result: the quick build (plank on every row but the top) still fails in the earthquake: the bottom bricks under the bottom plank reach about three times what crumbles them while it rocks, and the plank with everything on it slides.
 
+## Current state, update 45 (15 Nov 2026): Ur top rows 3 and 2 blocks
+
+Owner's words: "2 blocks only at the top, and 3 at the one before the top. test that it works. if so, update outline and materials."
+Built: Ur rows 7, 6, 5, 3, 2 mudbrick blocks; planks 14, 12, 10, 6 m (the 6 m on the 3-block row); outline and pile from the build (make-levels.py `ZROWS`). `harness.py spec 2` all pass. Picture `owner-shots/ur-five-rows-pile.png`.
+
 ## Task list
 
 No open items.
