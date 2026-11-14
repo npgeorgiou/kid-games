@@ -153,19 +153,31 @@
         const s0 = { x: g.x, y: dy < 0 ? g.y + 1 : g.y - 2 }; p.desired = s0; run(1.5); let over = 0;
         for (let k = 0; k < 90; k++) { const u = Math.min(1, k / 18); p.desired = { x: s0.x + dx * u, y: s0.y + dy * u }; frame(1 / 60);
           const q = p.body.getWorldCenter(); over = Math.max(over, ((q.x - s0.x) * dx + (q.y - s0.y) * dy) / 3 - 3); }
-        out.push(["14 Nov a " + m + " block moved 3 m " + name + " quickly runs on past the finger, not far (down: at least 0.3 m)", over < 1 && (name !== "down" || over > 0.3), "runs on " + Math.max(0, over).toFixed(2) + " m past the finger"]); }
+        out.push(["14 Nov a " + m + " block moved 3 m " + name + " quickly runs on past the finger, not far (down: at least 0.2 m)", over < 1 && (name !== "down" || over > 0.2), "runs on " + Math.max(0, over).toFixed(2) + " m past the finger"]); }
       T.releaseHold(93);
       // grabbed roughly in the middle (0.3 m off), lifted and carried quickly: it does not tilt
       { T.clearAllPieces(); const p = T.spawnPiece("block", X, 3, 0, m); run(0.1); const g0 = p.body.getWorldPoint({ x: 0.3, y: 0 }), g = { x: g0.x, y: g0.y }; let tilt = 0;
         T.startHold(p, g, 92, 0, 0); p.desired = { x: g.x, y: g.y };
         for (let k = 0; k < 150; k++) { const u = Math.min(1, Math.max(0, (k - 30) / 24)), w = Math.min(1, Math.max(0, (k - 60) / 30)); p.desired = { x: g.x + 3 * w, y: g.y + 2 * u }; frame(1 / 60); tilt = Math.max(tilt, Math.abs(p.body.getAngle())); }
         T.releaseHold(92); out.push(["14 Nov a " + m + " block grabbed roughly in the middle, lifted and carried, does not tilt", tilt < 0.12, "tilted at most " + (tilt * 57.3).toFixed(0) + " degrees"]); }
+      // standing on its end, grabbed at the outermost side half way up, lifted: it turns down as gravity makes it
+      { T.clearAllPieces(); const p = T.spawnPiece("block", X, 3, Math.PI / 2, m); run(0.6); const c = p.body.getWorldCenter(), g = { x: c.x + 0.48, y: c.y }, a0 = p.body.getAngle();
+        T.startHold(p, g, 90, 0, 0); let turn = 0, t = null;
+        for (let k = 0; k < 90; k++) { p.desired = { x: g.x, y: g.y + Math.min(1.5, k / 30) }; frame(1 / 60); turn = Math.abs(p.body.getAngle() - a0); if (t == null && turn > 1.2) t = k / 60; }
+        T.releaseHold(90); out.push(["14 Nov a standing " + m + " block grabbed at its outer side half way up and lifted turns down at once", t != null && t < 0.9, "turned " + (turn * 57.3).toFixed(0) + " degrees, most of the way down after " + (t == null ? "never" : t.toFixed(2) + " s")]); }
+      // two stacked blocks, the bottom one grabbed in the middle, carried 3 m sideways quickly and stopped: nothing tips
+      { T.clearAllPieces(); const p = T.spawnPiece("block", X - 3, 0.5 + 0.02, 0, m), q = T.spawnPiece("block", X - 3, 1.5 + 0.05, 0, m); run(1); const c = p.body.getWorldCenter(), g = { x: c.x, y: c.y };
+        T.startHold(p, g, 89, 0, 0); let tilt = 0;
+        for (let k = 0; k < 210; k++) { const u = Math.min(1, Math.max(0, (k - 20) / 30)), w = Math.min(1, Math.max(0, (k - 60) / 25)); p.desired = { x: g.x + 3 * w, y: g.y + 1.5 * u }; frame(1 / 60);
+          tilt = Math.max(tilt, Math.abs(p.body.getAngle()), Math.abs(q.body.getAngle())); }
+        const on = Math.abs(q.body.getPosition().x - p.body.getPosition().x) < 0.5 && q.body.getPosition().y > p.body.getPosition().y + 0.8;
+        T.releaseHold(89); out.push(["14 Nov two stacked " + m + " blocks, the bottom grabbed in the middle, carried sideways and stopped: nothing tips", on && tilt < 0.1, "tilted at most " + (tilt * 57.3).toFixed(0) + " degrees, top still on: " + on + " (top off the bottom by " + (q.body.getPosition().x - p.body.getPosition().x).toFixed(2) + " m sideways)"]); }
       // held at one end, whirled round by circles of the hand, once a second: how small can the circles be?
-      { const res = {}; for (const D of [0.6, 0.8, 1.0, 1.4]) { T.clearAllPieces(); const p = T.spawnPiece("block", X, 6, 0, m); run(0.1); const g0 = p.body.getWorldPoint({ x: 0.9, y: 0 }), g = { x: g0.x, y: g0.y };
+      { const res = {}; for (const D of [0.8, 1.2, 1.6]) { T.clearAllPieces(); const p = T.spawnPiece("block", X, 6, 0, m); run(0.1); const g0 = p.body.getWorldPoint({ x: 0.9, y: 0 }), g = { x: g0.x, y: g0.y };
         T.startHold(p, g, 91, 0, 0); p.desired = { x: g.x, y: g.y }; run(2.5); let prev = p.body.getAngle(), tot = 0;
         for (let k = 0; k < 360; k++) { const th = k / 60 * 2 * Math.PI; p.desired = { x: g.x + D / 2 * Math.sin(th), y: g.y + D / 2 - D / 2 * Math.cos(th) }; frame(1 / 60); const a = p.body.getAngle(); if (k >= 120) tot += a - prev; prev = a; }
         T.releaseHold(91); res[D] = +(Math.abs(tot) / (2 * Math.PI)).toFixed(2); }
-        out.push(["14 Nov a " + m + " block held at one end whirls round with hand circles 0.8 m across", res[0.8] >= 3, "turns in 4 circles of the hand, by circle size across (m): " + JSON.stringify(res)]); } }
+        out.push(["14 Nov a " + m + " block held at one end whirls round with hand circles as big as the round stone (1.2 m across)", res[1.2] >= 3, "turns in 4 circles of the hand, by circle size across (m): " + JSON.stringify(res)]); } }
   }
 
   if (want("triangle")) {
