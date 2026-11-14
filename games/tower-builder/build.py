@@ -17,5 +17,7 @@ out = re.sub(r'"((?:sounds|art)/[^"]+\.(?:mp3|jpg|png))"', embed, out)
 # voice recordings (cues.md section 9): every src/sounds/voice/NN.mp3 that exists plays instead of line NN's text box
 vf = {int(f.stem): "data:audio/mpeg;base64," + base64.b64encode(f.read_bytes()).decode() for f in sorted((here / "src" / "sounds" / "voice").glob("[0-9]*.mp3"))}
 out = out.replace("const VOICE_FILES = {};", "const VOICE_FILES = " + json.dumps(vf) + ";", 1)
+# the cue table (cues.json, version A) goes into the game as it is
+out = out.replace("const CUE_TABLE = null;", "const CUE_TABLE = " + json.dumps(json.loads((here / "cues.json").read_text(encoding="utf-8")), ensure_ascii=False) + ";", 1)
 (here / "tower-builder.html").write_text(out, encoding="utf-8")
 print("wrote tower-builder.html", len(out), "bytes")

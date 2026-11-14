@@ -1,0 +1,42 @@
+# Pattern: cues (voice, glows, the ghost hand, teaching steps, demos)
+
+How every game in this library talks to a child who cannot read: what it says, what it shows, when. First built for Tower Builder (14 Nov 2026); its files are the worked example.
+
+## The files
+
+| File | What it is | Who edits it |
+|---|---|---|
+| `games/<game>/cues.json` | **Version A**, the cue table: the only source of what the game says and shows, and when | Claude, from the owner's comments |
+| `games/<game>/cues.md` | **Version B**, the readable doc, written from A by `python3 tools/cues_doc.py games/<game>/cues.json` | nobody: it is written again after every change to A |
+| `src/index.html`, SECTION CUES | the cue engine: reads A, knows the words A uses | Claude |
+| `tools/harness.py cues` | checks: every name in A is known to the code; each demo does what its lines say; the teaching steps; the owner's own cases | Claude |
+
+The owner reads and comments on B. Every comment becomes a change to A (never to B, never a special case in the code), then B is written again, then the game is built, then the checks run.
+
+## The model (three parts, the same in every game)
+
+1. **Voice.** One line at a time, in the order fired. A line lasts its recording (`sounds/voice/NN.mp3`), or 2 s as a text box with a blue bar running out. Lines belong to the screen they were fired on; leaving it drops what is left. Kinds: `teach` and `queued` wait their turn; `bg` plays only when nothing else is playing or waiting; a flavour line fired with a teaching line at the same moment is dropped. While a step waits for the child, every other line is dropped (an unplayed first time stays unused).
+2. **Attention.** Per cue: `none` (what it points at glows), `point` (while the step waits, the rest darkens and only what it points at, or its `touch` list, can be touched), `freeze` (while the line plays, the rest darkens and the game stops). Use `freeze` and `point` sparingly: only where the child must watch, or must do one thing. The parent override is never held back.
+3. **Steps.** A cue that waits for an action keeps its glows and ghost hand until the action is done, and says its line again 5 s after it ends. An action that ends a step fires nothing else. Steps in a sequence are resumed where the child left them; a step that `needs` something missing (it broke, the game was reloaded) goes `back` to the step that makes it.
+
+Glows start from the thing's own outline (a plank's glow is long), with a slow ring spreading out: yellow, or green/red for a green/red thing. Buttons show pressed while held and act when let go.
+
+## The table (cues.json)
+
+- `rules`: the model and the game's own rules, in the owner's words. `about`, `notes`: free text.
+- `words`: plain meanings of every event, condition, point and field the table uses (B is written from them; the doc tool stops if one is missing). Events also say where the code fires them.
+- `lines`: number → text (player language). `lineNotes`: number → note (changed, record again, ...).
+- `groups`: sets of lines picked at random, never one of the last half played; `bySite` for one set per site; `lineIf` for lines that need a condition.
+- `cues`: one object per cue. `id`, `topic`, `on` (event), `if` (conditions, `not ...`, `done:<cue>`), `once` (`ever`/`site`/`visit`), `kind`, `say` (number, `{bySite}`, `{group}`), `attention`, `points`, `touch`, `show` (`tap X`, `tap3 X`, `drag X > Y`), `wait` (event, or `until:<condition>`), `needs` + `back`, `start`, `after` (line when done), `then` (event when done), `do` (`teaching`, `demo`), `during: "test"`, `delay: "sound:<name>"`, `glow` (seconds, no line), `note`.
+- `sequences`: named step lists (`site`, `steps`, `then`).
+- `demos`: per site, `new` (what the site teaches) and `steps`: `tell N` (line while building), `put ...`, `wait S`, `say N` (line after, game frozen), `pull`, `taps SHAPE`, `fade`.
+
+Every cue on an event fires when its conditions hold (in table order). Alternatives are written as conditions that exclude each other (`done:<cue>`, `not ...`).
+
+## Making cues for a new game
+
+1. List the moments the child meets (enter, pick up, place, fail, win, idle...) as events; give each a line in `words.events` with where the code fires it.
+2. List what a line can talk about as points, and the facts it depends on as conditions.
+3. Write the cues and the first level's teaching steps in A; write B; the owner comments on B.
+4. In the engine, add only the game's vocabularies (conditions, points, the `cueEvent` calls). The voice, attention, steps, sequences and demos parts are copied from the last game until they are moved to a shared library (shared code is taken from finished games, not built ahead).
+5. Checks: the table check (every name known), one test per owner case (his exact actions), and a look at the real game for anything he will see.
