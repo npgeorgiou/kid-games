@@ -669,6 +669,7 @@ Results (`python3 tools/harness.py cuetest`, all pass):
 - The first site has no demo (inside the teaching or on later visits); lines 97 and 123 removed. «Τώρα χτίσε! Γέμισε όλο το σχέδιο.» now follows the shovel's line.
 - The shovel step waits until four of the child's pieces stand in the building. Test first-site-teaching (pieces dragged in by hand, the real shovel button pressed).
 - The cut-off point about line 124 is dropped.
+- Mausoleum demo order: owner, verbatim: "mausoleum ok, forget it". It stays right lintel first, then left.
 
 ## Task list
 
