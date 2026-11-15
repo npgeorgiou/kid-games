@@ -194,7 +194,9 @@
    "testing": "a test is running",
    "piece-resting": "a piece of the child's lies still in the building area",
    "why:headpiece": "the test failed only because the headpiece did not sit well (nothing broke, nothing fell)",
-   "on-map": "the map is showing"
+   "on-map": "the map is showing",
+   "first-openings-site": "this is the first site (in map order) whose outline has openings",
+   "placed-ten": "ten or more of the child's pieces stand in the building"
   },
   "points": {
    "button:test": "the test button",
@@ -214,7 +216,8 @@
    "broken-piece": "where the broken piece was",
    "form": "the wooden forms and supports in the building",
    "side": "the side of the screen (where pieces go out)",
-   "button:restart": "the restart button"
+   "button:restart": "the restart button",
+   "button:undo": "the undo button (top left)"
   },
   "fields": {
    "on": "the event that fires it",
@@ -377,7 +380,8 @@
   "130": "Τώρα ξανά, αλλά ένα ξύλινο δοκάρι θα στηρίζει το ανώφλι, μέχρι να βάλουμε από πάνω πολλές πέτρες, που θα το κρατάνε εκεί με το βάρος τους.",
   "132": "Μπράβο, αυτό γύρισε πίσω στον σωρό!",
   "133": "Η κορωνίδα δεν επικάθισε καλά. Ξαναδοκίμασε!",
-  "134": "Μπορείς και να το σύρεις πίσω στον σωρό. Δοκίμασε!"
+  "134": "Μπορείς και να το σύρεις πίσω στον σωρό. Δοκίμασε!",
+  "135": "Αν κάτι δεν σου αρέσει, πάτα αυτό το κουμπί και η τελευταία σου κίνηση γυρίζει πίσω."
  },
  "lineNotes": {
   "3": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
@@ -404,7 +408,8 @@
   "132": "NEW 15 Nov (owner list of 15 Nov).",
   "133": "NEW 15 Nov (owner list of 15 Nov).",
   "134": "NEW 15 Nov (owner list of 15 Nov).",
-  "129": "CHANGED 15 Nov evening (owner's words): record again if already recorded."
+  "129": "CHANGED 15 Nov evening (owner's words): record again if already recorded.",
+  "135": "NEW 15 Nov evening (owner: the undo button's cue after ten pieces on the first site)."
  },
  "groups": {
   "idle": {
@@ -638,9 +643,10 @@
    "say": 109,
    "topic": "Entering a site",
    "kind": "teach",
-   "if": ["has-openings"],
+   "if": ["has-openings", "first-openings-site"],
    "once": "ever",
-   "points": ["plan:openings"]
+   "points": ["plan:openings"],
+   "note": "Owner 15 Nov: only at the first site whose outline has openings, never later."
   },
   {
    "id": "pick-mudbrick",
@@ -1011,6 +1017,17 @@
    "note": "Pressing the red button here says only this step's line, not line 70."
   },
   {
+   "id": "t-undo",
+   "on": "step",
+   "say": 135,
+   "topic": "First-site teaching",
+   "kind": "teach",
+   "attention": "point",
+   "points": ["button:undo"],
+   "start": "placed-ten",
+   "note": "Owner 15 Nov: after the child has placed ten pieces on the first site. Nothing to do; the line points at the button."
+  },
+  {
    "id": "t-green",
    "on": "step",
    "say": 100,
@@ -1030,7 +1047,7 @@
   "first-site": {
    "site": "mastaba",
    "then": "plan-shown",
-   "steps": ["t-drag-1", "t-tap3", "t-drag-2", "t-dragback", "t-drag-3", "t-shovel", "t-demo", "t-red", "t-green"],
+   "steps": ["t-drag-1", "t-tap3", "t-drag-2", "t-dragback", "t-drag-3", "t-shovel", "t-demo", "t-red", "t-undo", "t-green"],
    "note": "First site, after its welcome line, until the child has done all the steps. Then the child builds alone; the first test, first win and first fail lines are general cues."
   }
  },

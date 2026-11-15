@@ -264,6 +264,7 @@ with sync_playwright() as p:
             print('%-4s %-24s %s'%('PASS' if ok else 'FAIL','map %dx%d'%(vw,vh),json.dumps(r)),flush=True)
         levels=[]
     if 'cuetest' in sys.argv:  # owner 15 Nov: the cue rules as pass/fail tests (what plays first, on time, periodically, never together, once); one line each
+        pg.evaluate('(s)=>{window.__SRC=s}',open(os.path.join(HERE,'..','src','index.html')).read())  # the game's code, for the hook checks
         pg.evaluate(open(os.path.join(HERE,'cue-tests.js')).read())
         names=[a for a in sys.argv[2:] if not a.isdigit() and a!='cuetest']
         res=pg.evaluate('(n)=>__cueTests(n)',names)

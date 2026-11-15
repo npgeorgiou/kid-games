@@ -30,7 +30,7 @@
   const ptr = (type, x, y) => cv().dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, isPrimary: true, pointerType: "mouse", button: 0, buttons: type === "pointerup" ? 0 : 1, bubbles: true }));
   const drag = (a, b, sec = 0.6) => { ptr("pointerdown", a.x, a.y); run(0.05); for (let k = 1; k <= 20; k++) { ptr("pointermove", a.x + ((b.x - a.x) * k) / 20, a.y + ((b.y - a.y) * k) / 20); run(sec / 20); } ptr("pointerup", b.x, b.y); run(0.1); };
   const tap = (a) => { ptr("pointerdown", a.x, a.y); ptr("pointerup", a.x, a.y); run(0.1); };
-  const pileAt = (m) => { const b = T.pileBodies().filter((q) => q.pileItem.material === m && q.pileItem.defKey === "block").sort((u, v) => u.getLinearVelocity().length() - v.getLinearVelocity().length())[0], q = b.getPosition(), r = T.pileBinRect; return { x: r.x + q.x * T.pileScale, y: r.y + r.h - q.y * T.pileScale }; };
+  const pileAt = (m, def = "block") => { const b = T.pileBodies().filter((q) => q.pileItem.material === m && q.pileItem.defKey === def).sort((u, v) => u.getLinearVelocity().length() - v.getLinearVelocity().length())[0], q = b.getPosition(), r = T.pileBinRect; return { x: r.x + q.x * T.pileScale, y: r.y + r.h - q.y * T.pileScale }; };
   const planAt = (x = 0, y = 0.6) => T.worldToScreen(T.LEVEL_X0 + x, y);
   const pieceAt = (p) => { const q = p.body.getPosition(); return T.worldToScreen(q.x, q.y); };
   const sideAt = () => ({ x: T.buildingWidthPx + 60, y: 300 });
@@ -88,28 +88,60 @@
     "first-site-teaching": () => {
       const bad = [], step = (want, why) => { if (seq() !== want) bad.push(why + ": step " + seq() + " (want " + want + ")"); };
       const kids = () => T.pieces.filter((p) => !p.demo && !p.auto);
+      const settle = () => { const s0 = seq(); for (let k = 0; k < 40 && seq() === s0; k++) run(0.1); }; // the child waits until the piece lies still (at most 4 s)
       fresh(); start(0); T.onEnterSite(0); run(3); step("t-drag-1", "after the welcome");
       // 9: a piece let go high up that breaks on landing does not count
       const p0 = put(0, 4); run(0.1); step("t-drag-1", "piece still falling"); T.removePiece(p0); run(8);
       if (said().includes(94)) bad.push("94 said for a piece that broke");
-      drag(pileAt("mudbrick"), planAt()); run(1.5); step("t-tap3", "mudbrick dragged into the plan");
+      drag(pileAt("mudbrick"), planAt()); settle(); step("t-tap3", "mudbrick dragged into the plan");
       const k1 = kids()[0]; if (k1) { const at = pieceAt(k1); tap(at); tap(at); tap(at); } run(3);
       const s7 = said(), i94 = s7.lastIndexOf(94); if (s7[i94 + 1] !== 132) bad.push("after 94 came " + s7[i94 + 1] + " not 132"); // 7
       step("t-drag-2", "after the three taps");
-      drag(pileAt("mudbrick"), planAt()); run(1.5); step("t-dragback", "mudbrick in again (" + kids().map((p) => { const q = p.body.getPosition(), v = p.body.getLinearVelocity(); return [q.x.toFixed(2), q.y.toFixed(2), v.y.toFixed(3), p.heldBy, T.worldToScreen(q.x, 0).x | 0, T.buildingWidthPx | 0].join("/"); }).join(" ") + ")"); // 8
+      drag(pileAt("mudbrick"), planAt()); settle(); step("t-dragback", "mudbrick in again (" + kids().map((p) => { const q = p.body.getPosition(), v = p.body.getLinearVelocity(); return [q.x.toFixed(2), q.y.toFixed(2), v.y.toFixed(3), p.heldBy, T.worldToScreen(q.x, 0).x | 0, T.buildingWidthPx | 0].join("/"); }).join(" ") + ")"); // 8
       const g = T.active.find((q) => q.n === 134 && q.act); if (!g || !g.act.drag) bad.push("no ghost drag for the drag-back");
       const k2 = kids()[0]; if (k2) drag(pieceAt(k2), sideAt()); run(3);
       step("t-drag-3", "dragged back to the pile by hand");
       run(8); step("t-drag-3", "8 s later (no going round again)");
-      drag(pileAt("mudbrick"), planAt()); run(1.5); step("t-shovel", "piece for the shovel");
+      drag(pileAt("mudbrick"), planAt()); settle(); step("t-shovel", "piece for the shovel");
       // 6: the first-time mudbrick line never during the teaching (each drag above picked a mudbrick up)
       T.cueEvent("press-broom"); T.clearAllPieces(); for (let k = 0; k < 300 && (T.demo || k < 4); k++) run(0.5);
-      drag(pileAt("mudbrick"), planAt(-1)); drag(pileAt("mudbrick"), planAt(1)); run(2); step("t-red", "two pieces in");
+      const sol = T.SOLUTIONS.mastaba.slice().sort((a, b) => a[3] - b[3] || a[2] - b[2]), spots = sol.map((e) => T.worldToScreen(T.LEVEL_X0 + e[2], e[3] + 0.7)); // let go a little above its place, as a child does
+      const lay = (k) => drag(pileAt(sol[k][1], sol[k][0]), spots[k]); // the k-th piece of the suggested build, bottom row first
+      lay(0); lay(1); run(2); step("t-red", "two pieces in");
+      T.startTest(); run(0.3); step("t-undo", "red button pressed (waits for ten pieces)");
+      // 15 Nov evening: the undo button's line after ten pieces, pointing at the undo button
+      for (let k = 2; k < 9; k++) { lay(k); run(0.3); } if (said().includes(135)) bad.push("135 before ten pieces");
+      lay(9); run(1.5); if (cur() !== 135 || !glowsOn("undo")) bad.push("ten pieces: line " + cur() + ", undo glows " + glowsOn("undo") + ", pieces in " + kids().length + " pile " + T.pileBodies().filter((b) => b.pileItem.material === "mudbrick").length);
+      run(3); step("t-green", "after the undo line");
       if (said().includes(78)) bad.push("78 said during the teaching");
-      T.startTest(); run(0.3); step("t-green", "red button pressed");
       T.cueMem().seq["first-site"] = "done"; T.newScene(); drag(pileAt("mudbrick"), planAt(2)); run(4);
       if (!said().includes(78)) bad.push("78 not said after the teaching");
       return [!bad.length, bad.join("; ") || said().join(",")];
+    },
+
+    // 15 Nov evening: the "this opening stays empty" line only at the first site whose outline has openings
+    "openings-first-site-only": () => {
+      const withHoles = T.LEVELS.map((L, i) => (L.holes && L.holes.length ? i : -1)).filter((i) => i >= 0), got = [];
+      for (const i of withHoles) { fresh(); noTeach(); start(i); T.newScene(); T.cueEvent("plan-shown"); run(3, false); if (said().includes(109)) got.push(T.LEVELS[i].key); }
+      return [got.length === 1 && got[0] === T.LEVELS[withHoles[0]].key, "said at " + (got.join(",") || "none") + "; first with openings " + T.LEVELS[withHoles[0]].key];
+    },
+
+    // 15 Nov evening, 5: every line is said by some cue, demo or group; every moment the table listens for is one the game's code makes
+    "voice-hooks": () => {
+      const D = T.CUE_TABLE, used = new Set(), bad = [], add = (v) => { if (typeof v === "number") used.add(v); else if (Array.isArray(v)) v.forEach(add); else if (v && typeof v === "object") { if (Array.isArray(v.bySite)) add(v.bySite); if (v.group) add(D.groups[v.group].lines || D.groups[v.group].bySite); } };
+      for (const c of D.cues) { add(c.say); add(c.after); }
+      for (const g of Object.values(D.groups)) { add(g.lines); add(g.bySite); }
+      const ownRecording = new Set(Object.values(D.groups).flatMap((g) => Object.entries(g.lineIf || {}).filter(([, c]) => c === "recorded").map(([n]) => +n))); // the owner's own voice, no text by design
+      for (const dm of Object.values(D.demos)) for (const st of dm.steps) if (st[0] === "tell" || st[0] === "say") add(st[1]);
+      const lines = Object.keys(D.lines).map(Number), unused = lines.filter((n) => !used.has(n)), missing = [...used].filter((n) => !ownRecording.has(n) && (!D.lines[n] || !D.lines[n].trim()));
+      if (unused.length) bad.push("lines no cue says: " + unused.join(","));
+      if (missing.length) bad.push("lines said but without text: " + missing.join(","));
+      const thens = new Set(D.cues.map((c) => c.then).concat(Object.values(D.sequences).map((q) => q.then)).filter(Boolean));
+      const inCode = (ev) => window.__SRC.includes('cueEvent("' + ev + '"') || (["crumble", "snap"].includes(ev) && window.__SRC.includes('onBreak("' + ev + '"'));
+      const deaf = [...new Set(D.cues.map((c) => c.on))].filter((ev) => ev !== "step" && !thens.has(ev) && !inCode(ev));
+      if (deaf.length) bad.push("moments nothing makes: " + deaf.join(","));
+      for (const [n, q] of Object.entries(D.sequences)) for (const id of q.steps) if (!D.cues.some((c) => c.id === id)) bad.push(n + ": no step " + id);
+      return [!bad.length, bad.join("; ") || lines.length + " lines, all used"];
     },
 
     // 15 Nov evening, 2: the boat, the visitors and the other flavour lines play on the map only, never on a site
@@ -237,7 +269,7 @@
         if (k === "mausoleum") {
           const S = T.SOLUTIONS.mausoleum, readies = D[k].steps.filter((s) => s[0] === "ready"), base = (p) => p.slice(1).sort().join();
           if (readies.length !== 2 || base(readies[0]) !== base(readies[1])) bad.push("mausoleum: different bases");
-          if (puts[0] && puts[0].slice(1).some((e) => S[e][1] === "wood")) bad.push("mausoleum: wood in the wrong way");
+          if (puts[0] && puts[0].slice(1).some((e) => (typeof e === "number" ? S[e] : e)[1] === "wood")) bad.push("mausoleum: wood in the wrong way");
           if (rows[0] && rows[0].wood) bad.push("mausoleum: wood standing in the wrong way");
           for (const p of readies) for (const e of p.slice(1)) { const [d, , x, y] = S[e]; if (d === "square" && y < 2) { const on = p.slice(1).filter((f) => S[f][3] < 1).reduce((a, f) => a + Math.max(0, Math.min(x + 0.5, S[f][2] + 1) - Math.max(x - 0.5, S[f][2] - 1)), 0); if (on < 0.99) bad.push("mausoleum: column at " + x + " rests on " + on.toFixed(2) + " of its width"); } }
           if (puts[1] && puts[1].length - 1 >= S.length) bad.push("mausoleum: right way builds everything");

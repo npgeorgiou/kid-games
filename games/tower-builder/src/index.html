@@ -3347,6 +3347,8 @@
     "teaching-pending": (x) => { const s = sequenceOf(x.site); return !!s && cueMem().seq[s] !== "done"; },
     "demo-pending": (x) => { const k = siteKeyOf(x.site), d = CUE_TABLE.demos[k]; return !!(d && d.steps.length && !progress.done[k]); },
     "has-openings": () => !!(grid && grid.holes.length),
+    "first-openings-site": () => currentLevel != null && currentLevel === LEVELS.findIndex((L) => L.holes && L.holes.length),
+    "placed-ten": () => childPieces().filter((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx).length >= 10,
     "has-damaged": () => SITES.some((s) => progress.done[s.key] && progress.done[s.key].broken),
     "all-done": () => LEVELS.every((l) => progress.done[l.key]),
     "opened-next": (x) => x.next != null,

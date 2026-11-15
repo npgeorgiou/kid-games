@@ -54,7 +54,7 @@ Each cue: when it fires, what it says, what it shows, what it waits for. Its nam
 - `resume-teaching` — When the site's welcome line has been said (`intro-done`) (only if the site has teaching steps the child has not finished): Runs the site's teaching steps, from where the child left them. *The site's teaching steps, from where the child left them.*
 - `site-demo` — When the site's welcome line has been said (`intro-done`) (only if not: the site has teaching steps the child has not finished; the site has a demo and is not finished): Plays the site's demo (below). Then → `plan-shown`.
 - `plan-now` — When the site's welcome line has been said (`intro-done`) (only if not: the site has teaching steps the child has not finished; not: the site has a demo and is not finished): Then → `plan-shown`.
-- `openings` — When the site is ready for building (after its welcome, teaching or demo) (`plan-shown`) (only if the plan has an opening (door, arch, space between columns)), once ever: says line 109 «Αυτό το άνοιγμα μένει άδειο. Μην το κλείσεις!» (teaching). Points at the plan's openings.
+- `openings` — When the site is ready for building (after its welcome, teaching or demo) (`plan-shown`) (only if the plan has an opening (door, arch, space between columns); this is the first site (in map order) whose outline has openings), once ever: says line 109 «Αυτό το άνοιγμα μένει άδειο. Μην το κλείσεις!» (teaching). Points at the plan's openings. *Owner 15 Nov: only at the first site whose outline has openings, never later.*
 
 ### Building
 
@@ -103,7 +103,8 @@ First site, after its welcome line, until the child has done all the steps. Then
 6. `t-shovel` — Says line 95 «Πάτα το φτυάρι!» (teaching). Points at the shovel. The rest of the screen darkens while it waits; only the shovel can be touched. Waits until the child presses the shovel; its line comes again 5 s after it ends. The ghost hand taps the shovel. Needs a piece of the child's is in the building area; without it, back to step `t-drag-3`. When done, says line 96 «Το φτυάρι μαζεύει όλα τα κομμάτια και τα γυρίζει στον σωρό. Έτσι ξαναρχίζεις από την αρχή.».
 7. `t-demo` — Plays the site's demo (below). When done, says line 98 «Τώρα χτίσε! Γέμισε όλο το σχέδιο.».
 8. `t-red` — Begins once two pieces lie in the building area. Says line 99 «Αυτό είναι το κουμπί της δοκιμής. Όσο είναι κόκκινο, το κτίριο δεν είναι έτοιμο. Πάτα το και δες τι δεν είναι σωστά τοποθετημένο. Όταν γεμίσεις το σχέδιο, θα γίνει πράσινο.» (teaching). Points at the test button. The rest of the screen darkens while it waits; only the test button can be touched. Waits until the child presses the test button (red or green); its line comes again 5 s after it ends. The ghost hand taps the test button. *Pressing the red button here says only this step's line, not line 70.*
-9. `t-green` — Begins once the test button is green. Says line 100 «Το κουμπί πρασίνισε! Πάτα το να δεις αν το κτίριο αντέχει.» (teaching). Points at the test button. The rest of the screen darkens while it waits; only the test button can be touched. Waits until the test starts (green button); its line comes again 5 s after it ends. The ghost hand taps the test button. Needs the test button is green; without it, back to step `t-green`. *Waits until the button turns green by itself (the child builds alone meanwhile).*
+9. `t-undo` — Begins once ten or more of the child's pieces stand in the building. Says line 135 «Αν κάτι δεν σου αρέσει, πάτα αυτό το κουμπί και η τελευταία σου κίνηση γυρίζει πίσω.» (teaching). Points at the undo button (top left). The rest of the screen darkens while it waits; only the undo button (top left) can be touched. *Owner 15 Nov: after the child has placed ten pieces on the first site. Nothing to do; the line points at the button.*
+10. `t-green` — Begins once the test button is green. Says line 100 «Το κουμπί πρασίνισε! Πάτα το να δεις αν το κτίριο αντέχει.» (teaching). Points at the test button. The rest of the screen darkens while it waits; only the test button can be touched. Waits until the test starts (green button); its line comes again 5 s after it ends. The ghost hand taps the test button. Needs the test button is green; without it, back to step `t-green`. *Waits until the button turns green by itself (the child builds alone meanwhile).*
 
 When all steps are done → `plan-shown`.
 
@@ -258,6 +259,7 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 132. «Μπράβο, αυτό γύρισε πίσω στον σωρό!» — *t-tap3 (when done)* NEW 15 Nov (owner list of 15 Nov).
 133. «Η κορωνίδα δεν επικάθισε καλά. Ξαναδοκίμασε!» — *fail-headpiece* NEW 15 Nov (owner list of 15 Nov).
 134. «Μπορείς και να το σύρεις πίσω στον σωρό. Δοκίμασε!» — *t-dragback* NEW 15 Nov (owner list of 15 Nov).
+135. «Αν κάτι δεν σου αρέσει, πάτα αυτό το κουμπί και η τελευταία σου κίνηση γυρίζει πίσω.» — *t-undo* NEW 15 Nov evening (owner: the undo button's cue after ten pieces on the first site).
 
 ## Words
 
@@ -329,6 +331,8 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `piece-resting`: a piece of the child's lies still in the building area
 - `why:headpiece`: the test failed only because the headpiece did not sit well (nothing broke, nothing fell)
 - `on-map`: the map is showing
+- `first-openings-site`: this is the first site (in map order) whose outline has openings
+- `placed-ten`: ten or more of the child's pieces stand in the building
 
 ### Points
 
@@ -350,6 +354,7 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `form`: the wooden forms and supports in the building
 - `side`: the side of the screen (where pieces go out)
 - `button:restart`: the restart button
+- `button:undo`: the undo button (top left)
 
 ### Fields
 

@@ -647,6 +647,20 @@ Results (`python3 tools/harness.py cuetest`: 24 tests, all pass; the new ones fa
 6. Open: the owner's sentence is cut off.
 7. The loop: dragging a piece into the pile turns it into a pile piece while still held, so the step's "a piece is in the building" check failed mid-drag and the teaching went back a step, and the "dragged back" moment never fired. Now the moment fires when the piece enters the pile, and a held piece counts as the child's. The teaching test now does every step with real pointer drags and taps on the screen. Test first-site-teaching.
 
+## Current state, update 48 (15 Nov 2026 night): owner list of 15 Nov night
+
+Owner's list, verbatim:
+1. "mausoleum demo, first put the one that doest fall, the left lintel, then the right."
+2a. "show the cue for the baps in the outline that shouldnt be filled ONLY, at the first level we seem them."
+2b. "make the return button cue, afther the kid has placed 10 blocks on the first level."
+5. "double check your voice cues, and if theya re at the right code hooks, etch, because I will start recording"
+
+Results (`python3 tools/harness.py cuetest`: 26 tests, all pass):
+1. Not built, a question to the owner: with the left lintel first, the right one tips and jams against the left one's end (tried with gaps of 4, 15 and 25 cm); it drops 15-30 cm and hangs tilted instead of falling. The demo keeps right first, then left.
+2a. Line 109 («Αυτό το άνοιγμα μένει άδειο…») only at the first site whose outline has openings. Test openings-first-site-only.
+2b. Reading: "return button" = the undo button (top left). New teaching step after the red button: when ten of the child's pieces stand in the building, line 135 «Αν κάτι δεν σου αρέσει, πάτα αυτό το κουμπί και η τελευταία σου κίνηση γυρίζει πίσω.» with the undo button glowing; then the green-button step. Test first-site-teaching (ten pieces laid by hand from the suggested build).
+5. New test voice-hooks: every line is said by a cue, a demo or a group; every moment the table listens for is made by the game's code or by another cue; every teaching step exists. Line 86 is the owner's own recording (no text). All lines with numbers are in `cues.md`.
+
 ## Task list
 
 No open items.
