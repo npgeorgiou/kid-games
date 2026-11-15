@@ -678,6 +678,16 @@ Owner's words: "1. when I ahve 3 std stone blocks on teh flooer, and I truyto pu
 - 3: done. Every friction 20% higher: wood 0.6, mudbrick 0.84, stone 0.72, ground 0.96, test loads 0.72 (walls and the sidebar pile unchanged). All ten levels still pass their test; every wrong choice still fails.
 - 1 and 2: not built; proposal sent to the owner, waiting for his yes. Cause found in the hand code: the arm pushes only as hard as it needs to speed up the piece it holds (plus what rests on it); the other pieces it pushes are not counted. Pulling a piece by a point beyond its middle (towards where it goes) counts as a rope pull and gets far more strength. So the same push works or not depending on which half of the piece was grabbed. Proposal: count the pieces it pushes the same way as the pieces resting on it, so pushing gets the effort the whole row needs (up to the arm's strength), wherever the piece is grabbed.
 
+## Current state, update 50 (15 Nov 2026 night): owner cue list
+
+Owner, verbatim: "we need some more work on cues: explain somehow that the dotted outline should not be filled. ALSO, at some playtesting i did, the lvl1 failed at the wind test, and then at the secont test effort, it suceeded allt ests, but there was no bubble for the ehadpiece and earhquake, so you ahve to make them appear not just on the first est, but on teir first eppearance isntance. also cnage to "O plithos thrimmatistike apo to varos" to "Nai, oi plihtoi spane, den einai geroi san petra"."
+
+Results (`python3 tools/harness.py cuetest`, 28 tests, all pass):
+- Dotted outline: a new teaching step on the first site, after «Τώρα χτίσε!»: line 136 «Βλέπεις τις τελείες; Εκεί θα κατέβει η κορωνίδα στη δοκιμή. Μην χτίσεις μέσα τους.» with the dotted outline glowing. And whenever the child lets a piece go inside it (once per visit): line 137 «Οι τελείες μένουν άδειες! Εκεί θα κατέβει η κορωνίδα.» Tests first-site-teaching, dotted-outline-covered.
+- The wind, headpiece and earthquake explanations each play the first time that part of the test is reached, whichever test that is. Test test-explained-at-first-reach (the owner's case: the first test fails in the wind, the second passes and explains the headpiece and the earthquake).
+- Line 72 is «Ναι, οι πλίνθοι σπάνε, δεν είναι γεροί σαν πέτρα.»
+- Found while testing: input timing (taps, the pile settling, the button turning green, the parent key) ran on the computer's clock, so test runs could differ; it now runs on the game's own frame clock. Same for the player.
+
 ## Task list
 
 No open items.

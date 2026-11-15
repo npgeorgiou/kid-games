@@ -58,11 +58,12 @@ Each cue: when it fires, what it says, what it shows, what it waits for. Its nam
 
 ### Building
 
+- `load-covered` — When the child lets go of a piece over the building (`placed-in-plan`) (only if a piece lies inside the dotted outline; not: a test is running), once per visit: says line 137 «Οι τελείες μένουν άδειες! Εκεί θα κατέβει η κορωνίδα.» (queued). Points at the dotted outline where the headpiece comes down in the test. *A piece let go inside the dotted outline, once per visit.*
 - `pick-mudbrick` — When the child picks up a piece (`pickup`) (only if the piece is mudbrick), once ever: says line 78 «Πλίνθοι από λάσπη: ελαφριοί, μα δεν αντέχουν μεγάλο βάρος.» (teaching).
 - `pick-stone` — When the child picks up a piece (`pickup`) (only if the piece is stone), once ever: says line 79 «Η πέτρα είναι βαριά, μα αιώνια.» (teaching).
 - `pick-wood` — When the child picks up a piece (`pickup`) (only if the piece is wood), once ever: says line 80 «Το ξύλο γεφυρώνει κενά, μα σπάει αν το φορτώσεις πολύ.» (teaching). *The Mastaba pile already has wood (its wrong choice), so it can first play there.*
-- `crumble-first` — When a mudbrick crumbles (`crumble`) (only if not: a test is running), once ever: says line 72 «Η λάσπη θρυμματίστηκε κάτω από το βάρος.» (teaching). Points at where the broken piece was. The screen darkens and the game freezes while it plays.
-- `crumble-again` — When a mudbrick crumbles (`crumble`) (only if cue crumble-first has already played; not: a test is running), once per visit: says line 72 «Η λάσπη θρυμματίστηκε κάτω από το βάρος.» (background, only if nothing else is playing or waiting).
+- `crumble-first` — When a mudbrick crumbles (`crumble`) (only if not: a test is running), once ever: says line 72 «Ναι, οι πλίνθοι σπάνε, δεν είναι γεροί σαν πέτρα.» (teaching). Points at where the broken piece was. The screen darkens and the game freezes while it plays.
+- `crumble-again` — When a mudbrick crumbles (`crumble`) (only if cue crumble-first has already played; not: a test is running), once per visit: says line 72 «Ναι, οι πλίνθοι σπάνε, δεν είναι γεροί σαν πέτρα.» (background, only if nothing else is playing or waiting).
 - `snap-first` — When a wooden piece snaps (`snap`) (only if not: a test is running), once ever: says line 73 «Το ξύλο έσπασε πάνω από το κενό.» (teaching). Points at where the broken piece was. The screen darkens and the game freezes while it plays.
 - `snap-again` — When a wooden piece snaps (`snap`) (only if cue snap-first has already played; not: a test is running), once per visit: says line 73 «Το ξύλο έσπασε πάνω από το κενό.» (background, only if nothing else is playing or waiting).
 - `pile-empty` — When the pile is empty and the button is still red (`pile-empty-red`), once ever: says line 107 «Τελείωσαν τα κομμάτια. Με το φτυάρι τα μαζεύεις όλα και ξαναρχίζεις.» (teaching). Points at the shovel.
@@ -72,9 +73,9 @@ Each cue: when it fires, what it says, what it shows, what it waits for. Its nam
 ### Test
 
 - `test-start` — When the test starts (green button) (`test-start`): says line 71 «Ας δούμε αν θα αντέξει!» (queued, may play during a test).
-- `explain-wind` — When a part of the test begins: wind, load or earthquake (`test-part`) (only if the part is the wind; no test has been explained before this one (a test whose explanations were dropped does not count)), once ever: says line 101 «Πρώτα έρχεται ο άνεμος. Θα σπρώξει το κτίριο από τη μια μεριά κι από την άλλη.» (teaching, may play during a test). The screen darkens and the game freezes while it plays.
-- `explain-load` — When a part of the test begins: wind, load or earthquake (`test-part`) (only if the part is the load; no test has been explained before this one (a test whose explanations were dropped does not count)), once ever: says line 102 «Τώρα θα κατέβει ένα βάρος πάνω στο κτίριο. Θα το αντέξει;» (teaching, may play during a test). The screen darkens and the game freezes while it plays.
-- `explain-quake` — When a part of the test begins: wind, load or earthquake (`test-part`) (only if the part is the earthquake; no test has been explained before this one (a test whose explanations were dropped does not count)), once ever: says line 103 «Και τώρα σεισμός! Η γη θα τρέμει.» (teaching, may play during a test). The screen darkens and the game freezes while it plays.
+- `explain-wind` — When a part of the test begins: wind, load or earthquake (`test-part`) (only if the part is the wind), once ever: says line 101 «Πρώτα έρχεται ο άνεμος. Θα σπρώξει το κτίριο από τη μια μεριά κι από την άλλη.» (teaching, may play during a test). The screen darkens and the game freezes while it plays. *Owner 15 Nov night: at the first time this part of the test is reached, whichever test that is (a test that failed earlier does not use it up).*
+- `explain-load` — When a part of the test begins: wind, load or earthquake (`test-part`) (only if the part is the load), once ever: says line 102 «Τώρα θα κατέβει ένα βάρος πάνω στο κτίριο. Θα το αντέξει;» (teaching, may play during a test). The screen darkens and the game freezes while it plays. *Owner 15 Nov night: at the first time this part of the test is reached, whichever test that is (a test that failed earlier does not use it up).*
+- `explain-quake` — When a part of the test begins: wind, load or earthquake (`test-part`) (only if the part is the earthquake), once ever: says line 103 «Και τώρα σεισμός! Η γη θα τρέμει.» (teaching, may play during a test). The screen darkens and the game freezes while it plays. *Owner 15 Nov night: at the first time this part of the test is reached, whichever test that is (a test that failed earlier does not use it up).*
 - `fail-wind-first` — When the test fails in a part (`test-fail`) (only if the part is the wind), once ever: says line 74 «Ο άνεμος το γκρέμισε. Ξαναδοκίμασε!» (teaching, may play during a test, after the fail sound). Points at the red place of a failed test. Then → `fail-explain`.
 - `fail-wind` — When the test fails in a part (`test-fail`) (only if the part is the wind; cue fail-wind-first has already played): says line 74 «Ο άνεμος το γκρέμισε. Ξαναδοκίμασε!» (queued, may play during a test, after the fail sound).
 - `fail-load-first` — When the test fails in a part (`test-fail`) (only if the part is the load; not: the test failed only because the headpiece did not sit well (nothing broke, nothing fell)), once ever: says line 75 «Δεν άντεξε το βάρος. Ξαναδοκίμασε!» (teaching, may play during a test, after the fail sound). Points at the red place of a failed test. Then → `fail-explain`.
@@ -102,9 +103,10 @@ First site, after its welcome line, until the child has done all the steps. Then
 5. `t-drag-3` — Says line 93 «Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.» (teaching). Points at one mudbrick of the pile, the plan (the building's outline). The rest of the screen darkens while it waits; only the whole pile, the plan (the building's outline) can be touched. Waits until a piece of the child's lies still in the building area; its line comes again 5 s after it ends. The ghost hand drags one mudbrick of the pile to the place of the first piece in the suggested build. *Again, so there is something for the shovel.*
 6. `t-shovel` — Begins once four or more of the child's pieces stand in the building. Says line 95 «Πάτα το φτυάρι!» (teaching). Points at the shovel. The rest of the screen darkens while it waits; only the shovel can be touched. Waits until the child presses the shovel; its line comes again 5 s after it ends. The ghost hand taps the shovel. Needs a piece of the child's is in the building area; without it, back to step `t-drag-3`. When done, says line 96 «Το φτυάρι μαζεύει όλα τα κομμάτια και τα γυρίζει στον σωρό. Έτσι ξαναρχίζεις από την αρχή.». *Owner 15 Nov night: once four of the child's pieces stand in the building.*
 7. `t-build` — Says line 98 «Τώρα χτίσε! Γέμισε όλο το σχέδιο.» (teaching). *Owner 15 Nov night: the first site has no demo; this line follows the shovel.*
-8. `t-red` — Begins once two pieces lie in the building area. Says line 99 «Αυτό είναι το κουμπί της δοκιμής. Όσο είναι κόκκινο, το κτίριο δεν είναι έτοιμο. Πάτα το και δες τι δεν είναι σωστά τοποθετημένο. Όταν γεμίσεις το σχέδιο, θα γίνει πράσινο.» (teaching). Points at the test button. The rest of the screen darkens while it waits; only the test button can be touched. Waits until the child presses the test button (red or green); its line comes again 5 s after it ends. The ghost hand taps the test button. *Pressing the red button here says only this step's line, not line 70.*
-9. `t-undo` — Begins once ten or more of the child's pieces stand in the building. Says line 135 «Αν κάτι δεν σου αρέσει, πάτα αυτό το κουμπί και η τελευταία σου κίνηση γυρίζει πίσω.» (teaching). Points at the undo button (top left). The rest of the screen darkens while it waits; only the undo button (top left) can be touched. *Owner 15 Nov: after the child has placed ten pieces on the first site. Nothing to do; the line points at the button.*
-10. `t-green` — Begins once the test button is green. Says line 100 «Το κουμπί πρασίνισε! Πάτα το να δεις αν το κτίριο αντέχει.» (teaching). Points at the test button. The rest of the screen darkens while it waits; only the test button can be touched. Waits until the test starts (green button); its line comes again 5 s after it ends. The ghost hand taps the test button. Needs the test button is green; without it, back to step `t-green`. *Waits until the button turns green by itself (the child builds alone meanwhile).*
+8. `t-load` — Says line 136 «Βλέπεις τις τελείες; Εκεί θα κατέβει η κορωνίδα στη δοκιμή. Μην χτίσεις μέσα τους.» (teaching). Points at the dotted outline where the headpiece comes down in the test. The rest of the screen darkens while it waits; only the dotted outline where the headpiece comes down in the test can be touched. *Owner 15 Nov night: the dotted outline is not filled. Nothing to do; the line points at it.*
+9. `t-red` — Begins once two pieces lie in the building area. Says line 99 «Αυτό είναι το κουμπί της δοκιμής. Όσο είναι κόκκινο, το κτίριο δεν είναι έτοιμο. Πάτα το και δες τι δεν είναι σωστά τοποθετημένο. Όταν γεμίσεις το σχέδιο, θα γίνει πράσινο.» (teaching). Points at the test button. The rest of the screen darkens while it waits; only the test button can be touched. Waits until the child presses the test button (red or green); its line comes again 5 s after it ends. The ghost hand taps the test button. *Pressing the red button here says only this step's line, not line 70.*
+10. `t-undo` — Begins once ten or more of the child's pieces stand in the building. Says line 135 «Αν κάτι δεν σου αρέσει, πάτα αυτό το κουμπί και η τελευταία σου κίνηση γυρίζει πίσω.» (teaching). Points at the undo button (top left). The rest of the screen darkens while it waits; only the undo button (top left) can be touched. *Owner 15 Nov: after the child has placed ten pieces on the first site. Nothing to do; the line points at the button.*
+11. `t-green` — Begins once the test button is green. Says line 100 «Το κουμπί πρασίνισε! Πάτα το να δεις αν το κτίριο αντέχει.» (teaching). Points at the test button. The rest of the screen darkens while it waits; only the test button can be touched. Waits until the test starts (green button); its line comes again 5 s after it ends. The ghost hand taps the test button. Needs the test button is green; without it, back to step `t-green`. *Waits until the button turns green by itself (the child builds alone meanwhile).*
 
 When all steps are done → `plan-shown`.
 
@@ -200,7 +202,7 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 69. «Στέκει ακόμα σήμερα, κι από κάτω του περνούν κάθε μέρα άνθρωποι βιαστικοί. Λίγοι σηκώνουν τα μάτια, μα οι καμάρες περιμένουν, όπως περιμένουν εδώ και χίλια εξακόσια χρόνια.» — *site-fact (Valens)*
 70. «Θέλει σουλούπωμα ακόμα.» — *red-press* CHANGED 14 Nov evening (owner).
 71. «Ας δούμε αν θα αντέξει!» — *test-start*
-72. «Η λάσπη θρυμματίστηκε κάτω από το βάρος.» — *crumble-first, crumble-again*
+72. «Ναι, οι πλίνθοι σπάνε, δεν είναι γεροί σαν πέτρα.» — *crumble-first, crumble-again* CHANGED 15 Nov night (owner's words): record again if already recorded.
 73. «Το ξύλο έσπασε πάνω από το κενό.» — *snap-first, snap-again*
 74. «Ο άνεμος το γκρέμισε. Ξαναδοκίμασε!» — *fail-wind-first, fail-wind*
 75. «Δεν άντεξε το βάρος. Ξαναδοκίμασε!» — *fail-load-first, fail-load*
@@ -258,6 +260,8 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 133. «Η κορωνίδα δεν επικάθισε καλά. Ξαναδοκίμασε!» — *fail-headpiece* NEW 15 Nov (owner list of 15 Nov).
 134. «Μπορείς και να το σύρεις πίσω στον σωρό. Δοκίμασε!» — *t-dragback* NEW 15 Nov (owner list of 15 Nov).
 135. «Αν κάτι δεν σου αρέσει, πάτα αυτό το κουμπί και η τελευταία σου κίνηση γυρίζει πίσω.» — *t-undo* NEW 15 Nov evening (owner: the undo button's cue after ten pieces on the first site).
+136. «Βλέπεις τις τελείες; Εκεί θα κατέβει η κορωνίδα στη δοκιμή. Μην χτίσεις μέσα τους.» — *t-load* NEW 15 Nov night (owner: explain that the dotted outline is not filled).
+137. «Οι τελείες μένουν άδειες! Εκεί θα κατέβει η κορωνίδα.» — *load-covered* NEW 15 Nov night (owner: explain that the dotted outline is not filled).
 
 ## Words
 
@@ -315,7 +319,6 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `part:wind`: the part is the wind
 - `part:load`: the part is the load
 - `part:quake`: the part is the earthquake
-- `first-test`: no test has been explained before this one (a test whose explanations were dropped does not count)
 - `plan-has-piece`: a piece of the child's is in the building area
 - `plan-has-two`: two pieces lie in the building area
 - `test-ready`: the test button is green
@@ -332,6 +335,7 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `first-openings-site`: this is the first site (in map order) whose outline has openings
 - `placed:4`: four or more of the child's pieces stand in the building
 - `placed:10`: ten or more of the child's pieces stand in the building
+- `load-covered`: a piece lies inside the dotted outline
 
 ### Points
 
@@ -354,6 +358,7 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `side`: the side of the screen (where pieces go out)
 - `button:restart`: the restart button
 - `button:undo`: the undo button (top left)
+- `plan:load`: the dotted outline where the headpiece comes down in the test
 
 ### Fields
 

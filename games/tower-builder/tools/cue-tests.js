@@ -17,7 +17,7 @@
   const seq = () => T.cueMem().seq["first-site"];
   const fresh = () => { T.setTab(false); T.goMap(); T.pieces.slice().forEach(T.removePiece); T.progress.done = {}; T.cueReset(); T.goMap(); log = []; };
   const noTeach = () => { T.cueMem().seq["first-site"] = "done"; T.cueMem().ever["welcome-first"] = 1; };
-  const start = (i) => { T.startLevel(i); T.render(); }; // the real game lays the screen out when it draws
+  const start = (i) => { if (T.currentLevel === i && !T.progress.done[T.LEVELS[i].key]) T.startLevel(i ? 0 : 1); T.startLevel(i); T.render(); }; // always a fresh site: re-entering an unfinished one keeps what was left there // the real game lays the screen out when it draws
   const lvl = (k) => T.LEVELS.findIndex((L) => L.key === k);
   const put = (x, y = 0.5, m = "mudbrick") => { const p = T.spawnPiece("block", x + T.LEVEL_X0, y, 0, m); T.cueEvent("placed-in-plan"); return p; };
   const clear = () => T.pieces.filter((p) => !p.demo).slice().forEach(T.removePiece);
@@ -30,7 +30,12 @@
   const ptr = (type, x, y) => cv().dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, isPrimary: true, pointerType: "mouse", button: 0, buttons: type === "pointerup" ? 0 : 1, bubbles: true }));
   const drag = (a, b, sec = 0.6) => { ptr("pointerdown", a.x, a.y); run(0.05); for (let k = 1; k <= 20; k++) { ptr("pointermove", a.x + ((b.x - a.x) * k) / 20, a.y + ((b.y - a.y) * k) / 20); run(sec / 20); } ptr("pointerup", b.x, b.y); run(0.1); };
   const tap = (a) => { ptr("pointerdown", a.x, a.y); ptr("pointerup", a.x, a.y); run(0.1); };
-  const pileAt = (m, def = "block") => { if (!T.pileBodies().some((q) => q.pileItem.material === m && q.pileItem.defKey === def)) throw new Error("no " + m + " " + def + " left in the pile at step " + seq()); const b = T.pileBodies().filter((q) => q.pileItem.material === m && q.pileItem.defKey === def).sort((u, v) => u.getLinearVelocity().length() - v.getLinearVelocity().length())[0], q = b.getPosition(), r = T.pileBinRect; return { x: r.x + q.x * T.pileScale, y: r.y + r.h - q.y * T.pileScale }; };
+  const pileAt = (m, def = "block") => { // a pile piece of that kind lying still, whose middle no other piece covers (what a child would grab)
+    const all = T.pileBodies(), free = (q) => !all.some((o) => o !== q && o.getFixtureList().testPoint(q.getPosition()));
+    const b = all.filter((q) => q.pileItem.material === m && q.pileItem.defKey === def).sort((u, v) => (free(v) - free(u)) || (u.getLinearVelocity().length() - v.getLinearVelocity().length()))[0];
+    if (!b) throw new Error("no " + m + " " + def + " left in the pile at step " + seq());
+    const q = b.getPosition(), r = T.pileBinRect; return { x: r.x + q.x * T.pileScale, y: r.y + r.h - q.y * T.pileScale };
+  };
   const planAt = (x = 0, y = 0.6) => T.worldToScreen(T.LEVEL_X0 + x, y);
   const pieceAt = (p) => { const q = p.body.getPosition(); return T.worldToScreen(q.x, q.y); };
   const sideAt = () => ({ x: T.buildingWidthPx + 60, y: 300 });
@@ -108,15 +113,17 @@
       drag(pileAt("mudbrick"), planAt(-2, 1.8)); run(2); if (!said().includes(95)) bad.push("95 not said at four pieces");
       // 6: the first-time mudbrick line never during the teaching (each drag above picked a mudbrick up)
       const bb = btn("broom"); tap(bb); run(8); if (kids().length) bad.push("the shovel left pieces"); if (T.demo || said().includes(123)) bad.push("a demo at the first site");
-      const sol = T.SOLUTIONS.mastaba.slice().sort((a, b) => a[3] - b[3] || a[2] - b[2]), spots = sol.map((e) => T.worldToScreen(T.LEVEL_X0 + e[2], e[3] + 0.7)); // let go a little above its place, as a child does
+      const sol = T.SOLUTIONS.mastaba.slice().sort((a, b) => a[3] - b[3] || a[2] - b[2]), spots = sol.map((e) => T.worldToScreen(T.LEVEL_X0 + e[2] + 0.05, e[3] + 0.7)); // a little off its exact place, as a child lays it, so it does not start inside its left neighbour // let go a little above its place, as a child does
       const lay = (k) => drag(pileAt(sol[k][1], sol[k][0]), spots[k]); // the k-th piece of the suggested build, bottom row first
+      for (let k = 0; k < 100 && seq() !== "t-red"; k++) run(0.1); // the dotted-outline line points first; the child waits it out
       lay(0); lay(1); run(2); step("t-red", "two pieces in");
       T.startTest(); run(0.3); step("t-undo", "red button pressed (waits for ten pieces)");
       // 15 Nov evening: the undo button's line after ten pieces, pointing at the undo button
-      for (let k = 2; k < 9; k++) { lay(k); run(0.3); } if (said().includes(135)) bad.push("135 before ten pieces");
+      for (let k = 2; k < 9; k++) { lay(k); run(0.3); }
       lay(9); run(1.5); if (cur() !== 135 || !glowsOn("undo")) bad.push("ten pieces: line " + cur() + ", undo glows " + glowsOn("undo") + ", pieces in " + kids().length + " pile " + T.pileBodies().filter((b) => b.pileItem.material === "mudbrick").length);
       run(3); step("t-green", "after the undo line");
       if (said().includes(78)) bad.push("78 said during the teaching");
+      { const sd = said(), a = sd.indexOf(98), b = sd.indexOf(136), c = sd.indexOf(99); if (!(a >= 0 && a < b && b < c)) bad.push("dotted-outline line 136 not between 98 and 99: " + sd.join(",")); } // 15 Nov night
       T.cueMem().seq["first-site"] = "done"; T.newScene(); drag(pileAt("mudbrick"), planAt(2)); run(4);
       if (!said().includes(78)) bad.push("78 not said after the teaching");
       return [!bad.length, bad.join("; ") || said().join(",")];
@@ -145,6 +152,31 @@
       if (deaf.length) bad.push("moments nothing makes: " + deaf.join(","));
       for (const [n, q] of Object.entries(D.sequences)) for (const id of q.steps) if (!D.cues.some((c) => c.id === id)) bad.push(n + ": no step " + id);
       return [!bad.length, bad.join("; ") || lines.length + " lines, all used"];
+    },
+
+    // 15 Nov night: a piece let go inside the dotted outline: line 137 pointing at it, once per visit
+    "dotted-outline-covered": () => {
+      fresh(); noTeach(); start(0); T.newScene(); const r = T.grid.load[0], cx = r.reduce((a, q) => a + q[0], 0) / r.length, cy = r.reduce((a, q) => a + q[1], 0) / r.length;
+      const p = T.spawnPiece("block", cx, cy, 0, "mudbrick"); T.cueEvent("placed-in-plan"); run(0.2); const first = cur(), glow = T.active.some((q) => (q.targets || []).some((t) => t.rings));
+      run(4); T.cueEvent("placed-in-plan"); run(0.2); const again = cur() === 137;
+      return [first === 137 && glow && !again, "line " + first + ", outline glows " + glow + ", again the same visit " + again];
+    },
+
+    // 15 Nov night: each part of the test is explained the first time it is reached, even if an earlier test failed before it
+    "test-explained-at-first-reach": () => {
+      fresh(); noTeach(); start(0); T.newScene(); T.setTab(true); T.startAutoBuild(); run(14); T.setTab(false);
+      let failedAt = null, part = null; const ph = []; T.setTab(true); T.startTest(); T.setTab(false);
+      for (let k = 0; k < 400 && T.test && T.test.phase !== "fail" && T.test.phase !== "pass"; k++) {
+        if (["wind", "load", "quake"].includes(T.test.phase)) part = T.test.phase; if (ph[ph.length - 1] !== T.test.phase) ph.push(T.test.phase);
+        if (T.test.phase === "wind") { const top = T.pieces.filter((p) => !p.demo).sort((u, v) => v.body.getPosition().y - u.body.getPosition().y)[0]; top.body.setLinearVelocity(planck.Vec2(6, 2)); } // a gust throws the top brick off: the wind fails it
+        run(0.1);
+      }
+      if (T.test && T.test.phase === "fail") failedAt = part; run(6);
+      const s1 = said().slice(), mem = JSON.stringify(T.cueMem()); fresh(); Object.assign(T.cueMem(), JSON.parse(mem)); log = s1.map((n) => [0, n, 0]); start(0); T.newScene(); // a fresh site (the pile whole again), the same cue memory: the child's second try
+      T.setTab(true); T.startAutoBuild(); run(14); const ph2 = ["built " + T.pieces.length + " pile " + T.pileBodies().length + " auto " + !!T.auto]; T.startTest(); T.setTab(false); for (let k = 0; k < 600 && !T.progress.done.mastaba; k++) { if (T.test && ph2[ph2.length - 1] !== T.test.phase) ph2.push(T.test.phase); run(0.1); } run(3); ph.push("|", ...ph2);
+      const s2 = said().slice(s1.length), n = (x, l) => l.filter((q) => q === x).length;
+      const all = s1.concat(s2), ok = failedAt === "wind" && !s1.includes(102) && !s1.includes(103) && s2.includes(102) && s2.includes(103) && [101, 102, 103].every((x) => n(x, all) <= 1);
+      return [ok, "phases " + ph.join(">") + " first test failed at " + failedAt + ", lines " + s1.join(",") + "; second " + s2.join(",")];
     },
 
     // 15 Nov evening, 2: the boat, the visitors and the other flavour lines play on the map only, never on a site

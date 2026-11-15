@@ -181,7 +181,6 @@
    "part:wind": "the part is the wind",
    "part:load": "the part is the load",
    "part:quake": "the part is the earthquake",
-   "first-test": "no test has been explained before this one (a test whose explanations were dropped does not count)",
    "plan-has-piece": "a piece of the child's is in the building area",
    "plan-has-two": "two pieces lie in the building area",
    "test-ready": "the test button is green",
@@ -197,7 +196,8 @@
    "on-map": "the map is showing",
    "first-openings-site": "this is the first site (in map order) whose outline has openings",
    "placed:4": "four or more of the child's pieces stand in the building",
-   "placed:10": "ten or more of the child's pieces stand in the building"
+   "placed:10": "ten or more of the child's pieces stand in the building",
+   "load-covered": "a piece lies inside the dotted outline"
   },
   "points": {
    "button:test": "the test button",
@@ -218,7 +218,8 @@
    "form": "the wooden forms and supports in the building",
    "side": "the side of the screen (where pieces go out)",
    "button:restart": "the restart button",
-   "button:undo": "the undo button (top left)"
+   "button:undo": "the undo button (top left)",
+   "plan:load": "the dotted outline where the headpiece comes down in the test"
   },
   "fields": {
    "on": "the event that fires it",
@@ -324,7 +325,7 @@
   "69": "Στέκει ακόμα σήμερα, κι από κάτω του περνούν κάθε μέρα άνθρωποι βιαστικοί. Λίγοι σηκώνουν τα μάτια, μα οι καμάρες περιμένουν, όπως περιμένουν εδώ και χίλια εξακόσια χρόνια.",
   "70": "Θέλει σουλούπωμα ακόμα.",
   "71": "Ας δούμε αν θα αντέξει!",
-  "72": "Η λάσπη θρυμματίστηκε κάτω από το βάρος.",
+  "72": "Ναι, οι πλίνθοι σπάνε, δεν είναι γεροί σαν πέτρα.",
   "73": "Το ξύλο έσπασε πάνω από το κενό.",
   "74": "Ο άνεμος το γκρέμισε. Ξαναδοκίμασε!",
   "75": "Δεν άντεξε το βάρος. Ξαναδοκίμασε!",
@@ -380,7 +381,9 @@
   "132": "Μπράβο, αυτό γύρισε πίσω στον σωρό!",
   "133": "Η κορωνίδα δεν επικάθισε καλά. Ξαναδοκίμασε!",
   "134": "Μπορείς και να το σύρεις πίσω στον σωρό. Δοκίμασε!",
-  "135": "Αν κάτι δεν σου αρέσει, πάτα αυτό το κουμπί και η τελευταία σου κίνηση γυρίζει πίσω."
+  "135": "Αν κάτι δεν σου αρέσει, πάτα αυτό το κουμπί και η τελευταία σου κίνηση γυρίζει πίσω.",
+  "136": "Βλέπεις τις τελείες; Εκεί θα κατέβει η κορωνίδα στη δοκιμή. Μην χτίσεις μέσα τους.",
+  "137": "Οι τελείες μένουν άδειες! Εκεί θα κατέβει η κορωνίδα."
  },
  "lineNotes": {
   "3": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
@@ -408,7 +411,10 @@
   "133": "NEW 15 Nov (owner list of 15 Nov).",
   "134": "NEW 15 Nov (owner list of 15 Nov).",
   "129": "CHANGED 15 Nov evening (owner's words): record again if already recorded.",
-  "135": "NEW 15 Nov evening (owner: the undo button's cue after ten pieces on the first site)."
+  "135": "NEW 15 Nov evening (owner: the undo button's cue after ten pieces on the first site).",
+  "72": "CHANGED 15 Nov night (owner's words): record again if already recorded.",
+  "136": "NEW 15 Nov night (owner: explain that the dotted outline is not filled).",
+  "137": "NEW 15 Nov night (owner: explain that the dotted outline is not filled)."
  },
  "groups": {
   "idle": {
@@ -648,6 +654,16 @@
    "note": "Owner 15 Nov: only at the first site whose outline has openings, never later."
   },
   {
+   "id": "load-covered",
+   "on": "placed-in-plan",
+   "say": 137,
+   "topic": "Building",
+   "if": ["load-covered", "not testing"],
+   "once": "visit",
+   "points": ["plan:load"],
+   "note": "A piece let go inside the dotted outline, once per visit."
+  },
+  {
    "id": "pick-mudbrick",
    "on": "pickup",
    "say": 78,
@@ -759,10 +775,11 @@
    "say": 101,
    "topic": "Test",
    "kind": "teach",
-   "if": ["part:wind", "first-test"],
+   "if": ["part:wind"],
    "during": "test",
    "attention": "freeze",
-   "once": "ever"
+   "once": "ever",
+   "note": "Owner 15 Nov night: at the first time this part of the test is reached, whichever test that is (a test that failed earlier does not use it up)."
   },
   {
    "id": "explain-load",
@@ -770,10 +787,11 @@
    "say": 102,
    "topic": "Test",
    "kind": "teach",
-   "if": ["part:load", "first-test"],
+   "if": ["part:load"],
    "during": "test",
    "attention": "freeze",
-   "once": "ever"
+   "once": "ever",
+   "note": "Owner 15 Nov night: at the first time this part of the test is reached, whichever test that is (a test that failed earlier does not use it up)."
   },
   {
    "id": "explain-quake",
@@ -781,10 +799,11 @@
    "say": 103,
    "topic": "Test",
    "kind": "teach",
-   "if": ["part:quake", "first-test"],
+   "if": ["part:quake"],
    "during": "test",
    "attention": "freeze",
-   "once": "ever"
+   "once": "ever",
+   "note": "Owner 15 Nov night: at the first time this part of the test is reached, whichever test that is (a test that failed earlier does not use it up)."
   },
   {
    "id": "fail-wind-first",
@@ -1006,6 +1025,16 @@
    "note": "Owner 15 Nov night: the first site has no demo; this line follows the shovel."
   },
   {
+   "id": "t-load",
+   "on": "step",
+   "say": 136,
+   "topic": "First-site teaching",
+   "kind": "teach",
+   "attention": "point",
+   "points": ["plan:load"],
+   "note": "Owner 15 Nov night: the dotted outline is not filled. Nothing to do; the line points at it."
+  },
+  {
    "id": "t-red",
    "on": "step",
    "say": 99,
@@ -1049,7 +1078,7 @@
   "first-site": {
    "site": "mastaba",
    "then": "plan-shown",
-   "steps": ["t-drag-1", "t-tap3", "t-drag-2", "t-dragback", "t-drag-3", "t-shovel", "t-build", "t-red", "t-undo", "t-green"],
+   "steps": ["t-drag-1", "t-tap3", "t-drag-2", "t-dragback", "t-drag-3", "t-shovel", "t-build", "t-load", "t-red", "t-undo", "t-green"],
    "note": "First site, after its welcome line, until the child has done all the steps. Then the child builds alone; the first test, first win and first fail lines are general cues."
   }
  },

@@ -883,7 +883,7 @@
       piece,
       lastX: clientX,
       lastY: clientY,
-      lastMoveTime: performance.now(),
+      lastMoveTime: gameNow(),
     });
   }
 
@@ -951,7 +951,7 @@
     if (px < buildingWidthPx && py < buildingHeightPx) {
       const worldPt = screenToWorld(px, py);
       const piece = hitPiece(worldPt);
-      if (piece) { startHold(piece, worldPt, e.pointerId, px, py); const h = pointers.get(e.pointerId); if (h) { h.downAt = performance.now(); h.downX = px; h.downY = py; } }
+      if (piece) { startHold(piece, worldPt, e.pointerId, px, py); const h = pointers.get(e.pointerId); if (h) { h.downAt = gameNow(); h.downX = px; h.downY = py; } }
     }
   }
 
@@ -973,7 +973,7 @@
     if (!hand || !hand.piece || !hand.piece.controlMode) return;
     hand.lastX = e.clientX;
     hand.lastY = e.clientY;
-    hand.lastMoveTime = performance.now();
+    hand.lastMoveTime = gameNow();
     hand.piece.desired = screenToWorld(e.clientX, e.clientY);
   }
 
@@ -989,8 +989,8 @@
     const piece = hand.piece, had = piece && pieces.includes(piece);
     releaseHold(e.pointerId);
     // three quick taps on a piece take it away: back into the pile (levels) or gone (free play)
-    if (piece && hand.downAt && performance.now() - hand.downAt < 350 && Math.hypot(e.clientX - hand.downX, e.clientY - hand.downY) < 15 && !test) {
-      const now = performance.now();
+    if (piece && hand.downAt && gameNow() - hand.downAt < 350 && Math.hypot(e.clientX - hand.downX, e.clientY - hand.downY) < 15 && !test) {
+      const now = gameNow();
       piece.taps = (piece.taps || []).filter((t) => now - t < 900);
       piece.taps.push(now);
       if (piece.taps.length >= 3 && pieces.includes(piece)) {
@@ -1511,7 +1511,7 @@
   function feelContact(contact, impulse, pile) {
     const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
     const n = Math.max(...impulse.normalImpulses.slice(0, contact.getManifold().pointCount));
-    if (pile && performance.now() < pileQuietUntil) return; // pieces settling into a freshly filled pile
+    if (pile && gameNow() < pileQuietUntil) return; // pieces settling into a freshly filled pile
     const item = (b) => (pile ? b.pileItem : b.piece);
     const isGround = (b) => (pile ? b.isStatic() : b === groundBody);
     let played = false; // one sound per collision, even when both pieces react
@@ -1521,7 +1521,7 @@
       const dv = Math.min(n / (b.getMass() || 1), contact.tbVn || 0); // speed change this contact caused, m/s, at most the closing speed
       if (dv < 1.2) continue;
       feelHits[pile ? 1 : 0]++; // test counter (tools/harness.py)
-      const now = performance.now();
+      const now = gameNow();
       if (now - (lastImpact.get(b) || 0) < 250) continue;
       lastImpact.set(b, now);
       const wm = new planck.WorldManifold(); contact.getWorldManifold(wm);
@@ -1894,7 +1894,7 @@
     [pileScale, places] = pileLayout(items, r, pilePx);
     const W = r.w / pileScale, H = r.h / pileScale;
     const walls = (pileWalls = pileWorld.createBody({ type: "static" }));
-    pileQuietUntil = performance.now() + 1500;
+    pileQuietUntil = gameNow() + 1500;
     walls.createFixture({ shape: planck.Box(W, 0.5, planck.Vec2(W / 2, -0.5), 0), friction: 0.8 });
     walls.createFixture({ shape: planck.Box(0.5, H * 3, planck.Vec2(-0.5, H * 1.5), 0), friction: 0.3 });
     walls.createFixture({ shape: planck.Box(0.5, H * 3, planck.Vec2(W + 0.5, H * 1.5), 0), friction: 0.3 });
@@ -2228,12 +2228,12 @@
   // It stays on for 3 seconds after Ctrl is let go: laptop touchpads ignore clicks while a key is held.
   let tabDown = false, tabUpAt = -Infinity;
   window.addEventListener("keydown", (e) => { if (e.key === "Control") { e.preventDefault(); tabDown = true; } }); // owner: Ctrl, not Tab
-  window.addEventListener("keyup", (e) => { if (e.key === "Control") { tabDown = false; tabUpAt = performance.now(); } });
-  window.addEventListener("blur", () => { if (tabDown) { tabDown = false; tabUpAt = performance.now(); } });
+  window.addEventListener("keyup", (e) => { if (e.key === "Control") { tabDown = false; tabUpAt = gameNow(); } });
+  window.addEventListener("blur", () => { if (tabDown) { tabDown = false; tabUpAt = gameNow(); } });
   const TAB_LATCH = 3000;
-  const tabHeldNow = () => tabDown || performance.now() - tabUpAt < TAB_LATCH;
+  const tabHeldNow = () => tabDown || gameNow() - tabUpAt < TAB_LATCH;
   let mapEnteredAt = 0; // a Ctrl latch from before the map was shown does not open every site on it
-  const tabOnMap = () => tabDown || (tabUpAt > mapEnteredAt && performance.now() - tabUpAt < TAB_LATCH);
+  const tabOnMap = () => tabDown || (tabUpAt > mapEnteredAt && gameNow() - tabUpAt < TAB_LATCH);
   function levelOpen(i) {
     return i >= 0 && (allOpen || (mode === "map" ? tabOnMap() : tabHeldNow()) || i === 0 || !!progress.done[LEVELS[i - 1].key]);
   }
@@ -2386,7 +2386,7 @@
     return true;
   }
   function testReady() {
-    return currentLevel != null && !test && !auto && pointers.size === 0 && readySince != null && performance.now() - readySince >= READY_HOLD * 1000;
+    return currentLevel != null && !test && !auto && pointers.size === 0 && readySince != null && gameNow() - readySince >= READY_HOLD * 1000;
   }
   // A finished site whose headpiece is no longer in its place (taken off, fallen, shovelled away) is not finished:
   // the map shows it red and see-through, as it is now, and nobody visits it. Fixing it means passing the test again.
@@ -2406,17 +2406,17 @@
     const testing = !!test; // leaving mid-test: a pass is saved by the test itself, anything else is undone
     const leftTest = testing && test.phase !== "pass";
     cancelAuto(); releaseAllPointers(); abortTest(); if (!testing) syncSite(true);
-    mode = "map"; mapEnteredAt = performance.now();
+    mode = "map"; mapEnteredAt = gameNow();
     onGoMap(currentLevel, leftTest);
   }
   function updateCheck(dt) {
-    if (failShow && failShow.until != null && performance.now() > failShow.until) failShow = null;
+    if (failShow && failShow.until != null && gameNow() > failShow.until) failShow = null;
     if (currentLevel == null || test) return;
     checkTimer -= dt;
     if (checkTimer <= 0) {
       check = runCheck(); checkTimer = 0.25; syncSite(false);
       const ok = pointers.size === 0 && !auto && checkPasses(check) && piecesAtRest();
-      readySince = ok ? (readySince != null ? readySince : performance.now()) : null;
+      readySince = ok ? (readySince != null ? readySince : gameNow()) : null;
     }
   }
 
@@ -2562,7 +2562,7 @@
       // grey button pressed: show why it is not ready yet
       if (pointers.size === 0) {
         check = runCheck();
-        failShow = { cells: failingCells(check, CHECK.fill), loads: [], loadZone: check.load > CHECK.loadCells, unfilled: true, until: performance.now() + PHASE_TIME.why * 1000 };
+        failShow = { cells: failingCells(check, CHECK.fill), loads: [], loadZone: check.load > CHECK.loadCells, unfilled: true, until: gameNow() + PHASE_TIME.why * 1000 };
         playSound("not-ready", 1);
         onRedPress();
       }
@@ -3355,7 +3355,7 @@
     "on-map": () => mode === "map",
     "testing": () => !!test,
     "piece-resting": () => childPieces().some((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx && touching(p.body) && Math.hypot(p.body.getLinearVelocity().x, p.body.getLinearVelocity().y) < 0.05 && Math.abs(p.body.getAngularVelocity()) < 0.05),
-    "first-test": () => !!(test && test.first),
+    "load-covered": () => !!grid && runCheck().load > 0,
     "plan-has-piece": () => pieces.some((p) => !p.demo && !p.auto && (!p.ghost || p.heldBy != null)), // a piece in the child's hand is still his, even while it passes over others or the pile
     "plan-has-two": () => childPieces().filter((p) => p.heldBy == null).length >= 2,
     "test-ready": () => testReady(),
@@ -3461,6 +3461,7 @@
   }
   function finish(c) { if (c.fin) return; c.fin = true; if (c.then) c.then(); }
   const waiting = (c) => !!((c.waitEvent || c.waitUntil) && !c.fin && !c.done && !(c.waitUntil && cond(c.waitUntil)));
+  function gameNow() { return cueClock * 1000; } // game time in ms (the frame clock): input, the pile and the button go by it, so a test run repeats exactly
   function cueTick(dt) {
     cueFrame++; cueClock += dt;
     const now = cueClock, c = voice.cur;
@@ -3574,6 +3575,7 @@
       if (v === "pieces") return [{ planPieces: true }];
       if (v === "last-piece") return [{ lastPiece: true }];
       if (v === "openings") return [{ rings: grid.holes }];
+      if (v === "load") return [{ rings: grid.load }];
       if (v === "first-place") {
         const one = memo.one && memo.one.pileItem, sol = SOLUTIONS[siteKeyOf(x.site)] || [];
         const sp = sol.find((q) => one && q[0] === one.defKey && q[1] === one.material) || sol.find((q) => q[0] !== "pull") || [0, 0, 0, 0.5];
@@ -3697,7 +3699,6 @@
   function onBreak(kind, p) { if (!p.demo && !demo) cueEvent(kind, { piece: p }); }
   function onRedPress() { if (!cueEvent("press-test").ended) cueEvent("press-red"); }
   function onTestStart() { // lines still waiting from the building are dropped (first times stay unused): after the test they would be stale
-    test.first = !isMarked("ever:explain-wind");
     voice.queue = voice.queue.filter((q) => { if (q.duringTest) return true; setMark(q.onceKey, false); return false; });
     if (!cueEvent("press-test").ended) cueEvent("test-start");
   }
