@@ -671,6 +671,13 @@ Results (`python3 tools/harness.py cuetest`, all pass):
 - The cut-off point about line 124 is dropped.
 - Mausoleum demo order: owner, verbatim: "mausoleum ok, forget it". It stays right lintel first, then left.
 
+## Current state, update 50 (15 Nov 2026 night): physics list
+
+Owner's words: "1. when I ahve 3 std stone blocks on teh flooer, and I truyto push them all by pushing one of the outside ones, like a train, its not always they drag. sometimes they do, sometimes they dont move. 2. 3 mudbricks ina perfect pyramid setup (2 bot, 1 top right in the middle) cant be pushed horizontally on the floor, when grabbed from the outer middle aprt of any of the base bricks. from the inner middle part, it can. 3. I want you to change friction and make it 20% bigger, becasue I think its too low now."
+
+- 3: done. Every friction 20% higher: wood 0.6, mudbrick 0.84, stone 0.72, ground 0.96, test loads 0.72 (walls and the sidebar pile unchanged). All ten levels still pass their test; every wrong choice still fails.
+- 1 and 2: not built; proposal sent to the owner, waiting for his yes. Cause found in the hand code: the arm pushes only as hard as it needs to speed up the piece it holds (plus what rests on it); the other pieces it pushes are not counted. Pulling a piece by a point beyond its middle (towards where it goes) counts as a rope pull and gets far more strength. So the same push works or not depending on which half of the piece was grabbed. Proposal: count the pieces it pushes the same way as the pieces resting on it, so pushing gets the effort the whole row needs (up to the arm's strength), wherever the piece is grabbed.
+
 ## Task list
 
 No open items.

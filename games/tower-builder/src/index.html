@@ -446,10 +446,10 @@
   const PLAIN = { stone: "#89939b", stoneLine: "#4d5962", marble: "#e4dfd4", marbleLine: "#8e887c", wood: "#c9a36b", mudbrick: "#ad7f52", mudbrickLine: "#5b3b20" };
   const TEX_BUTTON = [["silver-sandstone", "stone"], ["wood", "wood"], ["mudbrick", "mudbrick"], ["marble", "marble"]]; // the textures button's little wall: texture, plain colour
   const MATERIALS = {
-    wood:  { label: "WOOD",  density: 1.1,  friction: 0.5,  restitution: 0.015 },
+    wood:  { label: "WOOD",  density: 1.1,  friction: 0.6,  restitution: 0.015 },
     // mudbrick: between wood and stone in weight; crumbles under heavy weight (SECTION BREAKING)
-    mudbrick: { label: "MUDBRICK", density: 3.2, friction: 0.7, restitution: 0.0 },
-    stone: { label: "STONE", density: 5.0,  friction: 0.6,  restitution: 0.0 },
+    mudbrick: { label: "MUDBRICK", density: 3.2, friction: 0.84, restitution: 0.0 },
+    stone: { label: "STONE", density: 5.0,  friction: 0.72, restitution: 0.0 }, // frictions 20% higher (owner 15 Nov)
   };
   let selectedMaterial = "wood";
 
@@ -566,7 +566,7 @@
     groundBody = world.createBody({ type: "kinematic", position: planck.Vec2(WORLD_CENTER_X, -2) });
     groundBody.createFixture({
       shape: planck.Box(40, 2),
-      friction: 0.8,
+      friction: 0.96, // owner 15 Nov: all friction 20% higher
       filterCategoryBits: SOLID_CAT,
     });
     anchorBody = world.createBody({ type: "static" });
@@ -2451,7 +2451,7 @@
       }
       (done.loads || []).forEach(([x, y, a, verts], k) => { // the load stays where it was left; its place is the level's
         const body = world.createBody({ type: "dynamic", position: planck.Vec2(x, y), angle: a });
-        body.createFixture({ shape: planck.Polygon(verts.map(([vx, vy]) => planck.Vec2(vx, vy))), density: loadDensity(i, k, verts), friction: 0.6, restitution: 0 });
+        body.createFixture({ shape: planck.Polygon(verts.map(([vx, vy]) => planck.Vec2(vx, vy))), density: loadDensity(i, k, verts), friction: 0.72, restitution: 0 });
         body.isLoad = true;
         const [tx, ty] = grid.load[k] ? ringCentre(grid.load[k]) : [x, y];
         loads.push({ body, tx, ty, verts, released: true });
@@ -2716,7 +2716,7 @@
       // starts just above the top of the screen and is lowered all the way
       const top = screenToWorld(0, 0).y, low = Math.min(...verts.map((v) => v[1]));
       const body = world.createBody({ type: "kinematic", position: planck.Vec2(cx, Math.max(cy + LOAD_DROP, top - low + 0.1)) });
-      body.createFixture({ shape: planck.Polygon(verts.map(([x, y]) => planck.Vec2(x, y))), density: loadDensity(currentLevel, k, verts), friction: 0.6, restitution: 0 });
+      body.createFixture({ shape: planck.Polygon(verts.map(([x, y]) => planck.Vec2(x, y))), density: loadDensity(currentLevel, k, verts), friction: 0.72, restitution: 0 });
       body.isLoad = true;
       body.setLinearVelocity(planck.Vec2(0, -LOAD_SPEED));
       return { body, tx: cx, ty: cy, verts, released: false };
