@@ -124,8 +124,8 @@
     },
     // Level outline (screen-pixel paths): the building's shape, its openings kept clear.
     outline(ctx, solid, holes, guides) {
-      ctx.fillStyle = "rgba(255, 244, 214, 0.6)"; ctx.fill(solid);
-      ctx.fillStyle = "#bfe3f0"; ctx.fill(holes);
+      const shape = new Path2D(solid); shape.addPath(holes); // the openings cut out, so the sky shows through them
+      ctx.fillStyle = "rgba(255, 244, 214, 0.6)"; ctx.fill(shape, "evenodd");
       ctx.strokeStyle = "#8a6d3b"; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
       ctx.stroke(solid); ctx.stroke(holes); ctx.setLineDash([]);
       if (guides) { ctx.lineWidth = 1; ctx.strokeStyle = "rgba(138, 109, 59, 0.6)"; ctx.stroke(guides); } // thin lines: where the arch stones go
@@ -1259,8 +1259,8 @@
   // Skies (owner 15 Nov, test): each site's own day sky while it is being built, chosen to stand out from that site's materials
   // (colour difference against mudbrick, wood and its stone, textured and plain); a finished site shows the next night sky in a
   // rotation from sunset to early sunrise, one step for every visit to a finished site. Pictures: "18 Gradient Skies (640x480)", supplied by the owner.
-  const SKY_DAY = { mastaba: "ken", djoser: "aug", ziggurat: "bah", liongate: "sno", karnak: "dro", ishtar: "air", parthenon: "omb", mausoleum: "sno", pharos: "day", valens: "omb" };
-  const SKY_NIGHT = ["son", "ice", "dus", "nac", "twi", "mon", "cit", "mor", "ora"];
+  const SKY_DAY = { mastaba: "ken", djoser: "aug", ziggurat: "bah", liongate: "sno", karnak: "dro", ishtar: "air", parthenon: "air", mausoleum: "sno", pharos: "day", valens: "aug" }; // owner 15 Nov: omb is a night sky
+  const SKY_NIGHT = ["son", "ice", "omb", "dus", "nac", "twi", "mon", "cit", "mor", "ora"];
   const SKY_ART = { ken: "art/skies/ken.png", aug: "art/skies/aug.png", bah: "art/skies/bah.png", sno: "art/skies/sno.png", dro: "art/skies/dro.png", air: "art/skies/air.png", omb: "art/skies/omb.png", day: "art/skies/day.png", son: "art/skies/son.png", ice: "art/skies/ice.png", dus: "art/skies/dus.png", nac: "art/skies/nac.png", twi: "art/skies/twi.png", mon: "art/skies/mon.png", cit: "art/skies/cit.png", mor: "art/skies/mor.png", ora: "art/skies/ora.png" }, skyImg = {};
   for (const k in SKY_ART) skyImg[k] = Object.assign(new Image(), { src: SKY_ART[k] });
   let skyNow = null; // the sky of the site on screen (null: free play, the plain blue)

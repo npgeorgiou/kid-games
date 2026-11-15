@@ -709,6 +709,9 @@ Owner, verbatim: "can you make a test file where you add these gradients for fil
 
 Built: the owner's 18 gradients (src/art/skies, 160x120 copies). Day skies by colour difference from each site's mudbrick, wood and stone (textured and plain), at least about 20 (CIE Lab): mastaba ken, djoser aug, ziggurat bah, liongate sno, karnak dro, ishtar air, parthenon omb, mausoleum sno, pharos day, valens omb (8 skies, sno and omb twice: only five skies stand out from marble). Left out of the day: ora (too close to sandstone, wood and mudbrick), sen (too close to everything). Night rotation, one step per visit to a finished site, saved: son, ice, dus, nac, twi, mon, cit, mor, ora. Picture owner-shots/skies-15nov-test.png.
 
+Owner, verbatim: "the gaps in the building outline should also get that overlay. also, the overlay you chose for acropolis and valens, should be a night overlay."
+Done: openings in the outline are cut out, so the sky shows through them (they were painted plain blue). omb moved to the night rotation (after ice); day skies now parthenon air, valens aug (air, aug and sno each used twice). Picture owner-shots/skies-15nov-test-2.png.
+
 ## Task list
 
 No open items.
