@@ -25,6 +25,15 @@
   const pixel = (x, y) => { if (T.mode === "map") T.renderMap(0); else T.render(); T.drawCues(); const d = document.querySelector("canvas").getContext("2d").getImageData(Math.round(x), Math.round(y), 1, 1).data; return [d[0], d[1], d[2]]; };
   const rgb = (h) => h.startsWith("#") ? [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) : h.split(",").map(Number);
   const near = (a, b, d) => a.every((v, i) => Math.abs(v - b[i]) <= d);
+  // the child's own hand: pointer events on the game's canvas, moved in small steps while the game runs (about 0.6 s per drag)
+  const cv = () => document.querySelector("canvas");
+  const ptr = (type, x, y) => cv().dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, isPrimary: true, pointerType: "mouse", button: 0, buttons: type === "pointerup" ? 0 : 1, bubbles: true }));
+  const drag = (a, b, sec = 0.6) => { ptr("pointerdown", a.x, a.y); run(0.05); for (let k = 1; k <= 20; k++) { ptr("pointermove", a.x + ((b.x - a.x) * k) / 20, a.y + ((b.y - a.y) * k) / 20); run(sec / 20); } ptr("pointerup", b.x, b.y); run(0.1); };
+  const tap = (a) => { ptr("pointerdown", a.x, a.y); ptr("pointerup", a.x, a.y); run(0.1); };
+  const pileAt = (m) => { const b = T.pileBodies().filter((q) => q.pileItem.material === m && q.pileItem.defKey === "block").sort((u, v) => u.getLinearVelocity().length() - v.getLinearVelocity().length())[0], q = b.getPosition(), r = T.pileBinRect; return { x: r.x + q.x * T.pileScale, y: r.y + r.h - q.y * T.pileScale }; };
+  const planAt = (x = 0, y = 0.6) => T.worldToScreen(T.LEVEL_X0 + x, y);
+  const pieceAt = (p) => { const q = p.body.getPosition(); return T.worldToScreen(q.x, q.y); };
+  const sideAt = () => ({ x: T.buildingWidthPx + 60, y: 300 });
   const btn = (id) => T.screenButtons().find((b) => b.id === id);
 
   const tests = {
@@ -75,33 +84,43 @@
       return [!pile && !uses108 && !said().includes(108), `pile or plan glow ${pile}, line 108 in table ${uses108}`];
     },
 
-    // list 15 Nov, 6-9: the first site's teaching, by the child's own actions
+    // list 15 Nov, 6-9 and 15 Nov evening, 7: the first site's teaching, done with the child's own drags and taps
     "first-site-teaching": () => {
       const bad = [], step = (want, why) => { if (seq() !== want) bad.push(why + ": step " + seq() + " (want " + want + ")"); };
+      const kids = () => T.pieces.filter((p) => !p.demo && !p.auto);
       fresh(); start(0); T.onEnterSite(0); run(3); step("t-drag-1", "after the welcome");
-      T.cueEvent("pickup", { material: "mudbrick" }); run(0.2);
-      // 9: a piece let go high up is still falling: the step waits; it breaks on landing: the tap-3 line must not come
-      const p = put(0, 4); run(0.1); step("t-drag-1", "piece still falling"); T.removePiece(p); run(8);
+      // 9: a piece let go high up that breaks on landing does not count
+      const p0 = put(0, 4); run(0.1); step("t-drag-1", "piece still falling"); T.removePiece(p0); run(8);
       if (said().includes(94)) bad.push("94 said for a piece that broke");
-      step("t-drag-1", "piece broke");
-      put(0); run(1); step("t-tap3", "piece resting in the plan");
-      T.cueEvent("tap3"); clear(); run(0.2);
-      // 7: praise right after the three taps
-      run(3); const s7 = said(), i94 = s7.lastIndexOf(94); if (s7[i94 + 1] !== 132) bad.push("after 94 came " + s7[i94 + 1] + " not 132");
-      step("t-drag-2", "after the taps"); put(0); run(1);
-      // 8: drag it back to the pile, shown by the ghost hand
-      step("t-dragback", "piece in again"); run(0.5);
+      drag(pileAt("mudbrick"), planAt()); run(1.5); step("t-tap3", "mudbrick dragged into the plan");
+      const k1 = kids()[0]; if (k1) { const at = pieceAt(k1); tap(at); tap(at); tap(at); } run(3);
+      const s7 = said(), i94 = s7.lastIndexOf(94); if (s7[i94 + 1] !== 132) bad.push("after 94 came " + s7[i94 + 1] + " not 132"); // 7
+      step("t-drag-2", "after the three taps");
+      drag(pileAt("mudbrick"), planAt()); run(1.5); step("t-dragback", "mudbrick in again (" + kids().map((p) => { const q = p.body.getPosition(), v = p.body.getLinearVelocity(); return [q.x.toFixed(2), q.y.toFixed(2), v.y.toFixed(3), p.heldBy, T.worldToScreen(q.x, 0).x | 0, T.buildingWidthPx | 0].join("/"); }).join(" ") + ")"); // 8
       const g = T.active.find((q) => q.n === 134 && q.act); if (!g || !g.act.drag) bad.push("no ghost drag for the drag-back");
-      T.cueEvent("drag-back"); clear(); run(3); step("t-drag-3", "after the drag-back"); put(0); run(1); step("t-shovel", "piece for the shovel");
-      // 6: the first-time mudbrick line never during the teaching, even between steps
-      T.cueEvent("press-broom"); T.clearAllPieces(); for (let k = 0; k < 300 && (T.demo || k < 4); k++) { T.cueEvent("pickup", { material: "mudbrick" }); run(0.5); }
-      put(-1); put(1); run(2); T.cueEvent("pickup", { material: "mudbrick" }); run(1); step("t-red", "two pieces in");
+      const k2 = kids()[0]; if (k2) drag(pieceAt(k2), sideAt()); run(3);
+      step("t-drag-3", "dragged back to the pile by hand");
+      run(8); step("t-drag-3", "8 s later (no going round again)");
+      drag(pileAt("mudbrick"), planAt()); run(1.5); step("t-shovel", "piece for the shovel");
+      // 6: the first-time mudbrick line never during the teaching (each drag above picked a mudbrick up)
+      T.cueEvent("press-broom"); T.clearAllPieces(); for (let k = 0; k < 300 && (T.demo || k < 4); k++) run(0.5);
+      drag(pileAt("mudbrick"), planAt(-1)); drag(pileAt("mudbrick"), planAt(1)); run(2); step("t-red", "two pieces in");
       if (said().includes(78)) bad.push("78 said during the teaching");
       T.startTest(); run(0.3); step("t-green", "red button pressed");
-      T.cueMem().seq["first-site"] = "done"; T.newScene(); T.cueEvent("pickup", { material: "mudbrick" }); run(4);
+      T.cueMem().seq["first-site"] = "done"; T.newScene(); drag(pileAt("mudbrick"), planAt(2)); run(4);
       if (!said().includes(78)) bad.push("78 not said after the teaching");
       return [!bad.length, bad.join("; ") || said().join(",")];
     },
+
+    // 15 Nov evening, 2: the boat, the visitors and the other flavour lines play on the map only, never on a site
+    "flavour-only-on-map": () => {
+      fresh(); noTeach(); T.progress.done.mastaba = { pieces: [] }; start(lvl("djoser")); T.newScene(); log = []; run(130);
+      const idle = T.CUE_TABLE.groups.idle.lines, onSite = said().filter((n) => idle.includes(n));
+      return [!onSite.length, "on a site: " + (onSite.join(",") || "none")];
+    },
+
+    // 15 Nov evening, 3: the Pharos outline shows where the wood goes, and the button stays red without it
+    "pharos-wood-places": () => { fresh(); start(lvl("pharos")); return [T.grid.wood.length > 0 && T.grid.L.woodRole === "courses", T.grid.wood.length + " wood places"]; },
 
     // list 15 Nov, 10: the darkening never covers what a step points at (the map button, the plan)
     "darkening-spares-target": () => {
@@ -187,19 +206,26 @@
       for (const k of ["djoser", "ziggurat", "mausoleum", "ishtar", "karnak", "mastaba"]) {
         if (!D[k].steps.length) continue;
         fresh(); noTeach(); const i = lvl(k); start(i); T.onEnterSite(i); for (let n = 0; n < 60 && !T.demo; n++) run(0.1);
-        const rows = []; let carriedOut = false, tapped = false, crumbled = 0;
+        const rows = []; let carriedOut = false, tapped = false, through = 0, carried = 0, wasFade = false, curP = null;
         const removeOrig = T.removePiece;
         for (let n = 0; n < 60 * 240 && T.demo; n++) {
           const c0 = T.voice.cur, nd = T.pieces.filter((p) => p.demo).length; run(1 / 60);
           if (T.demo && T.demo.cur && T.demo.cur.out) carriedOut = true; if (T.demo && T.demo.tap) tapped = true;
-          const c = T.voice.cur;
-          if (c && c !== c0 && c.demo && c.attention === "freeze") {
-            const ps = T.pieces.filter((p) => p.demo && p.placedY != null);
-            rows.push({ n: c.n, mud: ps.filter((p) => p.material === "mudbrick").length, fell: Math.max(0, ...ps.filter((p) => p.defKey === "beam").map((p) => p.placedY - p.body.getPosition().y)) });
+          const cp = T.demo && T.demo.cur && T.demo.cur.piece; if (cp && cp !== curP) carried++; curP = cp;
+          const c = T.demo && T.demo.cur, far = c && Math.hypot(c.tx - cp.body.getPosition().x, c.ty - cp.body.getPosition().y) > 0.3; // on the way, not settling into its place
+          if (cp && far) { // points well inside the carried piece (its corners pulled a quarter of the way to its centre) inside another piece: passing through, not touching
+            const b = cp.body, c0 = b.getWorldCenter(), pts = [c0];
+            for (let f = b.getFixtureList(); f; f = f.getNext()) for (const v of (f.getShape().m_vertices || [])) { const w = b.getWorldPoint(v); pts.push({ x: w.x + (c0.x - w.x) * 0.25, y: w.y + (c0.y - w.y) * 0.25 }); }
+            for (const o of T.pieces.filter((p) => p.demo && p !== cp)) for (let g = o.body.getFixtureList(); g; g = g.getNext()) if (pts.some((q) => g.testPoint(planck.Vec2(q.x, q.y)))) through++;
           }
+          const fading = !!(T.demo && T.demo.ops[0] && T.demo.ops[0][0] === "fade");
+          if (fading && !wasFade) { const ps = T.pieces.filter((p) => p.demo && p.placedY != null); rows.push({ mud: ps.filter((p) => p.material === "mudbrick").length, wood: ps.filter((p) => p.material === "wood").length, fell: Math.max(0, ...ps.filter((p) => p.defKey === "beam").map((p) => p.placedY - p.body.getPosition().y)) }); }
+          wasFade = fading;
         }
         if (T.demo) bad.push(k + " stuck");
         if (carriedOut) bad.push(k + ": a support was carried out");
+        if (through) bad.push(k + ": a carried piece passed through another (" + through + " frames)");
+        const nPut = D[k].steps.filter((s) => s[0] === "put").reduce((a, s) => a + s.length - 1, 0); if (carried !== nPut) bad.push(k + ": carried " + carried + " pieces, the table puts " + nPut);
         const puts = D[k].steps.filter((s) => s[0] === "put");
         if (k === "djoser" || k === "ziggurat") {
           const top = (p) => p.slice(1).filter((e) => e[3] > 1 && e[0] === "block").map((e) => e[0] + e[1]).sort().join(); // what stands on the bottom row (the plank aside)
@@ -209,11 +235,13 @@
           if (!(rows[1] && rows[1].mud === want[1])) bad.push(k + ": right way crumbled (" + JSON.stringify(rows[1]) + ")");
         }
         if (k === "mausoleum") {
-          const S = T.SOLUTIONS.mausoleum, base = (p) => p.slice(1).filter((e) => S[e][3] < 3.5 && S[e][1] !== "wood").sort().join();
-          if (puts.length !== 2 || base(puts[0]) !== base(puts[1])) bad.push("mausoleum: different bases");
-          for (const p of puts) for (const e of p.slice(1)) { const [d, , x, y] = S[e]; if (d === "square" && y < 2) { const on = p.slice(1).filter((f) => S[f][3] < 1).reduce((a, f) => a + Math.max(0, Math.min(x + 0.5, S[f][2] + 1) - Math.max(x - 0.5, S[f][2] - 1)), 0); if (on < 0.99) bad.push("mausoleum: column at " + x + " rests on " + on.toFixed(2) + " of its width"); } }
+          const S = T.SOLUTIONS.mausoleum, readies = D[k].steps.filter((s) => s[0] === "ready"), base = (p) => p.slice(1).sort().join();
+          if (readies.length !== 2 || base(readies[0]) !== base(readies[1])) bad.push("mausoleum: different bases");
+          if (puts[0] && puts[0].slice(1).some((e) => S[e][1] === "wood")) bad.push("mausoleum: wood in the wrong way");
+          if (rows[0] && rows[0].wood) bad.push("mausoleum: wood standing in the wrong way");
+          for (const p of readies) for (const e of p.slice(1)) { const [d, , x, y] = S[e]; if (d === "square" && y < 2) { const on = p.slice(1).filter((f) => S[f][3] < 1).reduce((a, f) => a + Math.max(0, Math.min(x + 0.5, S[f][2] + 1) - Math.max(x - 0.5, S[f][2] - 1)), 0); if (on < 0.99) bad.push("mausoleum: column at " + x + " rests on " + on.toFixed(2) + " of its width"); } }
           if (puts[1] && puts[1].length - 1 >= S.length) bad.push("mausoleum: right way builds everything");
-          if (!(rows[0] && rows[0].fell > 0.5)) bad.push("mausoleum: wrong way beam did not fall " + JSON.stringify(rows[0]));
+          if (!(rows[0] && rows[0].fell > 0.5)) bad.push("mausoleum: wrong way lintel did not fall " + JSON.stringify(rows[0]));
           if (!(rows[1] && rows[1].fell < 0.1)) bad.push("mausoleum: right way beam fell " + JSON.stringify(rows[1]));
         }
         if ((k === "mausoleum" || k === "ishtar") && !tapped) bad.push(k + ": supports not tapped out");

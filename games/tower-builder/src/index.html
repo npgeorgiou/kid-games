@@ -986,7 +986,7 @@
     }
     const hand = pointers.get(e.pointerId);
     if (!hand) return;
-    const piece = hand.piece;
+    const piece = hand.piece, had = piece && pieces.includes(piece);
     releaseHold(e.pointerId);
     // three quick taps on a piece take it away: back into the pile (levels) or gone (free play)
     if (piece && hand.downAt && performance.now() - hand.downAt < 350 && Math.hypot(e.clientX - hand.downX, e.clientY - hand.downY) < 15 && !test) {
@@ -1001,7 +1001,7 @@
       }
     }
     // levels: let go over the sidebar and the piece goes back into the pile
-    if (piece && currentLevel != null && !test && e.clientX >= buildingWidthPx && pieces.includes(piece)) { returnToPile(piece); cueEvent("drag-back"); }
+    if (had && currentLevel != null && !test && e.clientX >= buildingWidthPx) { if (pieces.includes(piece)) returnToPile(piece); cueEvent("drag-back"); } // let go over the pile: it goes back (it may have gone already, let go while passing through others)
   }
 
   function onPointerCancel(e) {
@@ -1216,7 +1216,7 @@
   function drawPiece(piece) {
     const pos = piece.body.getPosition();
     const s = worldToScreen(pos.x, pos.y);
-    const see = piece.ghost ? 0.55 : piece.demo ? 0.5 * (1 - ((demo && demo.fade) || 0)) : 1;
+    const see = piece.ghost ? 0.55 : piece.demo ? 0.75 * (1 - ((demo && demo.fade) || 0)) : 1;
     if (see < 1) { ctx.save(); ctx.globalAlpha = see; }
     drawPieceShape(piece.defKey, piece.material, s.x, s.y, piece.body.getAngle(), scale, piece.strain, piece.seed || (piece.seed = newSeed()));
     if (see < 1) ctx.restore();
@@ -2112,6 +2112,7 @@
     releaseHold(pointerId);
     if (!pieces.includes(piece)) return;
     removePiece(piece);
+    if (currentLevel != null) cueEvent("drag-back"); // a piece of the building carried into the pile
     const r = pileBinRect, W = r.w / pileScale, H = r.h / pileScale, t = pilePoint(px, py), ca = Math.cos(a), sa = Math.sin(a);
     const b = createPileBody({ defKey: piece.defKey, material: piece.material }, t.x - (g.x * ca - g.y * sa), t.y - (g.x * sa + g.y * ca));
     b.setTransform(b.getPosition(), a);
@@ -3290,8 +3291,8 @@
   const CUE_TABLE = null; // build.py puts cues.json here
   const CUES_OFF = false; // the harness turns the cues off for tests of other things
   const VOICE_FILES = {}; // line number -> recording; build.py fills it from src/sounds/voice/NN.mp3
-  const LINE_TIME = 2, REPEAT_GAP = 5, HL_PERIOD = 1.8, HL_RING = 40, IDLE_TIME = 60, MAP_IDLE = 30, NEXT_EVERY = 60, NEXT_GAP = 2, DAMAGE_EVERY = 60, DEMO_SPEED = 12, DEMO_PAUSE = 0.35, CONFIRM_TIME = 6;
-  // s, s (after a waiting step's line ends), s, px, s (no touch on a site), s (no line on the map), s (the open site glows), s (win line to new-site line), s, m/s (about a second across the screen), s, s (a second restart press within it erases)
+  const LINE_TIME = 2, REPEAT_GAP = 5, HL_PERIOD = 1.8, HL_RING = 40, MAP_IDLE = 30, NEXT_EVERY = 60, NEXT_GAP = 2, DAMAGE_EVERY = 60, DEMO_SPEED = 12, DEMO_PAUSE = 0.35, CONFIRM_TIME = 6;
+  // s, s (after a waiting step's line ends), s, px, s (no line on the map), s (the open site glows), s (win line to new-site line), s, m/s (about a second across the screen), s, s (a second restart press within it erases)
   const HL_COLOR = { yellow: "#ffd23f", green: "#3fd16b", red: "#e8463a" };
   const voice = { cur: null, queue: [] };
   let scene = 0, active = [], whens = [], flashes = [], visit = {}, cueFrame = 0, cueClock = 0, lastInput = 0, damageT = 0, nextT = 0, mapIdleT = 0, seqOn = null, buildCheckT = 0, cueAudio = null, confirmUntil = -1;
@@ -3350,10 +3351,11 @@
     "all-done": () => LEVELS.every((l) => progress.done[l.key]),
     "opened-next": (x) => x.next != null,
     "has-next": () => !!nextSite(),
+    "on-map": () => mode === "map",
     "testing": () => !!test,
     "piece-resting": () => childPieces().some((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx && touching(p.body) && Math.hypot(p.body.getLinearVelocity().x, p.body.getLinearVelocity().y) < 0.05 && Math.abs(p.body.getAngularVelocity()) < 0.05),
     "first-test": () => !!(test && test.first),
-    "plan-has-piece": () => childPieces().length > 0,
+    "plan-has-piece": () => pieces.some((p) => !p.demo && !p.auto && (!p.ghost || p.heldBy != null)), // a piece in the child's hand is still his, even while it passes over others or the pile
     "plan-has-two": () => childPieces().filter((p) => p.heldBy == null).length >= 2,
     "test-ready": () => testReady(),
     "no-form": () => !supportPieces().length,
@@ -3488,7 +3490,6 @@
       }
     }
     flashes = flashes.filter((f) => now - f.t0 < 2);
-    if (mode !== "map" && now - lastInput > IDLE_TIME && !test && !demo) { lastInput = now; cueEvent("idle"); }
     if (mode === "map") mapTick(dt);
     else if (currentLevel != null && grid && !test && !auto && !demo) buildTick(dt);
   }
@@ -3736,19 +3737,21 @@
     for (const [dk, m, x, y, a, sd] of d.keep) spawnPiece(dk, x, y, a, m).seed = sd;
     if (d.then) d.then();
   }
-  function demoCarry(piece, tx, ty, ta, out) {
+  function demoCarry(piece, tx, ty, ta, out, via) { // via: a point above the target; the piece comes over everything, then straight down
     piece.body.setKinematic();
     for (let f = piece.body.getFixtureList(); f; f = f.getNext()) f.setSensor(true);
     piece.auto = true;
-    demo.cur = { piece, tx, ty, ta, out };
+    demo.cur = { piece, tx, ty, ta, out, via };
   }
+  function demoTop() { let top = 0; for (const p of demoPieces()) { const a = p.body.getFixtureList().getAABB(0); top = Math.max(top, a.upperBound.y); } return top; }
   function demoTick(dt) {
     const d = demo;
     if (!d || d.saying) return;
     if (!d.go) { if (voice.cur || voice.queue.length) return; d.go = true; } // it starts once the lines before it have played
     if (d.cur) { // the ghost hand carries a piece in (or out)
-      const c = d.cur, b = c.piece.body, q = b.getPosition(), dx = c.tx - q.x, dy = c.ty - q.y, dist = Math.hypot(dx, dy);
+      const c = d.cur, b = c.piece.body, q = b.getPosition(), to = c.via || { x: c.tx, y: c.ty }, dx = to.x - q.x, dy = to.y - q.y, dist = Math.hypot(dx, dy);
       d.hand = Object.assign(worldToScreen(q.x, q.y), { pressed: true });
+      if (c.via && dist <= DEMO_SPEED * dt) { c.via = null; return; }
       if (dist <= DEMO_SPEED * dt) { if (c.out) removePiece(c.piece); else { placeAuto(c); c.piece.placedY = c.ty; } d.cur = null; d.hand = null; d.wait = DEMO_PAUSE; return; }
       b.setLinearVelocity(planck.Vec2((dx / dist) * DEMO_SPEED, (dy / dist) * DEMO_SPEED));
       b.setAngularVelocity((c.ta - b.getAngle()) / Math.max(dt, dist / DEMO_SPEED));
@@ -3768,7 +3771,11 @@
       if (it == null) { d.ops.shift(); d.k = 0; return; }
       d.k++;
       const [defKey, material, x, y, a] = typeof it === "number" ? SOLUTIONS[d.key][it] : it;
-      demoCarry(spawnPiece(defKey, viewX0 + worldWidth - 1, y + 0.02, 0, material), x + LEVEL_X0, y + 0.02, a, false);
+      const over = Math.max(demoTop(), y) + 1.5, p = spawnPiece(defKey, viewX0 + worldWidth - 1, over, 0, material);
+      demoCarry(p, x + LEVEL_X0, y + 0.02, a, false, { x: x + LEVEL_X0, y: over });
+    } else if (op[0] === "ready") { // pieces already standing when the demo starts (owner 15 Nov: no need to build the base again)
+      d.ops.shift();
+      for (const it of op.slice(1)) { const [defKey, material, x, y, a] = typeof it === "number" ? SOLUTIONS[d.key][it] : it; const p = spawnPiece(defKey, x + LEVEL_X0, y + 0.02, a, material); p.demo = true; placeAuto({ piece: p, tx: x + LEVEL_X0, ty: y + 0.02, ta: a }); p.placedY = y + 0.02; }
     } else if (op[0] === "wait") { d.ops.shift(); d.wait = op[1]; }
     else if (op[0] === "tell") { d.ops.shift(); say(op[1], { kind: "teach", demo: true }); } // plays while the next pieces come
     else if (op[0] === "say") { d.ops.shift(); d.saying = true; say(op[1], { kind: "teach", demo: true, attention: "freeze", then: () => { d.saying = false; } }) || (d.saying = false); }

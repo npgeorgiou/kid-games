@@ -617,6 +617,36 @@ Results (each checked by `python3 tools/harness.py cuetest`, 22 pass/fail tests 
 22. Tests above; general ones too: first-launch order, return order, voice rules (one at a time, flavour dropped beside teaching, bg never interrupts, leaving drops), once ever/once per visit, 5 s repeats, nothing plain during a test.
 Also found and fixed while testing 20: taking a piece out (tapped back, or crumbled) did not wake what rested on it, so a beam could stay in the air; now it does. Level runs after it: all levels pass as before; Pharos "no wooden ties" still passes its test when it should fail (it did before this change too).
 
+## Current state, update 47 (15 Nov 2026 evening): owner list of 15 Nov evening
+
+Owner's list, verbatim:
+1. "At the Pharos, building the walls straight up with no wooden ties still passes the test, when it should fail??? without wood the test button is red, so the wind cant even start. what do you mean?"
+2. "the "a ti oraia varkoula...", etch cues, should play ont he main map, moron, not on the levels. for fucks sake"
+3. "in Pharos, add in the outline the place for the wood, as in other levels."
+4a. "in mausoleum, the first fail demo should not show at all the wooden support, just the inability to make both lintels stay."
+4b. "also, pieces should move not THROUGH each other, so move them at the right order."
+4c. "also, you dont need to build and rebuilt the base and the kiones and kionocrana, they can be ready."
+4d. "also, make all demos a bit LESS transparent"
+5a. ""Δες: ένα δοκάρι πάνω σε ξύλινο στύλο. Βγάζουμε τον στύλο πριν μπει η στέγη." -> "Des: den exoume orizontio anofli arketa makri gia na patisei stous dio kiones " plays while fail demo is playing ,"
+5b. ""Αν βγάλεις τον στύλο πριν πατήσει η στέγη, το δοκάρι πέφτει." -> goes away,"
+5c. ""Τώρα ξανά, αλλά πρώτα χτίζουμε όλη τη στέγη, και μετά βγάζουμε τους στύλους." -> Tora ksana, alla ena ksilino dikari tha stirizei to anofli, mexri na valoume apo pano polles petres, pou tha to kratane ekei me to varos tous."
+6. ""124": "Δες τι γίνεται αν βάλουμε τους πλίνθους κάτω και τις πέτρες από πάνω make similar demo also for" (cut off: asked the owner which level)
+7. "your tests are shit: At some point the "drag from ehre back to the pile tutorial was looping. you need to be smarter when you code conditions""
+
+Results (`python3 tools/harness.py cuetest`: 24 tests, all pass; the new ones failed on the previous build first):
+1. Answered: the check filled the tie places with stone, so the outline was full and the button green; a child leaving the ties out has gaps and a red button. The level check now counts a button that stays red as stopping a wrong build (owner's words).
+2. Flavour lines (group idle) play on the map only; nothing starts them on a site. Test flavour-only-on-map.
+3. Pharos has wood places in its outline (the tie courses); without wood there the button stays red. Test pharos-wood-places; Pharos level checks all pass.
+4a. Mausoleum wrong way: no wood; the lintel between the columns goes on first and falls, then the outer one stays. Test demos.
+4b. Demo pieces come in over everything and go straight down onto their place; test demos checks no carried piece passes through another (the Mausoleum and Ishtar demos did before).
+4c. The Mausoleum base, columns and capitals stand ready in both halves (new demo step "ready"). Test demos.
+4d. Demo pieces 75% opaque (were 50%).
+5a. Line 129 is the owner's text, said while the wrong way plays.
+5b. Line 120 removed.
+5c. Line 130 is the owner's text; the right way: post, both lintels, three roof stones, post tapped out, both stand.
+6. Open: the owner's sentence is cut off.
+7. The loop: dragging a piece into the pile turns it into a pile piece while still held, so the step's "a piece is in the building" check failed mid-drag and the teaching went back a step, and the "dragged back" moment never fired. Now the moment fires when the piece enters the pile, and a held piece counts as the child's. The teaching test now does every step with real pointer drags and taps on the screen. Test first-site-teaching.
+
 ## Task list
 
 No open items.

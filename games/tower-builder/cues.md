@@ -89,7 +89,7 @@ Each cue: when it fires, what it says, what it shows, what it waits for. Its nam
 
 ### Idle
 
-- `idle` — When on the map: 30 s with no line; on a site: 60 s with no touch (`idle`): says one line from the group *idle* (81–90) (background, only if nothing else is playing or waiting). *On the map every 30 s of quiet; on a site after 60 s with no touch.*
+- `idle` — When on the map: 30 s with no line (`idle`) (only if the map is showing): says one line from the group *idle* (81–90) (background, only if nothing else is playing or waiting). *Owner 15 Nov: flavour lines (the boat, the visitors...) belong on the map only, never on a site. Every 30 s of quiet.*
 
 ## Teaching steps: first-site
 
@@ -98,7 +98,7 @@ First site, after its welcome line, until the child has done all the steps. Then
 1. `t-drag-1` — Says line 93 «Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.» (teaching). Points at one mudbrick of the pile, the plan (the building's outline). The rest of the screen darkens while it waits; only the whole pile, the plan (the building's outline) can be touched. Waits until a piece of the child's lies still in the building area; its line comes again 5 s after it ends. The ghost hand drags one mudbrick of the pile to the place of the first piece in the suggested build.
 2. `t-tap3` — Says line 94 «Αν πατήσεις ένα κομμάτι τρεις φορές γρήγορα, γυρίζει πίσω στον σωρό. Δοκίμασε!» (teaching). Points at the child's last piece in the building. The rest of the screen darkens while it waits; only the child's pieces in the building can be touched. Waits until three quick taps send a piece back to the pile; its line comes again 5 s after it ends. The ghost hand taps the child's last piece in the building three times. Needs a piece of the child's is in the building area; without it, back to step `t-drag-1`. When done, says line 132 «Μπράβο, αυτό γύρισε πίσω στον σωρό!».
 3. `t-drag-2` — Says line 93 «Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.» (teaching). Points at one mudbrick of the pile, the plan (the building's outline). The rest of the screen darkens while it waits; only the whole pile, the plan (the building's outline) can be touched. Waits until a piece of the child's lies still in the building area; its line comes again 5 s after it ends. The ghost hand drags one mudbrick of the pile to the place of the first piece in the suggested build. *Again, so there is something to drag back.*
-4. `t-dragback` — Says line 134 «Μπορείς και να το σύρεις πίσω στον σωρό. Δοκίμασε!» (teaching). Points at the child's last piece in the building. The rest of the screen darkens while it waits; only the child's pieces in the building can be touched. Waits until the child lets go of a piece over the pile (it goes back); its line comes again 5 s after it ends. The ghost hand drags the child's last piece in the building to the side of the screen (where pieces go out). Needs a piece of the child's is in the building area; without it, back to step `t-drag-2`.
+4. `t-dragback` — Says line 134 «Μπορείς και να το σύρεις πίσω στον σωρό. Δοκίμασε!» (teaching). Points at the child's last piece in the building. The rest of the screen darkens while it waits; only the child's pieces in the building can be touched. Waits until the child carries a piece from the building into the pile; its line comes again 5 s after it ends. The ghost hand drags the child's last piece in the building to the side of the screen (where pieces go out). Needs a piece of the child's is in the building area; without it, back to step `t-drag-2`.
 5. `t-drag-3` — Says line 93 «Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.» (teaching). Points at one mudbrick of the pile, the plan (the building's outline). The rest of the screen darkens while it waits; only the whole pile, the plan (the building's outline) can be touched. Waits until a piece of the child's lies still in the building area; its line comes again 5 s after it ends. The ghost hand drags one mudbrick of the pile to the place of the first piece in the suggested build. *Again, so there is something for the shovel.*
 6. `t-shovel` — Says line 95 «Πάτα το φτυάρι!» (teaching). Points at the shovel. The rest of the screen darkens while it waits; only the shovel can be touched. Waits until the child presses the shovel; its line comes again 5 s after it ends. The ghost hand taps the shovel. Needs a piece of the child's is in the building area; without it, back to step `t-drag-3`. When done, says line 96 «Το φτυάρι μαζεύει όλα τα κομμάτια και τα γυρίζει στον σωρό. Έτσι ξαναρχίζεις από την αρχή.».
 7. `t-demo` — Plays the site's demo (below). When done, says line 98 «Τώρα χτίσε! Γέμισε όλο το σχέδιο.».
@@ -109,7 +109,7 @@ When all steps are done → `plan-shown`.
 
 ## Demos
 
-On every visit to a site until it is finished, after its welcome line. **tell N**: line N plays while the next pieces are built. **say N**: the demo waits, the game frozen, while line N plays (what came of it). **put ...**: the ghost hand carries these see-through pieces in, at a hand's speed: a number is that piece of the site's suggested build, a list is [shape, material, x, y, angle]. **wait S**: the demo waits S seconds (things settle, crumble or fall). **pull**: the ghost finger taps each wooden form or support three times and it goes back to the pile. **taps SHAPE**: the ghost finger taps that piece three times and it goes back. **fade**: the see-through pieces fade away.
+On every visit to a site until it is finished, after its welcome line. **tell N**: line N plays while the next pieces are built. **say N**: the demo waits, the game frozen, while line N plays (what came of it). **put ...**: the ghost hand carries these see-through pieces in, at a hand's speed: a number is that piece of the site's suggested build, a list is [shape, material, x, y, angle]. **wait S**: the demo waits S seconds (things settle, crumble or fall). **pull**: the ghost finger taps each wooden form or support three times and it goes back to the pile. **taps SHAPE**: the ghost finger taps that piece three times and it goes back. **fade**: the see-through pieces fade away. **ready**: pieces that already stand when the demo starts (no hand carries them). **put**:  Each comes in over everything and goes straight down onto its place, so it never passes through another piece..
 
 | Site | New | Demo |
 |---|---|---|
@@ -120,7 +120,7 @@ On every visit to a site until it is finished, after its welcome line. **tell N*
 | Karnak | columns, capitals of two small blocks, beams across | tells line 128 «Δες: ένας κίονας με δύο μικρές πέτρες από πάνω, άλλος ένας ίδιος, και ένα δοκάρι ανάμεσά τους.»; builds 0, 1, 5, 6, 7, 8, 9, 10, 11; waits 1 s; says, after: line 114 «Πάνω σε κάθε κίονα βάζεις δύο μικρές πέτρες. Το δοκάρι πατάει με κάθε άκρη του πάνω τους.»; fades |
 | Ishtar | wedges; the wooden form, taken out after the last wedge | tells line 115 «Πρώτα στήνεις το ξύλινο καλούπι.»; builds 1, 2, 5, 6, 18, 19, 20, 21, 22; tells line 116 «Πάνω του βάζεις τις καμαρόπετρες, από τις δύο μεριές.»; builds 23, 24, 25, 26, 27, 28, 29, 30; tells line 117 «Η τελευταία καμαρόπετρα μπαίνει στην κορυφή και κλειδώνει την καμάρα.»; builds 31; tells line 118 «Τώρα βγάζεις το καλούπι. Η καμάρα στέκει μόνη της!»; pulls the forms out; waits 1.5 s; fades. *The form comes out with three taps (owner 15 Nov).* |
 | Parthenon | drums stacked straight; pediment stones | no demo |
-| Mausoleum | wooden posts as temporary props | tells line 129 «Δες: ένα δοκάρι πάνω σε ξύλινο στύλο. Βγάζουμε τον στύλο πριν μπει η στέγη.»; builds 0, 1, 2, 3, 9, 10, 11, 6, 7, 8, 15, 18; waits 0.5 s; pulls the forms out; waits 2.5 s; says, after: line 120 «Αν βγάλεις τον στύλο πριν πατήσει η στέγη, το δοκάρι πέφτει.»; fades; tells line 130 «Τώρα ξανά, αλλά πρώτα βάζουμε τη στέγη πάνω στα δοκάρια, και μετά βγάζουμε τον στύλο.»; builds 0, 1, 2, 3, 9, 10, 11, 6, 7, 8, 15, 18, 17, 21, 22, 23; waits 0.5 s; pulls the forms out; waits 2.5 s; says, after: line 121 «Στήριξε πρώτα το δοκάρι σε έναν ξύλινο στύλο. Όταν πατήσει η στέγη από πάνω, βγάζεις τον στύλο.»; fades. *Owner 15 Nov: the same base both ways, the middle column wholly on the blocks. Wrong: one lintel on a post, the post tapped out, the lintel falls. Right: the same, the second lintel and three roof stones over them, then the post out: both lintels stand.* |
+| Mausoleum | wooden posts as temporary props | tells line 129 «Δες: δεν έχουμε οριζόντιο ανώφλι αρκετά μακρύ για να πατήσει στους δύο κίονες.»; builds 18, 17; waits 3 s; fades; tells line 130 «Τώρα ξανά, αλλά ένα ξύλινο δοκάρι θα στηρίζει το ανώφλι, μέχρι να βάλουμε από πάνω πολλές πέτρες, που θα το κρατάνε εκεί με το βάρος τους.»; builds 15, 17, 18, 21, 22, 23; waits 0.5 s; pulls the forms out; waits 2.5 s; says, after: line 121 «Στήριξε πρώτα το δοκάρι σε έναν ξύλινο στύλο. Όταν πατήσει η στέγη από πάνω, βγάζεις τον στύλο.»; fades. *Owner 15 Nov evening: the base, columns and capitals stand ready both times. Wrong: no wood at all; both lintels go on and the one between the columns falls (no lintel is long enough to rest on both). Right: a wooden post holds that lintel until many stones are on it; then the post is tapped out and both lintels stand.* |
 | Pharos | hollow tower, two walls tied by wooden beams | no demo. *No demo; the technique is in intro 9.* |
 | Valens | reusing the forms | no demo. *Owner 15 Nov: the last level needs no demo.* |
 
@@ -246,7 +246,6 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 117. «Η τελευταία καμαρόπετρα μπαίνει στην κορυφή και κλειδώνει την καμάρα.» — *demo ishtar* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
 118. «Τώρα βγάζεις το καλούπι. Η καμάρα στέκει μόνη της!» — *demo ishtar*
 119. «Η καμάρα στέκει. Τώρα βγάλε το ξύλινο καλούπι!» — *form-out*
-120. «Αν βγάλεις τον στύλο πριν πατήσει η στέγη, το δοκάρι πέφτει.» — *demo mausoleum*
 121. «Στήριξε πρώτα το δοκάρι σε έναν ξύλινο στύλο. Όταν πατήσει η στέγη από πάνω, βγάζεις τον στύλο.» — *demo mausoleum*
 123. «Δες: δύο πλίνθοι δίπλα δίπλα, και ένας από πάνω, στη μέση.» — *demo mastaba*
 124. «Δες τι γίνεται αν βάλουμε τρεις πέτρες πάνω σε έναν πλίνθο.» — *demo djoser* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
@@ -254,8 +253,8 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 126. «Δες τι γίνεται αν βάλουμε τέσσερις πλίνθους πάνω στον μεσαίο.» — *demo ziggurat* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
 127. «Τώρα μια μακριά σανίδα πάνω στους τρεις πλίνθους, και οι ίδιοι τέσσερις πλίνθοι από πάνω.» — *demo ziggurat* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
 128. «Δες: ένας κίονας με δύο μικρές πέτρες από πάνω, άλλος ένας ίδιος, και ένα δοκάρι ανάμεσά τους.» — *demo karnak*
-129. «Δες: ένα δοκάρι πάνω σε ξύλινο στύλο. Βγάζουμε τον στύλο πριν μπει η στέγη.» — *demo mausoleum*
-130. «Τώρα ξανά, αλλά πρώτα βάζουμε τη στέγη πάνω στα δοκάρια, και μετά βγάζουμε τον στύλο.» — *demo mausoleum* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
+129. «Δες: δεν έχουμε οριζόντιο ανώφλι αρκετά μακρύ για να πατήσει στους δύο κίονες.» — *demo mausoleum* CHANGED 15 Nov evening (owner's words): record again if already recorded.
+130. «Τώρα ξανά, αλλά ένα ξύλινο δοκάρι θα στηρίζει το ανώφλι, μέχρι να βάλουμε από πάνω πολλές πέτρες, που θα το κρατάνε εκεί με το βάρος τους.» — *demo mausoleum* CHANGED 15 Nov evening (owner's words): record again if already recorded.
 132. «Μπράβο, αυτό γύρισε πίσω στον σωρό!» — *t-tap3 (when done)* NEW 15 Nov (owner list of 15 Nov).
 133. «Η κορωνίδα δεν επικάθισε καλά. Ξαναδοκίμασε!» — *fail-headpiece* NEW 15 Nov (owner list of 15 Nov).
 134. «Μπορείς και να το σύρεις πίσω στον σωρό. Δοκίμασε!» — *t-dragback* NEW 15 Nov (owner list of 15 Nov).
@@ -293,11 +292,11 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `won`: the win line has been said *(cue then)*
 - `first-win-said`: the first-win line has been said *(cue then)*
 - `go-map`: the child goes back to the map *(goMap)*
-- `idle`: on the map: 30 s with no line; on a site: 60 s with no touch *(CUES cueTick, mapTick)*
+- `idle`: on the map: 30 s with no line *(CUES mapTick)*
 - `step`: a teaching step's turn comes (sequences only) *(the sequence runner)*
 - `map-next`: coming back to the map from a won site: 2 s after its win line ends, or at once when there is none *(onGoMap)*
 - `next-flash`: every 60 s on the map while a site is open and not built *(CUES mapTick)*
-- `drag-back`: the child lets go of a piece over the pile (it goes back) *(onPointerUp)*
+- `drag-back`: the child carries a piece from the building into the pile *(worldToPile, onPointerUp)*
 - `placed-in-plan`: the child lets go of a piece over the building *(releaseHold)*
 
 ### Conditions
@@ -329,6 +328,7 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `testing`: a test is running
 - `piece-resting`: a piece of the child's lies still in the building area
 - `why:headpiece`: the test failed only because the headpiece did not sit well (nothing broke, nothing fell)
+- `on-map`: the map is showing
 
 ### Points
 

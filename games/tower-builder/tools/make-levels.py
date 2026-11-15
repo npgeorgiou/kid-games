@@ -236,6 +236,7 @@ level("pharos", "Φάρος της Αλεξάνδρειας", "c. 280 BC", "a ta
       "square, octagonal and round tiers (Wikipedia); a spiral ramp inside the lowest tier and a shaft in the upper ones (Balawi via Wikipedia; mfn.li); statue on top and Tritons on the corners (Roman coins). Walls laced with timber are an old Greek technique; for the Pharos the sources name lead between the base blocks",
       s, [rect(-1, 12, 1, 13), acroterion(-2.1, 7, 0.4, 0.8), acroterion(2.1, 7, 0.4, 0.8)],  # owner: the top headpiece as big as a block lying down
       [rect(-0.6, k, 0.6, k + 1) for k in (0, 2, 4)] + [rect(-0.6, 6, 0.6, 7)] + [rect(-0.6, 7, 0.6, 8), rect(-0.6, 8.5, 0.6, 9.5), rect(-0.6, 10, 0.6, 11)],
+      woodRole="courses",  # owner 15 Nov: the wood places show in the outline, as in the other levels
       wrong=[W("mudbrick at the base", "material", recolour(s, lambda e: e[0] == "block" and e[3] < 2, "mudbrick")),
              W("mudbrick ties instead of wood", "material", recolour(s, lambda e: e[0] == "beam", "mudbrick")),
              W("mudbrick walls in the upper tier", "material", recolour(s, lambda e: e[0] == "square" and e[3] > 7, "mudbrick")),
