@@ -335,7 +335,7 @@ Owner's words: "friction when I drag a block upwards and towards another block f
 - Without textures every wooden piece has one colour.
 - A passed level stays on the building; the map button goes back.
 - Harness: `sandbox` (tiles fit at four screen sizes, every shape can be made, a passed level stays).
-- Open, waiting for the owner: (a) friction: answered, no change yet; proposal: while the hand pushes a piece against another, it presses sideways only lightly and keeps its full lift. (b) undo: what one step back undoes, owner to choose. (c) Mausoleum's pile has a long mudbrick beam and Karnak's a tall mudbrick column (tempting wrong pieces); keep them in those levels or not.
+- Open, waiting for the owner: (a) friction: answered, no change yet; proposal: while the hand pushes a piece against another, it presses sideways only lightly and keeps its full lift. (b) undo: what one step back undoes, owner to choose. (c) Mausoleum's pile has a long mudbrick beam and Karnak's a tall mudbrick column (tempting wrong pieces); keep them in those levels or not. CORRECTED 15 Nov: the Mausoleum pile never had a long mudbrick (this note was wrong); owner: keep Karnak's.
 - Known, before this change: `harness.py owner` stops with an error in the map travellers check (also on the previous version).
 
 ## Current state, update 22 (14 Nov 2026)
@@ -549,6 +549,73 @@ Built: Ur temple load density 4 -> 3.6, Ur earthquake 0.38 -> 0.342. Result: the
 
 Owner's words: "2 blocks only at the top, and 3 at the one before the top. test that it works. if so, update outline and materials."
 Built: Ur rows 7, 6, 5, 3, 2 mudbrick blocks; planks 14, 12, 10, 6 m (the 6 m on the 3-block row); outline and pile from the build (make-levels.py `ZROWS`). `harness.py spec 2` all pass. Picture `owner-shots/ur-five-rows-pile.png`.
+
+## Current state, update 46 (15 Nov 2026): owner cue and level list of 15 Nov
+
+Owner's list, verbatim (checklist; results below as each is done):
+1. "no, mausoleum has no long mudbrick, and shouldnt, recheck your data and fix them."
+2. "keep it in karnak."
+3a. "in ur, remvoe the "se afta ta simaia mpainei ksilo" cue."
+3b. "in ur, find a way to demonstrate that wood helps spread weight by first crimbling, adn then not crumbling."
+4a. "the restart button shouldnt make another button appear,"
+4b. ""pata to diplA", not "pata to dIpla.""
+5a. "in the texture change button, make the texture stone be the grey one isnted of the yellow one."
+5b. "Then, make sure teh plain colors correspond to the textured colors in that button."
+5c. "And make for the levels that ahve marble, the grey stone be a nice solid color, ok, but of marble."
+6a. "the first-time.touch.mudbrick cue shouldt appear at first level tutorial when the otehr tutorail cuees are playing, its the third time i say that."
+6b. "fix your claude isntructions so you can follow my isntructions, i suspect you ge tlost when i give you lots of change requests, but i already said to vhange your isntructiosn so you dont fucking et lost, moron."
+7. "add a "Mpavo, afto girise piso sto soro" when in first lvl the kid triple clicks after isntruction"
+8. "after that, add cue to show how to drag and drop back to pile too. (of course update all relevant que files too)"
+9. "the "if you click 3 times" cue is too hasty, I dropped a block and it broke, and that stupid cue played, you play condition is wrong"
+10. "the dark overlay should NOT be also darkening the focused object. I saw that the cue to rturn to the main map also darkened the go to main map button."
+11a. "at lvl 2 the 2 vieos (wrong/right) are not symmetrical, the same amount of rocks must be placed on a mudbrick and then a rock."
+11b. "and one stack is enough"
+12a. "in lbl 2, both stones and mudbricks flash on the sidebar, thre is no reason for that,"
+12b. "and stop flashing materials on the stockpile when levels start, I dont understand the reason."
+13a. "in the main map i think I didnt see lvl 4 flash when lvl 3 was done,"
+13b. "and I dont see any regular reminder ques that the new site waits, make them play every 60 seconds, but only flash, the voice plays only every time you exit the previous site and for the first time the new is available."
+14a. "I also dont see any of the regular flavour cues on the map, they should play every 30 secs."
+14b. ""Den antekse to varos, ksanadokimase" is wrong text, I see it when the headpiece is tilted wrongly, at the secont strp of the test, nothing broke. It should say "I koronida den epikathise kala. Ksanadokimase!""
+15. "after a failed test that broke some mudbrick i say the "i laspi thrimmatistike kato apo to varos", and it was pointing at a phantol location, after the levle was reset. this is supposed to play while building, and those timings were off, like leftover stuff that were not cleared."
+16. "in every level flavour text, make sure new materials are mentioned, also new stone variations, mention them every first time theya re encountered."
+17. "sfines -> replace in greek with "Καμαρόπετρες""
+18. "in the gate of sitear level, your demo shows the wooden pieces dragged away, that is wrong, they should be triple-tapped away."
+19. "add a 2 second gap between the previous level outro and the new level flash in the main map."
+20a. "for your halicarnassus demo, for the wrong demo, your pillar is resting half, only on one stone."
+20b. "for the right demo, you built more of the base, you should built exatly the same part of the base both ways, not half a base for the first, and a full abse for the second."
+20c. "also, the second doesnt nees the full building, just up to the point that the 2 lintels stand."
+21. "last level needs no demo."
+22. "NOW: DO ALL THESE NOT HALF. REPORT THAT ALL ARE DONE, AFTER CHECKING THEM. ADD TEST FOR GENERAL ITEMS, LIEK WHAT PLAYS FIRST WHAT SECONG, WHAT ON TIME, WHAT PERIODICALLY, WHAT SHOULD NOT PLAY WHILE SOMETHING ELSE PLAYS, WHAT PPLAYS ONLY ONCE, WHAT AT THE RIGHT TIME,S IN SHORT, DO TEST DRIVE DEVELOPMENT,A DN TESTS HOULD BE SNAPPY AS FUCK."
+Results (each checked by `python3 tools/harness.py cuetest`, 22 pass/fail tests in `tools/cue-tests.js`, about 10 s; all pass):
+1. The Mausoleum pile never had a long mudbrick (it has 4 mudbrick squares); the old note saying so was wrong and is corrected; levels.md pile line fixed. Test mudbrick-long-pieces.
+2. Karnak keeps its two tall mudbrick columns. Same test.
+3a. The "wood goes here" cue and its line are gone. Test no-start-glows.
+3b. Ur demo: four mudbricks stacked on the middle one of three bottom mudbricks (it crumbles); then the same three, a long plank, the same four on it (none crumbles). Test demos.
+4a. No second button: the first press of restart says its line; a second press within 6 s erases; a later press only says the line again. Test restart-press-twice.
+4b. Line 91 ends «πάτα το διπλά.» Same test.
+5a. The textures button shows the grey stone texture. Test texture-button-colours.
+5b. The button's plain colours are the game's plain colours, each close to its texture (the marble block was tan, now marble white). Same test.
+5c. With textures off, stone in the marble levels (Parthenon, Mausoleum, Pharos) is a solid marble colour; elsewhere grey. Test marble-plain-stone (reads the drawn pixel).
+6a. Rule changed: while the first site's teaching runs, from its first step to its last, only its own lines play (the mudbrick line slipped in between steps before). Test first-site-teaching.
+6b. CLAUDE.md "Long lists", points 8 and 9: every owner point becomes a permanent test, the whole cue test file runs before every reply; fix at the rule and test every place it decides.
+7. After the three taps: line 132 «Μπράβο, αυτό γύρισε πίσω στον σωρό!». Test first-site-teaching.
+8. New steps: put a piece in again, then line 134 «Μπορείς και να το σύρεις πίσω στον σωρό. Δοκίμασε!» with the ghost hand dragging it to the pile; then one more piece in for the shovel. Same test.
+9. "Put a piece in" steps now end only when a piece lies still on something in the building; a piece let go high up that breaks on landing does not count. Same test.
+10. The darkening was drawn so that two holes over the same thing darkened it again (the map button was both pointed at and touchable); holes are now cut one by one. Test darkening-spares-target (map button and plan, by pixel). Picture `owner-shots/cues-15nov-map-button-step.png` (also shows the textures button).
+11. Djoser demo: one stack: three stones on a mudbrick (it crumbles), then the same three stones on a stone (it holds). Test demos.
+12. The glow of new pile pieces at the start of a site is gone. Test no-start-glows.
+13a/b. Coming back from the site before the open one says a new-site line every time (first time with the hand), with the open site glowing; the open site glows every 60 s on the map with no voice. Tests map-new-site, map-next-glow-every-60s (Ur won by its quick build and test, then the map).
+14a. On the map a flavour line plays after every 30 s of quiet. Test map-flavour-every-30s.
+14b. Load part failed only because the headpiece did not sit: line 133 «Η κορωνίδα δεν επικάθισε καλά. Ξαναδοκίμασε!». Test headpiece-line (real test, headpiece pushed off during the load).
+15. Crumble and snap lines are never said during a test, and lines still waiting from the building are dropped when a test starts. Test no-building-lines-from-test.
+16. Welcomes name each material and stone met for the first time: Mastaba wood, Ur only mudbrick (it said stone for the base), Lion Gate grey stone, Parthenon marble. Test intros-name-new-materials. Changed lines are marked for re-recording.
+17. «σφήνες» -> «καμαρόπετρες» (lines 116, 117). Test words-arch-stones.
+18. Demos take wooden forms and posts out with three taps, never dragged (Ishtar and Mausoleum). Test demos.
+19. 2 s between the win line ending and the new-site line. Test map-new-site.
+20. Mausoleum demo: same base both ways (four blocks under both columns, the middle column wholly on them). Wrong: one lintel on a post, post tapped out, it falls. Right: the same, the second lintel and three roof stones over them, post out, both stand. A second lintel in the wrong way would not fall: its end catches on the first lintel's end. Test demos.
+21. Valens has no demo. Test demos.
+22. Tests above; general ones too: first-launch order, return order, voice rules (one at a time, flavour dropped beside teaching, bg never interrupts, leaving drops), once ever/once per visit, 5 s repeats, nothing plain during a test.
+Also found and fixed while testing 20: taking a piece out (tapped back, or crumbled) did not wake what rested on it, so a beam could stay in the air; now it does. Level runs after it: all levels pass as before; Pharos "no wooden ties" still passes its test when it should fail (it did before this change too).
 
 ## Task list
 

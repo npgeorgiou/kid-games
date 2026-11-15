@@ -7,7 +7,8 @@
   "Every line belongs to the screen it was fired on (the map, one visit to a site, free play); leaving drops what is left.",
   "Kinds: teach and queued lines wait their turn; bg lines play only if nothing is playing or waiting. When a teaching and a flavour line fire at the same moment, the flavour one is dropped.",
   "No line starts while a test runs unless it says it may (during: test).",
-  "While a teaching step waits for the child, every other line is dropped (a dropped first-time line keeps its first time for later).",
+  "While a teaching sequence runs (the first site, from its first step to its last), only its own lines play; every other line is dropped (a dropped first-time line keeps its first time for later).",
+  "Lines about a moment of building (a crumble, a snap) are not said during a test; the test's own lines say what happened.",
   "An action that ends a waiting step fires nothing else (pressing the red button in the red-button step says no line 70).",
   "Attention: none (default) only makes what it points at glow; point darkens the rest of the screen while the step waits, and only what it points at (or its touch list) can be touched; freeze darkens and freezes the game while its line plays. A demo darkens all but the building and takes no touch. Ctrl held (parent) is never held back.",
   "What a line talks about glows from its own outline (a plank's glow is long), with a slow ring spreading out: yellow, or green/red for a green/red thing.",
@@ -16,9 +17,11 @@
   "Groups: random, never one of the last n played, n = half the group rounded down (a group of 2 alternates; a site's 3 facts never repeat the last one).",
   "Memory: one saved record keeps every first time (ever, per site), each group's recent lines and where each teaching sequence stands. The restart clears it, so all teaching, demos and the first welcome come again.",
   "Every button shows pressed while held and acts when let go over it.",
-  "Wooden supports and forms are taken out by hand (dragged out, or three quick taps send them back). The test does not take them out; one left in shows red.",
+  "Wooden supports and forms are taken out by hand (dragged out, or three quick taps send them back). The test does not take them out; one left in shows red. Demos take them out with three taps.",
   "The test button is red until the building is ready, then green with a 'go' triangle; open sites are yellow, damaged ones red.",
-  "The parent override (Ctrl) has no voice line."
+  "The parent override (Ctrl) has no voice line.",
+  "The map: the open site glows every 60 s (no voice); its voice line plays the first time it opens and every time the child comes back from the site before it, 2 s after the win line ends. A flavour line plays every 30 s of quiet.",
+  "The restart: the first press says what it does; a second press while its line lasts erases everything."
  ],
  "words": {
   "events": {
@@ -47,7 +50,7 @@
     "where": "CUES mapTick"
    },
    "map-return": {
-    "desc": "the map shows after a site was won",
+    "desc": "the map shows after leaving a won site",
     "where": "goMap"
    },
    "map-win-said": {
@@ -73,10 +76,6 @@
    "pickup": {
     "desc": "the child picks up a piece",
     "where": "startHold, startPileHold"
-   },
-   "placed-in-plan": {
-    "desc": "the child lets go of a piece over the building",
-    "where": "releaseHold"
    },
    "tap3": {
     "desc": "three quick taps send a piece back to the pile",
@@ -143,12 +142,28 @@
     "where": "goMap"
    },
    "idle": {
-    "desc": "no touch for 60 s, not during a test",
-    "where": "CUES tick"
+    "desc": "on the map: 30 s with no line; on a site: 60 s with no touch",
+    "where": "CUES cueTick, mapTick"
    },
    "step": {
     "desc": "a teaching step's turn comes (sequences only)",
     "where": "the sequence runner"
+   },
+   "map-next": {
+    "desc": "coming back to the map from a won site: 2 s after its win line ends, or at once when there is none",
+    "where": "onGoMap"
+   },
+   "next-flash": {
+    "desc": "every 60 s on the map while a site is open and not built",
+    "where": "CUES mapTick"
+   },
+   "drag-back": {
+    "desc": "the child lets go of a piece over the pile (it goes back)",
+    "where": "onPointerUp"
+   },
+   "placed-in-plan": {
+    "desc": "the child lets go of a piece over the building",
+    "where": "releaseHold"
    }
   },
   "conditions": {
@@ -156,11 +171,10 @@
    "site-finished": "the site is won and not damaged",
    "teaching-pending": "the site has teaching steps the child has not finished",
    "demo-pending": "the site has a demo and is not finished",
-   "has-wood-places": "the plan marks places for wood that stays in the building",
    "has-openings": "the plan has an opening (door, arch, space between columns)",
    "has-damaged": "a site on the map is damaged (red)",
    "all-done": "all ten sites are finished",
-   "opened-next": "the win opened the next site",
+   "opened-next": "a site is open and not built, and the child just left the site before it",
    "material:mudbrick": "the piece is mudbrick",
    "material:stone": "the piece is stone",
    "material:wood": "the piece is wood",
@@ -175,29 +189,31 @@
    "visitors-walking": "visitors are walking to a site on the map",
    "recorded": "the line has a recording",
    "done:<cue>": "that cue has already played",
-   "not <condition>": "the condition does not hold"
+   "not <condition>": "the condition does not hold",
+   "has-next": "a site is open and not built",
+   "testing": "a test is running",
+   "piece-resting": "a piece of the child's lies still in the building area",
+   "why:headpiece": "the test failed only because the headpiece did not sit well (nothing broke, nothing fell)"
   },
   "points": {
    "button:test": "the test button",
    "button:broom": "the shovel",
    "button:home": "the map button",
-   "button:restart-confirm": "the red button next to restart (it erases)",
    "site:next": "the site to build next",
    "site:won": "the site just won (green)",
    "site:damaged": "a damaged site (red)",
    "pile:one-mudbrick": "one mudbrick of the pile",
-   "pile:new-pieces": "the pile pieces of a shape or material never seen before",
    "pile:all": "the whole pile",
    "plan": "the plan (the building's outline)",
    "plan:first-place": "the place of the first piece in the suggested build",
    "plan:pieces": "the child's pieces in the building",
    "plan:last-piece": "the child's last piece in the building",
-   "plan:wood-places": "the plan's places for wood",
    "plan:openings": "the plan's openings",
    "fail-place": "the red place of a failed test",
    "broken-piece": "where the broken piece was",
    "form": "the wooden forms and supports in the building",
-   "side": "the side of the screen (where pieces go out)"
+   "side": "the side of the screen (where pieces go out)",
+   "button:restart": "the restart button"
   },
   "fields": {
    "on": "the event that fires it",
@@ -224,19 +240,19 @@
    "say N": "the demo waits, the game frozen, while line N plays (what came of it)",
    "put ...": "the ghost hand carries these see-through pieces in, at a hand's speed: a number is that piece of the site's suggested build, a list is [shape, material, x, y, angle]",
    "wait S": "the demo waits S seconds (things settle, crumble or fall)",
-   "pull": "the ghost hand takes the wooden forms and supports out",
+   "pull": "the ghost finger taps each wooden form or support three times and it goes back to the pile",
    "taps SHAPE": "the ghost finger taps that piece three times and it goes back",
    "fade": "the see-through pieces fade away"
   }
  },
  "lines": {
-  "1": "Καλώς ήρθες, αρχιτέκτονα, στην Αίγυπτο, γύρω στο 3000 π.Χ. Ως τώρα οι νεκροί θάβονταν σε λάκκους στην άμμο. Οι νέοι άρχοντες όμως θέλουν τάφους αντάξιούς τους: μαστάμπες, πλατιούς τάφους σαν πάγκους. Για πρώτη φορά θα χτίσεις με πλίνθους, τούβλα από λάσπη του Νείλου στεγνωμένα στον ήλιο. Η ιστορία σου αρχίζει εδώ. Χτίσε το!",
+  "1": "Καλώς ήρθες, αρχιτέκτονα, στην Αίγυπτο, γύρω στο 3000 π.Χ. Ως τώρα οι νεκροί θάβονταν σε λάκκους στην άμμο. Οι νέοι άρχοντες όμως θέλουν τάφους αντάξιούς τους: μαστάμπες, πλατιούς τάφους σαν πάγκους. Για πρώτη φορά θα χτίσεις με πλίνθους, τούβλα από λάσπη του Νείλου στεγνωμένα στον ήλιο. Στον σωρό θα βρεις και ξύλο. Η ιστορία σου αρχίζει εδώ. Χτίσε το!",
   "2": "Καλώς ήρθες ξανά, αρχιτέκτονα, στη Σακκάρα, το ιερό νεκροταφείο της Μέμφιδας, γύρω στο 2650 π.Χ. Οι μαστάμπες σου στέκονται περήφανες, μα ο φαραώ Ζοζέρ θέλει τάφο που να αγγίζει τον ουρανό. Οραματίζεται μαστάμπες τη μία πάνω στην άλλη, ως τους θεούς. Οι πλίνθοι όμως δεν αντέχουν τόσο βάρος. Για πρώτη φορά θα χτίσεις και με πέτρα, η οποία αντέχει πολύ βάρος πάνω της. Εμπρός!",
-  "3": "Καλώς ήρθες, αρχιτέκτονα, στην πόλη Ουρ. Είμαστε γύρω στο 2100 π.Χ., στη Μεσοποταμία, τη χώρα ανάμεσα στον Τίγρη και τον Ευφράτη. Όπως ο Ζοζέρ, κι ο βασιλιάς Ουρ-Νάμμου θέλει κάτι θεόρατο. Το δικό του όμως δεν είναι τάφος. Είναι σκάλα για τους θεούς, με ναό στην κορυφή για τον Νάννα, τον θεό της Σελήνης. Η πέτρα εδώ σπανίζει, γι' αυτό κράτησέ τη για τη βάση. Από πάνω θα βάλεις πλίνθους, και για πρώτη φορά θα στρώσεις ανάμεσά τους ξύλινες σανίδες. Η σανίδα απλώνει το βάρος σε πολλές πλίνθους από κάτω, κι έτσι δεν θρυμματίζονται. Χτίσε το!",
-  "4": "Καλώς ήρθες, αρχιτέκτονα, στις Μυκήνες, γύρω στο 1250 π.Χ., στην εποχή των ηρώων που θα τραγουδήσει ο Όμηρος. Στην Ουρ η πέτρα ήταν σπάνια. Εδώ, στα βουνά της Ελλάδας, υπάρχει παντού. Ο βασιλιάς Αγαμέμνονας ζώνει την ακρόπολη με τείχη τόσο γιγάντια, που θα λένε πως τα σήκωσαν οι Κύκλωπες. Για πρώτη φορά θα απλώσεις ένα πέτρινο ανώφλι πάνω σε δύο όρθιους λίθους. Από πάνω θα βάλεις το τρίγωνο με τα δύο λιοντάρια. Χτίσε το!",
+  "3": "Καλώς ήρθες, αρχιτέκτονα, στην πόλη Ουρ. Είμαστε γύρω στο 2100 π.Χ., στη Μεσοποταμία, τη χώρα ανάμεσα στον Τίγρη και τον Ευφράτη. Όπως ο Ζοζέρ, κι ο βασιλιάς Ουρ-Νάμμου θέλει κάτι θεόρατο. Το δικό του όμως δεν είναι τάφος. Είναι σκάλα για τους θεούς, με ναό στην κορυφή για τον Νάννα, τον θεό της Σελήνης. Η πέτρα εδώ σπανίζει, γι' αυτό θα χτίσεις μόνο με πλίνθους, και για πρώτη φορά θα στρώσεις ανάμεσά τους ξύλινες σανίδες. Η σανίδα απλώνει το βάρος σε πολλές πλίνθους από κάτω, κι έτσι δεν θρυμματίζονται. Χτίσε το!",
+  "4": "Καλώς ήρθες, αρχιτέκτονα, στις Μυκήνες, γύρω στο 1250 π.Χ., στην εποχή των ηρώων που θα τραγουδήσει ο Όμηρος. Στην Ουρ η πέτρα ήταν σπάνια. Εδώ, στα βουνά της Ελλάδας, υπάρχει παντού, και για πρώτη φορά θα χτίσεις με τη γκρίζα πέτρα των βουνών. Ο βασιλιάς Αγαμέμνονας ζώνει την ακρόπολη με τείχη τόσο γιγάντια, που θα λένε πως τα σήκωσαν οι Κύκλωπες. Για πρώτη φορά θα απλώσεις ένα πέτρινο ανώφλι πάνω σε δύο όρθιους λίθους. Από πάνω θα βάλεις το τρίγωνο με τα δύο λιοντάρια. Χτίσε το!",
   "5": "Καλώς ήρθες ξανά στην Αίγυπτο, αρχιτέκτονα, στη Θήβα, γύρω στο 1290 π.Χ. Την ίδια εποχή που οι Μυκηναίοι υψώνουν την πύλη τους, εδώ βασιλεύει ο φαραώ Σέτι ο Πρώτος, κι ύστερα ο γιος του, ο Ραμσής ο Μέγας. Θέλουν για τον θεό Άμμωνα ένα κτίριο με πολλούς κίονες, ένα πέτρινο δάσος. Στις Μυκήνες δύο λίθοι κράτησαν ένα ανώφλι. Εδώ θα στήσεις κίονες και θα απλώσεις από τον έναν στον άλλον πέτρινα δοκάρια. Χτίσε το!",
   "6": "Καλώς ήρθες, αρχιτέκτονα, στη Βαβυλώνα, γύρω στο 575 π.Χ., μια από τις λαμπρότερες πόλεις του κόσμου, στις όχθες του Ευφράτη. Ο βασιλιάς Ναβουχοδονόσορ θέλει μια πύλη για την Ιστάρ, τη θεά της πόλης. Τα δοκάρια του Καρνάκ όμως γεφυρώνουν μόνο μικρά ανοίγματα. Για μια μεγάλη πύλη χρειάζεσαι κάτι καινούργιο. Για πρώτη φορά θα χτίσεις καμάρα, πάνω σε ξύλινο καλούπι που θα βγάλεις μόλις σταθεί. Μετά από σένα, οι τεχνίτες θα τη ντύσουν με γαλάζια γυαλιστερά τούβλα, με δράκους και ταύρους. Χτίσε το!",
-  "7": "Καλώς ήρθες στην Αθήνα, αρχιτέκτονα, το 447 π.Χ. Οι Πέρσες, που κυρίευσαν τη Βαβυλώνα, έφτασαν ως εδώ και έκαψαν τους ναούς της Ακρόπολης. Νικήθηκαν όμως, κι η Αθήνα ζει τώρα τον χρυσό της αιώνα. Ο Περικλής θέλει στη θέση τους τον ωραιότερο ναό του κόσμου, για τη θεά Αθηνά. Τον σχεδιάζουν ο Ικτίνος και ο Καλλικράτης, με μάρμαρο της Πεντέλης. Για πρώτη φορά θα υψώσεις κίονες σπόνδυλο τον σπόνδυλο, με κιονόκρανα και αέτωμα. Χτίσε το!",
+  "7": "Καλώς ήρθες στην Αθήνα, αρχιτέκτονα, το 447 π.Χ. Οι Πέρσες, που κυρίευσαν τη Βαβυλώνα, έφτασαν ως εδώ και έκαψαν τους ναούς της Ακρόπολης. Νικήθηκαν όμως, κι η Αθήνα ζει τώρα τον χρυσό της αιώνα. Ο Περικλής θέλει στη θέση τους τον ωραιότερο ναό του κόσμου, για τη θεά Αθηνά. Τον σχεδιάζουν ο Ικτίνος και ο Καλλικράτης. Για πρώτη φορά θα χτίσεις με μάρμαρο, τη λευκή πέτρα της Πεντέλης, και θα υψώσεις κίονες σπόνδυλο τον σπόνδυλο, με κιονόκρανα και αέτωμα. Χτίσε το!",
   "8": "Καλώς ήρθες, αρχιτέκτονα, στην Αλικαρνασσό, στην απέναντι ακτή του Αιγαίου, γύρω στο 350 π.Χ. Εδώ κυβερνά ο Μαύσωλος. Δεν είναι Έλληνας, μα αγαπά ό,τι είναι ελληνικό. Για τον τάφο του φέρνει τους καλύτερους Έλληνες γλύπτες. Ελληνικοί κίονες σαν του Παρθενώνα θα σηκώσουν μια πυραμίδα με σκαλιά. Από το όνομά του, κάθε μεγάλος τάφος θα λέγεται μαυσωλείο. Για πρώτη φορά θα απλώσεις δοκάρια στον αέρα, πάνω σε ξύλινους στύλους, ώσπου να τα πατήσει η στέγη. Χτίσε το!",
   "9": "Καλώς ήρθες, αρχιτέκτονα, στην Αλεξάνδρεια, γύρω στο 280 π.Χ. Ο Μέγας Αλέξανδρος νίκησε τους Πέρσες και ίδρυσε στην Αίγυπτο αυτή την πόλη με το όνομά του. Όταν πέθανε, ο στρατηγός του, ο Πτολεμαίος, έγινε βασιλιάς της Αιγύπτου. Τώρα οι Πτολεμαίοι θέλουν στο νησάκι Φάρος έναν πύργο τόσο ψηλό, που η φωτιά του θα οδηγεί τα καράβια μέσα στη νύχτα. Από αυτό το νησί κάθε φάρος θα πάρει το όνομά του. Για πρώτη φορά θα χτίσεις ψηλά και κούφια, με δύο τοίχους δεμένους με ξύλινα δοκάρια. Χτίσε το!",
   "10": "Καλώς ήρθες, αρχιτέκτονα, στην Κωνσταντινούπολη, τη νέα πρωτεύουσα της Ρωμαϊκής Αυτοκρατορίας. Ο Μέγας Κωνσταντίνος την ίδρυσε, εδώ στον Βόσπορο. Η καινούργια πόλη όμως διψά, κι ο αυτοκράτορας Ουάλης θέλει να της φέρει νερό πάνω από την κοιλάδα. Οι Ρωμαίοι είναι μάστορες της καμάρας που γνώρισες στη Βαβυλώνα. Τώρα θα στήσεις δύο σειρές από καμάρες, τη μία πάνω στην άλλη. Έχεις όμως μόνο ένα καλούπι για τις καμάρες. Γι' αυτό, από κάθε καμάρα που τελειώνεις, βγάλε το καλούπι για να το ξαναχρησιμοποιήσεις. Εμπρός! Υδροδότησε την πόλη!",
@@ -319,7 +335,7 @@
   "88": "Κοίτα τον ουρανό, αρχιτέκτονα. Όσο ψηλά κι αν χτίσεις, εκείνος θα είναι πάντα λίγο ψηλότερα.",
   "89": "Τα κτίρια ζουν περισσότερο από αυτούς που τα χτίζουν. Τα έργα σου θα τα δουν παιδιά που δεν έχουν γεννηθεί ακόμα.",
   "90": "Ποιο έργο σου θα στέκει σε χίλια χρόνια; Οι καλοί αρχιτέκτονες το σκέφτονται πάντα.",
-  "91": "Αυτό το κουμπί σβήνει όλη σου την πρόοδο, κι αρχίζεις το χτίσιμο από την αρχή. Αν αυτό θέλεις, πάτα το δίπλα.",
+  "91": "Αυτό το κουμπί σβήνει όλη σου την πρόοδο, κι αρχίζεις το χτίσιμο από την αρχή. Αν αυτό θέλεις, πάτα το διπλά.",
   "92": "Πάτα εδώ για να ξεκινήσεις!",
   "93": "Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.",
   "94": "Αν πατήσεις ένα κομμάτι τρεις φορές γρήγορα, γυρίζει πίσω στον σωρό. Δοκίμασε!",
@@ -336,41 +352,56 @@
   "105": "Το κόκκινο δείχνει πού χάλασε. Φτιάξ' το εκεί και ξαναδοκίμασε!",
   "106": "Πάτα εδώ για να γυρίσεις στον χάρτη.",
   "107": "Τελείωσαν τα κομμάτια. Με το φτυάρι τα μαζεύεις όλα και ξαναρχίζεις.",
-  "108": "Σε αυτά τα σημεία μπαίνει ξύλο.",
   "109": "Αυτό το άνοιγμα μένει άδειο. Μην το κλείσεις!",
-  "110": "Αν βάλεις πλίνθους κάτω, θρυμματίζονται κάτω από το βάρος.",
+  "110": "Ο πλίνθος θρυμματίζεται κάτω από το βάρος.",
   "111": "Η πέτρα είναι γερή: βάλ' την κάτω, εκεί που πέφτει όλο το βάρος. Οι πλίνθοι πάνε ψηλά.",
-  "112": "Με δύο κοντά δοκάρια, όλο το βάρος πέφτει στη μέση, και τα τούβλα θρυμματίζονται.",
+  "112": "Όλο το βάρος πέφτει σε έναν πλίνθο, κι εκείνος θρυμματίζεται.",
   "113": "Η μακριά σανίδα απλώνει το βάρος σε όλα τα τούβλα από κάτω, κι έτσι αντέχουν.",
   "114": "Πάνω σε κάθε κίονα βάζεις δύο μικρές πέτρες. Το δοκάρι πατάει με κάθε άκρη του πάνω τους.",
   "115": "Πρώτα στήνεις το ξύλινο καλούπι.",
-  "116": "Πάνω του βάζεις τις σφήνες, από τις δύο μεριές.",
-  "117": "Η τελευταία σφήνα μπαίνει στην κορυφή και κλειδώνει την καμάρα.",
+  "116": "Πάνω του βάζεις τις καμαρόπετρες, από τις δύο μεριές.",
+  "117": "Η τελευταία καμαρόπετρα μπαίνει στην κορυφή και κλειδώνει την καμάρα.",
   "118": "Τώρα βγάζεις το καλούπι. Η καμάρα στέκει μόνη της!",
   "119": "Η καμάρα στέκει. Τώρα βγάλε το ξύλινο καλούπι!",
   "120": "Αν βγάλεις τον στύλο πριν πατήσει η στέγη, το δοκάρι πέφτει.",
   "121": "Στήριξε πρώτα το δοκάρι σε έναν ξύλινο στύλο. Όταν πατήσει η στέγη από πάνω, βγάζεις τον στύλο.",
-  "122": "Με τρία γρήγορα πατήματα, το καλούπι γυρίζει στον σωρό, έτοιμο για την επόμενη καμάρα.",
   "123": "Δες: δύο πλίνθοι δίπλα δίπλα, και ένας από πάνω, στη μέση.",
-  "124": "Δες τι γίνεται αν βάλουμε τους πλίνθους κάτω και τις πέτρες από πάνω.",
-  "125": "Τώρα ανάποδα: πέτρες κάτω, πλίνθοι από πάνω.",
-  "126": "Δες τι γίνεται με δύο κοντά δοκάρια πάνω στους πλίνθους.",
-  "127": "Τώρα μια μακριά σανίδα πάνω σε τρεις πλίνθους, και δύο πλίνθοι από πάνω.",
+  "124": "Δες τι γίνεται αν βάλουμε τρεις πέτρες πάνω σε έναν πλίνθο.",
+  "125": "Τώρα τις ίδιες τρεις πέτρες πάνω σε μια πέτρα.",
+  "126": "Δες τι γίνεται αν βάλουμε τέσσερις πλίνθους πάνω στον μεσαίο.",
+  "127": "Τώρα μια μακριά σανίδα πάνω στους τρεις πλίνθους, και οι ίδιοι τέσσερις πλίνθοι από πάνω.",
   "128": "Δες: ένας κίονας με δύο μικρές πέτρες από πάνω, άλλος ένας ίδιος, και ένα δοκάρι ανάμεσά τους.",
   "129": "Δες: ένα δοκάρι πάνω σε ξύλινο στύλο. Βγάζουμε τον στύλο πριν μπει η στέγη.",
-  "130": "Τώρα ξανά, αλλά πρώτα χτίζουμε όλη τη στέγη, και μετά βγάζουμε τους στύλους.",
-  "131": "Θυμήσου την καμάρα της Βαβυλώνας: καλούπι, σφήνες, και η σφήνα της κορυφής."
+  "130": "Τώρα ξανά, αλλά πρώτα βάζουμε τη στέγη πάνω στα δοκάρια, και μετά βγάζουμε τον στύλο.",
+  "132": "Μπράβο, αυτό γύρισε πίσω στον σωρό!",
+  "133": "Η κορωνίδα δεν επικάθισε καλά. Ξαναδοκίμασε!",
+  "134": "Μπορείς και να το σύρεις πίσω στον σωρό. Δοκίμασε!"
  },
  "lineNotes": {
-  "3": "CHANGED 14 Nov: the wood spreads the weight (record again if already recorded).",
+  "3": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
   "6": "CHANGED 14 Nov: αψίδα → καμάρα (record again if already recorded).",
   "9": "Its technique, two walls tied by wooden beams, is already in it; no demo.",
   "10": "CHANGED 14 Nov: one form, reused (record again if already recorded).",
   "78": "Checked in the game: mudbrick is lighter than stone and heavier than wood.",
   "86": "The owner's own text: attach the recording to slot 86. Never shown as text.",
   "70": "CHANGED 14 Nov evening (owner).",
-  "91": "CHANGED 14 Nov evening (owner): the confirm button is next to it.",
-  "99": "CHANGED 14 Nov evening (owner)."
+  "91": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
+  "99": "CHANGED 14 Nov evening (owner).",
+  "1": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
+  "4": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
+  "7": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
+  "110": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
+  "112": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
+  "116": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
+  "117": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
+  "124": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
+  "125": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
+  "126": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
+  "127": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
+  "130": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
+  "132": "NEW 15 Nov (owner list of 15 Nov).",
+  "133": "NEW 15 Nov (owner list of 15 Nov).",
+  "134": "NEW 15 Nov (owner list of 15 Nov)."
  },
  "groups": {
   "idle": {
@@ -473,8 +504,8 @@
    "say": 91,
    "topic": "Map",
    "kind": "teach",
-   "points": ["button:restart-confirm"],
-   "note": "The first press of the restart button shows a second, red button next to it for a few seconds; only that one erases."
+   "points": ["button:restart"],
+   "note": "Pressing the restart button again while this line's time lasts (6 s) erases everything; there is no other button."
   },
   {
    "id": "damaged-first",
@@ -517,7 +548,7 @@
   },
   {
    "id": "map-new-site-first",
-   "on": "map-win-said",
+   "on": "map-next",
    "say": {
     "group": "newsite"
    },
@@ -526,17 +557,27 @@
    "once": "ever",
    "points": ["site:next"],
    "show": "tap site:next",
-   "note": "The first time ever a site opens (first site's step 12)."
+   "note": "The first time ever a site opens."
   },
   {
    "id": "map-new-site",
-   "on": "map-win-said",
+   "on": "map-next",
    "say": {
     "group": "newsite"
    },
    "topic": "Map",
    "if": ["opened-next", "done:map-new-site-first"],
-   "points": ["site:next"]
+   "points": ["site:next"],
+   "note": "Every time the child comes back to the map from the site just before the open one (2 s after the win line, if there is one)."
+  },
+  {
+   "id": "next-site-flash",
+   "on": "next-flash",
+   "topic": "Map",
+   "if": ["has-next"],
+   "points": ["site:next"],
+   "glow": 4,
+   "note": "Every 60 s on the map the open site glows, no voice."
   },
   {
    "id": "leave-test",
@@ -589,25 +630,6 @@
    "then": "plan-shown"
   },
   {
-   "id": "new-pieces",
-   "on": "plan-shown",
-   "topic": "Entering a site",
-   "points": ["pile:new-pieces"],
-   "glow": 4,
-   "note": "Every pile piece of a shape or a material never seen before glows once, no voice."
-  },
-  {
-   "id": "wood-places",
-   "on": "plan-shown",
-   "say": 108,
-   "topic": "Entering a site",
-   "kind": "teach",
-   "if": ["has-wood-places"],
-   "once": "ever",
-   "points": ["plan:wood-places"],
-   "note": "Wood that stays in the building (Ur), never wooden supports or forms."
-  },
-  {
    "id": "openings",
    "on": "plan-shown",
    "say": 109,
@@ -653,7 +675,8 @@
    "kind": "teach",
    "once": "ever",
    "attention": "freeze",
-   "points": ["broken-piece"]
+   "points": ["broken-piece"],
+   "if": ["not testing"]
   },
   {
    "id": "crumble-again",
@@ -661,7 +684,7 @@
    "say": 72,
    "topic": "Building",
    "kind": "bg",
-   "if": ["done:crumble-first"],
+   "if": ["done:crumble-first", "not testing"],
    "once": "visit"
   },
   {
@@ -672,7 +695,8 @@
    "kind": "teach",
    "once": "ever",
    "attention": "freeze",
-   "points": ["broken-piece"]
+   "points": ["broken-piece"],
+   "if": ["not testing"]
   },
   {
    "id": "snap-again",
@@ -680,7 +704,7 @@
    "say": 73,
    "topic": "Building",
    "kind": "bg",
-   "if": ["done:snap-first"],
+   "if": ["done:snap-first", "not testing"],
    "once": "visit"
   },
   {
@@ -782,7 +806,7 @@
    "say": 75,
    "topic": "Test",
    "kind": "teach",
-   "if": ["part:load"],
+   "if": ["part:load", "not why:headpiece"],
    "once": "ever",
    "during": "test",
    "delay": "sound:fail",
@@ -794,9 +818,20 @@
    "on": "test-fail",
    "say": 75,
    "topic": "Test",
-   "if": ["part:load", "done:fail-load-first"],
+   "if": ["part:load", "done:fail-load-first", "not why:headpiece"],
    "during": "test",
    "delay": "sound:fail"
+  },
+  {
+   "id": "fail-headpiece",
+   "on": "test-fail",
+   "say": 133,
+   "topic": "Test",
+   "if": ["part:load", "why:headpiece"],
+   "during": "test",
+   "delay": "sound:fail",
+   "points": ["fail-place"],
+   "note": "Nothing broke and nothing fell; the headpiece did not sit well."
   },
   {
    "id": "fail-quake-first",
@@ -867,7 +902,8 @@
     "group": "idle"
    },
    "topic": "Idle",
-   "kind": "bg"
+   "kind": "bg",
+   "note": "On the map every 30 s of quiet; on a site after 60 s with no touch."
   },
   {
    "id": "t-drag-1",
@@ -879,7 +915,7 @@
    "points": ["pile:one-mudbrick", "plan"],
    "touch": ["pile:all", "plan"],
    "show": "drag pile:one-mudbrick > plan:first-place",
-   "wait": "placed-in-plan"
+   "wait": "until:piece-resting"
   },
   {
    "id": "t-tap3",
@@ -893,7 +929,8 @@
    "show": "tap3 plan:last-piece",
    "wait": "tap3",
    "needs": "plan-has-piece",
-   "back": "t-drag-1"
+   "back": "t-drag-1",
+   "after": 132
   },
   {
    "id": "t-drag-2",
@@ -905,7 +942,34 @@
    "points": ["pile:one-mudbrick", "plan"],
    "touch": ["pile:all", "plan"],
    "show": "drag pile:one-mudbrick > plan:first-place",
-   "wait": "placed-in-plan",
+   "wait": "until:piece-resting",
+   "note": "Again, so there is something to drag back."
+  },
+  {
+   "id": "t-dragback",
+   "on": "step",
+   "say": 134,
+   "topic": "First-site teaching",
+   "kind": "teach",
+   "attention": "point",
+   "points": ["plan:last-piece"],
+   "touch": ["plan:pieces"],
+   "show": "drag plan:last-piece > side",
+   "wait": "drag-back",
+   "needs": "plan-has-piece",
+   "back": "t-drag-2"
+  },
+  {
+   "id": "t-drag-3",
+   "on": "step",
+   "say": 93,
+   "topic": "First-site teaching",
+   "kind": "teach",
+   "attention": "point",
+   "points": ["pile:one-mudbrick", "plan"],
+   "touch": ["pile:all", "plan"],
+   "show": "drag pile:one-mudbrick > plan:first-place",
+   "wait": "until:piece-resting",
    "note": "Again, so there is something for the shovel."
   },
   {
@@ -919,7 +983,7 @@
    "show": "tap button:broom",
    "wait": "press-broom",
    "needs": "plan-has-piece",
-   "back": "t-drag-2",
+   "back": "t-drag-3",
    "after": 96
   },
   {
@@ -962,7 +1026,7 @@
   "first-site": {
    "site": "mastaba",
    "then": "plan-shown",
-   "steps": ["t-drag-1", "t-tap3", "t-drag-2", "t-shovel", "t-demo", "t-red", "t-green"],
+   "steps": ["t-drag-1", "t-tap3", "t-drag-2", "t-dragback", "t-drag-3", "t-shovel", "t-demo", "t-red", "t-green"],
    "note": "First site, after its welcome line, until the child has done all the steps. Then the child builds alone; the first test, first win and first fail lines are general cues."
   }
  },
@@ -976,38 +1040,35 @@
    "new": "stone; heavy low, light high",
    "steps": [
     ["tell", 124],
-    [
-     "put",
-     ["block", "mudbrick", -1, 0.5, 0],
-     ["block", "mudbrick", 1, 0.5, 0],
-     ["block", "stone", -1, 1.5, 0],
-     ["block", "stone", 1, 1.5, 0],
-     ["block", "stone", -1, 2.5, 0],
-     ["block", "stone", 1, 2.5, 0],
-     ["block", "stone", -1, 3.5, 0],
-     ["block", "stone", 1, 3.5, 0]
-    ],
+    ["put", ["block", "mudbrick", 0, 0.5, 0], ["block", "stone", 0, 1.5, 0], ["block", "stone", 0, 2.5, 0], ["block", "stone", 0, 3.5, 0]],
     ["wait", 3],
     ["say", 110],
     ["fade"],
     ["tell", 125],
-    [
-     "put",
-     ["block", "stone", -1, 0.5, 0],
-     ["block", "stone", 1, 0.5, 0],
-     ["block", "mudbrick", -1, 1.5, 0],
-     ["block", "mudbrick", 1, 1.5, 0],
-     ["block", "mudbrick", 0, 2.5, 0]
-    ],
-    ["wait", 1],
+    ["put", ["block", "stone", 0, 0.5, 0], ["block", "stone", 0, 1.5, 0], ["block", "stone", 0, 2.5, 0], ["block", "stone", 0, 3.5, 0]],
+    ["wait", 3],
     ["say", 111],
     ["fade"]
    ],
-   "note": "Wrong way: two mudbricks with stone blocks three high on them; they crumble. Right way: two stones with mudbricks on top."
+   "note": "Owner 15 Nov: one stack; the same three stones on a mudbrick (it crumbles), then on a stone (it holds)."
   },
   "ziggurat": {
    "new": "wood as a row; the long plank spreads the weight",
    "steps": [
+    ["tell", 126],
+    [
+     "put",
+     ["block", "mudbrick", -2, 0.5, 0],
+     ["block", "mudbrick", 0, 0.5, 0],
+     ["block", "mudbrick", 2, 0.5, 0],
+     ["block", "mudbrick", 0, 1.5, 0],
+     ["block", "mudbrick", 0, 2.5, 0],
+     ["block", "mudbrick", 0, 3.5, 0],
+     ["block", "mudbrick", 0, 4.5, 0]
+    ],
+    ["wait", 3],
+    ["say", 112],
+    ["fade"],
     ["tell", 127],
     [
      "put",
@@ -1015,14 +1076,16 @@
      ["block", "mudbrick", 0, 0.5, 0],
      ["block", "mudbrick", 2, 0.5, 0],
      ["plank", "wood", 0, 1.25, 0],
-     ["block", "mudbrick", -1, 2, 0],
-     ["block", "mudbrick", 1, 2, 0]
+     ["block", "mudbrick", 0, 2, 0],
+     ["block", "mudbrick", 0, 3, 0],
+     ["block", "mudbrick", 0, 4, 0],
+     ["block", "mudbrick", 0, 5, 0]
     ],
-    ["wait", 1],
+    ["wait", 3],
     ["say", 113],
     ["fade"]
    ],
-   "note": "The wrong way (two short beams, lines 126 and 112) is left out: built in the game, no brick crumbles under it. Another chat deals with Ur (owner, 14 Nov)."
+   "note": "Owner 15 Nov: first crumbling, then not: the same four mudbricks on the middle one of three (it crumbles), then on a long plank over the three (they hold)."
   },
   "liongate": {
    "new": "standing stones and a stone across; a pole held between stones",
@@ -1045,7 +1108,8 @@
     ["pull"],
     ["wait", 1.5],
     ["fade"]
-   ]
+   ],
+   "note": "The form comes out with three taps (owner 15 Nov)."
   },
   "parthenon": {
    "new": "drums stacked straight; pediment stones",
@@ -1055,21 +1119,21 @@
    "new": "wooden posts as temporary props",
    "steps": [
     ["tell", 129],
-    ["put", 1, 2, 6, 7, 8, 15, 18],
+    ["put", 0, 1, 2, 3, 9, 10, 11, 6, 7, 8, 15, 18],
     ["wait", 0.5],
     ["pull"],
     ["wait", 2.5],
     ["say", 120],
     ["fade"],
     ["tell", 130],
-    ["put", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35],
+    ["put", 0, 1, 2, 3, 9, 10, 11, 6, 7, 8, 15, 18, 17, 21, 22, 23],
     ["wait", 0.5],
     ["pull"],
-    ["wait", 2],
+    ["wait", 2.5],
     ["say", 121],
     ["fade"]
    ],
-   "note": "The right way builds the whole roof (about 40 s): the beams hold only under all of it."
+   "note": "Owner 15 Nov: the same base both ways, the middle column wholly on the blocks. Wrong: one lintel on a post, the post tapped out, the lintel falls. Right: the same, the second lintel and three roof stones over them, then the post out: both lintels stand."
   },
   "pharos": {
    "new": "hollow tower, two walls tied by wooden beams",
@@ -1078,13 +1142,12 @@
   },
   "valens": {
    "new": "reusing the forms",
-   "steps": [["tell", 131], ["put", 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], ["wait", 0.5], ["tell", 122], ["taps", "centering"], ["wait", 1], ["fade"]],
-   "note": "A reminder: the Ishtar arch, then the ghost finger taps the form three times and it goes back to the pile."
+   "steps": [],
+   "note": "Owner 15 Nov: the last level needs no demo."
   }
  },
  "notes": [
   "Mausoleum (owner, 14 Nov): the posts stay; when he builds, the beams fall without them. The demo shows that failure.",
-  "Valens (owner, 14 Nov): the level has one form on one block; the quick build makes the arches one after another, taking the form out of each.",
   "After Valens there is nothing new left to teach."
  ]
 }

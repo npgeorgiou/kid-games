@@ -100,7 +100,7 @@
     // The textures switch: a little wall of four blocks inside the button, plain colours when off, the real
     // textures when on (with a green ring).
     texSwitch(ctx, x, y, size, on, tex) {
-      const w = size * 0.26, h = size * 0.15, keys = ["sandstone", "wood", "mudbrick", "marble"], plain = ["#89939b", "#c9a36b", "#ad7f52", "#c9b088"];
+      const w = size * 0.26, h = size * 0.15, keys = TEX_BUTTON.map((b) => b[0]), plain = TEX_BUTTON.map((b) => PLAIN[b[1]]);
       ctx.save();
       [[-1, -1], [0, -1], [-1, 0], [0, 0]].forEach(([i, j], n) => {
         const bx = x + i * w, by = y + j * h - h * 0.05, im = tex[keys[n]];
@@ -406,9 +406,13 @@
       ctx.restore();
     },
     // the rest of the screen darkened while a cue holds attention; `holes` (paths) stay bright
-    dim(ctx, w, h, holes) {
-      const p = new Path2D(); p.rect(0, 0, w, h); for (const q of holes) p.addPath(q);
-      ctx.save(); ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.fill(p, "evenodd"); ctx.restore();
+    dim(ctx, w, h, holes) { // holes cut out one by one, so two holes over the same thing never darken it again
+      const c = this.dimCanvas || (this.dimCanvas = document.createElement("canvas")), d = c.getContext("2d");
+      if (c.width !== ctx.canvas.width || c.height !== ctx.canvas.height) { c.width = ctx.canvas.width; c.height = ctx.canvas.height; }
+      d.setTransform(1, 0, 0, 1, 0, 0); d.clearRect(0, 0, c.width, c.height); d.setTransform(ctx.getTransform());
+      d.globalCompositeOperation = "source-over"; d.fillStyle = "rgba(0, 0, 0, 0.5)"; d.fillRect(0, 0, w, h);
+      d.globalCompositeOperation = "destination-out"; d.fillStyle = "#000"; for (const q of holes) d.fill(q);
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(c, 0, 0); ctx.restore();
     },
     // a button held down (it acts when let go)
     pressed(ctx, path) { ctx.save(); ctx.fillStyle = "rgba(0, 0, 0, 0.32)"; ctx.fill(path); ctx.restore(); },
@@ -438,6 +442,9 @@
   // ---------------------------------------------------------------------
   // SECTION: PIECE DEFINITIONS -- materials, piece shapes/sizes, sidebar buttons
   // ---------------------------------------------------------------------
+  // plain colours (textures off), each close to its texture's own colour; marble levels show their stone in marble (owner 15 Nov)
+  const PLAIN = { stone: "#89939b", stoneLine: "#4d5962", marble: "#e4dfd4", marbleLine: "#8e887c", wood: "#c9a36b", mudbrick: "#ad7f52", mudbrickLine: "#5b3b20" };
+  const TEX_BUTTON = [["silver-sandstone", "stone"], ["wood", "wood"], ["mudbrick", "mudbrick"], ["marble", "marble"]]; // the textures button's little wall: texture, plain colour
   const MATERIALS = {
     wood:  { label: "WOOD",  density: 1.1,  friction: 0.5,  restitution: 0.015 },
     // mudbrick: between wood and stone in weight; crumbles under heavy weight (SECTION BREAKING)
@@ -636,6 +643,7 @@
     if (piece.grip) {
       dropHand(piece);
     }
+    for (let e = piece.body.getContactList(); e; e = e.next) e.other.setAwake(true); // what rested on it feels it go (a sleeping beam would float)
     world.destroyBody(piece.body);
   }
 
@@ -777,7 +785,6 @@
       circ("tex", tb.x, tb.y, tb.size / 2, () => setTextures(!useTextures));
       circ("free", fb.x, fb.y, fb.size / 2, startFree);
       circ("restart", rb.x, rb.y, rb.size / 2, restartPress);
-      if (confirmUntil > cueClock) { const cb = confirmButton(); circ("restart-confirm", cb.x, cb.y, cb.size / 2, restartConfirm); }
       for (const s of SITES) {
         const m = siteMarker(v, s), i = LEVELS.findIndex((L) => L.key === s.key);
         circ("site:" + s.key, m.x, m.y, m.r * 1.15, levelOpen(i) || progress.done[s.key] ? () => { startLevel(i); onEnterSite(i); } : lockedTap);
@@ -994,7 +1001,7 @@
       }
     }
     // levels: let go over the sidebar and the piece goes back into the pile
-    if (piece && currentLevel != null && !test && e.clientX >= buildingWidthPx && pieces.includes(piece)) returnToPile(piece);
+    if (piece && currentLevel != null && !test && e.clientX >= buildingWidthPx && pieces.includes(piece)) { returnToPile(piece); cueEvent("drag-back"); }
   }
 
   function onPointerCancel(e) {
@@ -1229,7 +1236,7 @@
   const TEX_KEY = "tower-builder-progress-v1" + "-textures"; // next to the saved progress (SAVE_KEY), but kept by ΕΠΑΝΕΚΚΙΝΗΣΗ
   let useTextures = (() => { try { return localStorage.getItem(TEX_KEY) === "1"; } catch (err) { return false; } })();
   function setTextures(on) { useTextures = on; try { localStorage.setItem(TEX_KEY, on ? "1" : "0"); } catch (err) { /* ignore */ } }
-  function chipRGB(material) { if (!useTextures) return material === "mudbrick" ? "140, 98, 60" : "120, 128, 135"; return TEX_RGB[material === "mudbrick" ? "mudbrick" : stoneKey()]; }
+  function chipRGB(material) { if (!useTextures) return material === "mudbrick" ? "140, 98, 60" : stoneKey() === "marble" ? "200, 194, 182" : "120, 128, 135"; return TEX_RGB[material === "mudbrick" ? "mudbrick" : stoneKey()]; }
   const texPat = {};
   function texFor(material) {
     if (!useTextures) return null; // the plain drawing
@@ -1256,7 +1263,7 @@
   }
   // Draws one piece at a screen point and pixels-per-metre (also used for the map's small monuments).
   function drawPieceShape(defKey, material, sx, sy, angle, sc, strain = 0, seed = 0) {
-    const fillC = material === "mudbrick" ? "#ad7f52" : "#89939b", lineC = material === "mudbrick" ? "#5b3b20" : "#4d5962";
+    const marble = stoneKey() === "marble", fillC = material === "mudbrick" ? PLAIN.mudbrick : marble ? PLAIN.marble : PLAIN.stone, lineC = material === "mudbrick" ? PLAIN.mudbrickLine : marble ? PLAIN.marbleLine : PLAIN.stoneLine;
     const def = PIECE_DEFS[defKey];
     const piece = { material, r: def.r, hx: def.hx, hy: def.hy, verts: def.verts };
     ctx.save();
@@ -1354,7 +1361,7 @@
           ctx.beginPath(); ctx.moveTo(b.x + 7, yy); ctx.lineTo(b.x + b.w - 7, yy); ctx.stroke();
         }
       } else {
-        ctx.fillStyle = b.key === "mudbrick" ? "#ad7f52" : "#89939b";
+        ctx.fillStyle = b.key === "mudbrick" ? PLAIN.mudbrick : stoneKey() === "marble" ? PLAIN.marble : PLAIN.stone;
         ctx.fillRect(b.x + 5, b.y + 5, b.w - 10, b.h - 10);
       }
       ctx.fillStyle = "#211c17";
@@ -2620,7 +2627,7 @@
       failShow = badLoads.length ? { cells: [], loads: badLoads, unfilled: false, until: null } // only the load's place is red
         : { cells: failingCells(c, CHECK.fillAfter), loads: [], unfilled: true, until: null };
       nextPhase("fail");
-      playSound("fail", 1); onFail(part);
+      playSound("fail", 1); onFail(part, badLoads.length && c.fill >= CHECK.fillAfter ? "headpiece" : null);
       return false;
     }
     return true;
@@ -3225,7 +3232,6 @@
     groups.forEach((g, i) => { for (const k of Object.keys(g)) delete g[k]; Object.assign(g, { state: "boat", boat: boats[i], onFoot: 0, stops: 0, recent: [], plan: null }); });
   }
   // Real textures on or off (owner): a round button above ΕΠΑΝΕΚΚΙΝΗΣΗ, showing a little wall in the look it gives.
-  function confirmButton() { const rb = restartButton(); return { x: rb.x + rb.size * 1.25, y: rb.y, size: rb.size }; } // the restart's red "yes", for a few seconds after a press
   function texButton() { const rb = restartButton(); return { x: rb.x, y: rb.y - rb.size * 1.45, size: rb.size }; }
   function freePlayButton() {
     const size = Math.max(70, Math.min(cssWidth, cssHeight) * 0.14);
@@ -3256,7 +3262,6 @@
     const rb = restartButton();
     SKIN.button(ctx, "restart", rb.x, rb.y, rb.size, false);
     SKIN.buttonLabel(ctx, "ΕΠΑΝΕΚΚΙΝΗΣΗ", rb.x, rb.y + rb.size * 0.55, rb.size);
-    if (confirmUntil > cueClock) { const cb = confirmButton(); SKIN.button(ctx, "confirm", cb.x, cb.y, cb.size, false); }
     const tb = texButton();
     SKIN.button(ctx, "blank", tb.x, tb.y, tb.size, false);
     SKIN.texSwitch(ctx, tb.x, tb.y, tb.size, useTextures, TEX);
@@ -3285,11 +3290,11 @@
   const CUE_TABLE = null; // build.py puts cues.json here
   const CUES_OFF = false; // the harness turns the cues off for tests of other things
   const VOICE_FILES = {}; // line number -> recording; build.py fills it from src/sounds/voice/NN.mp3
-  const LINE_TIME = 2, REPEAT_GAP = 5, HL_PERIOD = 1.8, HL_RING = 40, IDLE_TIME = 60, DAMAGE_EVERY = 60, DEMO_SPEED = 12, DEMO_PAUSE = 0.35, CONFIRM_TIME = 6;
-  // s, s (after a waiting step's line ends), s, px, s, s, m/s (about a second across the screen), s, s (the restart's red confirm button)
+  const LINE_TIME = 2, REPEAT_GAP = 5, HL_PERIOD = 1.8, HL_RING = 40, IDLE_TIME = 60, MAP_IDLE = 30, NEXT_EVERY = 60, NEXT_GAP = 2, DAMAGE_EVERY = 60, DEMO_SPEED = 12, DEMO_PAUSE = 0.35, CONFIRM_TIME = 6;
+  // s, s (after a waiting step's line ends), s, px, s (no touch on a site), s (no line on the map), s (the open site glows), s (win line to new-site line), s, m/s (about a second across the screen), s, s (a second restart press within it erases)
   const HL_COLOR = { yellow: "#ffd23f", green: "#3fd16b", red: "#e8463a" };
   const voice = { cur: null, queue: [] };
-  let scene = 0, active = [], whens = [], flashes = [], visit = {}, cueFrame = 0, cueClock = 0, lastInput = 0, damageT = 0, buildCheckT = 0, cueAudio = null, confirmUntil = -1;
+  let scene = 0, active = [], whens = [], flashes = [], visit = {}, cueFrame = 0, cueClock = 0, lastInput = 0, damageT = 0, nextT = 0, mapIdleT = 0, seqOn = null, buildCheckT = 0, cueAudio = null, confirmUntil = -1;
   // the text box stands in for the recordings; the blue bar on top runs out, emptying from the left
   const cueBox = document.createElement("div"), cueText = document.createElement("div"), cueBar = document.createElement("div");
   cueBox.style.cssText = "position:fixed;left:50%;bottom:6%;transform:translateX(-50%);max-width:70%;background:#fff;color:#222;font:22px/1.35 sans-serif;padding:20px 20px 14px;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;display:none;z-index:10;overflow:hidden";
@@ -3307,7 +3312,6 @@
     return m;
   }
   function cueSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (err) { /* ignore */ } }
-  function firstEver(k) { const m = cueMem(); if (m.ever[k]) return false; m.ever[k] = 1; cueSave(); return true; }
   function onceKey(c, x) { return !c.once ? null : c.once === "ever" ? "ever:" + c.id : c.once === "site" ? "site:" + c.id + "@" + siteKeyOf(x.site) : "visit:" + c.id; }
   function isMarked(k) { if (!k) return false; const [w, r] = [k.slice(0, k.indexOf(":")), k.slice(k.indexOf(":") + 1)]; return w === "visit" ? !!visit[r] : !!cueMem()[w][r]; }
   function setMark(k, on) {
@@ -3329,22 +3333,25 @@
     scene++;
     for (const q of voice.queue) setMark(q.onceKey, false);
     voice.queue.length = 0; if (voice.cur) endLine(voice.cur);
-    active = []; whens = []; flashes = []; visit = {}; confirmUntil = -1;
+    active = []; whens = []; flashes = []; visit = {}; confirmUntil = -1; seqOn = null; nextT = 0; mapIdleT = 0;
   }
   function cueReset() { progress.cues = null; newScene(); }
 
   // --- conditions (names used in the table's "if", "needs" and "start")
+  const touching = (b) => { for (let e = b.getContactList(); e; e = e.next) if (e.contact.isTouching()) return true; return false; }; // lying on something
   const childPieces = () => pieces.filter((p) => !p.demo && !p.auto && !p.ghost);
   const CUE_CONDITIONS = {
     "first-launch": () => !Object.keys(progress.done).length && !isMarked("ever:welcome-first"),
     "site-finished": (x) => { const d = progress.done[siteKeyOf(x.site)]; return !!(d && !d.broken); },
     "teaching-pending": (x) => { const s = sequenceOf(x.site); return !!s && cueMem().seq[s] !== "done"; },
     "demo-pending": (x) => { const k = siteKeyOf(x.site), d = CUE_TABLE.demos[k]; return !!(d && d.steps.length && !progress.done[k]); },
-    "has-wood-places": () => !!(grid && grid.wood.length && grid.L.woodRole === "courses"),
     "has-openings": () => !!(grid && grid.holes.length),
     "has-damaged": () => SITES.some((s) => progress.done[s.key] && progress.done[s.key].broken),
     "all-done": () => LEVELS.every((l) => progress.done[l.key]),
     "opened-next": (x) => x.next != null,
+    "has-next": () => !!nextSite(),
+    "testing": () => !!test,
+    "piece-resting": () => childPieces().some((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx && touching(p.body) && Math.hypot(p.body.getLinearVelocity().x, p.body.getLinearVelocity().y) < 0.05 && Math.abs(p.body.getAngularVelocity()) < 0.05),
     "first-test": () => !!(test && test.first),
     "plan-has-piece": () => childPieces().length > 0,
     "plan-has-two": () => childPieces().filter((p) => p.heldBy == null).length >= 2,
@@ -3358,6 +3365,7 @@
     const [k, v] = name.split(":");
     if (k === "material") return x.material === v;
     if (k === "part") return x.part === v;
+    if (k === "why") return x.why === v;
     if (k === "done") return isMarked("ever:" + v);
     return !!CUE_CONDITIONS[name](x);
   }
@@ -3384,7 +3392,7 @@
     const memo = {}, pts = (names) => (names || []).flatMap((n) => pointTargets(n, x, memo));
     if (c.glow) { setMark(key, true); glowFor(pts(c.points), c.glow); then(); return c; }
     if (c.say == null) { setMark(key, true); then(); return c; }
-    if (!seq && stepWaiting()) return null; // while a step waits for the child, other lines are dropped (their first time stays unused)
+    if (!seq && (seqOn || stepWaiting())) return null; // while a teaching sequence runs or a step waits, other lines are dropped (their first time stays unused)
     const n = lineOf(c, x);
     const line = say(n, {
       cue: c, kind: c.kind || "queued", attention: c.attention || "none", targets: pts(c.points), touch: c.touch ? pts(c.touch) : null,
@@ -3406,7 +3414,7 @@
 
   // --- sequences: steps in order, resumed where the child left them; a step that needs something missing goes back
   function sequenceOf(site) { const k = siteKeyOf(site); return Object.keys(CUE_TABLE.sequences).find((n) => CUE_TABLE.sequences[n].site === k) || null; }
-  function runSequence(name) { if (name) runStep(name, cueMem().seq[name] || CUE_TABLE.sequences[name].steps[0]); }
+  function runSequence(name) { if (name) { seqOn = name; runStep(name, cueMem().seq[name] || CUE_TABLE.sequences[name].steps[0]); } }
   function runStep(name, id, depth = 0) {
     const c = cueById(id), m = cueMem(); m.seq[name] = id; cueSave();
     const go = () => {
@@ -3418,7 +3426,7 @@
   function nextStep(name, id) {
     const sq = CUE_TABLE.sequences[name], i = sq.steps.indexOf(id);
     if (i + 1 < sq.steps.length) { runStep(name, sq.steps[i + 1]); return; }
-    cueMem().seq[name] = "done"; cueSave();
+    cueMem().seq[name] = "done"; cueSave(); seqOn = null;
     if (sq.then) cueEvent(sq.then);
   }
 
@@ -3480,11 +3488,13 @@
       }
     }
     flashes = flashes.filter((f) => now - f.t0 < 2);
-    if (now - lastInput > IDLE_TIME && !test && !demo) { lastInput = now; cueEvent("idle"); }
+    if (mode !== "map" && now - lastInput > IDLE_TIME && !test && !demo) { lastInput = now; cueEvent("idle"); }
     if (mode === "map") mapTick(dt);
     else if (currentLevel != null && grid && !test && !auto && !demo) buildTick(dt);
   }
-  function mapTick(dt) { // a damaged site's red rings flash every DAMAGE_EVERY s
+  function mapTick(dt) { // the open site glows every NEXT_EVERY s; a flavour line after MAP_IDLE s of quiet; a damaged site's red rings flash every DAMAGE_EVERY s
+    if ((nextT += dt) >= NEXT_EVERY) { nextT = 0; cueEvent("next-flash"); }
+    if (voice.cur || voice.queue.length) mapIdleT = 0; else if ((mapIdleT += dt) >= MAP_IDLE) { mapIdleT = 0; cueEvent("idle"); }
     if (!cond("has-damaged")) { damageT = 0; return; }
     if ((damageT += dt) < DAMAGE_EVERY) return;
     damageT = 0;
@@ -3555,17 +3565,11 @@
     if (k === "pile") {
       if (v === "all") return [{ pileArea: true }];
       if (v === "one-mudbrick") { if (!memo.one) memo.one = pileBodies().find((b) => b.pileItem.material === "mudbrick") || pileBodies()[0]; return memo.one ? [{ pile: memo.one }] : []; }
-      if (v === "new-pieces") { // pieces of a shape or material never seen before; seen from now on
-        const shapes = new Set(), mats = new Set();
-        for (const b of pileBodies()) { if (firstEver("shape:" + b.pileItem.defKey)) shapes.add(b.pileItem.defKey); if (firstEver("mat:" + b.pileItem.material)) mats.add(b.pileItem.material); }
-        return pileBodies().filter((b) => shapes.has(b.pileItem.defKey) || mats.has(b.pileItem.material)).map((b) => ({ pile: b }));
-      }
     }
     if (k === "plan") {
       if (!v) return [{ plan: true }];
       if (v === "pieces") return [{ planPieces: true }];
       if (v === "last-piece") return [{ lastPiece: true }];
-      if (v === "wood-places") return [{ rings: grid.wood }];
       if (v === "openings") return [{ rings: grid.holes }];
       if (v === "first-place") {
         const one = memo.one && memo.one.pileItem, sol = SOLUTIONS[siteKeyOf(x.site)] || [];
@@ -3592,7 +3596,7 @@
     if (t.btn) {
       const b = screenButtons().find((q) => q.id === t.btn); if (!b) return [];
       const done = t.btn.startsWith("site:") && progress.done[t.btn.slice(5)];
-      const color = t.btn === "test" ? (testReady() || tabHeldNow() ? HL_COLOR.green : HL_COLOR.red) : t.btn === "restart-confirm" ? HL_COLOR.red : done ? (done.broken ? HL_COLOR.red : HL_COLOR.green) : Y;
+      const color = t.btn === "test" ? (testReady() || tabHeldNow() ? HL_COLOR.green : HL_COLOR.red) : t.btn === "restart" ? HL_COLOR.red : done ? (done.broken ? HL_COLOR.red : HL_COLOR.green) : Y;
       return [{ shape: b.rect ? Object.assign({ kind: "rect" }, b.rect) : { kind: "circle", x: b.x, y: b.y, r: b.id.startsWith("site:") ? b.r / 1.15 : b.r }, color }];
     }
     if (mode !== "build") return [];
@@ -3669,7 +3673,7 @@
   function nextSite() { return SITES.find((s) => levelOpen(LEVELS.findIndex((L) => L.key === s.key)) && !progress.done[s.key]); }
   function mapStart() { newScene(); cueEvent("map-start"); cueEvent("map-shown"); }
   function lockedTap() { cueEvent("tap-locked-site"); }
-  function restartPress() { confirmUntil = cueClock + CONFIRM_TIME; cueEvent("press-restart"); } // the red confirm button shows next to it
+  function restartPress() { if (confirmUntil > cueClock) { restartConfirm(); return; } confirmUntil = cueClock + CONFIRM_TIME; cueEvent("press-restart"); } // a second press within CONFIRM_TIME erases
   function restartConfirm() { restartAll(); mapStart(); }
   function onGoMap(i, leftTest) {
     cueEvent("go-map");
@@ -3678,7 +3682,9 @@
     const d = i != null && progress.done[siteKeyOf(i)];
     if (d && !d.broken) {
       const next = LEVELS[i + 1], opened = next && !progress.done[next.key] && levelOpen(i + 1) && !LEVELS.every((l) => progress.done[l.key]);
-      cueEvent("map-return", { site: i, next: opened ? i + 1 : null });
+      const x = { site: i, next: opened ? i + 1 : null }, said = cueEvent("map-return", x).fired.find((c) => c.n != null);
+      if (!said) cueEvent("map-next", x);
+      else { const then = said.then; said.then = () => { if (then) then(); const at = cueClock + NEXT_GAP; cueWhen(() => cueClock >= at, () => cueEvent("map-next", x)); }; }
     }
     cueEvent("map-shown");
   }
@@ -3687,19 +3693,23 @@
   function onPlaced(piece) { const q = piece.body.getPosition(); if (!demo && currentLevel != null && !piece.demo && worldToScreen(q.x, q.y).x < buildingWidthPx) cueEvent("placed-in-plan"); }
   function onBreak(kind, p) { if (!p.demo && !demo) cueEvent(kind, { piece: p }); }
   function onRedPress() { if (!cueEvent("press-test").ended) cueEvent("press-red"); }
-  function onTestStart() { test.first = !isMarked("ever:explain-wind"); if (!cueEvent("press-test").ended) cueEvent("test-start"); }
+  function onTestStart() { // lines still waiting from the building are dropped (first times stay unused): after the test they would be stale
+    test.first = !isMarked("ever:explain-wind");
+    voice.queue = voice.queue.filter((q) => { if (q.duringTest) return true; setMark(q.onceKey, false); return false; });
+    if (!cueEvent("press-test").ended) cueEvent("test-start");
+  }
   function enterPart(ph) { // a part may first wait for its freezing line (the first test's explanations)
     const f = cueEvent("test-part", { part: ph }).fired.find((c) => c.attention === "freeze");
     if (!f) { nextPhase(ph); return; }
     test.phase = "cue"; test.t = 0;
     const then = f.then; f.then = () => { if (then) then(); if (test && test.phase === "cue") nextPhase(ph); };
   }
-  function onFail(part) { if (part) cueEvent("test-fail", { part }); }
+  function onFail(part, why) { if (part) cueEvent("test-fail", { part, why }); }
   function onWin(i) { cueEvent("test-pass", { site: i }); }
   // the table names only what the code knows: every event fired, condition, point and line used (the harness prints this)
   const POINT_KINDS = ["button", "site", "pile", "plan", "fail-place", "broken-piece", "form", "side", "building"];
   function cueCheckTable() {
-    const bad = [], conds = (n) => { const b = n.replace(/^not /, ""); if (!/^(material|part|done):/.test(b) && !CUE_CONDITIONS[b]) bad.push("condition " + n); };
+    const bad = [], conds = (n) => { const b = n.replace(/^not /, ""); if (!/^(material|part|done|why):/.test(b) && !CUE_CONDITIONS[b]) bad.push("condition " + n); };
     for (const c of CUE_TABLE.cues) {
       (c.if || []).forEach(conds); if (c.needs) conds(c.needs); if (c.start) conds(c.start); if (c.wait && c.wait.startsWith("until:")) conds(c.wait.slice(6));
       for (const p of (c.points || []).concat(c.touch || [])) if (!POINT_KINDS.includes(p.split(":")[0])) bad.push("point " + p);
@@ -3747,7 +3757,7 @@
     if (d.tap) { // the ghost finger taps three times; the piece goes back
       const t = (d.tap.t += dt), q = d.tap.piece.body.getPosition();
       d.hand = Object.assign(worldToScreen(q.x, q.y), { pressed: t % 0.5 < 0.25 });
-      if (t >= 1.5) { playSound("take-back", 1); removePiece(d.tap.piece); d.tap = null; d.hand = null; d.ops.shift(); d.wait = DEMO_PAUSE; }
+      if (t >= 1.5) { playSound("take-back", 1); removePiece(d.tap.piece); d.tap = null; d.hand = null; if (d.ops[0][0] !== "pull") d.ops.shift(); d.wait = DEMO_PAUSE; } // "pull" goes on to the next support
       return;
     }
     if ((d.wait -= dt) > 0) return;
@@ -3765,7 +3775,7 @@
     else if (op[0] === "pull") {
       const p = supportPieces().find((q) => q.demo);
       if (!p) { d.ops.shift(); return; }
-      demoCarry(p, viewX0 + worldWidth + 1, p.body.getPosition().y, p.body.getAngle(), true);
+      d.tap = { piece: p, t: 0 }; // three taps send it back (owner 15 Nov: never dragged out)
     } else if (op[0] === "taps") {
       const p = demoPieces().find((q) => q.defKey === op[1]);
       if (!p) { d.ops.shift(); return; }

@@ -11,7 +11,8 @@ The child plays without reading. The game talks to them, shows them what to do w
 - Every line belongs to the screen it was fired on (the map, one visit to a site, free play); leaving drops what is left.
 - Kinds: teach and queued lines wait their turn; bg lines play only if nothing is playing or waiting. When a teaching and a flavour line fire at the same moment, the flavour one is dropped.
 - No line starts while a test runs unless it says it may (during: test).
-- While a teaching step waits for the child, every other line is dropped (a dropped first-time line keeps its first time for later).
+- While a teaching sequence runs (the first site, from its first step to its last), only its own lines play; every other line is dropped (a dropped first-time line keeps its first time for later).
+- Lines about a moment of building (a crumble, a snap) are not said during a test; the test's own lines say what happened.
 - An action that ends a waiting step fires nothing else (pressing the red button in the red-button step says no line 70).
 - Attention: none (default) only makes what it points at glow; point darkens the rest of the screen while the step waits, and only what it points at (or its touch list) can be touched; freeze darkens and freezes the game while its line plays. A demo darkens all but the building and takes no touch. Ctrl held (parent) is never held back.
 - What a line talks about glows from its own outline (a plank's glow is long), with a slow ring spreading out: yellow, or green/red for a green/red thing.
@@ -20,9 +21,11 @@ The child plays without reading. The game talks to them, shows them what to do w
 - Groups: random, never one of the last n played, n = half the group rounded down (a group of 2 alternates; a site's 3 facts never repeat the last one).
 - Memory: one saved record keeps every first time (ever, per site), each group's recent lines and where each teaching sequence stands. The restart clears it, so all teaching, demos and the first welcome come again.
 - Every button shows pressed while held and acts when let go over it.
-- Wooden supports and forms are taken out by hand (dragged out, or three quick taps send them back). The test does not take them out; one left in shows red.
+- Wooden supports and forms are taken out by hand (dragged out, or three quick taps send them back). The test does not take them out; one left in shows red. Demos take them out with three taps.
 - The test button is red until the building is ready, then green with a 'go' triangle; open sites are yellow, damaged ones red.
 - The parent override (Ctrl) has no voice line.
+- The map: the open site glows every 60 s (no voice); its voice line plays the first time it opens and every time the child comes back from the site before it, 2 s after the win line ends. A flavour line plays every 30 s of quiet.
+- The restart: the first press says what it does; a second press while its line lasts erases everything.
 
 ## Cues
 
@@ -34,13 +37,14 @@ Each cue: when it fires, what it says, what it shows, what it waits for. Its nam
 - `map-start-step` — When the first welcome line has been said (`welcomed-first`): says line 92 «Πάτα εδώ για να ξεκινήσεις!» (teaching). Points at the site to build next. The rest of the screen darkens while it waits; only the site to build next can be touched. Waits until the child enters a site from the map; its line comes again 5 s after it ends. The ghost hand taps the site to build next. *The only open site: the child must press it.*
 - `welcome-back` — When the map shows at the start of the game, or after the restart (`map-start`) (only if not: no saved progress and the first welcome never said): says line 12 «Καλώς ήρθες ξανά, αρχιτέκτονα! Τα έργα σου σε περιμένουν.» (queued).
 - `locked-site` — When the child presses a locked site (`tap-locked-site`): says line 13 «Αυτός ο τόπος σε περιμένει. Πρώτα χτίσε τον προηγούμενο!» (teaching). Points at the site to build next.
-- `restart-ask` — When the child presses the restart button (`press-restart`): says line 91 «Αυτό το κουμπί σβήνει όλη σου την πρόοδο, κι αρχίζεις το χτίσιμο από την αρχή. Αν αυτό θέλεις, πάτα το δίπλα.» (teaching). Points at the red button next to restart (it erases). *The first press of the restart button shows a second, red button next to it for a few seconds; only that one erases.*
+- `restart-ask` — When the child presses the restart button (`press-restart`): says line 91 «Αυτό το κουμπί σβήνει όλη σου την πρόοδο, κι αρχίζεις το χτίσιμο από την αρχή. Αν αυτό θέλεις, πάτα το διπλά.» (teaching). Points at the restart button. *Pressing the restart button again while this line's time lasts (6 s) erases everything; there is no other button.*
 - `damaged-first` — When the map shows (start, or coming back from a site) (`map-shown`) (only if a site on the map is damaged (red)), once ever: says line 39 «Το έργο σου χάλασε! Έλα να το φτιάξεις.» (teaching). Points at a damaged site (red). The ghost hand taps a damaged site (red).
 - `damaged-again` — When every 60 s on the map while a site is damaged (its red rings flash) (`damage-flash`) (only if cue damaged-first has already played): says line 39 «Το έργο σου χάλασε! Έλα να το φτιάξεις.» (background, only if nothing else is playing or waiting). *Every 60 s while a site is damaged, its red rings flash on the map.*
-- `map-win` — When the map shows after a site was won (`map-return`), once at each site: says the site's own line (24–33) (queued). Points at the site just won (green). Then → `map-win-said`. *The first return to the map after a site is won; the won site glows green.*
+- `map-win` — When the map shows after leaving a won site (`map-return`), once at each site: says the site's own line (24–33) (queued). Points at the site just won (green). Then → `map-win-said`. *The first return to the map after a site is won; the won site glows green.*
 - `map-all-done` — When the line about the won site has been said (`map-win-said`) (only if all ten sites are finished): says line 38 «Από τον Νείλο ως τον Βόσπορο, ωραΐσες την οικουμένη με τα έργα σου!» (queued).
-- `map-new-site-first` — When the line about the won site has been said (`map-win-said`) (only if the win opened the next site), once ever: says one line from the group *newsite* (34–37) (queued). Points at the site to build next. The ghost hand taps the site to build next. *The first time ever a site opens (first site's step 12).*
-- `map-new-site` — When the line about the won site has been said (`map-win-said`) (only if the win opened the next site; cue map-new-site-first has already played): says one line from the group *newsite* (34–37) (queued). Points at the site to build next.
+- `map-new-site-first` — When coming back to the map from a won site: 2 s after its win line ends, or at once when there is none (`map-next`) (only if a site is open and not built, and the child just left the site before it), once ever: says one line from the group *newsite* (34–37) (queued). Points at the site to build next. The ghost hand taps the site to build next. *The first time ever a site opens.*
+- `map-new-site` — When coming back to the map from a won site: 2 s after its win line ends, or at once when there is none (`map-next`) (only if a site is open and not built, and the child just left the site before it; cue map-new-site-first has already played): says one line from the group *newsite* (34–37) (queued). Points at the site to build next. *Every time the child comes back to the map from the site just before the open one (2 s after the win line, if there is one).*
+- `next-site-flash` — When every 60 s on the map while a site is open and not built (`next-flash`) (only if a site is open and not built): Glows for 4 s: the site to build next. *Every 60 s on the map the open site glows, no voice.*
 - `leave-test` — When the child goes to the map in the middle of a test, before a pass (`leave-test`): says line 77 «Πού πας, αρχιτέκτονα; Κομμάτια και σπαράγματα θα σε περιμένουν!» (queued).
 
 ### Entering a site
@@ -50,8 +54,6 @@ Each cue: when it fires, what it says, what it shows, what it waits for. Its nam
 - `resume-teaching` — When the site's welcome line has been said (`intro-done`) (only if the site has teaching steps the child has not finished): Runs the site's teaching steps, from where the child left them. *The site's teaching steps, from where the child left them.*
 - `site-demo` — When the site's welcome line has been said (`intro-done`) (only if not: the site has teaching steps the child has not finished; the site has a demo and is not finished): Plays the site's demo (below). Then → `plan-shown`.
 - `plan-now` — When the site's welcome line has been said (`intro-done`) (only if not: the site has teaching steps the child has not finished; not: the site has a demo and is not finished): Then → `plan-shown`.
-- `new-pieces` — When the site is ready for building (after its welcome, teaching or demo) (`plan-shown`): Glows for 4 s: the pile pieces of a shape or material never seen before. *Every pile piece of a shape or a material never seen before glows once, no voice.*
-- `wood-places` — When the site is ready for building (after its welcome, teaching or demo) (`plan-shown`) (only if the plan marks places for wood that stays in the building), once ever: says line 108 «Σε αυτά τα σημεία μπαίνει ξύλο.» (teaching). Points at the plan's places for wood. *Wood that stays in the building (Ur), never wooden supports or forms.*
 - `openings` — When the site is ready for building (after its welcome, teaching or demo) (`plan-shown`) (only if the plan has an opening (door, arch, space between columns)), once ever: says line 109 «Αυτό το άνοιγμα μένει άδειο. Μην το κλείσεις!» (teaching). Points at the plan's openings.
 
 ### Building
@@ -59,10 +61,10 @@ Each cue: when it fires, what it says, what it shows, what it waits for. Its nam
 - `pick-mudbrick` — When the child picks up a piece (`pickup`) (only if the piece is mudbrick), once ever: says line 78 «Πλίνθοι από λάσπη: ελαφριοί, μα δεν αντέχουν μεγάλο βάρος.» (teaching).
 - `pick-stone` — When the child picks up a piece (`pickup`) (only if the piece is stone), once ever: says line 79 «Η πέτρα είναι βαριά, μα αιώνια.» (teaching).
 - `pick-wood` — When the child picks up a piece (`pickup`) (only if the piece is wood), once ever: says line 80 «Το ξύλο γεφυρώνει κενά, μα σπάει αν το φορτώσεις πολύ.» (teaching). *The Mastaba pile already has wood (its wrong choice), so it can first play there.*
-- `crumble-first` — When a mudbrick crumbles (`crumble`), once ever: says line 72 «Η λάσπη θρυμματίστηκε κάτω από το βάρος.» (teaching). Points at where the broken piece was. The screen darkens and the game freezes while it plays.
-- `crumble-again` — When a mudbrick crumbles (`crumble`) (only if cue crumble-first has already played), once per visit: says line 72 «Η λάσπη θρυμματίστηκε κάτω από το βάρος.» (background, only if nothing else is playing or waiting).
-- `snap-first` — When a wooden piece snaps (`snap`), once ever: says line 73 «Το ξύλο έσπασε πάνω από το κενό.» (teaching). Points at where the broken piece was. The screen darkens and the game freezes while it plays.
-- `snap-again` — When a wooden piece snaps (`snap`) (only if cue snap-first has already played), once per visit: says line 73 «Το ξύλο έσπασε πάνω από το κενό.» (background, only if nothing else is playing or waiting).
+- `crumble-first` — When a mudbrick crumbles (`crumble`) (only if not: a test is running), once ever: says line 72 «Η λάσπη θρυμματίστηκε κάτω από το βάρος.» (teaching). Points at where the broken piece was. The screen darkens and the game freezes while it plays.
+- `crumble-again` — When a mudbrick crumbles (`crumble`) (only if cue crumble-first has already played; not: a test is running), once per visit: says line 72 «Η λάσπη θρυμματίστηκε κάτω από το βάρος.» (background, only if nothing else is playing or waiting).
+- `snap-first` — When a wooden piece snaps (`snap`) (only if not: a test is running), once ever: says line 73 «Το ξύλο έσπασε πάνω από το κενό.» (teaching). Points at where the broken piece was. The screen darkens and the game freezes while it plays.
+- `snap-again` — When a wooden piece snaps (`snap`) (only if cue snap-first has already played; not: a test is running), once per visit: says line 73 «Το ξύλο έσπασε πάνω από το κενό.» (background, only if nothing else is playing or waiting).
 - `pile-empty` — When the pile is empty and the button is still red (`pile-empty-red`), once ever: says line 107 «Τελείωσαν τα κομμάτια. Με το φτυάρι τα μαζεύεις όλα και ξαναρχίζεις.» (teaching). Points at the shovel.
 - `form-out` — When everything is ready except a wooden form or support still standing (`form-only-left`), once ever: says line 119 «Η καμάρα στέκει. Τώρα βγάλε το ξύλινο καλούπι!» (teaching). Points at the wooden forms and supports in the building. The rest of the screen darkens while it waits; only the wooden forms and supports in the building can be touched. Waits until no wooden form or support is left in the building; its line comes again 5 s after it ends. The ghost hand drags the wooden forms and supports in the building to the side of the screen (where pieces go out). *First met at Ishtar; the Mausoleum and Valens are then done alone.*
 - `red-press` — When the child presses the red test button (building not ready) (`press-red`): says line 70 «Θέλει σουλούπωμα ακόμα.» (teaching). Points at the test button. *With the not-ready sound and the red marks.*
@@ -75,8 +77,9 @@ Each cue: when it fires, what it says, what it shows, what it waits for. Its nam
 - `explain-quake` — When a part of the test begins: wind, load or earthquake (`test-part`) (only if the part is the earthquake; no test has been explained before this one (a test whose explanations were dropped does not count)), once ever: says line 103 «Και τώρα σεισμός! Η γη θα τρέμει.» (teaching, may play during a test). The screen darkens and the game freezes while it plays.
 - `fail-wind-first` — When the test fails in a part (`test-fail`) (only if the part is the wind), once ever: says line 74 «Ο άνεμος το γκρέμισε. Ξαναδοκίμασε!» (teaching, may play during a test, after the fail sound). Points at the red place of a failed test. Then → `fail-explain`.
 - `fail-wind` — When the test fails in a part (`test-fail`) (only if the part is the wind; cue fail-wind-first has already played): says line 74 «Ο άνεμος το γκρέμισε. Ξαναδοκίμασε!» (queued, may play during a test, after the fail sound).
-- `fail-load-first` — When the test fails in a part (`test-fail`) (only if the part is the load), once ever: says line 75 «Δεν άντεξε το βάρος. Ξαναδοκίμασε!» (teaching, may play during a test, after the fail sound). Points at the red place of a failed test. Then → `fail-explain`.
-- `fail-load` — When the test fails in a part (`test-fail`) (only if the part is the load; cue fail-load-first has already played): says line 75 «Δεν άντεξε το βάρος. Ξαναδοκίμασε!» (queued, may play during a test, after the fail sound).
+- `fail-load-first` — When the test fails in a part (`test-fail`) (only if the part is the load; not: the test failed only because the headpiece did not sit well (nothing broke, nothing fell)), once ever: says line 75 «Δεν άντεξε το βάρος. Ξαναδοκίμασε!» (teaching, may play during a test, after the fail sound). Points at the red place of a failed test. Then → `fail-explain`.
+- `fail-load` — When the test fails in a part (`test-fail`) (only if the part is the load; cue fail-load-first has already played; not: the test failed only because the headpiece did not sit well (nothing broke, nothing fell)): says line 75 «Δεν άντεξε το βάρος. Ξαναδοκίμασε!» (queued, may play during a test, after the fail sound).
+- `fail-headpiece` — When the test fails in a part (`test-fail`) (only if the part is the load; the test failed only because the headpiece did not sit well (nothing broke, nothing fell)): says line 133 «Η κορωνίδα δεν επικάθισε καλά. Ξαναδοκίμασε!» (queued, may play during a test, after the fail sound). Points at the red place of a failed test. *Nothing broke and nothing fell; the headpiece did not sit well.*
 - `fail-quake-first` — When the test fails in a part (`test-fail`) (only if the part is the earthquake), once ever: says line 76 «Ο σεισμός το γκρέμισε. Ξαναδοκίμασε!» (teaching, may play during a test, after the fail sound). Points at the red place of a failed test. Then → `fail-explain`.
 - `fail-quake` — When the test fails in a part (`test-fail`) (only if the part is the earthquake; cue fail-quake-first has already played): says line 76 «Ο σεισμός το γκρέμισε. Ξαναδοκίμασε!» (queued, may play during a test, after the fail sound).
 - `fail-explain` — When the first fail line of a part has been said (`fail-explain`): says line 105 «Το κόκκινο δείχνει πού χάλασε. Φτιάξ' το εκεί και ξαναδοκίμασε!» (teaching, may play during a test). Points at the red place of a failed test.
@@ -86,50 +89,52 @@ Each cue: when it fires, what it says, what it shows, what it waits for. Its nam
 
 ### Idle
 
-- `idle` — When no touch for 60 s, not during a test (`idle`): says one line from the group *idle* (81–90) (background, only if nothing else is playing or waiting).
+- `idle` — When on the map: 30 s with no line; on a site: 60 s with no touch (`idle`): says one line from the group *idle* (81–90) (background, only if nothing else is playing or waiting). *On the map every 30 s of quiet; on a site after 60 s with no touch.*
 
 ## Teaching steps: first-site
 
 First site, after its welcome line, until the child has done all the steps. Then the child builds alone; the first test, first win and first fail lines are general cues.
 
-1. `t-drag-1` — Says line 93 «Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.» (teaching). Points at one mudbrick of the pile, the plan (the building's outline). The rest of the screen darkens while it waits; only the whole pile, the plan (the building's outline) can be touched. Waits until the child lets go of a piece over the building; its line comes again 5 s after it ends. The ghost hand drags one mudbrick of the pile to the place of the first piece in the suggested build.
-2. `t-tap3` — Says line 94 «Αν πατήσεις ένα κομμάτι τρεις φορές γρήγορα, γυρίζει πίσω στον σωρό. Δοκίμασε!» (teaching). Points at the child's last piece in the building. The rest of the screen darkens while it waits; only the child's pieces in the building can be touched. Waits until three quick taps send a piece back to the pile; its line comes again 5 s after it ends. The ghost hand taps the child's last piece in the building three times. Needs a piece of the child's is in the building area; without it, back to step `t-drag-1`.
-3. `t-drag-2` — Says line 93 «Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.» (teaching). Points at one mudbrick of the pile, the plan (the building's outline). The rest of the screen darkens while it waits; only the whole pile, the plan (the building's outline) can be touched. Waits until the child lets go of a piece over the building; its line comes again 5 s after it ends. The ghost hand drags one mudbrick of the pile to the place of the first piece in the suggested build. *Again, so there is something for the shovel.*
-4. `t-shovel` — Says line 95 «Πάτα το φτυάρι!» (teaching). Points at the shovel. The rest of the screen darkens while it waits; only the shovel can be touched. Waits until the child presses the shovel; its line comes again 5 s after it ends. The ghost hand taps the shovel. Needs a piece of the child's is in the building area; without it, back to step `t-drag-2`. When done, says line 96 «Το φτυάρι μαζεύει όλα τα κομμάτια και τα γυρίζει στον σωρό. Έτσι ξαναρχίζεις από την αρχή.».
-5. `t-demo` — Plays the site's demo (below). When done, says line 98 «Τώρα χτίσε! Γέμισε όλο το σχέδιο.».
-6. `t-red` — Begins once two pieces lie in the building area. Says line 99 «Αυτό είναι το κουμπί της δοκιμής. Όσο είναι κόκκινο, το κτίριο δεν είναι έτοιμο. Πάτα το και δες τι δεν είναι σωστά τοποθετημένο. Όταν γεμίσεις το σχέδιο, θα γίνει πράσινο.» (teaching). Points at the test button. The rest of the screen darkens while it waits; only the test button can be touched. Waits until the child presses the test button (red or green); its line comes again 5 s after it ends. The ghost hand taps the test button. *Pressing the red button here says only this step's line, not line 70.*
-7. `t-green` — Begins once the test button is green. Says line 100 «Το κουμπί πρασίνισε! Πάτα το να δεις αν το κτίριο αντέχει.» (teaching). Points at the test button. The rest of the screen darkens while it waits; only the test button can be touched. Waits until the test starts (green button); its line comes again 5 s after it ends. The ghost hand taps the test button. Needs the test button is green; without it, back to step `t-green`. *Waits until the button turns green by itself (the child builds alone meanwhile).*
+1. `t-drag-1` — Says line 93 «Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.» (teaching). Points at one mudbrick of the pile, the plan (the building's outline). The rest of the screen darkens while it waits; only the whole pile, the plan (the building's outline) can be touched. Waits until a piece of the child's lies still in the building area; its line comes again 5 s after it ends. The ghost hand drags one mudbrick of the pile to the place of the first piece in the suggested build.
+2. `t-tap3` — Says line 94 «Αν πατήσεις ένα κομμάτι τρεις φορές γρήγορα, γυρίζει πίσω στον σωρό. Δοκίμασε!» (teaching). Points at the child's last piece in the building. The rest of the screen darkens while it waits; only the child's pieces in the building can be touched. Waits until three quick taps send a piece back to the pile; its line comes again 5 s after it ends. The ghost hand taps the child's last piece in the building three times. Needs a piece of the child's is in the building area; without it, back to step `t-drag-1`. When done, says line 132 «Μπράβο, αυτό γύρισε πίσω στον σωρό!».
+3. `t-drag-2` — Says line 93 «Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.» (teaching). Points at one mudbrick of the pile, the plan (the building's outline). The rest of the screen darkens while it waits; only the whole pile, the plan (the building's outline) can be touched. Waits until a piece of the child's lies still in the building area; its line comes again 5 s after it ends. The ghost hand drags one mudbrick of the pile to the place of the first piece in the suggested build. *Again, so there is something to drag back.*
+4. `t-dragback` — Says line 134 «Μπορείς και να το σύρεις πίσω στον σωρό. Δοκίμασε!» (teaching). Points at the child's last piece in the building. The rest of the screen darkens while it waits; only the child's pieces in the building can be touched. Waits until the child lets go of a piece over the pile (it goes back); its line comes again 5 s after it ends. The ghost hand drags the child's last piece in the building to the side of the screen (where pieces go out). Needs a piece of the child's is in the building area; without it, back to step `t-drag-2`.
+5. `t-drag-3` — Says line 93 «Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.» (teaching). Points at one mudbrick of the pile, the plan (the building's outline). The rest of the screen darkens while it waits; only the whole pile, the plan (the building's outline) can be touched. Waits until a piece of the child's lies still in the building area; its line comes again 5 s after it ends. The ghost hand drags one mudbrick of the pile to the place of the first piece in the suggested build. *Again, so there is something for the shovel.*
+6. `t-shovel` — Says line 95 «Πάτα το φτυάρι!» (teaching). Points at the shovel. The rest of the screen darkens while it waits; only the shovel can be touched. Waits until the child presses the shovel; its line comes again 5 s after it ends. The ghost hand taps the shovel. Needs a piece of the child's is in the building area; without it, back to step `t-drag-3`. When done, says line 96 «Το φτυάρι μαζεύει όλα τα κομμάτια και τα γυρίζει στον σωρό. Έτσι ξαναρχίζεις από την αρχή.».
+7. `t-demo` — Plays the site's demo (below). When done, says line 98 «Τώρα χτίσε! Γέμισε όλο το σχέδιο.».
+8. `t-red` — Begins once two pieces lie in the building area. Says line 99 «Αυτό είναι το κουμπί της δοκιμής. Όσο είναι κόκκινο, το κτίριο δεν είναι έτοιμο. Πάτα το και δες τι δεν είναι σωστά τοποθετημένο. Όταν γεμίσεις το σχέδιο, θα γίνει πράσινο.» (teaching). Points at the test button. The rest of the screen darkens while it waits; only the test button can be touched. Waits until the child presses the test button (red or green); its line comes again 5 s after it ends. The ghost hand taps the test button. *Pressing the red button here says only this step's line, not line 70.*
+9. `t-green` — Begins once the test button is green. Says line 100 «Το κουμπί πρασίνισε! Πάτα το να δεις αν το κτίριο αντέχει.» (teaching). Points at the test button. The rest of the screen darkens while it waits; only the test button can be touched. Waits until the test starts (green button); its line comes again 5 s after it ends. The ghost hand taps the test button. Needs the test button is green; without it, back to step `t-green`. *Waits until the button turns green by itself (the child builds alone meanwhile).*
 
 When all steps are done → `plan-shown`.
 
 ## Demos
 
-On every visit to a site until it is finished, after its welcome line. **tell N**: line N plays while the next pieces are built. **say N**: the demo waits, the game frozen, while line N plays (what came of it). **put ...**: the ghost hand carries these see-through pieces in, at a hand's speed: a number is that piece of the site's suggested build, a list is [shape, material, x, y, angle]. **wait S**: the demo waits S seconds (things settle, crumble or fall). **pull**: the ghost hand takes the wooden forms and supports out. **taps SHAPE**: the ghost finger taps that piece three times and it goes back. **fade**: the see-through pieces fade away.
+On every visit to a site until it is finished, after its welcome line. **tell N**: line N plays while the next pieces are built. **say N**: the demo waits, the game frozen, while line N plays (what came of it). **put ...**: the ghost hand carries these see-through pieces in, at a hand's speed: a number is that piece of the site's suggested build, a list is [shape, material, x, y, angle]. **wait S**: the demo waits S seconds (things settle, crumble or fall). **pull**: the ghost finger taps each wooden form or support three times and it goes back to the pile. **taps SHAPE**: the ghost finger taps that piece three times and it goes back. **fade**: the see-through pieces fade away.
 
 | Site | New | Demo |
 |---|---|---|
 | Mastaba | mudbrick; rows with staggered joints | tells line 123 «Δες: δύο πλίνθοι δίπλα δίπλα, και ένας από πάνω, στη μέση.»; builds 1, 2, 6; waits 0.5 s; says, after: line 97 «Βάλε κάθε τούβλο πάνω σε δύο από κάτω, όχι πάνω σε ένα. Έτσι ο τοίχος δένει.»; fades. *Played inside the first-site teaching (step t-demo), then on every visit until the site is finished.* |
-| Djoser | stone; heavy low, light high | tells line 124 «Δες τι γίνεται αν βάλουμε τους πλίνθους κάτω και τις πέτρες από πάνω.»; builds mudbrick block at (-1, 0.5), mudbrick block at (1, 0.5), stone block at (-1, 1.5), stone block at (1, 1.5), stone block at (-1, 2.5), stone block at (1, 2.5), stone block at (-1, 3.5), stone block at (1, 3.5); waits 3 s; says, after: line 110 «Αν βάλεις πλίνθους κάτω, θρυμματίζονται κάτω από το βάρος.»; fades; tells line 125 «Τώρα ανάποδα: πέτρες κάτω, πλίνθοι από πάνω.»; builds stone block at (-1, 0.5), stone block at (1, 0.5), mudbrick block at (-1, 1.5), mudbrick block at (1, 1.5), mudbrick block at (0, 2.5); waits 1 s; says, after: line 111 «Η πέτρα είναι γερή: βάλ' την κάτω, εκεί που πέφτει όλο το βάρος. Οι πλίνθοι πάνε ψηλά.»; fades. *Wrong way: two mudbricks with stone blocks three high on them; they crumble. Right way: two stones with mudbricks on top.* |
-| Ur | wood as a row; the long plank spreads the weight | tells line 127 «Τώρα μια μακριά σανίδα πάνω σε τρεις πλίνθους, και δύο πλίνθοι από πάνω.»; builds mudbrick block at (-2, 0.5), mudbrick block at (0, 0.5), mudbrick block at (2, 0.5), wood plank at (0, 1.25), mudbrick block at (-1, 2), mudbrick block at (1, 2); waits 1 s; says, after: line 113 «Η μακριά σανίδα απλώνει το βάρος σε όλα τα τούβλα από κάτω, κι έτσι αντέχουν.»; fades. *The wrong way (two short beams, lines 126 and 112) is left out: built in the game, no brick crumbles under it. Another chat deals with Ur (owner, 14 Nov).* |
+| Djoser | stone; heavy low, light high | tells line 124 «Δες τι γίνεται αν βάλουμε τρεις πέτρες πάνω σε έναν πλίνθο.»; builds mudbrick block at (0, 0.5), stone block at (0, 1.5), stone block at (0, 2.5), stone block at (0, 3.5); waits 3 s; says, after: line 110 «Ο πλίνθος θρυμματίζεται κάτω από το βάρος.»; fades; tells line 125 «Τώρα τις ίδιες τρεις πέτρες πάνω σε μια πέτρα.»; builds stone block at (0, 0.5), stone block at (0, 1.5), stone block at (0, 2.5), stone block at (0, 3.5); waits 3 s; says, after: line 111 «Η πέτρα είναι γερή: βάλ' την κάτω, εκεί που πέφτει όλο το βάρος. Οι πλίνθοι πάνε ψηλά.»; fades. *Owner 15 Nov: one stack; the same three stones on a mudbrick (it crumbles), then on a stone (it holds).* |
+| Ur | wood as a row; the long plank spreads the weight | tells line 126 «Δες τι γίνεται αν βάλουμε τέσσερις πλίνθους πάνω στον μεσαίο.»; builds mudbrick block at (-2, 0.5), mudbrick block at (0, 0.5), mudbrick block at (2, 0.5), mudbrick block at (0, 1.5), mudbrick block at (0, 2.5), mudbrick block at (0, 3.5), mudbrick block at (0, 4.5); waits 3 s; says, after: line 112 «Όλο το βάρος πέφτει σε έναν πλίνθο, κι εκείνος θρυμματίζεται.»; fades; tells line 127 «Τώρα μια μακριά σανίδα πάνω στους τρεις πλίνθους, και οι ίδιοι τέσσερις πλίνθοι από πάνω.»; builds mudbrick block at (-2, 0.5), mudbrick block at (0, 0.5), mudbrick block at (2, 0.5), wood plank at (0, 1.25), mudbrick block at (0, 2), mudbrick block at (0, 3), mudbrick block at (0, 4), mudbrick block at (0, 5); waits 3 s; says, after: line 113 «Η μακριά σανίδα απλώνει το βάρος σε όλα τα τούβλα από κάτω, κι έτσι αντέχουν.»; fades. *Owner 15 Nov: first crumbling, then not: the same four mudbricks on the middle one of three (it crumbles), then on a long plank over the three (they hold).* |
 | Lion Gate | standing stones and a stone across; a pole held between stones | no demo |
 | Karnak | columns, capitals of two small blocks, beams across | tells line 128 «Δες: ένας κίονας με δύο μικρές πέτρες από πάνω, άλλος ένας ίδιος, και ένα δοκάρι ανάμεσά τους.»; builds 0, 1, 5, 6, 7, 8, 9, 10, 11; waits 1 s; says, after: line 114 «Πάνω σε κάθε κίονα βάζεις δύο μικρές πέτρες. Το δοκάρι πατάει με κάθε άκρη του πάνω τους.»; fades |
-| Ishtar | wedges; the wooden form, taken out after the last wedge | tells line 115 «Πρώτα στήνεις το ξύλινο καλούπι.»; builds 1, 2, 5, 6, 18, 19, 20, 21, 22; tells line 116 «Πάνω του βάζεις τις σφήνες, από τις δύο μεριές.»; builds 23, 24, 25, 26, 27, 28, 29, 30; tells line 117 «Η τελευταία σφήνα μπαίνει στην κορυφή και κλειδώνει την καμάρα.»; builds 31; tells line 118 «Τώρα βγάζεις το καλούπι. Η καμάρα στέκει μόνη της!»; pulls the forms out; waits 1.5 s; fades |
+| Ishtar | wedges; the wooden form, taken out after the last wedge | tells line 115 «Πρώτα στήνεις το ξύλινο καλούπι.»; builds 1, 2, 5, 6, 18, 19, 20, 21, 22; tells line 116 «Πάνω του βάζεις τις καμαρόπετρες, από τις δύο μεριές.»; builds 23, 24, 25, 26, 27, 28, 29, 30; tells line 117 «Η τελευταία καμαρόπετρα μπαίνει στην κορυφή και κλειδώνει την καμάρα.»; builds 31; tells line 118 «Τώρα βγάζεις το καλούπι. Η καμάρα στέκει μόνη της!»; pulls the forms out; waits 1.5 s; fades. *The form comes out with three taps (owner 15 Nov).* |
 | Parthenon | drums stacked straight; pediment stones | no demo |
-| Mausoleum | wooden posts as temporary props | tells line 129 «Δες: ένα δοκάρι πάνω σε ξύλινο στύλο. Βγάζουμε τον στύλο πριν μπει η στέγη.»; builds 1, 2, 6, 7, 8, 15, 18; waits 0.5 s; pulls the forms out; waits 2.5 s; says, after: line 120 «Αν βγάλεις τον στύλο πριν πατήσει η στέγη, το δοκάρι πέφτει.»; fades; tells line 130 «Τώρα ξανά, αλλά πρώτα χτίζουμε όλη τη στέγη, και μετά βγάζουμε τους στύλους.»; builds 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35; waits 0.5 s; pulls the forms out; waits 2 s; says, after: line 121 «Στήριξε πρώτα το δοκάρι σε έναν ξύλινο στύλο. Όταν πατήσει η στέγη από πάνω, βγάζεις τον στύλο.»; fades. *The right way builds the whole roof (about 40 s): the beams hold only under all of it.* |
+| Mausoleum | wooden posts as temporary props | tells line 129 «Δες: ένα δοκάρι πάνω σε ξύλινο στύλο. Βγάζουμε τον στύλο πριν μπει η στέγη.»; builds 0, 1, 2, 3, 9, 10, 11, 6, 7, 8, 15, 18; waits 0.5 s; pulls the forms out; waits 2.5 s; says, after: line 120 «Αν βγάλεις τον στύλο πριν πατήσει η στέγη, το δοκάρι πέφτει.»; fades; tells line 130 «Τώρα ξανά, αλλά πρώτα βάζουμε τη στέγη πάνω στα δοκάρια, και μετά βγάζουμε τον στύλο.»; builds 0, 1, 2, 3, 9, 10, 11, 6, 7, 8, 15, 18, 17, 21, 22, 23; waits 0.5 s; pulls the forms out; waits 2.5 s; says, after: line 121 «Στήριξε πρώτα το δοκάρι σε έναν ξύλινο στύλο. Όταν πατήσει η στέγη από πάνω, βγάζεις τον στύλο.»; fades. *Owner 15 Nov: the same base both ways, the middle column wholly on the blocks. Wrong: one lintel on a post, the post tapped out, the lintel falls. Right: the same, the second lintel and three roof stones over them, then the post out: both lintels stand.* |
 | Pharos | hollow tower, two walls tied by wooden beams | no demo. *No demo; the technique is in intro 9.* |
-| Valens | reusing the forms | tells line 131 «Θυμήσου την καμάρα της Βαβυλώνας: καλούπι, σφήνες, και η σφήνα της κορυφής.»; builds 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13; waits 0.5 s; tells line 122 «Με τρία γρήγορα πατήματα, το καλούπι γυρίζει στον σωρό, έτοιμο για την επόμενη καμάρα.»; taps the centering three times; waits 1 s; fades. *A reminder: the Ishtar arch, then the ghost finger taps the form three times and it goes back to the pile.* |
+| Valens | reusing the forms | no demo. *Owner 15 Nov: the last level needs no demo.* |
 
 ## All lines
 
 Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its text shows in a box for 2 s.
 
-1. «Καλώς ήρθες, αρχιτέκτονα, στην Αίγυπτο, γύρω στο 3000 π.Χ. Ως τώρα οι νεκροί θάβονταν σε λάκκους στην άμμο. Οι νέοι άρχοντες όμως θέλουν τάφους αντάξιούς τους: μαστάμπες, πλατιούς τάφους σαν πάγκους. Για πρώτη φορά θα χτίσεις με πλίνθους, τούβλα από λάσπη του Νείλου στεγνωμένα στον ήλιο. Η ιστορία σου αρχίζει εδώ. Χτίσε το!» — *site-intro (Mastaba)*
+1. «Καλώς ήρθες, αρχιτέκτονα, στην Αίγυπτο, γύρω στο 3000 π.Χ. Ως τώρα οι νεκροί θάβονταν σε λάκκους στην άμμο. Οι νέοι άρχοντες όμως θέλουν τάφους αντάξιούς τους: μαστάμπες, πλατιούς τάφους σαν πάγκους. Για πρώτη φορά θα χτίσεις με πλίνθους, τούβλα από λάσπη του Νείλου στεγνωμένα στον ήλιο. Στον σωρό θα βρεις και ξύλο. Η ιστορία σου αρχίζει εδώ. Χτίσε το!» — *site-intro (Mastaba)* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
 2. «Καλώς ήρθες ξανά, αρχιτέκτονα, στη Σακκάρα, το ιερό νεκροταφείο της Μέμφιδας, γύρω στο 2650 π.Χ. Οι μαστάμπες σου στέκονται περήφανες, μα ο φαραώ Ζοζέρ θέλει τάφο που να αγγίζει τον ουρανό. Οραματίζεται μαστάμπες τη μία πάνω στην άλλη, ως τους θεούς. Οι πλίνθοι όμως δεν αντέχουν τόσο βάρος. Για πρώτη φορά θα χτίσεις και με πέτρα, η οποία αντέχει πολύ βάρος πάνω της. Εμπρός!» — *site-intro (Djoser)*
-3. «Καλώς ήρθες, αρχιτέκτονα, στην πόλη Ουρ. Είμαστε γύρω στο 2100 π.Χ., στη Μεσοποταμία, τη χώρα ανάμεσα στον Τίγρη και τον Ευφράτη. Όπως ο Ζοζέρ, κι ο βασιλιάς Ουρ-Νάμμου θέλει κάτι θεόρατο. Το δικό του όμως δεν είναι τάφος. Είναι σκάλα για τους θεούς, με ναό στην κορυφή για τον Νάννα, τον θεό της Σελήνης. Η πέτρα εδώ σπανίζει, γι' αυτό κράτησέ τη για τη βάση. Από πάνω θα βάλεις πλίνθους, και για πρώτη φορά θα στρώσεις ανάμεσά τους ξύλινες σανίδες. Η σανίδα απλώνει το βάρος σε πολλές πλίνθους από κάτω, κι έτσι δεν θρυμματίζονται. Χτίσε το!» — *site-intro (Ur)* CHANGED 14 Nov: the wood spreads the weight (record again if already recorded).
-4. «Καλώς ήρθες, αρχιτέκτονα, στις Μυκήνες, γύρω στο 1250 π.Χ., στην εποχή των ηρώων που θα τραγουδήσει ο Όμηρος. Στην Ουρ η πέτρα ήταν σπάνια. Εδώ, στα βουνά της Ελλάδας, υπάρχει παντού. Ο βασιλιάς Αγαμέμνονας ζώνει την ακρόπολη με τείχη τόσο γιγάντια, που θα λένε πως τα σήκωσαν οι Κύκλωπες. Για πρώτη φορά θα απλώσεις ένα πέτρινο ανώφλι πάνω σε δύο όρθιους λίθους. Από πάνω θα βάλεις το τρίγωνο με τα δύο λιοντάρια. Χτίσε το!» — *site-intro (Lion Gate)*
+3. «Καλώς ήρθες, αρχιτέκτονα, στην πόλη Ουρ. Είμαστε γύρω στο 2100 π.Χ., στη Μεσοποταμία, τη χώρα ανάμεσα στον Τίγρη και τον Ευφράτη. Όπως ο Ζοζέρ, κι ο βασιλιάς Ουρ-Νάμμου θέλει κάτι θεόρατο. Το δικό του όμως δεν είναι τάφος. Είναι σκάλα για τους θεούς, με ναό στην κορυφή για τον Νάννα, τον θεό της Σελήνης. Η πέτρα εδώ σπανίζει, γι' αυτό θα χτίσεις μόνο με πλίνθους, και για πρώτη φορά θα στρώσεις ανάμεσά τους ξύλινες σανίδες. Η σανίδα απλώνει το βάρος σε πολλές πλίνθους από κάτω, κι έτσι δεν θρυμματίζονται. Χτίσε το!» — *site-intro (Ur)* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
+4. «Καλώς ήρθες, αρχιτέκτονα, στις Μυκήνες, γύρω στο 1250 π.Χ., στην εποχή των ηρώων που θα τραγουδήσει ο Όμηρος. Στην Ουρ η πέτρα ήταν σπάνια. Εδώ, στα βουνά της Ελλάδας, υπάρχει παντού, και για πρώτη φορά θα χτίσεις με τη γκρίζα πέτρα των βουνών. Ο βασιλιάς Αγαμέμνονας ζώνει την ακρόπολη με τείχη τόσο γιγάντια, που θα λένε πως τα σήκωσαν οι Κύκλωπες. Για πρώτη φορά θα απλώσεις ένα πέτρινο ανώφλι πάνω σε δύο όρθιους λίθους. Από πάνω θα βάλεις το τρίγωνο με τα δύο λιοντάρια. Χτίσε το!» — *site-intro (Lion Gate)* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
 5. «Καλώς ήρθες ξανά στην Αίγυπτο, αρχιτέκτονα, στη Θήβα, γύρω στο 1290 π.Χ. Την ίδια εποχή που οι Μυκηναίοι υψώνουν την πύλη τους, εδώ βασιλεύει ο φαραώ Σέτι ο Πρώτος, κι ύστερα ο γιος του, ο Ραμσής ο Μέγας. Θέλουν για τον θεό Άμμωνα ένα κτίριο με πολλούς κίονες, ένα πέτρινο δάσος. Στις Μυκήνες δύο λίθοι κράτησαν ένα ανώφλι. Εδώ θα στήσεις κίονες και θα απλώσεις από τον έναν στον άλλον πέτρινα δοκάρια. Χτίσε το!» — *site-intro (Karnak)*
 6. «Καλώς ήρθες, αρχιτέκτονα, στη Βαβυλώνα, γύρω στο 575 π.Χ., μια από τις λαμπρότερες πόλεις του κόσμου, στις όχθες του Ευφράτη. Ο βασιλιάς Ναβουχοδονόσορ θέλει μια πύλη για την Ιστάρ, τη θεά της πόλης. Τα δοκάρια του Καρνάκ όμως γεφυρώνουν μόνο μικρά ανοίγματα. Για μια μεγάλη πύλη χρειάζεσαι κάτι καινούργιο. Για πρώτη φορά θα χτίσεις καμάρα, πάνω σε ξύλινο καλούπι που θα βγάλεις μόλις σταθεί. Μετά από σένα, οι τεχνίτες θα τη ντύσουν με γαλάζια γυαλιστερά τούβλα, με δράκους και ταύρους. Χτίσε το!» — *site-intro (Ishtar)* CHANGED 14 Nov: αψίδα → καμάρα (record again if already recorded).
-7. «Καλώς ήρθες στην Αθήνα, αρχιτέκτονα, το 447 π.Χ. Οι Πέρσες, που κυρίευσαν τη Βαβυλώνα, έφτασαν ως εδώ και έκαψαν τους ναούς της Ακρόπολης. Νικήθηκαν όμως, κι η Αθήνα ζει τώρα τον χρυσό της αιώνα. Ο Περικλής θέλει στη θέση τους τον ωραιότερο ναό του κόσμου, για τη θεά Αθηνά. Τον σχεδιάζουν ο Ικτίνος και ο Καλλικράτης, με μάρμαρο της Πεντέλης. Για πρώτη φορά θα υψώσεις κίονες σπόνδυλο τον σπόνδυλο, με κιονόκρανα και αέτωμα. Χτίσε το!» — *site-intro (Parthenon)*
+7. «Καλώς ήρθες στην Αθήνα, αρχιτέκτονα, το 447 π.Χ. Οι Πέρσες, που κυρίευσαν τη Βαβυλώνα, έφτασαν ως εδώ και έκαψαν τους ναούς της Ακρόπολης. Νικήθηκαν όμως, κι η Αθήνα ζει τώρα τον χρυσό της αιώνα. Ο Περικλής θέλει στη θέση τους τον ωραιότερο ναό του κόσμου, για τη θεά Αθηνά. Τον σχεδιάζουν ο Ικτίνος και ο Καλλικράτης. Για πρώτη φορά θα χτίσεις με μάρμαρο, τη λευκή πέτρα της Πεντέλης, και θα υψώσεις κίονες σπόνδυλο τον σπόνδυλο, με κιονόκρανα και αέτωμα. Χτίσε το!» — *site-intro (Parthenon)* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
 8. «Καλώς ήρθες, αρχιτέκτονα, στην Αλικαρνασσό, στην απέναντι ακτή του Αιγαίου, γύρω στο 350 π.Χ. Εδώ κυβερνά ο Μαύσωλος. Δεν είναι Έλληνας, μα αγαπά ό,τι είναι ελληνικό. Για τον τάφο του φέρνει τους καλύτερους Έλληνες γλύπτες. Ελληνικοί κίονες σαν του Παρθενώνα θα σηκώσουν μια πυραμίδα με σκαλιά. Από το όνομά του, κάθε μεγάλος τάφος θα λέγεται μαυσωλείο. Για πρώτη φορά θα απλώσεις δοκάρια στον αέρα, πάνω σε ξύλινους στύλους, ώσπου να τα πατήσει η στέγη. Χτίσε το!» — *site-intro (Mausoleum)*
 9. «Καλώς ήρθες, αρχιτέκτονα, στην Αλεξάνδρεια, γύρω στο 280 π.Χ. Ο Μέγας Αλέξανδρος νίκησε τους Πέρσες και ίδρυσε στην Αίγυπτο αυτή την πόλη με το όνομά του. Όταν πέθανε, ο στρατηγός του, ο Πτολεμαίος, έγινε βασιλιάς της Αιγύπτου. Τώρα οι Πτολεμαίοι θέλουν στο νησάκι Φάρος έναν πύργο τόσο ψηλό, που η φωτιά του θα οδηγεί τα καράβια μέσα στη νύχτα. Από αυτό το νησί κάθε φάρος θα πάρει το όνομά του. Για πρώτη φορά θα χτίσεις ψηλά και κούφια, με δύο τοίχους δεμένους με ξύλινα δοκάρια. Χτίσε το!» — *site-intro (Pharos)* Its technique, two walls tied by wooden beams, is already in it; no demo.
 10. «Καλώς ήρθες, αρχιτέκτονα, στην Κωνσταντινούπολη, τη νέα πρωτεύουσα της Ρωμαϊκής Αυτοκρατορίας. Ο Μέγας Κωνσταντίνος την ίδρυσε, εδώ στον Βόσπορο. Η καινούργια πόλη όμως διψά, κι ο αυτοκράτορας Ουάλης θέλει να της φέρει νερό πάνω από την κοιλάδα. Οι Ρωμαίοι είναι μάστορες της καμάρας που γνώρισες στη Βαβυλώνα. Τώρα θα στήσεις δύο σειρές από καμάρες, τη μία πάνω στην άλλη. Έχεις όμως μόνο ένα καλούπι για τις καμάρες. Γι' αυτό, από κάθε καμάρα που τελειώνεις, βγάλε το καλούπι για να το ξαναχρησιμοποιήσεις. Εμπρός! Υδροδότησε την πόλη!» — *site-intro (Valens)* CHANGED 14 Nov: one form, reused (record again if already recorded).
@@ -213,9 +218,9 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 88. «Κοίτα τον ουρανό, αρχιτέκτονα. Όσο ψηλά κι αν χτίσεις, εκείνος θα είναι πάντα λίγο ψηλότερα.» — *idle*
 89. «Τα κτίρια ζουν περισσότερο από αυτούς που τα χτίζουν. Τα έργα σου θα τα δουν παιδιά που δεν έχουν γεννηθεί ακόμα.» — *idle*
 90. «Ποιο έργο σου θα στέκει σε χίλια χρόνια; Οι καλοί αρχιτέκτονες το σκέφτονται πάντα.» — *idle*
-91. «Αυτό το κουμπί σβήνει όλη σου την πρόοδο, κι αρχίζεις το χτίσιμο από την αρχή. Αν αυτό θέλεις, πάτα το δίπλα.» — *restart-ask* CHANGED 14 Nov evening (owner): the confirm button is next to it.
+91. «Αυτό το κουμπί σβήνει όλη σου την πρόοδο, κι αρχίζεις το χτίσιμο από την αρχή. Αν αυτό θέλεις, πάτα το διπλά.» — *restart-ask* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
 92. «Πάτα εδώ για να ξεκινήσεις!» — *map-start-step*
-93. «Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.» — *t-drag-1, t-drag-2*
+93. «Πιάσε ένα κομμάτι από εδώ και βάλ' το μέσα στο σχέδιο.» — *t-drag-1, t-drag-2, t-drag-3*
 94. «Αν πατήσεις ένα κομμάτι τρεις φορές γρήγορα, γυρίζει πίσω στον σωρό. Δοκίμασε!» — *t-tap3*
 95. «Πάτα το φτυάρι!» — *t-shovel*
 96. «Το φτυάρι μαζεύει όλα τα κομμάτια και τα γυρίζει στον σωρό. Έτσι ξαναρχίζεις από την αρχή.» — *t-shovel (when done)*
@@ -230,30 +235,30 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 105. «Το κόκκινο δείχνει πού χάλασε. Φτιάξ' το εκεί και ξαναδοκίμασε!» — *fail-explain*
 106. «Πάτα εδώ για να γυρίσεις στον χάρτη.» — *first-win-home*
 107. «Τελείωσαν τα κομμάτια. Με το φτυάρι τα μαζεύεις όλα και ξαναρχίζεις.» — *pile-empty*
-108. «Σε αυτά τα σημεία μπαίνει ξύλο.» — *wood-places*
 109. «Αυτό το άνοιγμα μένει άδειο. Μην το κλείσεις!» — *openings*
-110. «Αν βάλεις πλίνθους κάτω, θρυμματίζονται κάτω από το βάρος.» — *demo djoser*
+110. «Ο πλίνθος θρυμματίζεται κάτω από το βάρος.» — *demo djoser* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
 111. «Η πέτρα είναι γερή: βάλ' την κάτω, εκεί που πέφτει όλο το βάρος. Οι πλίνθοι πάνε ψηλά.» — *demo djoser*
-112. «Με δύο κοντά δοκάρια, όλο το βάρος πέφτει στη μέση, και τα τούβλα θρυμματίζονται.» — *not used*
+112. «Όλο το βάρος πέφτει σε έναν πλίνθο, κι εκείνος θρυμματίζεται.» — *demo ziggurat* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
 113. «Η μακριά σανίδα απλώνει το βάρος σε όλα τα τούβλα από κάτω, κι έτσι αντέχουν.» — *demo ziggurat*
 114. «Πάνω σε κάθε κίονα βάζεις δύο μικρές πέτρες. Το δοκάρι πατάει με κάθε άκρη του πάνω τους.» — *demo karnak*
 115. «Πρώτα στήνεις το ξύλινο καλούπι.» — *demo ishtar*
-116. «Πάνω του βάζεις τις σφήνες, από τις δύο μεριές.» — *demo ishtar*
-117. «Η τελευταία σφήνα μπαίνει στην κορυφή και κλειδώνει την καμάρα.» — *demo ishtar*
+116. «Πάνω του βάζεις τις καμαρόπετρες, από τις δύο μεριές.» — *demo ishtar* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
+117. «Η τελευταία καμαρόπετρα μπαίνει στην κορυφή και κλειδώνει την καμάρα.» — *demo ishtar* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
 118. «Τώρα βγάζεις το καλούπι. Η καμάρα στέκει μόνη της!» — *demo ishtar*
 119. «Η καμάρα στέκει. Τώρα βγάλε το ξύλινο καλούπι!» — *form-out*
 120. «Αν βγάλεις τον στύλο πριν πατήσει η στέγη, το δοκάρι πέφτει.» — *demo mausoleum*
 121. «Στήριξε πρώτα το δοκάρι σε έναν ξύλινο στύλο. Όταν πατήσει η στέγη από πάνω, βγάζεις τον στύλο.» — *demo mausoleum*
-122. «Με τρία γρήγορα πατήματα, το καλούπι γυρίζει στον σωρό, έτοιμο για την επόμενη καμάρα.» — *demo valens*
 123. «Δες: δύο πλίνθοι δίπλα δίπλα, και ένας από πάνω, στη μέση.» — *demo mastaba*
-124. «Δες τι γίνεται αν βάλουμε τους πλίνθους κάτω και τις πέτρες από πάνω.» — *demo djoser*
-125. «Τώρα ανάποδα: πέτρες κάτω, πλίνθοι από πάνω.» — *demo djoser*
-126. «Δες τι γίνεται με δύο κοντά δοκάρια πάνω στους πλίνθους.» — *not used*
-127. «Τώρα μια μακριά σανίδα πάνω σε τρεις πλίνθους, και δύο πλίνθοι από πάνω.» — *demo ziggurat*
+124. «Δες τι γίνεται αν βάλουμε τρεις πέτρες πάνω σε έναν πλίνθο.» — *demo djoser* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
+125. «Τώρα τις ίδιες τρεις πέτρες πάνω σε μια πέτρα.» — *demo djoser* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
+126. «Δες τι γίνεται αν βάλουμε τέσσερις πλίνθους πάνω στον μεσαίο.» — *demo ziggurat* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
+127. «Τώρα μια μακριά σανίδα πάνω στους τρεις πλίνθους, και οι ίδιοι τέσσερις πλίνθοι από πάνω.» — *demo ziggurat* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
 128. «Δες: ένας κίονας με δύο μικρές πέτρες από πάνω, άλλος ένας ίδιος, και ένα δοκάρι ανάμεσά τους.» — *demo karnak*
 129. «Δες: ένα δοκάρι πάνω σε ξύλινο στύλο. Βγάζουμε τον στύλο πριν μπει η στέγη.» — *demo mausoleum*
-130. «Τώρα ξανά, αλλά πρώτα χτίζουμε όλη τη στέγη, και μετά βγάζουμε τους στύλους.» — *demo mausoleum*
-131. «Θυμήσου την καμάρα της Βαβυλώνας: καλούπι, σφήνες, και η σφήνα της κορυφής.» — *demo valens*
+130. «Τώρα ξανά, αλλά πρώτα βάζουμε τη στέγη πάνω στα δοκάρια, και μετά βγάζουμε τον στύλο.» — *demo mausoleum* CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.
+132. «Μπράβο, αυτό γύρισε πίσω στον σωρό!» — *t-tap3 (when done)* NEW 15 Nov (owner list of 15 Nov).
+133. «Η κορωνίδα δεν επικάθισε καλά. Ξαναδοκίμασε!» — *fail-headpiece* NEW 15 Nov (owner list of 15 Nov).
+134. «Μπορείς και να το σύρεις πίσω στον σωρό. Δοκίμασε!» — *t-dragback* NEW 15 Nov (owner list of 15 Nov).
 
 ## Words
 
@@ -265,14 +270,13 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `tap-locked-site`: the child presses a locked site *(screenButtons (POINTER HANDLING))*
 - `press-restart`: the child presses the restart button *(screenButtons)*
 - `damage-flash`: every 60 s on the map while a site is damaged (its red rings flash) *(CUES mapTick)*
-- `map-return`: the map shows after a site was won *(goMap)*
+- `map-return`: the map shows after leaving a won site *(goMap)*
 - `map-win-said`: the line about the won site has been said *(cue then)*
 - `leave-test`: the child goes to the map in the middle of a test, before a pass *(goMap)*
 - `enter-site`: the child enters a site from the map *(screenButtons (a site))*
 - `intro-done`: the site's welcome line has been said *(cue then)*
 - `plan-shown`: the site is ready for building (after its welcome, teaching or demo) *(cue then; teaching end)*
 - `pickup`: the child picks up a piece *(startHold, startPileHold)*
-- `placed-in-plan`: the child lets go of a piece over the building *(releaseHold)*
 - `tap3`: three quick taps send a piece back to the pile *(onPointerUp)*
 - `press-broom`: the child presses the shovel *(pressButton)*
 - `press-test`: the child presses the test button (red or green) *(startTest)*
@@ -289,8 +293,12 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `won`: the win line has been said *(cue then)*
 - `first-win-said`: the first-win line has been said *(cue then)*
 - `go-map`: the child goes back to the map *(goMap)*
-- `idle`: no touch for 60 s, not during a test *(CUES tick)*
+- `idle`: on the map: 30 s with no line; on a site: 60 s with no touch *(CUES cueTick, mapTick)*
 - `step`: a teaching step's turn comes (sequences only) *(the sequence runner)*
+- `map-next`: coming back to the map from a won site: 2 s after its win line ends, or at once when there is none *(onGoMap)*
+- `next-flash`: every 60 s on the map while a site is open and not built *(CUES mapTick)*
+- `drag-back`: the child lets go of a piece over the pile (it goes back) *(onPointerUp)*
+- `placed-in-plan`: the child lets go of a piece over the building *(releaseHold)*
 
 ### Conditions
 
@@ -298,11 +306,10 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `site-finished`: the site is won and not damaged
 - `teaching-pending`: the site has teaching steps the child has not finished
 - `demo-pending`: the site has a demo and is not finished
-- `has-wood-places`: the plan marks places for wood that stays in the building
 - `has-openings`: the plan has an opening (door, arch, space between columns)
 - `has-damaged`: a site on the map is damaged (red)
 - `all-done`: all ten sites are finished
-- `opened-next`: the win opened the next site
+- `opened-next`: a site is open and not built, and the child just left the site before it
 - `material:mudbrick`: the piece is mudbrick
 - `material:stone`: the piece is stone
 - `material:wood`: the piece is wood
@@ -318,29 +325,31 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `recorded`: the line has a recording
 - `done:<cue>`: that cue has already played
 - `not <condition>`: the condition does not hold
+- `has-next`: a site is open and not built
+- `testing`: a test is running
+- `piece-resting`: a piece of the child's lies still in the building area
+- `why:headpiece`: the test failed only because the headpiece did not sit well (nothing broke, nothing fell)
 
 ### Points
 
 - `button:test`: the test button
 - `button:broom`: the shovel
 - `button:home`: the map button
-- `button:restart-confirm`: the red button next to restart (it erases)
 - `site:next`: the site to build next
 - `site:won`: the site just won (green)
 - `site:damaged`: a damaged site (red)
 - `pile:one-mudbrick`: one mudbrick of the pile
-- `pile:new-pieces`: the pile pieces of a shape or material never seen before
 - `pile:all`: the whole pile
 - `plan`: the plan (the building's outline)
 - `plan:first-place`: the place of the first piece in the suggested build
 - `plan:pieces`: the child's pieces in the building
 - `plan:last-piece`: the child's last piece in the building
-- `plan:wood-places`: the plan's places for wood
 - `plan:openings`: the plan's openings
 - `fail-place`: the red place of a failed test
 - `broken-piece`: where the broken piece was
 - `form`: the wooden forms and supports in the building
 - `side`: the side of the screen (where pieces go out)
+- `button:restart`: the restart button
 
 ### Fields
 
@@ -366,5 +375,4 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 ## Notes
 
 - Mausoleum (owner, 14 Nov): the posts stay; when he builds, the beams fall without them. The demo shows that failure.
-- Valens (owner, 14 Nov): the level has one form on one block; the quick build makes the arches one after another, taking the form out of each.
 - After Valens there is nothing new left to teach.

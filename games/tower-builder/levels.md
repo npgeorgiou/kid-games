@@ -123,7 +123,7 @@ Test numbers per level (placeholders in the LEVELS section, tuned only through t
 ## 8. Mausoleum of Halicarnassus (c. 350 BC): the wooden-post level
 
 - Headpiece: the four-horse chariot on top, and two acroteria on the beam ends beside the roof (owner). LOCKED. 12 Nov: the acroteria moved in with the lintel ends (from 6.5 to 5.95 m out), so they still stand on them.
-- Pieces (owner, 12 Nov: the lintels meet with no gap, the roof a square narrower on each side, the top two triangles gone): 21 stone blocks (podium, core, five roof steps of 5, 4, 3, 2, 1 blocks), 6 small triangles (the roof's slope), 4 square drums and 3 capitals, 4 stone beams end to end, 2 wooden posts; pile adds 2 mudbrick blocks and 4 mudbrick half-blocks.
+- Pieces (owner, 12 Nov: the lintels meet with no gap, the roof a square narrower on each side, the top two triangles gone): 21 stone blocks (podium, core, five roof steps of 5, 4, 3, 2, 1 blocks), 6 small triangles (the roof's slope), 4 square drums and 3 capitals, 4 stone beams end to end, 2 wooden posts; pile adds 4 mudbrick squares (for the two wrong columns; checked 15 Nov: no long mudbrick piece, owner: "mausoleum has no long mudbrick, and shouldnt").
 - Openings: the two walkways between the columns and the core.
 - Owner (13 Nov): the middle column half as wide (two squares), with one capital wider than it, like the side columns, so the posts would be needed.
 - New: wooden posts as temporary props. Technique: the walkway beams reach out from the solid core further than they can hold alone; they rest on wooden posts while the roof goes on, and hold once its weight (five steps over the core) presses their inner ends down. The posts then come out.

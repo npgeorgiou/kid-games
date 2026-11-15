@@ -9,13 +9,13 @@ How every game in this library talks to a child who cannot read: what it says, w
 | `games/<game>/cues.json` | **Version A**, the cue table: the only source of what the game says and shows, and when | Claude, from the owner's comments |
 | `games/<game>/cues.md` | **Version B**, the readable doc, written from A by `python3 tools/cues_doc.py games/<game>/cues.json` | nobody: it is written again after every change to A |
 | `src/index.html`, SECTION CUES | the cue engine: reads A, knows the words A uses | Claude |
-| `tools/harness.py cues` | checks: every name in A is known to the code; each demo does what its lines say; the teaching steps; the owner's own cases | Claude |
+| `tools/harness.py cuetest` (tests in `tools/cue-tests.js`) | pass/fail checks, one per rule and per owner point: every name in A is known to the code; order, timing, repeats, once-only, what never plays together; each demo does what its lines say; the teaching steps done by the child's own actions | Claude |
 
 The owner reads and comments on B. Every comment becomes a change to A (never to B, never a special case in the code), then B is written again, then the game is built, then the checks run.
 
 ## The model (three parts, the same in every game)
 
-1. **Voice.** One line at a time, in the order fired. A line lasts its recording (`sounds/voice/NN.mp3`), or 2 s as a text box with a blue bar running out. Lines belong to the screen they were fired on; leaving it drops what is left. Kinds: `teach` and `queued` wait their turn; `bg` plays only when nothing else is playing or waiting; a flavour line fired with a teaching line at the same moment is dropped. While a step waits for the child, every other line is dropped (an unplayed first time stays unused).
+1. **Voice.** One line at a time, in the order fired. A line lasts its recording (`sounds/voice/NN.mp3`), or 2 s as a text box with a blue bar running out. Lines belong to the screen they were fired on; leaving it drops what is left. Kinds: `teach` and `queued` wait their turn; `bg` plays only when nothing else is playing or waiting; a flavour line fired with a teaching line at the same moment is dropped. While a teaching sequence runs (from its first step to its last), only its own lines play; every other line is dropped (an unplayed first time stays unused). When a test starts, lines still waiting from the building are dropped the same way.
 2. **Attention.** Per cue: `none` (what it points at glows), `point` (while the step waits, the rest darkens and only what it points at, or its `touch` list, can be touched), `freeze` (while the line plays, the rest darkens and the game stops). Use `freeze` and `point` sparingly: only where the child must watch, or must do one thing. The parent override is never held back.
 3. **Steps.** A cue that waits for an action keeps its glows and ghost hand until the action is done, and says its line again 5 s after it ends. An action that ends a step fires nothing else. Steps in a sequence are resumed where the child left them; a step that `needs` something missing (it broke, the game was reloaded) goes `back` to the step that makes it.
 
