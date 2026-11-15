@@ -703,6 +703,12 @@ Results (`python3 tools/harness.py cuetest`, 28 tests, all pass; Lion Gate level
 3. Rule changed: other lines are dropped only while a teaching line plays or waits its turn, or a step waits for the child; in the free building between steps they play (the previous rule dropped them for the whole teaching). Test first-site-teaching: a mudbrick falling and breaking between steps says line 72.
 4. Lion Gate: the upper row (two blocks, two squares) and the two flagpoles moved 0.2 inwards, so the row ends where the lintels end; the lion triangle 2.5 wide and 2.22 tall (was 2.9 and 2.58), locked in the level spec. The wooden-lintel wrong build still breaks in the test. Picture `owner-shots/liongate-15nov-upper-stones-in.png`.
 
+## Skies test (branch skies-test, 15 Nov 2026 night; not on main)
+
+Owner, verbatim: "can you make a test file where you add these gradients for files? I want you to divide in day skies , adn night skies. day skys are for when the level is being built. for each site, avoid skies that dont contrast well with the main materials of the building. each site has a day sky assigned to it, try to not reuse the same ones more than 2 times, ideally one sky for each site. under the constrast condition said above, and only this is ever used for this site. BUT when a site is finished,  then there is a rotation of night skys, kind of from sunset to early sunrise, that rotate between all finsihes sites (so, you go to built -> DAY OF THE SITE, you go out and click a finsiheed site or even many -> the night sky progresses)"
+
+Built: the owner's 18 gradients (src/art/skies, 160x120 copies). Day skies by colour difference from each site's mudbrick, wood and stone (textured and plain), at least about 20 (CIE Lab): mastaba ken, djoser aug, ziggurat bah, liongate sno, karnak dro, ishtar air, parthenon omb, mausoleum sno, pharos day, valens omb (8 skies, sno and omb twice: only five skies stand out from marble). Left out of the day: ora (too close to sandstone, wood and mudbrick), sen (too close to everything). Night rotation, one step per visit to a finished site, saved: son, ice, dus, nac, twi, mon, cit, mor, ora. Picture owner-shots/skies-15nov-test.png.
+
 ## Task list
 
 No open items.
