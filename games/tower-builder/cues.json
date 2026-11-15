@@ -1172,19 +1172,19 @@
    "steps": [
     ["ready", 0, 1, 2, 3, 9, 10, 11, 6, 7, 8],
     ["tell", 129],
-    ["put", 18, 17],
+    ["put", 17, ["beam", "stone", -1.45, 3.65, 0]],
     ["wait", 3],
     ["fade"],
     ["ready", 0, 1, 2, 3, 9, 10, 11, 6, 7, 8],
     ["tell", 130],
-    ["put", 15, 17, 18, 21, 22, 23],
+    ["put", ["column", "wood", -3.2, 2.2, 0], 17, 18, 21, 22, 23],
     ["wait", 0.5],
     ["pull"],
     ["wait", 2.5],
     ["say", 121],
     ["fade"]
    ],
-   "note": "Owner 15 Nov evening: the base, columns and capitals stand ready both times. Wrong: no wood at all; both lintels go on and the one between the columns falls (no lintel is long enough to rest on both). Right: a wooden post holds that lintel until many stones are on it; then the post is tapped out and both lintels stand."
+   "note": "Owner 15 Nov night: the base, columns and capitals stand ready both times. Wrong: no wood; the left lintel goes on, then the right one, which does not stand and tips over. Right: a wooden post under the joint of the two lintels, both lintels sitting on it, three roof stones over them; then the post is tapped out and both lintels stand. The right lintel is set 15 cm off the left one (set touching, its end catches on the left lintel's end and it stays up)."
   },
   "pharos": {
    "new": "hollow tower, two walls tied by wooden beams",

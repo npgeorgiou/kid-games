@@ -326,13 +326,17 @@
           const S = T.SOLUTIONS.mausoleum, readies = D[k].steps.filter((s) => s[0] === "ready"), base = (p) => p.slice(1).sort().join();
           if (readies.length !== 2 || base(readies[0]) !== base(readies[1])) bad.push("mausoleum: different bases");
           if (puts[0] && puts[0].slice(1).some((e) => (typeof e === "number" ? S[e] : e)[1] === "wood")) bad.push("mausoleum: wood in the wrong way");
+          const ent = (e) => (typeof e === "number" ? S[e] : e), post = puts[1] && puts[1].slice(1).map(ent).find((e) => e[1] === "wood"), lin = puts[1] ? puts[1].slice(1).map(ent).filter((e) => e[0] === "beam") : [];
+          if (!post || lin.length < 2 || !lin.every((b) => Math.abs(b[2] - post[2]) < 1.6 + 0.3)) bad.push("mausoleum: the post does not sit under both lintels"); // 15 Nov night: the joint of the two
           if (rows[0] && rows[0].wood) bad.push("mausoleum: wood standing in the wrong way");
           for (const p of readies) for (const e of p.slice(1)) { const [d, , x, y] = S[e]; if (d === "square" && y < 2) { const on = p.slice(1).filter((f) => S[f][3] < 1).reduce((a, f) => a + Math.max(0, Math.min(x + 0.5, S[f][2] + 1) - Math.max(x - 0.5, S[f][2] - 1)), 0); if (on < 0.99) bad.push("mausoleum: column at " + x + " rests on " + on.toFixed(2) + " of its width"); } }
           if (puts[1] && puts[1].length - 1 >= S.length) bad.push("mausoleum: right way builds everything");
-          if (!(rows[0] && rows[0].fell > 0.5)) bad.push("mausoleum: wrong way lintel did not fall " + JSON.stringify(rows[0]));
+          if (!(rows[0] && rows[0].fell > 0.1)) bad.push("mausoleum: wrong way lintel did not tip " + JSON.stringify(rows[0]));
           if (!(rows[1] && rows[1].fell < 0.1)) bad.push("mausoleum: right way beam fell " + JSON.stringify(rows[1]));
+          if (!(rows[1] && rows[1].wood === 0)) bad.push("mausoleum: the post was not taken out " + JSON.stringify(rows[1]));
         }
         if ((k === "mausoleum" || k === "ishtar") && !tapped) bad.push(k + ": supports not tapped out");
+        if (D[k].steps.some((s) => s[0] === "pull") && rows.length && rows[rows.length - 1].wood) bad.push(k + ": wood left standing after the supports came out");
       }
       return [!bad.length, bad.join("; ")];
     },

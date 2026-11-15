@@ -716,6 +716,15 @@ Owner, verbatim: "first of all, chave your code, so that when a site is destroye
 Done: the sky follows the site's state in one place: being built (never finished, or damaged) shows its day sky; standing finished shows the next night sky. Test sky-follows-site-state (Mastaba built and passed for real, visited twice, then its headpiece knocked off).
 The contrast logic was wrong: it compared colour lists (any material colour against any sky colour, worst pair) with the old CIE76 difference, which overrates blues and violets. Now tools/sky-contrast.py measures the real picture: the quick-built site under each sky, textures on and off, CIEDE2000 between each sky pixel along the building's edge and the building just inside it, averaged. day.png does beat the earlier choice for marble (Parthenon: day 27, air 21). New day skies (the weakest site as strong as possible, each sky at most twice): mastaba air, djoser dro, ziggurat dro, liongate sno, karnak aug, ishtar air, parthenon sno, mausoleum aug, pharos day, valens ora. Weakest site 30 (was 21).
 
+## Current state, update 53 (15 Nov 2026 night): skies kept, Mausoleum demos
+
+Owner, verbatim: "ok, keep that. now I want you to change the demos in halicarnassos: the wrong one should first palce the left lintel, then the right, to show how the right doesnt stand and almost falls. the correct demo should place the wood where both lintels can sit on it."
+
+Results (`python3 tools/harness.py cuetest`, 29 tests, all pass):
+- The skies (section "Skies test" above, branch skies-test) are merged into the game.
+- Mausoleum wrong way: the left lintel, then the right one; the right one tips over onto its column. It is set 15 cm off the left one: set touching, its end catches on the left lintel's end and it stays up.
+- Mausoleum right way: a wooden post under the joint of the two lintels, both lintels on it, three roof stones; the post tapped out, both stand. Test demos (also checks the post is gone at the end). Picture owner-shots/mausoleum-demo-15nov.png.
+
 ## Task list
 
 No open items.
