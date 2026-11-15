@@ -678,7 +678,7 @@ Owner's words: "1. when I ahve 3 std stone blocks on teh flooer, and I truyto pu
 - 3: done. Every friction 20% higher: wood 0.6, mudbrick 0.84, stone 0.72, ground 0.96, test loads 0.72 (walls and the sidebar pile unchanged). All ten levels still pass their test; every wrong choice still fails.
 - 1 and 2: not built; proposal sent to the owner, waiting for his yes. Cause found in the hand code: the arm pushes only as hard as it needs to speed up the piece it holds (plus what rests on it); the other pieces it pushes are not counted. Pulling a piece by a point beyond its middle (towards where it goes) counts as a rope pull and gets far more strength. So the same push works or not depending on which half of the piece was grabbed. Proposal: count the pieces it pushes the same way as the pieces resting on it, so pushing gets the effort the whole row needs (up to the arm's strength), wherever the piece is grabbed.
 
-## Current state, update 50 (15 Nov 2026 night): owner cue list
+## Current state, update 51 (15 Nov 2026 night): owner cue list
 
 Owner, verbatim: "we need some more work on cues: explain somehow that the dotted outline should not be filled. ALSO, at some playtesting i did, the lvl1 failed at the wind test, and then at the secont test effort, it suceeded allt ests, but there was no bubble for the ehadpiece and earhquake, so you ahve to make them appear not just on the first est, but on teir first eppearance isntance. also cnage to "O plithos thrimmatistike apo to varos" to "Nai, oi plihtoi spane, den einai geroi san petra"."
 
