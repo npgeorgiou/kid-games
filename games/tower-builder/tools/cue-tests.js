@@ -8,7 +8,7 @@
     for (let k = 0; k < Math.round(sec * 60); k++) {
       const c0 = T.voice.cur; T.cueTick(1 / 60); clock += 1 / 60; const c = T.voice.cur;
       if (c0 && c0 !== c) { const e = log.slice().reverse().find((q) => q[1] === c0.n && q[2] == null); if (e) e[2] = clock; }
-      if (c && c !== c0) log.push([clock, c.n, null]);
+      if (c && c !== c0) log.push([clock, c.n, null, T.active.some((s) => s !== c && (s.waitEvent || s.waitUntil)) || (c0 && c0.kind === "teach")]); // 4th: a step was waiting or a teaching line just ended into it
       if (physics && T.mode === "build" && !T.frozen()) { const f = T.test && T.test.fast && T.test.phase !== "fail" && T.test.phase !== "pass" ? 10 : 1; T.stepPhysics(f / 60, 8 * f); T.cleanupOutOfBounds(); T.updateCheck(1 / 60); }
     }
   };
@@ -93,6 +93,7 @@
     "first-site-teaching": () => {
       const bad = [], step = (want, why) => { if (seq() !== want) bad.push(why + ": step " + seq() + " (want " + want + ")"); };
       const kids = () => T.pieces.filter((p) => !p.demo && !p.auto);
+      const quiet = () => { for (let k = 0; k < 100 && (cur() || T.voice.queue.length); k++) run(0.1); }; // the child waits until the voice is quiet
       const settle = () => { const s0 = seq(); for (let k = 0; k < 40 && seq() === s0; k++) run(0.1); }; // the child waits until the piece lies still (at most 4 s)
       fresh(); start(0); T.onEnterSite(0); run(3); step("t-drag-1", "after the welcome");
       // 9: a piece let go high up that breaks on landing does not count
@@ -107,25 +108,31 @@
       const k2 = kids()[0]; if (k2) drag(pieceAt(k2), sideAt()); run(3);
       step("t-drag-3", "dragged back to the pile by hand");
       run(8); step("t-drag-3", "8 s later (no going round again)");
-      drag(pileAt("mudbrick"), planAt()); run(2); step("t-shovel", "one piece in (the shovel waits for four)"); if (said().includes(95)) bad.push("95 before four pieces");
+      drag(pileAt("mudbrick"), planAt()); settle(); run(1); step("t-shovel", "one piece in (the shovel waits for three)"); if (said().includes(95)) bad.push("95 before four pieces");
       // 15 Nov night: the shovel's line once four pieces stand
-      drag(pileAt("mudbrick"), planAt(-3)); drag(pileAt("mudbrick"), planAt(3)); run(1); if (said().includes(95)) bad.push("95 at three pieces");
-      drag(pileAt("mudbrick"), planAt(-2, 1.8)); run(2); if (!said().includes(95)) bad.push("95 not said at four pieces");
+      drag(pileAt("mudbrick"), planAt(-3)); run(1); if (said().includes(95)) bad.push("95 at two pieces");
+      drag(pileAt("mudbrick"), planAt(3)); run(2); if (!said().includes(95)) bad.push("95 not said at three pieces"); // 15 Nov night: three
       // 6: the first-time mudbrick line never during the teaching (each drag above picked a mudbrick up)
       const bb = btn("broom"); tap(bb); run(8); if (kids().length) bad.push("the shovel left pieces"); if (T.demo || said().includes(123)) bad.push("a demo at the first site");
       const sol = T.SOLUTIONS.mastaba.slice().sort((a, b) => a[3] - b[3] || a[2] - b[2]), spots = sol.map((e) => T.worldToScreen(T.LEVEL_X0 + e[2] + 0.05, e[3] + 0.7)); // a little off its exact place, as a child lays it, so it does not start inside its left neighbour // let go a little above its place, as a child does
       const lay = (k) => drag(pileAt(sol[k][1], sol[k][0]), spots[k]); // the k-th piece of the suggested build, bottom row first
       for (let k = 0; k < 100 && seq() !== "t-red"; k++) run(0.1); // the dotted-outline line points first; the child waits it out
-      lay(0); lay(1); run(2); step("t-red", "two pieces in");
+      for (let k = 0; k < 4; k++) { lay(k); run(0.3); }
+      // 15 Nov night: a mudbrick dropped from high up breaks in the free building: its first-time line plays
+      quiet(); const hi = T.spawnPiece("block", T.LEVEL_X0 + 6, 10, 0, "mudbrick"); // a mudbrick falling from high up beside the building
+      let mx = 0, pv = null; for (let k = 0; k < 360 && T.pieces.includes(hi); k++) { const v = hi.body.getLinearVelocity(); if (pv) mx = Math.max(mx, Math.hypot(v.x - pv.x, v.y - pv.y)); pv = { x: v.x, y: v.y }; run(1 / 60); } run(0.5);
+      if (!hi || T.pieces.includes(hi)) bad.push("the dropped mudbrick did not break (dv " + mx.toFixed(1) + ", auto " + hi.auto + ", held " + hi.heldBy + ", ghost " + hi.ghost + ", mat " + hi.material + ")"); else if (!said().includes(72)) bad.push("72 not said for the broken mudbrick (" + said().slice(-3).join(",") + ")");
+      run(6); for (let k = 4; k < 7; k++) { lay(k); run(0.3); } if (said().includes(99)) bad.push("99 before eight pieces");
+      run(6); lay(7); run(2); step("t-red", "eight pieces in");
       T.startTest(); run(0.3); step("t-undo", "red button pressed (waits for ten pieces)");
       // 15 Nov evening: the undo button's line after ten pieces, pointing at the undo button
-      for (let k = 2; k < 9; k++) { lay(k); run(0.3); }
+      quiet(); lay(8); run(0.3);
       lay(9); run(1.5); if (cur() !== 135 || !glowsOn("undo")) bad.push("ten pieces: line " + cur() + ", undo glows " + glowsOn("undo") + ", pieces in " + kids().length + " pile " + T.pileBodies().filter((b) => b.pileItem.material === "mudbrick").length);
       run(3); step("t-green", "after the undo line");
-      if (said().includes(78)) bad.push("78 said during the teaching");
+      const busy = log.filter((q) => (q[1] === 78 || q[1] === 72) && q[3]); if (busy.length) bad.push("78/72 started while a step waited or right after a teaching line");
+      if (!said().includes(78)) bad.push("78 never said in the free building");
       { const sd = said(), a = sd.indexOf(98), b = sd.indexOf(136), c = sd.indexOf(99); if (!(a >= 0 && a < b && b < c)) bad.push("dotted-outline line 136 not between 98 and 99: " + sd.join(",")); } // 15 Nov night
-      T.cueMem().seq["first-site"] = "done"; T.newScene(); drag(pileAt("mudbrick"), planAt(2)); run(4);
-      if (!said().includes(78)) bad.push("78 not said after the teaching");
+
       return [!bad.length, bad.join("; ") || said().join(",")];
     },
 

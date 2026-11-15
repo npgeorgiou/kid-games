@@ -3322,7 +3322,7 @@
   // s, s (after a waiting step's line ends), s, px, s (no line on the map), s (the open site glows), s (win line to new-site line), s, m/s (about a second across the screen), s, s (a second restart press within it erases)
   const HL_COLOR = { yellow: "#ffd23f", green: "#3fd16b", red: "#e8463a" };
   const voice = { cur: null, queue: [] };
-  let scene = 0, active = [], whens = [], flashes = [], visit = {}, cueFrame = 0, cueClock = 0, lastInput = 0, damageT = 0, nextT = 0, mapIdleT = 0, seqOn = null, buildCheckT = 0, cueAudio = null, confirmUntil = -1;
+  let scene = 0, active = [], whens = [], flashes = [], visit = {}, cueFrame = 0, cueClock = 0, lastInput = 0, damageT = 0, nextT = 0, mapIdleT = 0, buildCheckT = 0, cueAudio = null, confirmUntil = -1;
   // the text box stands in for the recordings; the blue bar on top runs out, emptying from the left
   const cueBox = document.createElement("div"), cueText = document.createElement("div"), cueBar = document.createElement("div");
   cueBox.style.cssText = "position:fixed;left:50%;bottom:6%;transform:translateX(-50%);max-width:70%;background:#fff;color:#222;font:22px/1.35 sans-serif;padding:20px 20px 14px;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;display:none;z-index:10;overflow:hidden";
@@ -3361,7 +3361,7 @@
     scene++;
     for (const q of voice.queue) setMark(q.onceKey, false);
     voice.queue.length = 0; if (voice.cur) endLine(voice.cur);
-    active = []; whens = []; flashes = []; visit = {}; confirmUntil = -1; seqOn = null; nextT = 0; mapIdleT = 0;
+    active = []; whens = []; flashes = []; visit = {}; confirmUntil = -1; nextT = 0; mapIdleT = 0;
   }
   function cueReset() { progress.cues = null; newScene(); }
 
@@ -3384,7 +3384,6 @@
     "piece-resting": () => childPieces().some((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx && touching(p.body) && Math.hypot(p.body.getLinearVelocity().x, p.body.getLinearVelocity().y) < 0.05 && Math.abs(p.body.getAngularVelocity()) < 0.05),
     "load-covered": () => !!grid && runCheck().load > 0,
     "plan-has-piece": () => pieces.some((p) => !p.demo && !p.auto && (!p.ghost || p.heldBy != null)), // a piece in the child's hand is still his, even while it passes over others or the pile
-    "plan-has-two": () => childPieces().filter((p) => p.heldBy == null).length >= 2,
     "test-ready": () => testReady(),
     "no-form": () => !supportPieces().length,
     "visitors-walking": () => mode === "map" && groups.some((g) => g.state === "walk"),
@@ -3414,6 +3413,7 @@
     return out;
   }
   function stepWaiting() { return active.some((s) => waiting(s)); }
+  function teachingBusy() { return (voice.cur && voice.cur.kind === "teach") || voice.queue.some((q) => q.kind === "teach"); }
   // fire one cue: its line (with what it points at, its hand, its wait), or its glow, or what it does
   function fire(c, x, seq) {
     const key = onceKey(c, x);
@@ -3423,7 +3423,7 @@
     const memo = {}, pts = (names) => (names || []).flatMap((n) => pointTargets(n, x, memo));
     if (c.glow) { setMark(key, true); glowFor(pts(c.points), c.glow); then(); return c; }
     if (c.say == null) { setMark(key, true); then(); return c; }
-    if (!seq && (seqOn || stepWaiting())) return null; // while a teaching sequence runs or a step waits, other lines are dropped (their first time stays unused)
+    if (!seq && (teachingBusy() || stepWaiting())) return null; // while a teaching line plays or waits, or a step waits for the child, other lines are dropped (their first time stays unused)
     const n = lineOf(c, x);
     const line = say(n, {
       cue: c, kind: c.kind || "queued", attention: c.attention || "none", targets: pts(c.points), touch: c.touch ? pts(c.touch) : null,
@@ -3445,7 +3445,7 @@
 
   // --- sequences: steps in order, resumed where the child left them; a step that needs something missing goes back
   function sequenceOf(site) { const k = siteKeyOf(site); return Object.keys(CUE_TABLE.sequences).find((n) => CUE_TABLE.sequences[n].site === k) || null; }
-  function runSequence(name) { if (name) { seqOn = name; runStep(name, cueMem().seq[name] || CUE_TABLE.sequences[name].steps[0]); } }
+  function runSequence(name) { if (name) runStep(name, cueMem().seq[name] || CUE_TABLE.sequences[name].steps[0]); }
   function runStep(name, id, depth = 0) {
     const c = cueById(id), m = cueMem(); m.seq[name] = id; cueSave();
     const go = () => {
@@ -3457,7 +3457,7 @@
   function nextStep(name, id) {
     const sq = CUE_TABLE.sequences[name], i = sq.steps.indexOf(id);
     if (i + 1 < sq.steps.length) { runStep(name, sq.steps[i + 1]); return; }
-    cueMem().seq[name] = "done"; cueSave(); seqOn = null;
+    cueMem().seq[name] = "done"; cueSave();
     if (sq.then) cueEvent(sq.then);
   }
 

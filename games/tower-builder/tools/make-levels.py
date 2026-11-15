@@ -145,12 +145,12 @@ gate = rect(-1, 0, 1, 2)
 s = (mirror([["block", "stone", -5, 0.5, 0], ["block", "stone", -3, 0.5, 0], ["square", "stone", -5.5, 1.5, 0], ["block", "stone", -4, 1.5, 0], ["square", "stone", -2.5, 1.5, 0],
              ["block", "stone", -1.5, 1.0, UP]]) +
      [["beam", "stone", x, 2.25, 0] for x in (-3.2, 0, 3.2)] +
-     mirror([["block", "stone", -4.0, 3.0, 0], ["square", "stone", -2.0, 3.0, 0]]) +  # owner (13 Nov): back to the lower version
-     mirror([["beam", "wood", -2.75, 4.1, UP]]))  # flagpoles held between two stones
+     mirror([["block", "stone", -3.8, 3.0, 0], ["square", "stone", -1.8, 3.0, 0]]) +  # owner (13 Nov): back to the lower version; (15 Nov) 0.2 inwards, so the row ends where the lintels end (the outline had a strip at each end no piece could fill)
+     mirror([["beam", "wood", -2.55, 4.1, UP]]))  # flagpoles held between two stones
 level("liongate", "Πύλη των Λεόντων", "c. 1250 BC", "jambs, a stone lintel, flagpoles held between stones, and the lion triangle lowered onto the lintel",
       "two monolith jambs and a great lintel (4.5 x 2.0 x 0.8 m, about 20 t); the lion relief, a triangle, stands on the lintel in the relieving triangle (Wikipedia); "
       "the real corbelled courses close over the relief, which a slab lowered from above cannot pass, so the relief stands free on the lintel; the flagpoles are the owner's addition (no source found for them)",
-      s, [Polygon([(-1.45, 2.52), (1.45, 2.52), (0, 5.1)])], [gate],
+      s, [Polygon([(-1.25, 2.52), (1.25, 2.52), (0, 4.74)])], [gate],  # owner (15 Nov): the lion triangle smaller in width and height, to fit between the moved stones
       wrong=[W("mudbrick jambs", "material", recolour(s, lambda e: e[0] == "block" and e[4] != 0, "mudbrick")),
              W("wooden planks as the lintel over the door", "material", recolour(s, lambda e: e[0] == "beam" and e[1] == "stone", "wood")),
              W("mudbrick for the jambs and the lower walls", "material", recolour(s, lambda e: e[0] in ("block", "square") and e[3] < 2, "mudbrick")),

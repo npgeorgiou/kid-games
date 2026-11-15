@@ -7,7 +7,7 @@
   "Every line belongs to the screen it was fired on (the map, one visit to a site, free play); leaving drops what is left.",
   "Kinds: teach and queued lines wait their turn; bg lines play only if nothing is playing or waiting. When a teaching and a flavour line fire at the same moment, the flavour one is dropped.",
   "No line starts while a test runs unless it says it may (during: test).",
-  "While a teaching sequence runs (the first site, from its first step to its last), only its own lines play; every other line is dropped (a dropped first-time line keeps its first time for later).",
+  "While a teaching line plays or waits its turn, or a step waits for the child, every other line is dropped (a dropped first-time line keeps its first time for later). In the free building between steps (the child building on his own while the next step waits for enough pieces) other lines play as usual (owner 15 Nov night: the first crumble line must still play on the first site).",
   "Lines about a moment of building (a crumble, a snap) are not said during a test; the test's own lines say what happened.",
   "An action that ends a waiting step fires nothing else (pressing the red button in the red-button step says no line 70).",
   "Attention: none (default) only makes what it points at glow; point darkens the rest of the screen while the step waits, and only what it points at (or its touch list) can be touched; freeze darkens and freezes the game while its line plays. A demo darkens all but the building and takes no touch. Ctrl held (parent) is never held back.",
@@ -182,7 +182,6 @@
    "part:load": "the part is the load",
    "part:quake": "the part is the earthquake",
    "plan-has-piece": "a piece of the child's is in the building area",
-   "plan-has-two": "two pieces lie in the building area",
    "test-ready": "the test button is green",
    "no-form": "no wooden form or support is left in the building",
    "visitors-walking": "visitors are walking to a site on the map",
@@ -195,9 +194,10 @@
    "why:headpiece": "the test failed only because the headpiece did not sit well (nothing broke, nothing fell)",
    "on-map": "the map is showing",
    "first-openings-site": "this is the first site (in map order) whose outline has openings",
-   "placed:4": "four or more of the child's pieces stand in the building",
    "placed:10": "ten or more of the child's pieces stand in the building",
-   "load-covered": "a piece lies inside the dotted outline"
+   "load-covered": "a piece lies inside the dotted outline",
+   "placed:3": "three or more of the child's pieces stand in the building",
+   "placed:8": "eight or more of the child's pieces stand in the building"
   },
   "points": {
    "button:test": "the test button",
@@ -1013,8 +1013,8 @@
    "needs": "plan-has-piece",
    "back": "t-drag-3",
    "after": 96,
-   "start": "placed:4",
-   "note": "Owner 15 Nov night: once four of the child's pieces stand in the building."
+   "start": "placed:3",
+   "note": "Owner 15 Nov night: once three of the child's pieces stand in the building."
   },
   {
    "id": "t-build",
@@ -1044,8 +1044,8 @@
    "points": ["button:test"],
    "show": "tap button:test",
    "wait": "press-test",
-   "start": "plan-has-two",
-   "note": "Pressing the red button here says only this step's line, not line 70."
+   "start": "placed:8",
+   "note": "Owner 15 Nov night: once eight of the child's pieces stand in the building. Pressing the red button here says only this step's line, not line 70."
   },
   {
    "id": "t-undo",

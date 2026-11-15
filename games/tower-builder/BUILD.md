@@ -689,6 +689,20 @@ Results (`python3 tools/harness.py cuetest`, 28 tests, all pass):
 - Line 72 is «Ναι, οι πλίνθοι σπάνε, δεν είναι γεροί σαν πέτρα.»
 - Found while testing: input timing (taps, the pile settling, the button turning green, the parent key) ran on the computer's clock, so test runs could differ; it now runs on the game's own frame clock. Same for the player.
 
+## Current state, update 52 (15 Nov 2026 night): owner list
+
+Owner, verbatim:
+1. "Make the shovel cue appear on 3 pieces, not 4."
+2. "make red button que appear on 8."
+3. "in first level, a mudbrick broke and I saw no cue, you ahve done something with it, this que is not supposed to play while another tutorial cue is playing, not disappear compeltely from 1st lvl, or whatever you avhe done."
+4. "in Mycenai, the outline is straight on the sides, while the pieces cant fit it, the 2 oblong pieces. this must be solved, but im afraid to tell you to change block dimensions, and also I dont want you to amke outline indentations. I prefer you to move the upper stones a bit inwards, adn so the headpiece becomes a bit smaller (less wide and less tall), but make sure it can still break a wooden lintel"
+
+Results (`python3 tools/harness.py cuetest`, 28 tests, all pass; Lion Gate level checks all pass):
+1. The shovel step waits for three pieces.
+2. The red-button step waits for eight pieces.
+3. Rule changed: other lines are dropped only while a teaching line plays or waits its turn, or a step waits for the child; in the free building between steps they play (the previous rule dropped them for the whole teaching). Test first-site-teaching: a mudbrick falling and breaking between steps says line 72.
+4. Lion Gate: the upper row (two blocks, two squares) and the two flagpoles moved 0.2 inwards, so the row ends where the lintels end; the lion triangle 2.5 wide and 2.22 tall (was 2.9 and 2.58), locked in the level spec. The wooden-lintel wrong build still breaks in the test. Picture `owner-shots/liongate-15nov-upper-stones-in.png`.
+
 ## Task list
 
 No open items.
