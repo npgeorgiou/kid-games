@@ -292,6 +292,26 @@
     out.push(["14 Nov a stone block swung fast into a stone block knocks it along", hit > 0.3, "moved " + hit + " m"]);
   }
 
+  // --- owner 15 Nov night: a row of pieces pushed by one end piece moves as one load, wherever that piece is grabbed
+  if (want("train")) {
+    T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
+    const D = T.PIECE_DEFS.block, hx = D.hx, hy = D.hy;
+    // pieces: [[x, y, material]]; grab the first at local x gx (share of its half width); push right 3 m at a hand's pace
+    const shove = (set, gx) => { T.clearAllPieces(); const ps = set.map(([x, y, m]) => T.spawnPiece("block", x, y, 0, m)); run(1.5);
+      const x0 = ps.map((q) => q.body.getPosition().x), p = ps[0], g = p.body.getWorldPoint({ x: gx * hx, y: 0 }); T.startHold(p, { x: g.x, y: g.y }, 93, 0, 0);
+      for (let k = 0; k < 240; k++) { const t = k / 60; p.desired = { x: g.x + Math.min(3, t < 0.3 ? 2 * t * t / 0.6 : 0.3 + 2 * (t - 0.3)), y: g.y }; frame(1 / 60); }
+      T.releaseHold(93); run(1); return ps.map((q, i) => +(q.body.getPosition().x - x0[i]).toFixed(2)); };
+    const row = (n, m) => Array.from({ length: n }, (_, i) => [X - 3 + i * (2 * hx + 0.005), hy + 0.003, m]);
+    for (const gx of [-0.6, 0.6]) {
+      const r = shove(row(3, "stone"), gx), lo = Math.min(...r);
+      out.push(["15 Nov three stone blocks on the floor pushed like a train by an end block (grabbed " + (gx < 0 ? "outer" : "inner") + " half) all move", lo > 0.5, "moved " + r.join(", ") + " m"]);
+      const q = shove([[X - 3, hy + 0.003, "mudbrick"], [X - 3 + 2 * hx + 0.005, hy + 0.003, "mudbrick"], [X - 3 + hx + 0.0025, 3 * hy + 0.01, "mudbrick"]], gx), ql = Math.min(...q);
+      out.push(["15 Nov mudbrick pyramid (two below, one on top) pushed by a bottom brick (grabbed " + (gx < 0 ? "outer" : "inner") + " half) moves", ql > 0.5, "moved " + q.join(", ") + " m"]);
+    }
+    const four = shove(row(4, "stone"), -0.6);
+    out.push(["15 Nov four stone blocks in a row: too heavy to push (shown only)", true, "moved " + four.join(", ") + " m"]);
+  }
+
   // --- 14 Nov: dragging a piece up and towards a wall of pieces slides up it, not stuck by rubbing (owner)
   if (want("slide")) {
     T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
