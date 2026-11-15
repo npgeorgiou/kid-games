@@ -196,7 +196,8 @@
    "why:headpiece": "the test failed only because the headpiece did not sit well (nothing broke, nothing fell)",
    "on-map": "the map is showing",
    "first-openings-site": "this is the first site (in map order) whose outline has openings",
-   "placed-ten": "ten or more of the child's pieces stand in the building"
+   "placed:4": "four or more of the child's pieces stand in the building",
+   "placed:10": "ten or more of the child's pieces stand in the building"
   },
   "points": {
    "button:test": "the test button",
@@ -347,7 +348,6 @@
   "94": "Αν πατήσεις ένα κομμάτι τρεις φορές γρήγορα, γυρίζει πίσω στον σωρό. Δοκίμασε!",
   "95": "Πάτα το φτυάρι!",
   "96": "Το φτυάρι μαζεύει όλα τα κομμάτια και τα γυρίζει στον σωρό. Έτσι ξαναρχίζεις από την αρχή.",
-  "97": "Βάλε κάθε τούβλο πάνω σε δύο από κάτω, όχι πάνω σε ένα. Έτσι ο τοίχος δένει.",
   "98": "Τώρα χτίσε! Γέμισε όλο το σχέδιο.",
   "99": "Αυτό είναι το κουμπί της δοκιμής. Όσο είναι κόκκινο, το κτίριο δεν είναι έτοιμο. Πάτα το και δες τι δεν είναι σωστά τοποθετημένο. Όταν γεμίσεις το σχέδιο, θα γίνει πράσινο.",
   "100": "Το κουμπί πρασίνισε! Πάτα το να δεις αν το κτίριο αντέχει.",
@@ -370,7 +370,6 @@
   "118": "Τώρα βγάζεις το καλούπι. Η καμάρα στέκει μόνη της!",
   "119": "Η καμάρα στέκει. Τώρα βγάλε το ξύλινο καλούπι!",
   "121": "Στήριξε πρώτα το δοκάρι σε έναν ξύλινο στύλο. Όταν πατήσει η στέγη από πάνω, βγάζεις τον στύλο.",
-  "123": "Δες: δύο πλίνθοι δίπλα δίπλα, και ένας από πάνω, στη μέση.",
   "124": "Δες τι γίνεται αν βάλουμε τρεις πέτρες πάνω σε έναν πλίνθο.",
   "125": "Τώρα τις ίδιες τρεις πέτρες πάνω σε μια πέτρα.",
   "126": "Δες τι γίνεται αν βάλουμε τέσσερις πλίνθους πάνω στον μεσαίο.",
@@ -994,14 +993,17 @@
    "wait": "press-broom",
    "needs": "plan-has-piece",
    "back": "t-drag-3",
-   "after": 96
+   "after": 96,
+   "start": "placed:4",
+   "note": "Owner 15 Nov night: once four of the child's pieces stand in the building."
   },
   {
-   "id": "t-demo",
+   "id": "t-build",
    "on": "step",
+   "say": 98,
    "topic": "First-site teaching",
-   "do": "demo",
-   "after": 98
+   "kind": "teach",
+   "note": "Owner 15 Nov night: the first site has no demo; this line follows the shovel."
   },
   {
    "id": "t-red",
@@ -1024,7 +1026,7 @@
    "kind": "teach",
    "attention": "point",
    "points": ["button:undo"],
-   "start": "placed-ten",
+   "start": "placed:10",
    "note": "Owner 15 Nov: after the child has placed ten pieces on the first site. Nothing to do; the line points at the button."
   },
   {
@@ -1047,15 +1049,15 @@
   "first-site": {
    "site": "mastaba",
    "then": "plan-shown",
-   "steps": ["t-drag-1", "t-tap3", "t-drag-2", "t-dragback", "t-drag-3", "t-shovel", "t-demo", "t-red", "t-undo", "t-green"],
+   "steps": ["t-drag-1", "t-tap3", "t-drag-2", "t-dragback", "t-drag-3", "t-shovel", "t-build", "t-red", "t-undo", "t-green"],
    "note": "First site, after its welcome line, until the child has done all the steps. Then the child builds alone; the first test, first win and first fail lines are general cues."
   }
  },
  "demos": {
   "mastaba": {
-   "new": "mudbrick; rows with staggered joints",
-   "steps": [["tell", 123], ["put", 1, 2, 6], ["wait", 0.5], ["say", 97], ["fade"]],
-   "note": "Played inside the first-site teaching (step t-demo), then on every visit until the site is finished."
+   "new": "mudbrick",
+   "steps": [],
+   "note": "Owner 15 Nov night: no demo at the first site."
   },
   "djoser": {
    "new": "stone; heavy low, light high",

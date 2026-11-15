@@ -3348,7 +3348,6 @@
     "demo-pending": (x) => { const k = siteKeyOf(x.site), d = CUE_TABLE.demos[k]; return !!(d && d.steps.length && !progress.done[k]); },
     "has-openings": () => !!(grid && grid.holes.length),
     "first-openings-site": () => currentLevel != null && currentLevel === LEVELS.findIndex((L) => L.holes && L.holes.length),
-    "placed-ten": () => childPieces().filter((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx).length >= 10,
     "has-damaged": () => SITES.some((s) => progress.done[s.key] && progress.done[s.key].broken),
     "all-done": () => LEVELS.every((l) => progress.done[l.key]),
     "opened-next": (x) => x.next != null,
@@ -3370,6 +3369,7 @@
     if (k === "material") return x.material === v;
     if (k === "part") return x.part === v;
     if (k === "why") return x.why === v;
+    if (k === "placed") return childPieces().filter((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx).length >= +v; // N of the child's pieces stand in the building
     if (k === "done") return isMarked("ever:" + v);
     return !!CUE_CONDITIONS[name](x);
   }
@@ -3712,7 +3712,7 @@
   // the table names only what the code knows: every event fired, condition, point and line used (the harness prints this)
   const POINT_KINDS = ["button", "site", "pile", "plan", "fail-place", "broken-piece", "form", "side", "building"];
   function cueCheckTable() {
-    const bad = [], conds = (n) => { const b = n.replace(/^not /, ""); if (!/^(material|part|done|why):/.test(b) && !CUE_CONDITIONS[b]) bad.push("condition " + n); };
+    const bad = [], conds = (n) => { const b = n.replace(/^not /, ""); if (!/^(material|part|done|why|placed):/.test(b) && !CUE_CONDITIONS[b]) bad.push("condition " + n); };
     for (const c of CUE_TABLE.cues) {
       (c.if || []).forEach(conds); if (c.needs) conds(c.needs); if (c.start) conds(c.start); if (c.wait && c.wait.startsWith("until:")) conds(c.wait.slice(6));
       for (const p of (c.points || []).concat(c.touch || [])) if (!POINT_KINDS.includes(p.split(":")[0])) bad.push("point " + p);

@@ -30,7 +30,7 @@
   const ptr = (type, x, y) => cv().dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, isPrimary: true, pointerType: "mouse", button: 0, buttons: type === "pointerup" ? 0 : 1, bubbles: true }));
   const drag = (a, b, sec = 0.6) => { ptr("pointerdown", a.x, a.y); run(0.05); for (let k = 1; k <= 20; k++) { ptr("pointermove", a.x + ((b.x - a.x) * k) / 20, a.y + ((b.y - a.y) * k) / 20); run(sec / 20); } ptr("pointerup", b.x, b.y); run(0.1); };
   const tap = (a) => { ptr("pointerdown", a.x, a.y); ptr("pointerup", a.x, a.y); run(0.1); };
-  const pileAt = (m, def = "block") => { const b = T.pileBodies().filter((q) => q.pileItem.material === m && q.pileItem.defKey === def).sort((u, v) => u.getLinearVelocity().length() - v.getLinearVelocity().length())[0], q = b.getPosition(), r = T.pileBinRect; return { x: r.x + q.x * T.pileScale, y: r.y + r.h - q.y * T.pileScale }; };
+  const pileAt = (m, def = "block") => { if (!T.pileBodies().some((q) => q.pileItem.material === m && q.pileItem.defKey === def)) throw new Error("no " + m + " " + def + " left in the pile at step " + seq()); const b = T.pileBodies().filter((q) => q.pileItem.material === m && q.pileItem.defKey === def).sort((u, v) => u.getLinearVelocity().length() - v.getLinearVelocity().length())[0], q = b.getPosition(), r = T.pileBinRect; return { x: r.x + q.x * T.pileScale, y: r.y + r.h - q.y * T.pileScale }; };
   const planAt = (x = 0, y = 0.6) => T.worldToScreen(T.LEVEL_X0 + x, y);
   const pieceAt = (p) => { const q = p.body.getPosition(); return T.worldToScreen(q.x, q.y); };
   const sideAt = () => ({ x: T.buildingWidthPx + 60, y: 300 });
@@ -102,9 +102,12 @@
       const k2 = kids()[0]; if (k2) drag(pieceAt(k2), sideAt()); run(3);
       step("t-drag-3", "dragged back to the pile by hand");
       run(8); step("t-drag-3", "8 s later (no going round again)");
-      drag(pileAt("mudbrick"), planAt()); settle(); step("t-shovel", "piece for the shovel");
+      drag(pileAt("mudbrick"), planAt()); run(2); step("t-shovel", "one piece in (the shovel waits for four)"); if (said().includes(95)) bad.push("95 before four pieces");
+      // 15 Nov night: the shovel's line once four pieces stand
+      drag(pileAt("mudbrick"), planAt(-3)); drag(pileAt("mudbrick"), planAt(3)); run(1); if (said().includes(95)) bad.push("95 at three pieces");
+      drag(pileAt("mudbrick"), planAt(-2, 1.8)); run(2); if (!said().includes(95)) bad.push("95 not said at four pieces");
       // 6: the first-time mudbrick line never during the teaching (each drag above picked a mudbrick up)
-      T.cueEvent("press-broom"); T.clearAllPieces(); for (let k = 0; k < 300 && (T.demo || k < 4); k++) run(0.5);
+      const bb = btn("broom"); tap(bb); run(8); if (kids().length) bad.push("the shovel left pieces"); if (T.demo || said().includes(123)) bad.push("a demo at the first site");
       const sol = T.SOLUTIONS.mastaba.slice().sort((a, b) => a[3] - b[3] || a[2] - b[2]), spots = sol.map((e) => T.worldToScreen(T.LEVEL_X0 + e[2], e[3] + 0.7)); // let go a little above its place, as a child does
       const lay = (k) => drag(pileAt(sol[k][1], sol[k][0]), spots[k]); // the k-th piece of the suggested build, bottom row first
       lay(0); lay(1); run(2); step("t-red", "two pieces in");

@@ -661,6 +661,15 @@ Results (`python3 tools/harness.py cuetest`: 26 tests, all pass):
 2b. Reading: "return button" = the undo button (top left). New teaching step after the red button: when ten of the child's pieces stand in the building, line 135 «Αν κάτι δεν σου αρέσει, πάτα αυτό το κουμπί και η τελευταία σου κίνηση γυρίζει πίσω.» with the undo button glowing; then the green-button step. Test first-site-teaching (ten pieces laid by hand from the suggested build).
 5. New test voice-hooks: every line is said by a cue, a demo or a group; every moment the table listens for is made by the game's code or by another cue; every teaching step exists. Line 86 is the owner's own recording (no text). All lines with numbers are in `cues.md`.
 
+## Current state, update 49 (15 Nov 2026 night): owner list
+
+Owner, verbatim: "1. remove demo for how to put 1 brick on top of 2, at lvl 1. also, make the shovel cue appear after 4 blocks are placed. and forget about teh cutoff cenence"
+
+Results (`python3 tools/harness.py cuetest`, all pass):
+- The first site has no demo (inside the teaching or on later visits); lines 97 and 123 removed. «Τώρα χτίσε! Γέμισε όλο το σχέδιο.» now follows the shovel's line.
+- The shovel step waits until four of the child's pieces stand in the building. Test first-site-teaching (pieces dragged in by hand, the real shovel button pressed).
+- The cut-off point about line 124 is dropped.
+
 ## Task list
 
 No open items.
