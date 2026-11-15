@@ -1259,18 +1259,19 @@
   // Skies (owner 15 Nov, test): each site's own day sky while it is being built, chosen to stand out from that site's materials
   // (colour difference against mudbrick, wood and its stone, textured and plain); a finished site shows the next night sky in a
   // rotation from sunset to early sunrise, one step for every visit to a finished site. Pictures: "18 Gradient Skies (640x480)", supplied by the owner.
-  const SKY_DAY = { mastaba: "ken", djoser: "aug", ziggurat: "bah", liongate: "sno", karnak: "dro", ishtar: "air", parthenon: "air", mausoleum: "sno", pharos: "day", valens: "aug" }; // owner 15 Nov: omb is a night sky
+  const SKY_DAY = { mastaba: "air", djoser: "dro", ziggurat: "dro", liongate: "sno", karnak: "aug", ishtar: "air", parthenon: "sno", mausoleum: "aug", pharos: "day", valens: "ora" }; // measured with tools/sky-contrast.py (15 Nov): the weakest site as strong as it can be, each sky at most twice
   const SKY_NIGHT = ["son", "ice", "omb", "dus", "nac", "twi", "mon", "cit", "mor", "ora"];
   const SKY_ART = { ken: "art/skies/ken.png", aug: "art/skies/aug.png", bah: "art/skies/bah.png", sno: "art/skies/sno.png", dro: "art/skies/dro.png", air: "art/skies/air.png", omb: "art/skies/omb.png", day: "art/skies/day.png", son: "art/skies/son.png", ice: "art/skies/ice.png", dus: "art/skies/dus.png", nac: "art/skies/nac.png", twi: "art/skies/twi.png", mon: "art/skies/mon.png", cit: "art/skies/cit.png", mor: "art/skies/mor.png", ora: "art/skies/ora.png" }, skyImg = {};
   for (const k in SKY_ART) skyImg[k] = Object.assign(new Image(), { src: SKY_ART[k] });
   let skyNow = null; // the sky of the site on screen (null: free play, the plain blue)
-  function pickSky(i) { // on entering a site
-    const key = LEVELS[i].key;
-    if (!progress.done[key]) { skyNow = SKY_DAY[key]; return; }
+  function pickSky(i) { // the sky follows the site's state: being built (never finished, or damaged and waiting to be built again) by its own day; standing finished by night, the night moving on one step per such visit
+    const key = LEVELS[i].key, done = progress.done[key];
+    if (!done || done.broken) { skyNow = SKY_DAY[key]; return; }
     progress.night = ((progress.night == null ? -1 : progress.night) + 1) % SKY_NIGHT.length;
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (err) { /* ignore */ }
     skyNow = SKY_NIGHT[progress.night];
   }
+
   const STONE_OF = { mastaba: "sandstone", djoser: "sandstone", ziggurat: "sandstone", liongate: "silver-sandstone", karnak: "sandstone",
     ishtar: "sandstone", parthenon: "marble", mausoleum: "marble", pharos: "marble", valens: "silver-sandstone" };
   const TEX_RGB = {"sandstone": "207, 161, 95", "silver-sandstone": "169, 164, 155", "marble": "240, 236, 228", "wood": "203, 147, 81", "mudbrick": "151, 105, 73"}; // each picture's average colour, for the chips that fly off

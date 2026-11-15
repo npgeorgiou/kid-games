@@ -186,6 +186,20 @@
       return [ok, "phases " + ph.join(">") + " first test failed at " + failedAt + ", lines " + s1.join(",") + "; second " + s2.join(",")];
     },
 
+    // skies test (owner 15 Nov): a site being built (never finished, or damaged) shows its day sky; a finished one the next night sky on every visit
+    "sky-follows-site-state": () => {
+      if (!T.setSky) return [true, "no skies in this build"];
+      const bad = [], enter = (i) => { T.startLevel(i); T.onEnterSite(i); return T.skyNow; };
+      fresh(); noTeach(); start(0); T.onEnterSite(0); const day = T.skyNow; T.newScene(); T.setTab(true); T.startAutoBuild(); run(14); T.startTest(); for (let k = 0; k < 600 && !T.progress.done.mastaba; k++) run(0.1); T.setTab(false); run(3); // built and passed for real
+      T.goMap(); const n1 = enter(0); T.goMap(); const n2 = enter(0);
+      if (!T.progress.done.mastaba) return [false, "the quick build did not pass its test"];
+      for (const l of T.loads) l.body.setPosition(planck.Vec2(l.body.getPosition().x + 8, 1)); run(2); T.goMap(); // the headpiece knocked off: the site is damaged
+      const dmg = enter(0);
+      if (day !== dmg) bad.push("damaged site sky " + dmg + ", its day " + day);
+      if (n1 === day || n2 === n1) bad.push("finished visits " + n1 + ", " + n2);
+      return [!bad.length, "day " + day + ", finished " + n1 + " then " + n2 + ", damaged " + dmg];
+    },
+
     // 15 Nov evening, 2: the boat, the visitors and the other flavour lines play on the map only, never on a site
     "flavour-only-on-map": () => {
       fresh(); noTeach(); T.progress.done.mastaba = { pieces: [] }; start(lvl("djoser")); T.newScene(); log = []; run(130);

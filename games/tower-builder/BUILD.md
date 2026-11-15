@@ -712,6 +712,10 @@ Built: the owner's 18 gradients (src/art/skies, 160x120 copies). Day skies by co
 Owner, verbatim: "the gaps in the building outline should also get that overlay. also, the overlay you chose for acropolis and valens, should be a night overlay."
 Done: openings in the outline are cut out, so the sky shows through them (they were painted plain blue). omb moved to the night rotation (after ice); day skies now parthenon air, valens aug (air, aug and sno each used twice). Picture owner-shots/skies-15nov-test-2.png.
 
+Owner, verbatim: "first of all, chave your code, so that when a site is destroyed and becomes red again, when you enter you enter at its day. you ahve some spagetti code somewhere, each site is tied to its day when you go to built. thats it. fidn a way to code things clearly, not patches and hacks. secondly, I dont know, but in my eyes, the day.png woudl contrast more with marble than your choise. you have an error in your color contrast logic"
+Done: the sky follows the site's state in one place: being built (never finished, or damaged) shows its day sky; standing finished shows the next night sky. Test sky-follows-site-state (Mastaba built and passed for real, visited twice, then its headpiece knocked off).
+The contrast logic was wrong: it compared colour lists (any material colour against any sky colour, worst pair) with the old CIE76 difference, which overrates blues and violets. Now tools/sky-contrast.py measures the real picture: the quick-built site under each sky, textures on and off, CIEDE2000 between each sky pixel along the building's edge and the building just inside it, averaged. day.png does beat the earlier choice for marble (Parthenon: day 27, air 21). New day skies (the weakest site as strong as possible, each sky at most twice): mastaba air, djoser dro, ziggurat dro, liongate sno, karnak aug, ishtar air, parthenon sno, mausoleum aug, pharos day, valens ora. Weakest site 30 (was 21).
+
 ## Task list
 
 No open items.
