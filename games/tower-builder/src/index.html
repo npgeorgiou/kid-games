@@ -1127,7 +1127,9 @@
   // - The fingers hold the piece where it was grabbed (a pin, never slipping). The wrist resists turning like
   //   friction with a static and a sliding level (the standard Stribeck friction curve, with its viscous part): while
   //   still it holds up to the weight and the pull the arm feels, each times the distance from the piece's middle to the
-  //   edge of its middle third (towards the grab point; the grab point's own distance if that is less), once turning only WRIST_SLIP of that, less and less once the piece has
+  //   edge of its middle third (towards the grab point; the grab point's own distance if that is less); against the pull
+  //   only the share that moves the piece itself (M / Mt): the share pressing into what it pushes turns nothing in a
+  //   free piece, so the wrist does not hold against it (owner 16 Nov: a plank across a log pulled down anywhere tips), once turning only WRIST_SLIP of that, less and less once the piece has
   //   turned in the fingers (WRIST_TURNED, so it hangs straight rather than stopping part way), and it damps swinging (WRIST_DAMP of
   //   critical). A pull through the grab point turns the piece by at most the grab
   //   point's distance from the middle, so a piece grabbed in its middle third never turns however the hand moves
@@ -1215,7 +1217,7 @@
       // an outer third, a push that turns the piece about something it rests on turns it in the fingers (owner 16 Nov:
       // a plank lying across a log, pulled down by its raised end, tips like a lever)
       const reach = r < 1e-6 ? 1e3 : r * Math.min(Math.abs(lx) > 1e-6 ? hx / 3 / Math.abs(lx) : 1e3, Math.abs(ly) > 1e-6 ? hy / 3 / Math.abs(ly) : 1e3);
-      const w = body.getAngularVelocity(), hold = reach * W + Math.min(r, reach) * Math.hypot(Fx, Fy - W);
+      const w = body.getAngularVelocity(), hold = reach * W + Math.min(r, reach) * Math.hypot(Fx, Fy - W) * (M / Mt);
       // the fingers hold firmly only in the position they closed on; once the piece has turned in them, loosely
       const turned = Math.exp(-Math.abs(piece.grip.getJointAngle()) / WRIST_TURNED);
       piece.grip.setMaxMotorTorque(hold * turned * (WRIST_SLIP + (1 - WRIST_SLIP) * Math.exp(-Math.abs(w) / WRIST_GIVE)));
@@ -1499,13 +1501,13 @@
     fail: [["sounds/loss.mp3", 0.8], ["sounds/crowd-disappointment.mp3", 0.6]],
     "drag-stone": [["sounds/drag-stone.mp3", 0.6]], // loops; louder the faster stone or mudbrick slides
     "drag-wood": [["sounds/drag-wood.mp3", 0.6]],   // same for wood
-    "music-map": [["sounds/music-map.mp3", 0.2]],
+    "music-map": [["sounds/music-map.mp3", 0.16]], // owner 16 Nov late: 20% lower
     "music-level": [["sounds/music-level.mp3", 0.17]],
     drumroll: [["sounds/drumroll.mp3", 0.8]],
-    "map-tap-water": [["sounds/map-tap-water.mp3", 0.8]], // a tap on the map: on water, sand, green land, mountains (SECTION MAP, mapTap)
-    "map-tap-sand": [["sounds/map-tap-sand.mp3", 0.8]],
-    "map-tap-green": [["sounds/map-tap-green.mp3", 0.8]],
-    "map-tap-rock": [["sounds/map-tap-rock.mp3", 0.8]],    // sped up or slowed down to last as long as the test load is lowered
+    "map-tap-water": [["sounds/map-tap-water.mp3", 0.64]], // owner 16 Nov late: 20% lower, rock 50% lower // a tap on the map: on water, sand, green land, mountains (SECTION MAP, mapTap)
+    "map-tap-sand": [["sounds/map-tap-sand.mp3", 0.64]],
+    "map-tap-green": [["sounds/map-tap-green.mp3", 0.64]],
+    "map-tap-rock": [["sounds/map-tap-rock.mp3", 0.4]],    // sped up or slowed down to last as long as the test load is lowered
     // collapse.mp3 is in src/sounds but not used yet
   };
   let actx = null;
@@ -1602,6 +1604,8 @@
     return vn;
   }
   onWorld("pre-solve", (contact) => { contact.tbVn = approachSpeed(contact);  });
+  // a body's weight counted in 2 m blocks of its material (a block weighs 1)
+  function inBlocks(b, mat) { return b.getMass() / (MATERIALS[mat].density * 4 * (PIECE_DEFS.block.hx - SKIN_GAP) * (PIECE_DEFS.block.hy - SKIN_GAP)); }
   function feelContact(contact, impulse, pile) {
     const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
     const n = Math.max(...impulse.normalImpulses.slice(0, contact.getManifold().pointCount));
@@ -1640,7 +1644,8 @@
       if (!played) {
         played = true;
         const om = isGround(other) ? "ground" : item(other) ? item(other).material : null;
-        if (om) playSound("hit-" + [it.material, om].sort((x, y) => (x === "ground" ? -1 : y === "ground" ? 1 : x < y ? -1 : x > y ? 1 : 0)).join("-"), pile ? strength * 0.5 : strength); // the sidebar plays at half volume
+        const byWeight = om === "ground" ? inBlocks(b, it.material) : 1; // owner 16 Nov late: a piece hitting the ground sounds as loud as its weight, a 2 m block of its material as before
+        if (om) playSound("hit-" + [it.material, om].sort((x, y) => (x === "ground" ? -1 : y === "ground" ? 1 : x < y ? -1 : x > y ? 1 : 0)).join("-"), (pile ? strength * 0.5 : strength) * byWeight); // the sidebar plays at half volume
       }
       if (stone && kind && !pile) shake = Math.max(shake, strength * 11 * Math.min(1, b.getMass() / 10)); // px
     }
@@ -2605,7 +2610,7 @@
       if (o !== b && o.piece && !o.piece.ghost && !o.piece.auto) { under = o.piece.material; return false; }
       return true;
     });
-    if (under && !quiet) playSound("hit-" + (under === "ground" ? ["ground", m] : [m, under].sort()).join("-"), 0.6);
+    if (under && !quiet) playSound("hit-" + (under === "ground" ? ["ground", m] : [m, under].sort()).join("-"), 0.6 * (under === "ground" ? inBlocks(b, m) : 1));
   }
   function cancelAuto() {
     if (auto && auto.cur && pieces.includes(auto.cur.piece)) placeAuto(auto.cur);
@@ -3435,11 +3440,11 @@
       for (let k = 0; k < 3; k++) tapBits.push({ kind: "ring", x, y, r: 4, grow: 38 - k * 8, life: 1 + k * 0.25, fade: 1 });
       for (let k = 0; k < 12; k++) { const a = R() * Math.PI * 2, sp = 40 + R() * 70; tapBits.push({ kind: "drop", x, y, vx: Math.cos(a) * sp, vy: -110 - R() * 120, g: 520, r: 3 + R() * 3, life: 1, fade: 1.4 }); }
     } else if (kind === "sand") {
-      for (let k = 0; k < 14; k++) { const a = R() * Math.PI * 2, sp = 20 + R() * 55; tapBits.push({ kind: "sand", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 25, g: 0, drag: 2, r: 6 + R() * 7, grow: 16, life: 1, fade: 0.9 }); }
+      for (let k = 0; k < 20; k++) { const a = R() * Math.PI * 2, sp = 30 + R() * 80; tapBits.push({ kind: "sand", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 35, g: 0, drag: 2, r: 9 + R() * 10, grow: 26, life: 1, fade: 0.8 }); }
     } else if (kind === "green") {
-      for (let k = 0; k < 10; k++) { const a = -Math.PI * (0.1 + 0.8 * R()), sp = 60 + R() * 70; tapBits.push({ kind: "leaf", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 160, drag: 1.5, r: 5 + R() * 4, a: R() * 6, spin: (R() - 0.5) * 10, hue: 85 + R() * 45, life: 1, fade: 0.9 }); }
+      for (let k = 0; k < 15; k++) { const a = -Math.PI * (0.05 + 0.9 * R()), sp = 80 + R() * 100; tapBits.push({ kind: "leaf", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 160, drag: 1.5, r: 5 + R() * 4, a: R() * 6, spin: (R() - 0.5) * 10, hue: 85 + R() * 45, life: 1, fade: 0.9 }); }
     } else {
-      for (let k = 0; k < 9; k++) { const a = -Math.PI * (0.05 + 0.9 * R()), sp = 80 + R() * 90; tapBits.push({ kind: "rock", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 600, r: 4.5 + R() * 4, a: R() * 6, spin: (R() - 0.5) * 14, grey: 120 + Math.round(R() * 60), life: 1, fade: 1.3 }); }
+      for (let k = 0; k < 9; k++) { const a = -Math.PI * (0.25 + 0.5 * R()), sp = 170 + R() * 120; tapBits.push({ kind: "rock", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 450, r: 4.5 + R() * 4, a: R() * 6, spin: (R() - 0.5) * 14, grey: 120 + Math.round(R() * 60), life: 1, fade: 1.3 }); }
       for (let k = 0; k < 4; k++) { const a = R() * Math.PI * 2; tapBits.push({ kind: "sand", x, y, vx: Math.cos(a) * 25, vy: -15, g: 0, drag: 2, r: 4 + R() * 3, grow: 10, life: 0.7, fade: 1 }); }
     }
     playSound("map-tap-" + kind, 1);
@@ -3490,10 +3495,11 @@
   cueBar.style.cssText = "position:absolute;top:0;right:0;left:0;height:7px;background:#2f7fd8";
   cueBox.append(cueBar, cueText);
   document.body.appendChild(cueBox);
-  window.addEventListener("keydown", (e) => { // ESC: ends the line playing (an intro with its picture too); with none playing, leaves a site or free play for the map (owner 16 Nov night)
+  window.addEventListener("keydown", (e) => { // ESC: stops the quick build; ends the line playing (an intro with its picture too); with none playing, leaves a site or free play for the map (owner 16 Nov night)
     lastInput = cueClock;
     if (e.key !== "Escape") return;
-    if (voice.cur) endLine(voice.cur);
+    if (auto) cancelAuto(); // owner 16 Nov late: ESC stops the quick build where it is
+    else if (voice.cur) endLine(voice.cur);
     else if (mode === "build" && !demo) goMap();
   });
   const cueById = (id) => CUE_TABLE.cues.find((c) => c.id === id);

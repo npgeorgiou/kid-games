@@ -483,17 +483,38 @@
   // --- owner 16 Nov, late, free play: "I cannot pull the lever down, from its left side". His build: two stone squares
   // with a small stone between, a wooden drum on them, a 10 m plank across the drum, its right end on the ground. The hand
   // takes the plank near its raised left end and pulls down 2 m in a second, as a mouse does (60 moves a second).
+  // Owner 16 Nov, late: "I can lift it up from anywhere but not pull it down from anywhere (only from its end)": the same
+  // pull from points all along the raised side, each must tip the plank (its raised side goes down), and lifting still works.
   if (want("lever")) {
-    T.mode = "build"; T.startFree(); T.clearAllPieces(); if (T.fillPile) T.fillPile([]);
-    T.spawnPiece("square", X - 0.95, 0.503, 0, "stone"); T.spawnPiece("square", X + 0.95, 0.503, 0, "stone"); T.spawnPiece("abacus", X, 0.203, 0, "stone"); run(0.5);
-    T.spawnPiece("drum", X, 1.61, 0, "wood"); run(0.5);
-    const pl = T.spawnPiece("plank10", X + 0.3, 3.0, -0.3, "wood"); run(3);
-    const end = () => pl.body.getWorldPoint({ x: -4.6, y: 0 });
-    const a0 = pl.body.getAngle(), e0 = end(), g = { x: e0.x, y: e0.y };
-    T.startHold(pl, g, 92, 0, 0);
-    for (let k = 0; k < 120; k++) { pl.desired = { x: g.x, y: g.y - Math.min(2, k * 2 / 60) }; frame(1 / 60); }
-    const e1 = end(), down = e0.y - e1.y, turn = (pl.body.getAngle() - a0) * 180 / Math.PI, onDrum = Math.abs(pl.body.getPosition().x - X) < 4; T.releaseHold(92); run(1);
-    out.push(["lever: the plank's raised end pulled down 2 m", down > 1.5 && onDrum, "end went down " + down.toFixed(2) + " m, plank turned " + turn.toFixed(0) + " deg, still across the drum: " + onDrum]);
+    const build = () => { T.mode = "build"; T.startFree(); T.clearAllPieces(); if (T.fillPile) T.fillPile([]);
+      T.spawnPiece("square", X - 0.95, 0.503, 0, "stone"); T.spawnPiece("square", X + 0.95, 0.503, 0, "stone"); T.spawnPiece("abacus", X, 0.203, 0, "stone"); run(0.5);
+      T.spawnPiece("drum", X, 1.61, 0, "wood"); run(0.5);
+      const pl = T.spawnPiece("plank10", X + 0.3, 3.0, -0.3, "wood"); run(3); return pl; };
+    for (const [lx, dir] of [[-4.6, -1], [-3.5, -1], [-2.5, -1], [-1.5, -1], [-4.6, 1], [-1.5, 1], [2, 1], [4.6, 1]]) {
+      const pl = build(), a0 = pl.body.getAngle(), e0 = pl.body.getWorldPoint({ x: lx, y: 0 }), g = { x: e0.x, y: e0.y };
+      T.startHold(pl, g, 92, 0, 0);
+      for (let k = 0; k < 120; k++) { pl.desired = { x: g.x, y: g.y + dir * Math.min(2, k * 2 / 60) }; frame(1 / 60); }
+      const e1 = pl.body.getWorldPoint({ x: lx, y: 0 }), moved = dir * (e1.y - e0.y), turn = (pl.body.getAngle() - a0) * 180 / Math.PI, onDrum = Math.abs(pl.body.getPosition().x - X) < 4;
+      T.releaseHold(92); run(1);
+      const name = dir < 0 ? "lever: the plank pulled down 2 m at " + (lx + 5).toFixed(1) + " m from its raised end" : "lever: the plank lifted 2 m at " + (lx + 5).toFixed(1) + " m from its raised end";
+      out.push([name, moved > (dir < 0 ? Math.min(1.5, 0.5 * Math.abs(lx - 0.35)) : 1.5) && onDrum, "the grab point went " + (dir < 0 ? "down " : "up ") + moved.toFixed(2) + " m, plank turned " + turn.toFixed(0) + " deg, still across the drum: " + onDrum]);
+    }
+  }
+
+  // --- owner 16 Nov, late: "on quick build, stop on ESC"
+  if (want("esc-quick")) {
+    T.mode = "build"; T.startLevel(1); T.startAutoBuild(); run(1);
+    const n0 = T.pieces.length; window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); run(2);
+    out.push(["ESC stops the quick build", !T.auto && T.mode === "build" && n0 > 0, "building: " + !!T.auto + ", still on the site: " + (T.mode === "build") + ", pieces " + n0 + " -> " + T.pieces.length]);
+  }
+  // --- owner 16 Nov, late: "the intensity of the sound that objects make when they hit the ground must be relative to their mass, use current std 2m rectangular blocks as reference points"
+  if (want("hit-weight")) {
+    T.mode = "build"; T.startFree(); T.clearAllPieces(); const bad = [];
+    for (const m of ["stone", "mudbrick", "wood"]) for (const [d, want] of [["block", 1], ["square", 0.5], ["bigsquare", 2], ["abacus", 0.16]]) {
+      const p = T.spawnPiece(d, X, 3, 0, m), v = T.inBlocks(p.body, m); T.removePiece(p);
+      if (Math.abs(v - want) > 0.02 * want + 0.01) bad.push(m + " " + d + " " + v.toFixed(2));
+    }
+    out.push(["a piece hitting the ground sounds as loud as its weight in 2 m blocks", !bad.length, bad.join("; ") || "block 1, square 1/2, big square 2, small oblong 0.16, for stone, mudbrick, wood"]);
   }
 
   // --- 1: the restart button on the map: everything as at the very beginning

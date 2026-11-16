@@ -774,6 +774,17 @@ Owner, verbatim: "1, sandbox: there is something wrong in your physics, I cannot
 4. Map taps: water (where the land picture has none, or the picture is blue: rivers, lakes) a splash of drops and three spreading rings; on land by the picture's colour around the tap: green -> leaves, pale sand -> a sand cloud, the rest (browns, greys) -> stone chips and a little dust. Sounds map-tap-water/sand/green/rock (owner's files: water splash, sand hit, ground-foliage hit, rock-hit). Picture owner-shots/2026-11-16-map-taps.png.
    tools/normalize-sounds.php rewritten: the old loudnorm could not measure sand hit (0.2 s, shorter than the 0.4 s a loudness measure needs) and switched to its compressing mode on rock-hit (its peaks were too high for a plain volume change), which made it harsh. Now: silence added for measuring, one plain volume change, a peak limiter only on peaks over -1.5 dBTP, re-measured until within 0.3 LU of -16 LUFS. All four new sounds: -16.0 to -16.2 LUFS, peaks -1.7 to -2.6 dBTP. Measured the same way, the older game sounds are not all at -16 (the hits are -16 to -26 LUFS); not changed.
 
+## Current state, update 59 (16 Nov 2026, late): owner list of 6 points
+
+Owner, verbatim: "1. make the 4 new sounds 20% less sound, except of rock, which will be 50% less. 2. make dust cloud bigger, and vegetation have a few more particles that spread more upwards and a bit wider. as for the stone particles, make them explode upwards more, now they mostly fall down a lot. 2. about your plank explanation, its unnatural I can lift it up from anywhere but not pull it down from anywhere (only from it end). dont break anything, dont amke uunatural hacks and patches, DONT BREAK ANY EXISTING BEHAVIOUR, but fix it. 4. on quick build, stop on ESC 5. the intensity of the sound that objects make when they hit the ground bust be relative  to their mass, use current std 2m rectangular blocks are reference points. 6. reduce main menu music volume by 20%"
+
+1. Map-tap sounds: water, sand, green 0.8 -> 0.64; rock 0.8 -> 0.4.
+2. Map taps: sand cloud 20 puffs, about 1.5x bigger and growing faster; leaves 15 (was 10), faster, spread over a wider fan; stone chips thrown upwards (between 45 and 135 degrees, faster, less pull down). Picture owner-shots/2026-11-16-map-taps.png.
+3. Wrist: against the arm's pull it now holds only the share of the pull that moves the piece itself (piece weight / weight moved, the same share the arm already uses); the share pressing into what the piece pushes on turns nothing in a free piece. Owner test `lever` now pulls down at 0.4, 1.5, 2.5, 3.5 m from the raised end and lifts at four points: 2.5 and 3.5 m failed before (0 m), all pass now. The other hand tests give the same results as before (pushes differ by 0.01 m).
+4. ESC during the quick build stops it where it is (the piece in flight is set down); test `esc-quick`.
+5. A piece hitting the ground (falling or set down by the quick build) sounds at its weight in 2 m blocks of its material times the old loudness (a block as before, a square half, a big square twice, up to the loudest the sound file has); test `hit-weight`.
+6. Map music 0.2 -> 0.16.
+
 ## Task list
 
 No open items.
