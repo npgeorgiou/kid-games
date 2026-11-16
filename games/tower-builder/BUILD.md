@@ -739,6 +739,10 @@ Owner's words: "add another checkbox for teaching cues, by default clicked" (aft
 
 - The gear box now has a second tick, ΔΙΔΑΣΚΑΛΙΑ, ticked by default, remembered, kept by ΕΠΑΝΕΚΚΙΝΗΣΗ. Unticked: no teaching steps (the Mastaba starts with no see-through hand and no step lines) and no teaching lines anywhere; every other line stays, and the demos follow their own tick. Ticked again later, the teaching starts where it was left. Tests: `harness.py cuetest teaching-off demos-off`; real-mouse check: untick, reload, enter the Mastaba, nothing teaches.
 
+## Current state, update 56 (16 Nov 2026): intro art received
+
+Owner's words: "the iamges have larber byte sizethan what you suggested, make them a bit smaller but wihout losing quality visually". Ten site pictures (1376x768) re-saved as JPG quality 86, full colour detail, about 190-330 KB each (were 830-1040 KB), in `art/intro/`, named by site key. Not shown in the game yet: where they show (full screen while the welcome line plays, or framed in the sky) is waiting for the owner.
+
 ## Task list
 
 No open items.
