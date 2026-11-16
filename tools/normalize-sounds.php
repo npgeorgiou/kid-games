@@ -5,7 +5,7 @@
 //
 // How: measure the loudness, change the volume by one fixed amount (no compression), and only if
 // that pushes the loudest peaks over -1.5 dBTP, a peak limiter trims those peaks. Then measure again
-// and correct the volume and the limiter (up to 10 rounds) until the file is within 0.3 LU of -16
+// and correct the volume and the limiter (up to 25 rounds) until the file is within 0.3 LU of -16
 // and its peaks are at most -1.5 dBTP.
 // Sounds shorter than the 0.4 s that loudness measuring needs are measured with silence added after
 // them (silence does not count towards loudness), and the silence is cut off again.
@@ -48,7 +48,7 @@ foreach (glob($in . DIRECTORY_SEPARATOR . '*.mp3') as $file) {
     $gain = TARGET_I - $m[0];
     $ceil = TARGET_TP - 0.6; // the mp3 encoding raises peaks a little, so the limiter aims lower
     $ok = false;
-    for ($round = 0; $round < 10; $round++) {
+    for ($round = 0; $round < 25; $round++) {
         if (!render($file, $dst, $gain, $dur, $ceil)) break;
         $r = measure($dst);
         if (!$r) break;

@@ -785,6 +785,19 @@ Owner, verbatim: "1. make the 4 new sounds 20% less sound, except of rock, which
 5. A piece hitting the ground (falling or set down by the quick build) sounds at its weight in 2 m blocks of its material times the old loudness (a block as before, a square half, a big square twice, up to the loudest the sound file has); test `hit-weight`.
 6. Map music 0.2 -> 0.16.
 
+## Current state, update 60 (17 Nov 2026): owner list of 8 points
+
+Owner, verbatim: "1. make the same 20% and 50% reduction to the terrain hits once more, further. 2. the rocks spread further than the other particles do, collect them a bit more. 3. did you make only smaler pieces that the reference thud less loud, or also  thse with more mass thud more? you should. 4. there is a bug with the biggest oblong piece in teh sandox sidebar, it gets dragged out and it has a lot of speed, there is a  bug somewhere, and once I saw the same with the big stone boulder, that has the same mass as the big oblong stone, but that even without coming out of the sdikebar. 5. be mindfull to be adding tests for the things you do. 6. see if you can equalize the sounds of the materials thudding, banging, breaking, etch, I feel they are uneven. after you do that, decrease/increase according to mass. the baseline is the rectangular 2x1 m pieces. 7. after you are done with that, reduce level of all sounds generally by 50%, I ahve it at 34% sound at my laptop and I hear them loud and annoying. 8. reduce main map music by 10% more."
+
+1. Map taps 0.512 (water, sand, green), rock 0.2.
+2. Stone chips: slower (110-180 px/s) and a narrower upward fan (54-126 degrees). Picture owner-shots/2026-11-17-map-taps.png.
+3. Answer: both, but a heavier piece was held at the sound's full loudness on a hard hit. Now a sound can go up to twice the block's loudness (with everything at half, point 7, that is the old full loudness).
+4. Cause: the sidebar hand moved every piece at the same speed whatever its weight, and slowed only the piece's middle, so a piece held near its end was set spinning. A two-block stone came out at up to 777 px/s, and the arm in the building area, nearly all its strength holding it up, could not stop it. Now the sidebar hand moves the held point no faster than the arm can move that weight in the building area (the arm's own top speed, armTopSpeed), slowing moving and turning together. Owner test `sidebar-speed` (10 grabs, real mouse rate, centre and ends, slow and fast): the long stone block and big stone square failed before (410-558 px/s), pass now (at most 76 px/s; the arm's limit for two blocks is 107); a long block and a wooden block grabbed near an end still hang down in the sidebar. Every other hand test gives the same results as before.
+5. New tests: owner `sidebar-speed`, `sound-levels`, `hit-weight` (now hits, breaking, sliding); harness `loudness`.
+6. Material sounds (all hits, crumble, snap, drag-stone, drag-wood) brought to -16 LUFS with tools/normalize-sounds.php (up to 25 rounds now), all at 0.8 in the table; hits (every hit, not only on the ground), breaking and sliding are louder or quieter by the piece's weight in 2 m blocks of its material.
+7. MASTER_VOLUME 0.5 on every sound, music and voice.
+8. Map music 0.16 -> 0.144.
+
 ## Task list
 
 No open items.

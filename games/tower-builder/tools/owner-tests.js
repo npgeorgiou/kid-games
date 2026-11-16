@@ -514,7 +514,60 @@
       const p = T.spawnPiece(d, X, 3, 0, m), v = T.inBlocks(p.body, m); T.removePiece(p);
       if (Math.abs(v - want) > 0.02 * want + 0.01) bad.push(m + " " + d + " " + v.toFixed(2));
     }
-    out.push(["a piece hitting the ground sounds as loud as its weight in 2 m blocks", !bad.length, bad.join("; ") || "block 1, square 1/2, big square 2, small oblong 0.16, for stone, mudbrick, wood"]);
+    out.push(["a piece that hits, breaks or slides sounds as loud as its weight in 2 m blocks", !bad.length, bad.join("; ") || "block 1, square 1/2, big square 2, small oblong 0.16, for stone, mudbrick, wood"]);
+  }
+
+  // --- owner 16 Nov, late: "a bug with the biggest oblong piece in the sandbox sidebar, it gets dragged out and it has a lot of
+  // speed ... once I saw the same with the big stone boulder ... even without coming out of the sidebar". A real mouse (60 moves
+  // a second) takes each piece from the free-play sidebar: lifted inside the sidebar, then carried out to the building area;
+  // on screen it is never faster than the arm can move its weight in the building area.
+  if (want("sidebar-speed")) {
+    const cv = document.querySelector("canvas");
+    const ptr = (type, x, y) => cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: 7, isPrimary: true, pointerType: "mouse", button: 0, buttons: type === "pointerup" ? 0 : 1, bubbles: true }));
+    for (const [d, m, off, fast] of [["longblock", "stone", 0, 1], ["longblock", "stone", 0.8, 1], ["longblock", "stone", 0, 3], ["longblock", "stone", -0.8, 3], ["bigsquare", "stone", 0, 1], ["bigsquare", "stone", 0.7, 3], ["block", "stone", 0, 1], ["block", "stone", 0.8, 3], ["square", "stone", 0, 3], ["block", "wood", 0.8, 3]]) {
+      T.mode = "build"; T.startFree(); T.clearAllPieces(); T.render(); run(3);
+      const r = T.pileBinRect, b = T.pileBodies().find((q) => q.pileItem.defKey === d && q.pileItem.material === m);
+      if (!b) { out.push(["sidebar speed " + m + " " + d, false, "not in the pile"]); continue; }
+      const q0 = b.getWorldPoint({ x: off * T.PIECE_DEFS[d].hx, y: 0 }), a = { x: r.x + q0.x * T.pileScale, y: r.y + r.h - q0.y * T.pileScale };
+      const path = [], n1 = Math.round(40 / fast), n2 = Math.round(50 / fast);
+      for (let k = 0; k <= n1; k++) path.push({ x: a.x, y: a.y - Math.min(160, a.y - r.y - 40) * k / n1 }); // up inside the sidebar
+      const top = path[path.length - 1];
+      for (let k = 1; k <= n2; k++) path.push({ x: top.x - (top.x - T.buildingWidthPx * 0.5) * k / n2, y: top.y }); // out to the building area
+      for (let k = 0; k < 60; k++) path.push(path[path.length - 1]); // held still, 1 s
+      let maxIn = 0, maxOut = 0, finger = 0, prev = null, over = 0, outN = 0;
+      ptr("pointerdown", a.x, a.y);
+      for (let k = 0; k < path.length; k++) {
+        ptr("pointermove", path[k].x, path[k].y); frame(1 / 60);
+        if (k) finger = Math.max(finger, Math.hypot(path[k].x - path[k - 1].x, path[k].y - path[k - 1].y) * 60);
+        const pb = T.pileBodies().includes(b) ? b : null, wp = T.pieces.find((p) => p.heldBy === 7);
+        if (pb) { const h = [...T.pointers.values()].find((q) => q.pileBody === pb), v = h ? pb.getLinearVelocityFromWorldPoint(pb.getWorldPoint(h.pileGrab)) : pb.getLinearVelocity(); maxIn = Math.max(maxIn, Math.hypot(v.x, v.y) * T.pileScale); }
+        else if (wp) { const v = wp.body.getLinearVelocityFromWorldPoint(wp.body.getWorldPoint(wp.grabLocal)); if (outN++ < 3) maxOut = Math.max(maxOut, Math.hypot(v.x, v.y) * T.scale); // the hand's point: the speed it comes out of the sidebar with (after that the arm in the building area moves it, as any piece)
+          const g = wp.body.getWorldPoint(wp.grabLocal), sg = T.worldToScreen(g.x, g.y), f = path[k]; if (k >= path.length - 60) over = Math.max(over, Math.hypot(sg.x - f.x, sg.y - f.y)); }
+      }
+      ptr("pointerup", path[path.length - 1].x, path[path.length - 1].y); run(1);
+      if (off && (d === "longblock" || m === "wood")) { // still: grabbed near an end, it hangs and swings in the sidebar (turned upright before it is taken out)
+        T.startFree(); T.clearAllPieces(); T.render(); run(3);
+        const r2 = T.pileBinRect, b2 = T.pileBodies().find((q) => q.pileItem.defKey === d && q.pileItem.material === m), a2 = b2.getAngle(), q2 = b2.getWorldPoint({ x: off * T.PIECE_DEFS[d].hx, y: 0 }), s2 = { x: r2.x + q2.x * T.pileScale, y: r2.y + r2.h - q2.y * T.pileScale };
+        ptr("pointerdown", s2.x, s2.y); for (let k = 1; k <= 30; k++) { ptr("pointermove", s2.x, s2.y - 120 * k / 30); frame(1 / 60); } run(2);
+        const turned = Math.abs(b2.getAngle() - a2) * 180 / Math.PI; ptr("pointerup", s2.x, s2.y - 120); run(0.5);
+        out.push(["sidebar: " + m + " " + d + " grabbed near an end and lifted hangs down", turned > 45, "turned " + turned.toFixed(0) + " deg"]);
+      }
+      const lim = T.armTopSpeed(b.getMass() * 10) * T.scale * 1.15 + 20; // what the arm can give this weight, on screen
+      out.push(["sidebar speed: " + m + " " + d + " grabbed at " + off + ", drag x" + fast + ": no faster than the arm moves its weight", maxIn <= lim && maxOut <= lim, "most " + lim.toFixed(0) + " px/s; finger " + finger.toFixed(0) + " px/s, piece in the sidebar " + maxIn.toFixed(0) + " px/s, coming out " + maxOut.toFixed(0) + " px/s"]);
+    }
+  }
+
+  // --- owner 16 Nov late and 17 Nov: sound levels (map taps twice 20% lower, rock twice 50% lower; material sounds equal, by
+  // weight; every sound at half; map music 20% then 10% lower)
+  if (want("sound-levels")) {
+    const S = T.SOUNDS, v = (k) => S[k][0][1], bad = [];
+    const near = (a, b) => Math.abs(a - b) < 1e-6;
+    for (const k of ["map-tap-water", "map-tap-sand", "map-tap-green"]) if (!near(v(k), 0.8 * 0.8 * 0.8)) bad.push(k + " " + v(k));
+    if (!near(v("map-tap-rock"), 0.8 * 0.5 * 0.5)) bad.push("map-tap-rock " + v("map-tap-rock"));
+    for (const k of Object.keys(S)) if (/^hit-|^drag-|^crumble$|^snap$/.test(k) && !near(v(k), 0.8)) bad.push(k + " " + v(k));
+    if (!near(v("music-map"), 0.2 * 0.8 * 0.9)) bad.push("music-map " + v("music-map"));
+    if (T.MASTER_VOLUME !== 0.5) bad.push("all sounds at " + T.MASTER_VOLUME);
+    out.push(["sound levels as the owner set them", !bad.length, bad.join("; ") || "ok"]);
   }
 
   // --- 1: the restart button on the map: everything as at the very beginning

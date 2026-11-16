@@ -1185,6 +1185,12 @@
     }
     return m;
   }
+  // how hard the arm can speed up a load of weight W (N), and the top speed it gives it in one sweep (ARM_RUN)
+  function armAccel(W) {
+    const M = W / GRAVITY, most = Math.min(W, ARM_STRENGTH) + Math.min(HAND_GRIP * W, Math.max(0, ARM_STRENGTH - W));
+    return Math.min((most - Math.min(W, most)) / M, HAND_GRIP * GRAVITY * Math.max(0, 1 - W / ARM_STRENGTH));
+  }
+  function armTopSpeed(W) { return Math.min(ARM_SPEED, Math.sqrt(2 * armAccel(W) * ARM_RUN)); }
   function advanceHeldTargets() {
     let traced = null;
     for (const hand of pointers.values()) {
@@ -1194,7 +1200,7 @@
       const body = piece.body, t = traced.get(body), W = body.getMass() * GRAVITY + (t ? t.recv : 0), M = W / GRAVITY;
       const most = Math.min(W, ARM_STRENGTH) + Math.min(HAND_GRIP * W, Math.max(0, ARM_STRENGTH - W));
       // what rests on it, and how hard it can be moved without that sliding
-      let A = Math.min((most - Math.min(W, most)) / M, HAND_GRIP * GRAVITY * Math.max(0, 1 - W / ARM_STRENGTH)); // lighter is always quicker
+      let A = armAccel(W); // lighter is always quicker
       for (const [b, it] of traced) if (it.sup.some((q) => q.low === body)) A = Math.min(A, ARM_CARE * GRAVITY * Math.sqrt(b.getFixtureList().getFriction() * body.getFixtureList().getFriction()));
       const p = body.getWorldPoint(piece.grabLocal), v = body.getLinearVelocityFromWorldPoint(p), f = piece.desired;
       const dx = f.x - p.x, dy = f.y - p.y, d = Math.hypot(dx, dy), Mt = M + pushedMass(body, dx, dy, d, traced), vmax = Math.min(ARM_SPEED, Math.sqrt(2 * A * ARM_RUN));
@@ -1250,7 +1256,7 @@
       settleResting();
       updateStrain();
       solidifyGhosts();
-      if (hasPile()) { drivePileHands(); pileWorld.step(STEP, 10, 6); for (const h of pointers.values()) if (h.pileBody) capPileHand(h.pileBody); settlePile(); rescuePile(); }
+      if (hasPile()) { drivePileHands(); pileWorld.step(STEP, 10, 6); for (const h of pointers.values()) if (h.pileBody) capPileHand(h.pileBody, h.pileGrab); settlePile(); rescuePile(); }
       accumulator -= STEP;
       steps++;
     }
@@ -1483,33 +1489,36 @@
   // ---------------------------------------------------------------------
   // Sounds (owner-supplied, loudness-matched, in src/sounds; build.py embeds them).
   // Each name plays one or more files; the number is that file's volume (0..1), set by ear.
+  // Material sounds (hits, breaking, sliding; owner 17 Nov): files brought to the same loudness (tools/normalize-sounds.php),
+  // all at 0.8, then louder or quieter by the piece's weight in 2 m blocks of its material (a block as at 0.8).
   const SOUNDS = {
     "hit-ground-wood": [["sounds/hit-ground-wood.mp3", 0.8]],
     "hit-ground-mudbrick": [["sounds/hit-ground-mudbrick.mp3", 0.8]],
-    "hit-ground-stone": [["sounds/hit-ground-stone.mp3", 0.9]],
+    "hit-ground-stone": [["sounds/hit-ground-stone.mp3", 0.8]],
     "hit-wood-wood": [["sounds/hit-wood-wood.mp3", 0.8]],
     "hit-mudbrick-wood": [["sounds/hit-mudbrick-wood.mp3", 0.8]],
     "hit-stone-wood": [["sounds/hit-stone-wood.mp3", 0.8]],
     "hit-mudbrick-mudbrick": [["sounds/hit-mudbrick-mudbrick.mp3", 0.8]],
     "hit-mudbrick-stone": [["sounds/hit-mudbrick-mudbrick.mp3", 0.8]], // no own file: mudbrick on mudbrick
-    "hit-stone-stone": [["sounds/hit-stone-stone.mp3", 0.9]],
-    crumble: [["sounds/crumble.mp3", 1]],
-    snap: [["sounds/snap.mp3", 1]],
+    "hit-stone-stone": [["sounds/hit-stone-stone.mp3", 0.8]],
+    crumble: [["sounds/crumble.mp3", 0.8]],
+    snap: [["sounds/snap.mp3", 0.8]],
     wind: [["sounds/wind.mp3", 0.35]],            // loops through the wind test
     quake: [["sounds/quake.mp3", 1.6]],          // cut off when the shaking ends
     cheer: [["sounds/victory.mp3", 0.8], ["sounds/crowd-cheer.mp3", 0.6]],
     fail: [["sounds/loss.mp3", 0.8], ["sounds/crowd-disappointment.mp3", 0.6]],
-    "drag-stone": [["sounds/drag-stone.mp3", 0.6]], // loops; louder the faster stone or mudbrick slides
-    "drag-wood": [["sounds/drag-wood.mp3", 0.6]],   // same for wood
-    "music-map": [["sounds/music-map.mp3", 0.16]], // owner 16 Nov late: 20% lower
+    "drag-stone": [["sounds/drag-stone.mp3", 0.8]], // loops; louder the faster stone or mudbrick slides
+    "drag-wood": [["sounds/drag-wood.mp3", 0.8]],   // same for wood
+    "music-map": [["sounds/music-map.mp3", 0.144]], // owner 16 Nov late: 20% lower, 17 Nov: 10% lower again
     "music-level": [["sounds/music-level.mp3", 0.17]],
-    drumroll: [["sounds/drumroll.mp3", 0.8]],
-    "map-tap-water": [["sounds/map-tap-water.mp3", 0.64]], // owner 16 Nov late: 20% lower, rock 50% lower // a tap on the map: on water, sand, green land, mountains (SECTION MAP, mapTap)
-    "map-tap-sand": [["sounds/map-tap-sand.mp3", 0.64]],
-    "map-tap-green": [["sounds/map-tap-green.mp3", 0.64]],
-    "map-tap-rock": [["sounds/map-tap-rock.mp3", 0.4]],    // sped up or slowed down to last as long as the test load is lowered
+    drumroll: [["sounds/drumroll.mp3", 0.8]],    // sped up or slowed down to last as long as the test load is lowered
+    "map-tap-water": [["sounds/map-tap-water.mp3", 0.512]], // owner 16 Nov late and 17 Nov: twice 20% lower, rock twice 50% lower // a tap on the map: on water, sand, green land, mountains (SECTION MAP, mapTap)
+    "map-tap-sand": [["sounds/map-tap-sand.mp3", 0.512]],
+    "map-tap-green": [["sounds/map-tap-green.mp3", 0.512]],
+    "map-tap-rock": [["sounds/map-tap-rock.mp3", 0.2]],
     // collapse.mp3 is in src/sounds but not used yet
   };
+  const MASTER_VOLUME = 0.5; // owner 17 Nov: every sound (music, effects, voice) at half
   let actx = null;
   const buffers = {};
   // Browsers only allow sound after the first press; called from the pointer handlers.
@@ -1535,7 +1544,7 @@
       src.buffer = buffers[f]; src.loop = loop;
       if (opts.rate) src.playbackRate.value = opts.rate;
       else if (fitSeconds > 0) src.playbackRate.value = Math.max(0.25, Math.min(4, buffers[f].duration / fitSeconds));
-      gain.gain.value = Math.max(0, Math.min(1, volume)) * v;
+      gain.gain.value = MASTER_VOLUME * Math.max(0, Math.min(2, volume)) * v; // up to 2: a piece heavier than a block sounds louder than one
       src.connect(gain).connect(actx.destination);
       src.start(actx.currentTime, Math.min(opts.offset || 0, Math.max(0, buffers[f].duration - 0.05)));
       parts.push({ src, gain, v });
@@ -1543,7 +1552,7 @@
     if (!parts.length) return null;
     return {
       stop(fade = 0.3) { for (const p of parts) { const t = actx.currentTime; p.gain.gain.setTargetAtTime(0, t, fade / 3); p.src.stop(t + fade + 0.05); } },
-      setVolume(x) { for (const p of parts) p.gain.gain.setTargetAtTime(Math.max(0, Math.min(1, x)) * p.v, actx.currentTime, 0.05); },
+      setVolume(x) { for (const p of parts) p.gain.gain.setTargetAtTime(MASTER_VOLUME * Math.max(0, Math.min(2, x)) * p.v, actx.currentTime, 0.05); },
     };
   }
   // Music: one loop for the map, another while building.
@@ -1574,11 +1583,12 @@
         const n = wm.normal, va = p.body.getLinearVelocityFromWorldPoint(pt), vb = ce.other.getLinearVelocityFromWorldPoint(pt);
         const rx = va.x - vb.x, ry = va.y - vb.y, rn = rx * n.x + ry * n.y;
         const slide = Math.hypot(rx - rn * n.x, ry - rn * n.y);
-        if (slide > speed[key]) speed[key] = slide;
+        const loud = (slide > 0.3 ? Math.min(1, slide / 3) : 0) * inBlocks(p.body, p.material); // by weight (owner 17 Nov)
+        if (loud > speed[key]) speed[key] = loud;
       }
     }
     for (const key of Object.keys(speed)) {
-      const v = speed[key] > 0.3 ? Math.min(1, speed[key] / 3) : 0;
+      const v = speed[key];
       if (!dragLoops[key] && v > 0) dragLoops[key] = playSound(key, 0, true);
       if (dragLoops[key]) dragLoops[key].setVolume(v);
     }
@@ -1644,7 +1654,7 @@
       if (!played) {
         played = true;
         const om = isGround(other) ? "ground" : item(other) ? item(other).material : null;
-        const byWeight = om === "ground" ? inBlocks(b, it.material) : 1; // owner 16 Nov late: a piece hitting the ground sounds as loud as its weight, a 2 m block of its material as before
+        const byWeight = inBlocks(b, it.material); // owner 16 Nov late, 17 Nov: a hit sounds as loud as the weight of the piece that hits, a 2 m block of its material as before
         if (om) playSound("hit-" + [it.material, om].sort((x, y) => (x === "ground" ? -1 : y === "ground" ? 1 : x < y ? -1 : x > y ? 1 : 0)).join("-"), (pile ? strength * 0.5 : strength) * byWeight); // the sidebar plays at half volume
       }
       if (stone && kind && !pile) shake = Math.max(shake, strength * 11 * Math.min(1, b.getMass() / 10)); // px
@@ -1922,7 +1932,7 @@
       if (i % 2) puffs.push({ kind: "dust", x, y, vx: (Math.random() - 0.5) * 1.5, vy: Math.random() * 0.6, r: 0.12 + Math.random() * 0.15, life: 1 });
       else puffs.push({ kind: "mudchip", x, y, vx: (Math.random() - 0.5) * 2.5, vy: Math.random() * 1.5, r: 0.05 + Math.random() * 0.07, a: Math.random() * 6, life: 1 });
     }
-    playSound("crumble", 1);
+    playSound("crumble", inBlocks(p.body, p.material)); // by weight (owner 17 Nov)
     shake = Math.max(shake, 4);
     onBreak("crumble", p);
     noteBroken(p);
@@ -1934,7 +1944,7 @@
     const body = p.body, c = body.getPosition(), a = body.getAngle(), v = body.getLinearVelocity(), w = body.getAngularVelocity();
     const along = p.hx >= p.hy, L = (along ? p.hx : p.hy) / 2;
     const ux = along ? Math.cos(a) : -Math.sin(a), uy = along ? Math.sin(a) : Math.cos(a);
-    const vx = v.x, vy = v.y;
+    const vx = v.x, vy = v.y, wt = inBlocks(body, "wood");
     onBreak("snap", p);
     noteBroken(p);
     removePiece(p);
@@ -1944,7 +1954,7 @@
       q.body.setAngularVelocity(w + s * 0.6); // the broken middle drops: the halves fold into a V
     }
     for (let i = 0; i < 12; i++) puffs.push({ kind: "splinter", x: c.x, y: c.y, vx: (Math.random() - 0.5) * 3, vy: Math.random() * 2.5, r: 0.12 + Math.random() * 0.1, a: Math.random() * 6, life: 1 });
-    playSound("snap", 1);
+    playSound("snap", wt); // by weight (owner 17 Nov)
   }
 
   // ---------------------------------------------------------------------
@@ -2106,9 +2116,18 @@
     pointers.set(pointerId, { piece: null, pileBody: body, pileGrab: planck.Vec2(grab.x, grab.y), pileTarget: pt, joint, centred });
   }
   const PILE_LEAD = 4.5, PILE_LEAD_DOWN = 0.05, PILE_HAND_SPEED = 15, PILE_HAND_UP = 7; // m, m, m/s, m/s (sidebar world)
-  function capPileHand(b) {
-    const v = b.getLinearVelocity(), sp = Math.hypot(v.x, v.y), ks = sp > PILE_HAND_SPEED ? PILE_HAND_SPEED / sp : 1;
-    if (ks < 1 || v.y > PILE_HAND_UP) b.setLinearVelocity(planck.Vec2(v.x * ks, Math.min(PILE_HAND_UP, v.y * ks)));
+  // the sidebar hand moves a piece on screen no faster than the arm can move it in the building area (owner 17 Nov: a heavy
+  // stone came out of the sidebar far too fast and the arm, nearly all its strength holding it up, could not stop it)
+  // (grab: the held point, local; it is that point, the hand's, that is held to the speed, as in the building area; the
+  // piece still swings about it by its own weight)
+  function capPileHand(b, grab) {
+    const top = Math.min(PILE_HAND_SPEED, armTopSpeed(b.getMass() * GRAVITY) * scale / pileScale), up = Math.min(PILE_HAND_UP, top);
+    const v = b.getLinearVelocity();
+    if (!grab) { const sp = Math.hypot(v.x, v.y), ks = sp > top ? top / sp : 1; if (ks < 1 || v.y > up) b.setLinearVelocity(planck.Vec2(v.x * ks, Math.min(up, v.y * ks))); return; }
+    // held: the whole motion is slowed together (moving and turning), so slowing the hand's point never sets the piece spinning
+    const vg = b.getLinearVelocityFromWorldPoint(b.getWorldPoint(grab)), sp = Math.hypot(vg.x, vg.y);
+    const f = Math.min(sp > top ? top / sp : 1, vg.y > up ? up / vg.y : 1);
+    if (f < 1) { b.setLinearVelocity(planck.Vec2(v.x * f, v.y * f)); b.setAngularVelocity(b.getAngularVelocity() * f); }
   }
   // pieces resting (directly or through others) on top of a held sidebar piece: lifted with it, so the
   // pile's settling brake and its slow speed cap do not hold them (and the hand) back
@@ -2136,7 +2155,7 @@
       if (d > PILE_LEAD) { dx *= PILE_LEAD / d; dy *= PILE_LEAD / d; }
       dy = Math.max(dy, -PILE_LEAD_DOWN); // pressing down into the pile stays gentle
       hand.joint.setTarget(planck.Vec2(p.x + dx, p.y + dy));
-      capPileHand(b);
+      capPileHand(b, hand.pileGrab);
       if (hand.centred) hand.pileBody.setAngularVelocity(hand.pileBody.getAngularVelocity() * 0.5);
     }
   }
@@ -2148,7 +2167,7 @@
     const held = carriedByHand();
     for (const b of pileBodies()) {
       // pieces knocked by the hand stay messy but do not fly far; those carried up by it keep the hand's cap
-      if (held.has(b)) capPileHand(b);
+      if (held.has(b)) { let g = null; for (const h of pointers.values()) if (h.pileBody === b) g = h.pileGrab; capPileHand(b, g); }
       else {
         const v = b.getLinearVelocity(), sp = Math.hypot(v.x, v.y);
         if (sp > PILE_MAX_SPEED || v.y > PILE_MAX_UP) {
@@ -2231,7 +2250,7 @@
     const c = b.getWorldCenter(), q = b.getWorldPoint(g);
     b.setLinearVelocity(planck.Vec2(vg.x * k - om * (c.y - q.y), vg.y * k + om * (c.x - q.x)));
     b.setAngularVelocity(om);
-    capPileHand(b);
+    capPileHand(b, g);
   }
   function solidifyGhosts() {
     for (const p of pieces) {
@@ -2610,7 +2629,7 @@
       if (o !== b && o.piece && !o.piece.ghost && !o.piece.auto) { under = o.piece.material; return false; }
       return true;
     });
-    if (under && !quiet) playSound("hit-" + (under === "ground" ? ["ground", m] : [m, under].sort()).join("-"), 0.6 * (under === "ground" ? inBlocks(b, m) : 1));
+    if (under && !quiet) playSound("hit-" + (under === "ground" ? ["ground", m] : [m, under].sort()).join("-"), 0.6 * inBlocks(b, m));
   }
   function cancelAuto() {
     if (auto && auto.cur && pieces.includes(auto.cur.piece)) placeAuto(auto.cur);
@@ -3444,7 +3463,7 @@
     } else if (kind === "green") {
       for (let k = 0; k < 15; k++) { const a = -Math.PI * (0.05 + 0.9 * R()), sp = 80 + R() * 100; tapBits.push({ kind: "leaf", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 160, drag: 1.5, r: 5 + R() * 4, a: R() * 6, spin: (R() - 0.5) * 10, hue: 85 + R() * 45, life: 1, fade: 0.9 }); }
     } else {
-      for (let k = 0; k < 9; k++) { const a = -Math.PI * (0.25 + 0.5 * R()), sp = 170 + R() * 120; tapBits.push({ kind: "rock", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 450, r: 4.5 + R() * 4, a: R() * 6, spin: (R() - 0.5) * 14, grey: 120 + Math.round(R() * 60), life: 1, fade: 1.3 }); }
+      for (let k = 0; k < 9; k++) { const a = -Math.PI * (0.3 + 0.4 * R()), sp = 110 + R() * 70; tapBits.push({ kind: "rock", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 450, r: 4.5 + R() * 4, a: R() * 6, spin: (R() - 0.5) * 14, grey: 120 + Math.round(R() * 60), life: 1, fade: 1.3 }); }
       for (let k = 0; k < 4; k++) { const a = R() * Math.PI * 2; tapBits.push({ kind: "sand", x, y, vx: Math.cos(a) * 25, vy: -15, g: 0, drag: 2, r: 4 + R() * 3, grow: 10, life: 0.7, fade: 1 }); }
     }
     playSound("map-tap-" + kind, 1);
@@ -3651,7 +3670,7 @@
     voice.cur = c; c.t0 = cueClock; c.ended = false; if (!active.includes(c)) active.push(c);
     const box = () => { if (voice.cur !== c) return; cueAudio = null; c.t0 = cueClock; cueText.textContent = CUE_TABLE.lines[c.n] || ""; cueBar.style.left = "0"; cueBox.style.display = "block"; };
     if (VOICE_FILES[c.n]) {
-      cueAudio = new Audio(VOICE_FILES[c.n]);
+      cueAudio = new Audio(VOICE_FILES[c.n]); cueAudio.volume = MASTER_VOLUME;
       cueAudio.onended = () => endLine(c);
       cueAudio.play().catch(box);
     } else box();
