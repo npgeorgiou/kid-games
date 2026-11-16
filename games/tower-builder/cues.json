@@ -169,6 +169,7 @@
   "conditions": {
    "first-launch": "no saved progress and the first welcome never said",
    "site-finished": "the site is won and not damaged",
+   "site-won-before": "the site was won once (standing or damaged since)",
    "teaching-pending": "the site has teaching steps the child has not finished",
    "demo-pending": "the site has a demo and is not finished",
    "has-openings": "the plan has an opening (door, arch, space between columns)",
@@ -364,7 +365,7 @@
   "111": "Η πέτρα είναι γερή: βάλ' την κάτω, εκεί που πέφτει όλο το βάρος. Οι πλίνθοι πάνε ψηλά.",
   "112": "Όλο το βάρος πέφτει σε έναν πλίνθο, κι εκείνος θρυμματίζεται.",
   "113": "Η μακριά σανίδα απλώνει το βάρος σε όλα τα τούβλα από κάτω, κι έτσι αντέχουν.",
-  "114": "Πάνω σε κάθε κίονα βάζεις δύο μικρές πέτρες. Το δοκάρι πατάει με κάθε άκρη του πάνω τους.",
+  "114": "Πάνω σε κάθε κίονα, βάλε δύο πέτρες για κιονόκρανο, και πάνω τους στήριξε το δοκάρι.",
   "115": "Πρώτα στήνεις το ξύλινο καλούπι.",
   "116": "Πάνω του βάζεις τις καμαρόπετρες, από τις δύο μεριές.",
   "117": "Η τελευταία καμαρόπετρα μπαίνει στην κορυφή και κλειδώνει την καμάρα.",
@@ -383,7 +384,8 @@
   "134": "Μπορείς και να το σύρεις πίσω στον σωρό. Δοκίμασε!",
   "135": "Αν κάτι δεν σου αρέσει, πάτα αυτό το κουμπί και η τελευταία σου κίνηση γυρίζει πίσω.",
   "136": "Βλέπεις τις τελείες; Εκεί θα κατέβει η κορωνίδα στη δοκιμή. Μην χτίσεις μέσα τους.",
-  "137": "Οι τελείες μένουν άδειες! Εκεί θα κατέβει η κορωνίδα."
+  "137": "Οι τελείες μένουν άδειες! Εκεί θα κατέβει η κορωνίδα.",
+  "138": "Βάλε τώρα μερικά κομμάτια, να σου δείξω κάτι ακόμα."
  },
  "lineNotes": {
   "3": "CHANGED 15 Nov (owner list of 15 Nov): record again if already recorded.",
@@ -414,7 +416,8 @@
   "135": "NEW 15 Nov evening (owner: the undo button's cue after ten pieces on the first site).",
   "72": "CHANGED 15 Nov night (owner's words): record again if already recorded.",
   "136": "NEW 15 Nov night (owner: explain that the dotted outline is not filled).",
-  "137": "NEW 15 Nov night (owner: explain that the dotted outline is not filled)."
+  "137": "NEW 15 Nov night (owner: explain that the dotted outline is not filled).",
+  "138": "NEW 16 Nov night (owner: after the drag back to the sidebar, instead of saying line 93 a third time)."
  },
  "groups": {
   "idle": {
@@ -605,7 +608,7 @@
     "bySite": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
    },
    "topic": "Entering a site",
-   "if": ["not site-finished"],
+   "if": ["not site-won-before"],
    "attention": "freeze",
    "then": "intro-done"
   },
@@ -670,7 +673,9 @@
    "topic": "Building",
    "kind": "teach",
    "if": ["material:mudbrick"],
-   "once": "ever"
+   "once": "ever",
+   "keep": true,
+   "keepNote": "Owner 16 Nov night: dropped while the teaching talks or a step waits, it plays once the site's teaching is over."
   },
   {
    "id": "pick-stone",
@@ -689,6 +694,8 @@
    "kind": "teach",
    "if": ["material:wood"],
    "once": "ever",
+   "keep": true,
+   "keepNote": "Owner 16 Nov night: dropped while the teaching talks or a step waits, it plays once the site's teaching is over.",
    "note": "The Mastaba pile already has wood (its wrong choice), so it can first play there."
   },
   {
@@ -990,7 +997,7 @@
   {
    "id": "t-drag-3",
    "on": "step",
-   "say": 93,
+   "say": 138,
    "topic": "First-site teaching",
    "kind": "teach",
    "attention": "point",
@@ -1093,12 +1100,12 @@
    "steps": [
     ["tell", 124],
     ["put", ["block", "mudbrick", 0, 0.5, 0], ["block", "stone", 0, 1.5, 0], ["block", "stone", 0, 2.5, 0], ["block", "stone", 0, 3.5, 0]],
-    ["wait", 3],
+    ["wait", 1],
     ["say", 110],
     ["fade"],
     ["tell", 125],
     ["put", ["block", "stone", 0, 0.5, 0], ["block", "stone", 0, 1.5, 0], ["block", "stone", 0, 2.5, 0], ["block", "stone", 0, 3.5, 0]],
-    ["wait", 3],
+    ["wait", 1],
     ["say", 111],
     ["fade"]
    ],
@@ -1118,7 +1125,7 @@
      ["block", "mudbrick", 0, 3.5, 0],
      ["block", "mudbrick", 0, 4.5, 0]
     ],
-    ["wait", 3],
+    ["wait", 1],
     ["say", 112],
     ["fade"],
     ["tell", 127],
@@ -1133,7 +1140,7 @@
      ["block", "mudbrick", 0, 4, 0],
      ["block", "mudbrick", 0, 5, 0]
     ],
-    ["wait", 3],
+    ["wait", 1],
     ["say", 113],
     ["fade"]
    ],
@@ -1145,7 +1152,8 @@
   },
   "karnak": {
    "new": "columns, capitals of two small blocks, beams across",
-   "steps": [["tell", 128], ["put", 0, 1, 5, 6, 7, 8, 9, 10, 11], ["wait", 1], ["say", 114], ["fade"]]
+   "steps": [["ready", 0, 1, 5, 8], ["tell", 128], ["put", 6, 7, 9, 10, 11], ["wait", 0.5], ["say", 114], ["fade"]],
+   "note": "Owner 16 Nov night: the platform and both columns stand ready, like the Mausoleum; the hand puts two small stones on each column and the beam across."
   },
   "ishtar": {
    "new": "wedges; the wooden form, taken out after the last wedge",
@@ -1173,14 +1181,14 @@
     ["ready", 0, 1, 2, 3, 9, 10, 11, 6, 7, 8],
     ["tell", 129],
     ["put", 17, ["beam", "stone", -1.45, 3.65, 0]],
-    ["wait", 3],
+    ["wait", 1],
     ["fade"],
     ["ready", 0, 1, 2, 3, 9, 10, 11, 6, 7, 8],
     ["tell", 130],
     ["put", ["column", "wood", -3.2, 2.2, 0], 17, 18, 21, 22, 23],
     ["wait", 0.5],
     ["pull"],
-    ["wait", 2.5],
+    ["wait", 0.5],
     ["say", 121],
     ["fade"]
    ],
@@ -1198,6 +1206,8 @@
   }
  },
  "notes": [
+  "Kept lines (owner 16 Nov night): a first-time line marked keep (the first mudbrick, the first wood) that is dropped because the teaching talks or a step waits is not lost: it plays once that site's teaching is over (at once where there is none).",
+  "Demo waits (owner 16 Nov night): the voice after a demo came about 2 s too late; every wait before a line in a demo is 2 s shorter (at least 0.5 s).",
   "ΔΙΔΑΣΚΑΛΙΑ (owner 16 Nov): the second tick in the gear box; unticked, no teaching steps and no teaching lines (with their glows and the ghost hand); every other line and the demos stay. Ticked by default; ΕΠΑΝΕΚΚΙΝΗΣΗ keeps it.",
   "ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ (owner 16 Nov): the gear button on the map opens a box with this tick; unticked, no site plays its demo, and every other cue stays as it is. Ticked by default; ΕΠΑΝΕΚΚΙΝΗΣΗ keeps it.",
   "Mausoleum (owner, 14 Nov): the posts stay; when he builds, the beams fall without them. The demo shows that failure.",

@@ -532,10 +532,12 @@
     if (!PIECE_DEFS[k]) PIECE_DEFS[k] = { shape: "poly", verts, hx, hy, densityScale: 1.0, skin: "wedge" };
   }
 
-  // Free play: the shapes each material comes in, in groups (one row or more per group). Every shape and material
-  // the levels use, except the long mudbricks (owner: long mudbricks make no sense), plus the long plank and long block.
+  // Free play: the shapes each material comes in. Every shape and material the levels use, except the long mudbricks
+  // (owner: long mudbricks make no sense), plus the long block. Owner 16 Nov night: the sidebar is a pile like the
+  // levels', one of each; a piece taken out is replaced by a new one falling in from above; the wooden planks stand on end
+  // side by side, so their lengths compare.
   const SANDBOX_SHAPES = {
-    wood: [["square", "block"], ["column", "drum"], ["beam", "plank"], ["longplank"], ["plank8", "plank10"], ["plank12"], ["plank14"], ["centering"]],
+    wood: [["square", "block"], ["column", "drum"], ["beam", "plank"], ["plank8", "plank10"], ["centering"]], // owner 16 Nov night: no 14 m, 12 m or 9 m plank
     mudbrick: [["square", "block"], ["abacus", "drum"]],
     stone: [["square", "block"], ["bigsquare"], ["longblock"], ["abacus", "capital"], ["beam"], ["column", "drum"], ["wedge", "tri"], ["trib"], ["gableL", "gableR"]],
   };
@@ -681,6 +683,8 @@
   let currentLevel = null; // index into LEVELS; null = free play
   let levelTop = 0, levelWidth = WORLD_WIDTH; // metres of height and width the current level needs on screen
 
+  let mode = "map"; // "map" | "build"
+  function hasPile() { return mode === "build"; } // a site or free play: the sidebar is a pile
   function layout() {
     const dpr = window.devicePixelRatio || 1;
     cssWidth = window.innerWidth;
@@ -693,7 +697,7 @@
 
     sidebarWidthPx = Math.min(156, Math.max(92, cssWidth * 0.23));
     if (cssWidth - sidebarWidthPx < 160) sidebarWidthPx = Math.max(72, cssWidth * 0.28);
-    if (currentLevel != null) { // the pile bin is PILE_BIN_W metres wide (three blocks and a little); one piece size for every
+    if (hasPile()) { // the pile bin is PILE_BIN_W metres wide (three blocks and a little); one piece size for every
       // level: the largest at which every level's full pile fits in the bin's height (the sidebar follows from it)
       for (pilePx = 60; pilePx > 8; pilePx *= 0.97) {
         const w = PILE_BIN_W * pilePx + 16, size = Math.min(64, (w - 32) / 3), bin = { w: w - 16, h: cssHeight - size - 24 };
@@ -709,7 +713,7 @@
     worldWidth = buildingWidthPx / scale;
     viewX0 = WORLD_CENTER_X - worldWidth / 2;
     rebuildBoundaries();
-    if (currentLevel != null) { pileBinRect = levelSidebar().bin; fillPile(pileItems()); }
+    if (hasPile()) { pileBinRect = levelSidebar().bin; fillPile(pileItems()); }
   }
   layout();
   window.addEventListener("resize", layout);
@@ -727,7 +731,7 @@
   function materialLayout() {
     const pad = 7;
     const gap = 5;
-    if (currentLevel != null) return []; // levels take their materials from the pile
+    if (hasPile()) return []; // sites and free play take their pieces from the pile
     const w = (sidebarWidthPx - pad * 2 - gap * 2) / 3;
     const h = Math.min(54, Math.max(38, cssHeight * 0.085));
     return ["wood", "mudbrick", "stone"].map((key, i) => ({ key, x: buildingWidthPx + pad + i * (w + gap), y: 10, w, h }));
@@ -735,7 +739,7 @@
 
   // Levels: a row of map, broom and test buttons on top, the pile bin below.
   function levelSidebar() {
-    const pad = 8, defs = BUTTONS.filter((b) => b.kind === "home" || b.kind === "broom" || b.kind === "test");
+    const pad = 8, defs = BUTTONS.filter((b) => b.kind === "home" || b.kind === "broom" || (b.kind === "test" && currentLevel != null));
     const size = Math.min(64, (sidebarWidthPx - pad * 4) / 3);
     const total = defs.length * size + (defs.length - 1) * pad;
     const x0 = buildingWidthPx + (sidebarWidthPx - total) / 2 + size / 2;
@@ -746,7 +750,7 @@
   }
 
   function buttonLayout() {
-    if (currentLevel != null) return levelSidebar().buttons;
+    if (hasPile()) return levelSidebar().buttons;
     const defs = BUTTONS.filter((b) => b.kind === "broom" || b.kind === "home"), pad = 8;
     const size = Math.min(56, (sidebarWidthPx - pad * 3) / 2), x0 = buildingWidthPx + sidebarWidthPx / 2 - (size + pad) / 2;
     return defs.map((def, i) => ({ def, x: x0 + i * (size + pad), y: cssHeight - pad - size / 2, size }));
@@ -754,7 +758,7 @@
   // Free play shape tiles for the chosen material: each group starts a new row, two tiles a row, a piece too long for
   // half the width gets the whole row. All pieces at one size scale where they fit, so their sizes compare.
   function shapeTiles() {
-    if (currentLevel != null) return [];
+    if (hasPile()) return [];
     const pad = 6, gap = 4, x0 = buildingWidthPx + pad, W = sidebarWidthPx - pad * 2, half = (W - gap) / 2;
     const m = materialLayout()[0], top = m ? m.y + m.h + 8 : 10, bottom = buttonLayout()[0].y - buttonLayout()[0].size / 2 - 8;
     const ext = (k) => { const d = PIECE_DEFS[k]; return d.shape === "circle" ? [2 * d.r, 2 * d.r] : [2 * d.hx, 2 * d.hy]; };
@@ -822,7 +826,7 @@
     else if (kind === "test") startTest();
     else if (kind === "broom") { // levels: start again with the level's own pile, in its starting order
       cueEvent("press-broom"); clearAllPieces();
-      if (currentLevel != null) fillPile(stockItems(currentLevel));
+      fillPile(currentLevel != null ? stockItems(currentLevel) : freeItems());
     }
   }
   function hitScreenButton(px, py) { // the nearest one under the point (big map circles overlap)
@@ -958,7 +962,7 @@
     const tile = shapeTiles().find((t) => px >= t.x && px <= t.x + t.w && py >= t.y && py <= t.y + t.h);
     if (tile) { spawnHeldAtEdge(tile.def, 0, selectedMaterial, e.pointerId, px, py); return; }
     if (test || auto) return; // hands off during the test and the quick build
-    if (currentLevel != null) {
+    if (hasPile()) {
       const pb = hitPile(px, py);
       if (pb) { // held small inside the sidebar; becomes the real piece when dragged out
         startPileHold(e.pointerId, pb, pilePoint(px, py), false);
@@ -979,7 +983,7 @@
   // (in stepPhysics below, once per physics tick), not this handler.
   function onPointerMove(e) {
     const hand = pointers.get(e.pointerId);
-    if (hand && currentLevel != null && !test) {
+    if (hand && hasPile() && !test) {
       if (hand.pileBody) {
         if (e.clientX < buildingWidthPx) pileToWorld(e.pointerId, hand, e.clientX, e.clientY);
         else { hand.pileTarget = pilePoint(e.clientX, e.clientY); return; }
@@ -1041,7 +1045,7 @@
     let c = "default";
     if (mode !== "map") {
       if (Array.from(pointers.values()).some((h) => h.piece || h.pileBody)) c = "grabbing";
-      else if ((currentLevel != null && hitPile(e.clientX, e.clientY)) ||
+      else if ((hasPile() && hitPile(e.clientX, e.clientY)) ||
         (e.clientX < buildingWidthPx && hitPiece(screenToWorld(e.clientX, e.clientY)))) c = "grab";
     }
     if (canvas.style.cursor !== c) canvas.style.cursor = c;
@@ -1230,7 +1234,7 @@
       settleResting();
       updateStrain();
       solidifyGhosts();
-      if (currentLevel != null) { drivePileHands(); pileWorld.step(STEP, 10, 6); for (const h of pointers.values()) if (h.pileBody) capPileHand(h.pileBody); settlePile(); rescuePile(); }
+      if (hasPile()) { drivePileHands(); pileWorld.step(STEP, 10, 6); for (const h of pointers.values()) if (h.pileBody) capPileHand(h.pileBody); settlePile(); rescuePile(); }
       accumulator -= STEP;
       steps++;
     }
@@ -1276,8 +1280,8 @@
   // Skies (owner 15 Nov, test): each site's own day sky while it is being built, chosen to stand out from that site's materials
   // (colour difference against mudbrick, wood and its stone, textured and plain); a finished site shows the next night sky in a
   // rotation from sunset to early sunrise, one step for every visit to a finished site. Pictures: "18 Gradient Skies (640x480)", supplied by the owner.
-  const SKY_DAY = { mastaba: "air", djoser: "dro", ziggurat: "dro", liongate: "sno", karnak: "aug", ishtar: "air", parthenon: "sno", mausoleum: "aug", pharos: "day", valens: "ora" }; // measured with tools/sky-contrast.py (15 Nov): the weakest site as strong as it can be, each sky at most twice
-  const SKY_NIGHT = ["son", "ice", "omb", "dus", "nac", "twi", "mon", "cit", "mor", "ora"];
+  const SKY_DAY = { mastaba: "air", djoser: "dro", ziggurat: "dro", liongate: "sno", karnak: "aug", ishtar: "air", parthenon: "sno", mausoleum: "aug", pharos: "sno", valens: "ken" }; // owner 16 Nov night: day (a morning) and ora (a sunset) go to the night rotation; Pharos sno (best, a third use), Valens ken (best unused); measured with tools/sky-contrast.py (15 Nov): the weakest site as strong as it can be, each sky at most twice
+  const SKY_NIGHT = ["ora", "son", "ice", "omb", "dus", "nac", "twi", "mon", "cit", "mor", "day"]; // late afternoon and sunset, night, dawn, morning
   const SKY_ART = { ken: "art/skies/ken.png", aug: "art/skies/aug.png", bah: "art/skies/bah.png", sno: "art/skies/sno.png", dro: "art/skies/dro.png", air: "art/skies/air.png", omb: "art/skies/omb.png", day: "art/skies/day.png", son: "art/skies/son.png", ice: "art/skies/ice.png", dus: "art/skies/dus.png", nac: "art/skies/nac.png", twi: "art/skies/twi.png", mon: "art/skies/mon.png", cit: "art/skies/cit.png", mor: "art/skies/mor.png", ora: "art/skies/ora.png" }, skyImg = {};
   for (const k in SKY_ART) skyImg[k] = Object.assign(new Image(), { src: SKY_ART[k] });
   let skyNow = null; // the sky of the site on screen (null: free play, the plain blue)
@@ -1443,7 +1447,7 @@
       ctx.fillText({ wood: "ΞΥΛΟ", mudbrick: "ΠΛΙΝΘΟΣ", stone: "ΠΕΤΡΑ" }[b.key], b.x + b.w / 2, b.y + b.h - 2);
     }
 
-    if (currentLevel != null) drawPile();
+    if (hasPile()) drawPile();
     { const ub = undoButton(); SKIN.button(ctx, "undo", ub.x, ub.y, ub.size, !undoStack.length || !!test || !!auto); }
     for (const t of shapeTiles()) {
       ctx.fillStyle = "#6e5d4a"; ctx.strokeStyle = "#3c3226"; ctx.lineWidth = 1.5;
@@ -1935,6 +1939,11 @@
   const PILE_SWING_DAMP = { wood: 0.25, mudbrick: 0.12, stone: 0.04 }; // held near an end in the sidebar it swings freely, so it can be turned upright
   const PILE_MAX_SPEED = 4, PILE_MAX_UP = 2; // m/s, pile pieces not in the hand
   let pileBinRect = null;  // px rect of the bin
+  function freeItems() { // free play's pile: one of each shape in each material
+    const out = [];
+    for (const [m, groups] of Object.entries(SANDBOX_SHAPES)) for (const g of groups) for (const k of g) out.push({ defKey: k, material: m, stand: m === "wood" && PIECE_DEFS[k].skin === "beam" });
+    return out;
+  }
 
   function pileBodies() {
     const out = [];
@@ -1953,7 +1962,7 @@
     if (def.shape === "poly") body.createFixture({ ...fo, shape: planck.Polygon(def.verts.map(([vx, vy]) => planck.Vec2(vx, vy))) });
     else if (def.shape === "box") body.createFixture({ ...fo, shape: planck.Box(def.hx, def.hy) });
     else body.createFixture({ ...fo, shape: planck.Circle(def.r) });
-    body.pileItem = { defKey: item.defKey, material: item.material, seed: item.seed || newSeed() };
+    body.pileItem = { defKey: item.defKey, material: item.material, seed: item.seed || newSeed(), stand: item.stand };
     return body;
   }
   function fillPile(items) {
@@ -1981,7 +1990,7 @@
     // Orderly: by material (sturdiest lowest: stone, wood, mudbrick), then tallest first and like
     // with like, packed in rows; as big as the bin allows with every row inside it.
     const STURDY = { stone: 0, wood: 1, mudbrick: 2 };
-    const lying = (it) => it.defKey === "column" || (PIECE_DEFS[it.defKey].shape === "box" && 2 * PIECE_DEFS[it.defKey].hx > PILE_BIN_W - 0.3); // columns lie down in the pile (held near an end they swing upright); pieces longer than the bin is wide stand on their end (owner, 14 Nov)
+    const lying = (it) => it.defKey === "column" || it.stand || (PIECE_DEFS[it.defKey].shape === "box" && 2 * PIECE_DEFS[it.defKey].hx > PILE_BIN_W - 0.3); // columns lie down in the pile (held near an end they swing upright); pieces longer than the bin is wide stand on their end (owner, 14 Nov)
     // other polygons (arch stones, form, pediment) take their real extent; ext gives it and where the centre sits in it
     const ext = (d) => { const xs = d.verts.map((v) => v[0]), ys = d.verts.map((v) => v[1]); return [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]; };
     const own = (it) => { const d = PIECE_DEFS[it.defKey]; return d.shape === "poly" && it.defKey !== "wedge" && !/^tri/.test(it.defKey); };
@@ -2159,7 +2168,9 @@
     const b = hand.pileBody, it = b.pileItem, a = b.getAngle(), g = hand.pileGrab, centred = hand.centred;
     const k = pileScale / scale, vg = b.getLinearVelocityFromWorldPoint(b.getWorldPoint(g)), om = b.getAngularVelocity();
     pointers.delete(pointerId);
+    const bx = b.getPosition().x;
     pileWorld.destroyBody(b);
+    if (currentLevel == null) { const r = pileBinRect, nb = createPileBody({ defKey: it.defKey, material: it.material, stand: it.stand }, bx, r.h / pileScale + 1.5); if (it.stand) nb.setTransform(nb.getPosition(), Math.PI / 2); } // free play: a new one falls in from above
     const w = screenToWorld(px, py), ca = Math.cos(a), sa = Math.sin(a);
     const piece = spawnPiece(it.defKey, w.x - (g.x * ca - g.y * sa), w.y - (g.x * sa + g.y * ca), a, it.material); piece.seed = it.seed; // keeps its look
     setGhost(piece, true);
@@ -2184,7 +2195,8 @@
     releaseHold(pointerId);
     if (!pieces.includes(piece)) return;
     removePiece(piece);
-    if (currentLevel != null) cueEvent("drag-back"); // a piece of the building carried into the pile
+    if (currentLevel == null) return; // free play: the pile always holds one of each; a piece carried into it is gone
+    cueEvent("drag-back"); // a piece of the building carried into the pile
     const r = pileBinRect, W = r.w / pileScale, H = r.h / pileScale, t = pilePoint(px, py), ca = Math.cos(a), sa = Math.sin(a);
     const b = createPileBody({ defKey: piece.defKey, material: piece.material }, t.x - (g.x * ca - g.y * sa), t.y - (g.x * sa + g.y * ca));
     b.setTransform(b.getPosition(), a);
@@ -2538,11 +2550,12 @@
     currentLevel = null; grid = null; check = null; failShow = null;
     mode = "build";
     layout();
+    fillPile(freeItems());
   }
 
   // --- quick build (parent override): with Ctrl held a button appears on the pile; it tidies
   // everything back into the pile, then builds the suggested way, piece by piece, very fast.
-  const AUTO_SPEED = 60, AUTO_PAUSE = 0.03; // m/s flying in, s between pieces
+  const AUTO_SPEED = 80, AUTO_PAUSE = 0.0225; // m/s flying in, s between pieces (owner 16 Nov night: a third faster)
   let auto = null; // { queue, cur, wait }
   function autoBuildButton() {
     if (currentLevel == null || test || auto || !tabHeldNow() || !SOLUTIONS[LEVELS[currentLevel].key] || !pileBinRect) return null;
@@ -2558,7 +2571,7 @@
     failShow = null;
     auto = { queue: SOLUTIONS[LEVELS[currentLevel].key].slice(), cur: null, wait: 0.3 };
   }
-  function placeAuto(c) {
+  function placeAuto(c, quiet) { // quiet: already standing (a demo's ready pieces), no landing sound
     const b = c.piece.body;
     b.setLinearVelocity(planck.Vec2(0, 0)); b.setAngularVelocity(0);
     b.setTransform(planck.Vec2(c.tx, c.ty), c.ta);
@@ -2574,7 +2587,7 @@
       if (o !== b && o.piece && !o.piece.ghost && !o.piece.auto) { under = o.piece.material; return false; }
       return true;
     });
-    if (under) playSound("hit-" + (under === "ground" ? ["ground", m] : [m, under].sort()).join("-"), 0.6);
+    if (under && !quiet) playSound("hit-" + (under === "ground" ? ["ground", m] : [m, under].sort()).join("-"), 0.6);
   }
   function cancelAuto() {
     if (auto && auto.cur && pieces.includes(auto.cur.piece)) placeAuto(auto.cur);
@@ -2596,7 +2609,7 @@
     if (!step) {
       // the arches stand: take the wooden supports out again, one by one
       const sup = supportPieces();
-      if (sup.length) { const p = sup[0]; dustAt(p.body.getPosition()); returnToPile(p); auto.wait = 0.15; return; }
+      if (sup.length) { const p = sup[0]; dustAt(p.body.getPosition()); returnToPile(p); auto.wait = 0.1125; return; }
       auto = null; return;
     }
     const [defKey, material, x, y, a] = step;
@@ -2945,7 +2958,7 @@
   // ---------------------------------------------------------------------
   // SECTION: MAP -- world map start screen, the ten sites (locked, open, finished), parent override
   // ---------------------------------------------------------------------
-  let mode = "map"; // "map" | "build"
+  // mode: declared before the first layout (SECTION LAYOUT)
   // Chronological = level order.
   // Positions are pixels on the map picture (art/map.jpg, 2176 x 1408), placed by eye
   // and nudged apart so finished sites do not overlap.
@@ -3402,7 +3415,12 @@
   cueBar.style.cssText = "position:absolute;top:0;right:0;left:0;height:7px;background:#2f7fd8";
   cueBox.append(cueBar, cueText);
   document.body.appendChild(cueBox);
-  window.addEventListener("keydown", (e) => { lastInput = cueClock; if (e.key === "Escape" && voice.cur) endLine(voice.cur); });
+  window.addEventListener("keydown", (e) => { // ESC: ends the line playing (an intro with its picture too); with none playing, leaves a site or free play for the map (owner 16 Nov night)
+    lastInput = cueClock;
+    if (e.key !== "Escape") return;
+    if (voice.cur) endLine(voice.cur);
+    else if (mode === "build" && !demo) goMap();
+  });
   const cueById = (id) => CUE_TABLE.cues.find((c) => c.id === id);
   const siteKeyOf = (i) => (i != null && LEVELS[i] ? LEVELS[i].key : null);
 
@@ -3443,6 +3461,7 @@
   const childPieces = () => pieces.filter((p) => !p.demo && !p.auto && !p.ghost);
   const CUE_CONDITIONS = {
     "first-launch": () => !Object.keys(progress.done).length && !isMarked("ever:welcome-first"),
+    "site-won-before": (x) => !!progress.done[siteKeyOf(x.site)], // finished once, standing or damaged since
     "site-finished": (x) => { const d = progress.done[siteKeyOf(x.site)]; return !!(d && !d.broken); },
     "teaching-pending": (x) => { const s = sequenceOf(x.site); return !!s && cueMem().seq[s] !== "done"; },
     "demo-pending": (x) => { const k = siteKeyOf(x.site), d = CUE_TABLE.demos[k]; return !!(d && d.steps.length && !progress.done[k]); },
@@ -3497,7 +3516,7 @@
     const memo = {}, pts = (names) => (names || []).flatMap((n) => pointTargets(n, x, memo));
     if (c.glow) { setMark(key, true); glowFor(pts(c.points), c.glow); then(); return c; }
     if (c.say == null) { setMark(key, true); then(); return c; }
-    if (!seq && (teachingBusy() || stepWaiting())) return null; // while a teaching line plays or waits, or a step waits for the child, other lines are dropped (their first time stays unused)
+    if (!seq && (teachingBusy() || stepWaiting())) { if (c.keep && !kept.some((k) => k.c === c)) kept.push({ c, x, sc: scene }); return null; } // while a teaching line plays or waits, or a step waits for the child, other lines are dropped (their first time stays unused); a "keep" line waits and plays after
     const n = lineOf(c, x);
     const line = say(n, {
       cue: c, kind: c.kind || "queued", attention: c.attention || "none", targets: pts(c.points), touch: c.touch ? pts(c.touch) : null,
@@ -3564,8 +3583,11 @@
   function finish(c) { if (c.fin) return; c.fin = true; if (c.then) c.then(); }
   const waiting = (c) => !!((c.waitEvent || c.waitUntil) && !c.fin && !c.done && !(c.waitUntil && cond(c.waitUntil)));
   function gameNow() { return cueClock * 1000; } // game time in ms (the frame clock): input, the pile and the button go by it, so a test run repeats exactly
+  const kept = []; // first-time lines marked keep, dropped while the teaching talked or a step waited: played once the site's teaching is over (owner 16 Nov night: "after the tutorial cues are done")
   function cueTick(dt) {
     cueFrame++; cueClock += dt;
+    const teachingOn = () => { const q = currentLevel != null && sequenceOf(currentLevel), v = q && cueMem().seq[q]; return !!v && v !== "done"; };
+    if (kept.length && !test && !teachingOn() && !teachingBusy() && !stepWaiting()) { const k = kept.shift(); if (k.sc === scene && !isMarked(onceKey(k.c, k.x))) fire(k.c, k.x); }
     const now = cueClock, c = voice.cur;
     if (c) { // the line playing: its action done, or its time up (text box), ends it
       const u = (now - c.t0) / LINE_TIME;
@@ -3907,7 +3929,7 @@
       demoCarry(p, x + LEVEL_X0, y + 0.02, a, false, { x: x + LEVEL_X0, y: over });
     } else if (op[0] === "ready") { // pieces already standing when the demo starts (owner 15 Nov: no need to build the base again)
       d.ops.shift();
-      for (const it of op.slice(1)) { const [defKey, material, x, y, a] = typeof it === "number" ? SOLUTIONS[d.key][it] : it; const p = spawnPiece(defKey, x + LEVEL_X0, y + 0.02, a, material); p.demo = true; placeAuto({ piece: p, tx: x + LEVEL_X0, ty: y + 0.02, ta: a }); p.placedY = y + 0.02; }
+      for (const it of op.slice(1)) { const [defKey, material, x, y, a] = typeof it === "number" ? SOLUTIONS[d.key][it] : it; const p = spawnPiece(defKey, x + LEVEL_X0, y + 0.02, a, material); p.demo = true; placeAuto({ piece: p, tx: x + LEVEL_X0, ty: y + 0.02, ta: a }, true); p.placedY = y + 0.02; }
     } else if (op[0] === "wait") { d.ops.shift(); d.wait = op[1]; }
     else if (op[0] === "tell") { d.ops.shift(); say(op[1], { kind: "teach", demo: true }); } // plays while the next pieces come
     else if (op[0] === "say") { d.ops.shift(); d.saying = true; say(op[1], { kind: "teach", demo: true, attention: "freeze", then: () => { d.saying = false; } }) || (d.saying = false); }

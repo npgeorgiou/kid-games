@@ -4,6 +4,7 @@
 declares on purpose (doors, arches, spaces between columns, shafts). Needs numpy and OpenCV (tools/geom.py).
 Usage: python3 tools/make-levels.py"""
 import json, math, pathlib
+from collections import Counter
 import sys, cv2
 import numpy as np
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -168,7 +169,8 @@ level("karnak", "Υπόστυλη αίθουσα του Καρνάκ", "c. 1290-
              W("a mudbrick platform", "material", recolour(s, lambda e: e[0] == "block", "mudbrick")),
              W("wooden planks as the side beams", "material", recolour(s, lambda e: e[0] == "beam", "wood")),
              W("mudbrick middle columns", "material", recolour(s, lambda e: e[0] == "column" and abs(e[2]) < 2, "mudbrick")),
-             W("a middle column too far in for the beam", "build", moved(s, lambda e: near(e[2], -1.3) and e[3] < 4.3, dx=1.0))])
+             W("a middle column too far in for the beam", "build", moved(s, lambda e: near(e[2], -1.3) and e[3] < 4.3, dx=1.0))],
+      spare=[("column", "wood", 4)])  # owner 16 Nov night: wooden columns the size of the stone ones, as a choice
 # 6 Ishtar Gate
 s = ([p for y in (0.5, 1.5) for p in row("stone", -6, 2, y) + row("stone", 2, 2, y)] +
      [p for y in (2.5, 3.5, 4.5, 5.5, 6.5) for p in (["block", "stone" if y < 4 else "mudbrick", -(ARCH_X + 2), y, 0], ["block", "stone" if y < 4 else "mudbrick", ARCH_X + 2, y, 0])] +
@@ -194,9 +196,9 @@ level("parthenon", "Παρθενώνας", "447-432 BC", "columns built drum by 
       "the real front has eight columns (octastyle) built of drums, about 1.25 column widths apart; six here, one width apart; two steps and no frieze; the pediment stops 1 m short of each end so the corner acroteria stand level; the three acroteria are the load",
       s, [acroterion(-4.5, fr_top, 0.45), acroterion(4.5, fr_top, 0.45), acroterion(0, fr_top + GH, 0.8, 1.0)],
       [rect(a + 0.5, P0, b - 0.5, P0 + DR + 0.4) for a, b in zip(COLS, COLS[1:])],  # between the columns, up to the architrave
-      wrong=[W("mudbrick in the top step", "material", recolour(s, lambda e: near(e[3], P0 - 0.5), "mudbrick")),
-             W("drums stacked off line", "build", moved(s, lambda e: e[0] == "square" and near(e[3], P0 + 1.5) and near(e[2], 3.0), dx=0.6)),
-             W("an end column too far out for the architrave", "build", moved(s, lambda e: e[0] in ("square", "capital") and near(e[2], 5.0) and e[3] > P0, dx=1.0))])
+      wrong=[W("drums stacked off line", "build", moved(s, lambda e: e[0] == "square" and near(e[3], P0 + 1.5) and near(e[2], 3.0), dx=0.6)),
+             W("an end column too far out for the architrave", "build", moved(s, lambda e: e[0] in ("square", "capital") and near(e[2], 5.0) and e[3] > P0, dx=1.0))],
+      spare=[(d, "wood", n) for d, n in Counter(e[0] for e in s if e[3] > P0).items()])  # owner 16 Nov night: no mudbrick; wood for everything above the two steps, so it can be built of wood
 # 8 Mausoleum: solid core, columns, the walkway ceiling beams reach out from the core further than they hold alone:
 # wooden posts hold them while the roof steps go on, then come out
 s = (row("stone", -6, 6, 0.5) +

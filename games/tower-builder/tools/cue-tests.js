@@ -107,6 +107,7 @@
       const g = T.active.find((q) => q.n === 134 && q.act); if (!g || !g.act.drag) bad.push("no ghost drag for the drag-back");
       const k2 = kids()[0]; if (k2) drag(pieceAt(k2), sideAt()); run(3);
       step("t-drag-3", "dragged back to the pile by hand");
+      if (cur() !== 138 && !said().includes(138)) bad.push("after the drag back, not line 138 (" + cur() + ")"); // owner 16 Nov night, 1
       run(8); step("t-drag-3", "8 s later (no going round again)");
       drag(pileAt("mudbrick"), planAt()); settle(); run(1); step("t-shovel", "one piece in (the shovel waits for three)"); if (said().includes(95)) bad.push("95 before four pieces");
       // 15 Nov night: the shovel's line once four pieces stand
@@ -287,6 +288,52 @@
     // list 15 Nov, 17: «καμαρόπετρες», never «σφήνες»
     "words-arch-stones": () => { const b = Object.entries(T.CUE_TABLE.lines).filter(([, t]) => /σφήν/i.test(t)).map(([n]) => n); return [!b.length, b.join(",")]; },
 
+    // owner 16 Nov night, 3 and 11: ESC ends the line playing (the intro and its picture); with none, it leaves a site or free play
+    "esc": () => {
+      const bad = [], esc = () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      fresh(); noTeach(); const i = lvl("djoser"); start(i); T.onEnterSite(i); run(0.3);
+      if (cur() !== 2) bad.push("no intro line at the Step Pyramid (" + cur() + ")");
+      esc(); run(0.1); if (cur() === 2) bad.push("ESC did not end the intro"); if (T.mode !== "build") bad.push("ESC on the intro left the site");
+      for (let k = 0; k < 100 && (cur() || T.voice.queue.length || T.demo); k++) { if (T.demo) { T.voice.queue.length = 0; } run(0.1); if (T.demo) break; }
+      if (T.demo) { for (let k = 0; k < 400 && T.demo; k++) run(0.1); } for (let k = 0; k < 60 && (cur() || T.voice.queue.length); k++) { esc(); run(0.1); }
+      esc(); run(0.1); if (T.mode !== "map") bad.push("ESC with no line did not leave the site (mode " + T.mode + ", line " + cur() + ")");
+      T.startFree(); run(0.5); for (let k = 0; k < 30 && cur(); k++) { esc(); run(0.1); } esc(); run(0.1); if (T.mode !== "map") bad.push("ESC did not leave free play");
+      return [!bad.length, bad.join("; ") || "ok"];
+    },
+    // owner 16 Nov night, 6: the intro line and its picture only at a site never won, not when a won site is damaged and fixed
+    "intro-only-before-won": () => {
+      const bad = [], i = lvl("djoser");
+      fresh(); noTeach(); T.progress.done.djoser = { broken: true, pieces: [] }; start(i); T.onEnterSite(i); run(1);
+      if (said().includes(2)) bad.push("the intro played at a damaged site");
+      fresh(); noTeach(); start(i); T.onEnterSite(i); run(0.5); if (!said().includes(2)) bad.push("no intro at a site never won");
+      return [!bad.length, bad.join("; ") || "ok"];
+    },
+    // owner 16 Nov night, 4: free play's sidebar is a pile with one of each piece; a piece taken out is replaced from above
+    "free-play-pile": () => {
+      const bad = []; fresh(); T.startFree(); run(2);
+      const items = T.pileBodies().map((b) => b.pileItem.defKey + "/" + b.pileItem.material).sort(), want = [];
+      for (const [m, gs] of Object.entries({ wood: ["square", "block", "column", "drum", "beam", "plank", "plank8", "plank10", "centering"] })) for (const k of gs) want.push(k + "/" + m);
+      for (const w of want) if (!items.includes(w)) bad.push("no " + w);
+      for (const k of ["plank14", "plank12", "longplank"]) if (items.includes(k + "/wood")) bad.push(k + " still there");
+      if (new Set(items).size !== items.length) bad.push("doubles in the pile");
+      const stand = T.pileBodies().filter((b) => b.pileItem.material === "wood" && /plank|beam/.test(b.pileItem.defKey)).map((b) => Math.abs(Math.abs(b.getAngle()) - Math.PI / 2) < 0.2);
+      if (stand.some((v) => !v)) bad.push("a plank not standing");
+      if (Math.abs(T.levelSidebar().bin.w - T.pileBinRect.w) > 1) bad.push("sidebar not like the levels'");
+      const n0 = T.pileBodies().length; const a = pileAt("stone", "block"); drag(a, planAt(0, 2)); run(3);
+      if (T.pileBodies().length !== n0) bad.push("not replaced: " + T.pileBodies().length + " vs " + n0);
+      if (!T.pieces.some((p) => p.defKey === "block" && p.material === "stone")) bad.push("the stone block did not come out");
+      return [!bad.length, bad.join("; ") || "ok"];
+    },
+    // owner 16 Nov night, 2: the first-time wood line plays like the mudbrick one: not while the teaching waits, then at the first wood picked up after it
+    "wood-first-pick": () => {
+      const bad = [];
+      fresh(); start(0); T.onEnterSite(0); run(3);
+      const w0 = pileAt("wood", "block"); if (!w0) return [false, "no wood in the Mastaba pile"];
+      drag(w0, planAt(4)); run(3); if (said().includes(80)) bad.push("80 said while a teaching step waited");
+      T.cueMem().seq["first-site"] = "done"; T.active.length = 0; run(4); // the teaching over (its last step taken away)
+      if (!said().includes(80)) bad.push("80 not said once the teaching was over (" + said().join(",") + ")");
+      return [!bad.length, bad.join("; ") || said().join(",")];
+    },
     // owner 16 Nov: ΔΙΔΑΣΚΑΛΙΑ unticked: no teaching steps or teaching lines at the first site (map welcome still said); ticked again, the teaching runs
     "teaching-off": () => {
       const bad = [], teachLines = new Set(T.CUE_TABLE.cues.filter((c) => c.kind === "teach" && typeof c.say === "number").map((c) => c.say));
