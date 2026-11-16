@@ -3764,11 +3764,15 @@
     }
   }
   // Intro pictures (owner 16 Nov): full screen while the site's welcome line plays, zooming in very slowly; they fade in,
-  // and fade out when the line ends (owner's pictures, src/art/intro/<site>.jpg).
+  // and fade out when the line ends (owner's pictures, src/art/intro/<site>.jpg). Each picture has a focus point (where the
+  // owner put a red mark on a copy, as a share of width and height): the zoom grows around it and slowly brings it towards
+  // the middle of the screen, never letting a picture edge come inside the screen.
   const INTRO_ART = { mastaba: "art/intro/mastaba.jpg", djoser: "art/intro/djoser.jpg", ziggurat: "art/intro/ziggurat.jpg", liongate: "art/intro/liongate.jpg", karnak: "art/intro/karnak.jpg",
     ishtar: "art/intro/ishtar.jpg", parthenon: "art/intro/parthenon.jpg", mausoleum: "art/intro/mausoleum.jpg", pharos: "art/intro/pharos.jpg", valens: "art/intro/valens.jpg" };
   const introImg = {}; for (const k in INTRO_ART) introImg[k] = Object.assign(new Image(), { src: INTRO_ART[k] });
-  const INTRO_ZOOM = 0.012, INTRO_FADE_IN = 0.5, INTRO_FADE_OUT = 0.8; // zoom: 1.2% bigger each second
+  const INTRO_FOCUS = { mastaba: [0.620, 0.594], djoser: [0.624, 0.326], ziggurat: [0.633, 0.188], liongate: [0.633, 0.659], karnak: [0.514, 0.776],
+    ishtar: [0.531, 0.652], parthenon: [0.502, 0.553], mausoleum: [0.410, 0.118], pharos: [0.565, 0.813], valens: [0.192, 0.459] };
+  const INTRO_ZOOM = 0.012, INTRO_PAN = 0.04, INTRO_FADE_IN = 0.5, INTRO_FADE_OUT = 0.8; // zoom: 1.2% bigger each second; the focus moves 4% of the way to the middle each second
   let intro = null;
   function drawIntro() {
     const c = voice.cur, on = mode === "build" && c && c.cue && c.cue.id === "site-intro";
@@ -3778,8 +3782,12 @@
     if (mode !== "build" || (intro.end != null && cueClock - intro.end > INTRO_FADE_OUT)) { intro = null; return; }
     const img = introImg[intro.key]; if (!img || !img.naturalWidth) return;
     const t = cueClock - intro.t0, a = Math.min(1, t / INTRO_FADE_IN, intro.end == null ? 1 : 1 - (cueClock - intro.end) / INTRO_FADE_OUT);
-    const k = Math.max(cssWidth / img.naturalWidth, cssHeight / img.naturalHeight) * (1 + INTRO_ZOOM * t), w = img.naturalWidth * k, h = img.naturalHeight * k;
-    ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.drawImage(img, (cssWidth - w) / 2, (cssHeight - h) / 2, w, h); ctx.restore();
+    const k0 = Math.max(cssWidth / img.naturalWidth, cssHeight / img.naturalHeight), k = k0 * (1 + INTRO_ZOOM * t), w = img.naturalWidth * k, h = img.naturalHeight * k;
+    const [fx, fy] = INTRO_FOCUS[intro.key] || [0.5, 0.5], s = Math.min(1, INTRO_PAN * t);
+    const sx0 = (cssWidth - img.naturalWidth * k0) / 2 + fx * img.naturalWidth * k0, sy0 = (cssHeight - img.naturalHeight * k0) / 2 + fy * img.naturalHeight * k0; // the focus on screen at the start
+    const sx = sx0 + (cssWidth / 2 - sx0) * s, sy = sy0 + (cssHeight / 2 - sy0) * s;
+    const x = Math.min(0, Math.max(cssWidth - w, sx - fx * w)), y = Math.min(0, Math.max(cssHeight - h, sy - fy * h)); // grown around the focus, edges kept outside the screen
+    ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.drawImage(img, x, y, w, h); ctx.restore();
   }
   function drawCues() {
     const at = attention();
