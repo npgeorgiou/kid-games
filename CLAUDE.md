@@ -30,6 +30,7 @@ Authoritative brief: `docs/brief.txt` (full catalogue of 40 games, design princi
 - Don't run the same thing two ways (e.g. an isolated Node repro of a physics joint, then the same thing again in-browser) unless the first way gave an answer you don't trust. Pick one and trust it.
 - Replies: no restating the bug list back, no "here's what I checked," no step-by-step narration of the fix process. State what changed and why, in a few lines, then stop. Skip a remaining-work list unless something is actually left undone.
 - If a message asks a question, answer it and wait before coding.
+- When a message lists several things and one says "before you do work, do X" (or similar), do X first and send it to the owner (SendUserMessage) before any other tool call or work, then go on with the rest in the same turn (owner, 16 Nov: he asked for the building names first and got them only at the end).
 - Never invent rules, stats or mechanics. Unknown or unverified details are stated as unknown. Research historical details; do not guess them.
 - Change only what was asked. Fix bugs generically, not just the example mentioned.
 - Answers: short plain prose, no recap, no offers, no command output. English only.
