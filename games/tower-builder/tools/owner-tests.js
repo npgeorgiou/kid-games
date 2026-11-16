@@ -480,6 +480,22 @@
     }
   }
 
+  // --- owner 16 Nov, late, free play: "I cannot pull the lever down, from its left side". His build: two stone squares
+  // with a small stone between, a wooden drum on them, a 10 m plank across the drum, its right end on the ground. The hand
+  // takes the plank near its raised left end and pulls down 2 m in a second, as a mouse does (60 moves a second).
+  if (want("lever")) {
+    T.mode = "build"; T.startFree(); T.clearAllPieces(); if (T.fillPile) T.fillPile([]);
+    T.spawnPiece("square", X - 0.95, 0.503, 0, "stone"); T.spawnPiece("square", X + 0.95, 0.503, 0, "stone"); T.spawnPiece("abacus", X, 0.203, 0, "stone"); run(0.5);
+    T.spawnPiece("drum", X, 1.61, 0, "wood"); run(0.5);
+    const pl = T.spawnPiece("plank10", X + 0.3, 3.0, -0.3, "wood"); run(3);
+    const end = () => pl.body.getWorldPoint({ x: -4.6, y: 0 });
+    const a0 = pl.body.getAngle(), e0 = end(), g = { x: e0.x, y: e0.y };
+    T.startHold(pl, g, 92, 0, 0);
+    for (let k = 0; k < 120; k++) { pl.desired = { x: g.x, y: g.y - Math.min(2, k * 2 / 60) }; frame(1 / 60); }
+    const e1 = end(), down = e0.y - e1.y, turn = (pl.body.getAngle() - a0) * 180 / Math.PI, onDrum = Math.abs(pl.body.getPosition().x - X) < 4; T.releaseHold(92); run(1);
+    out.push(["lever: the plank's raised end pulled down 2 m", down > 1.5 && onDrum, "end went down " + down.toFixed(2) + " m, plank turned " + turn.toFixed(0) + " deg, still across the drum: " + onDrum]);
+  }
+
   // --- 1: the restart button on the map: everything as at the very beginning
   if (want("restart")) {
     T.mode = "map"; T.renderMap(0.016);

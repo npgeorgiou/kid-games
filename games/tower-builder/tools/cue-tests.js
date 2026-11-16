@@ -324,15 +324,27 @@
       if (!T.pieces.some((p) => p.defKey === "block" && p.material === "stone")) bad.push("the stone block did not come out");
       return [!bad.length, bad.join("; ") || "ok"];
     },
-    // owner 16 Nov night, 2: the first-time wood line plays like the mudbrick one: not while the teaching waits, then at the first wood picked up after it
-    "wood-first-pick": () => {
+    // owner 16 Nov, late: "that line plays as soon as the teaching ends, without another pickup??? by then the kid cant connect it ... make mudbrick as it was before, and make wood the same as mudbrick":
+    // the first mudbrick / first wood line is not said while the teaching waits, not said when the teaching ends, and is said at the next pick-up of that material
+    "first-pick-only-on-pickup": () => {
       const bad = [];
-      fresh(); start(0); T.onEnterSite(0); run(3);
-      const w0 = pileAt("wood", "block"); if (!w0) return [false, "no wood in the Mastaba pile"];
-      drag(w0, planAt(4)); run(3); if (said().includes(80)) bad.push("80 said while a teaching step waited");
-      T.cueMem().seq["first-site"] = "done"; T.active.length = 0; run(4); // the teaching over (its last step taken away)
-      if (!said().includes(80)) bad.push("80 not said once the teaching was over (" + said().join(",") + ")");
-      return [!bad.length, bad.join("; ") || said().join(",")];
+      for (const [mat, line] of [["wood", 80], ["mudbrick", 78]]) {
+        fresh(); start(0); T.onEnterSite(0); run(3);
+        const p0 = pileAt(mat, "block"); if (!p0) { bad.push("no " + mat + " block in the Mastaba pile"); continue; }
+        drag(p0, planAt(4)); run(3); if (said().includes(line)) bad.push(line + " said while a teaching step waited");
+        T.cueMem().seq["first-site"] = "done"; T.active.length = 0; run(6); // the teaching over (its last step taken away)
+        if (said().includes(line)) bad.push(line + " said when the teaching ended, without a pick-up");
+        const p1 = pileAt(mat, "block"); if (!p1) { bad.push("no second " + mat + " block"); continue; }
+        drag(p1, planAt(3)); run(3);
+        if (!said().includes(line)) bad.push(line + " not said at the next " + mat + " pick-up (" + said().join(",") + ")");
+      }
+      return [!bad.length, bad.join("; ") || "said only at a pick-up"];
+    },
+    // owner 16 Nov, late: the Mausoleum demo has two lines, one during the wrong way and one during the right way
+    "mausoleum-demo-two-lines": () => {
+      const st = T.CUE_TABLE.demos.mausoleum.steps, lines = st.map((o, i) => [o, i]).filter(([o]) => o[0] === "say" || o[0] === "tell"), readies = st.map((o, i) => [o, i]).filter(([o]) => o[0] === "ready").map(([, i]) => i);
+      const ok = lines.length === 2 && readies.length === 2 && lines[0][1] > readies[0] && lines[0][1] < readies[1] && lines[1][1] > readies[1];
+      return [ok, lines.map(([o]) => o[1]).join(",")];
     },
     // owner 16 Nov: ΔΙΔΑΣΚΑΛΙΑ unticked: no teaching steps or teaching lines at the first site (map welcome still said); ticked again, the teaching runs
     "teaching-off": () => {

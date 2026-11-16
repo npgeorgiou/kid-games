@@ -402,6 +402,18 @@
       ctx.lineWidth = 4; ctx.strokeStyle = "rgba(255, 248, 230, 0.9)"; ctx.strokeText(text, x, y); ctx.fillStyle = "#3c3226"; ctx.fillText(text, x, y);
       ctx.restore();
     },
+    // map taps (SECTION MAP, mapTap): one particle; kind water/sand/leaf/rock, size r px, life 1..0
+    mapTapBit(ctx, q) {
+      const a = Math.max(0, Math.min(1, q.life));
+      ctx.save(); ctx.translate(q.x, q.y);
+      if (q.kind === "ring") { ctx.strokeStyle = `rgba(235, 248, 255, ${a * 0.9})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(0, 0, q.r, q.r * 0.6, 0, 0, Math.PI * 2); ctx.stroke(); }
+      else if (q.kind === "drop") { ctx.fillStyle = `rgba(225, 242, 255, ${a})`; ctx.beginPath(); ctx.arc(0, 0, q.r, 0, Math.PI * 2); ctx.fill(); }
+      else if (q.kind === "sand") { ctx.fillStyle = `rgba(222, 190, 128, ${a * 0.55})`; ctx.beginPath(); ctx.arc(0, 0, q.r, 0, Math.PI * 2); ctx.fill(); }
+      else if (q.kind === "leaf") { ctx.rotate(q.a); ctx.fillStyle = `hsla(${q.hue}, 55%, 38%, ${a})`; ctx.beginPath(); ctx.ellipse(0, 0, q.r, q.r * 0.45, 0, 0, Math.PI * 2); ctx.fill(); }
+      else { ctx.rotate(q.a); ctx.fillStyle = `rgba(${q.grey}, ${q.grey - 8}, ${q.grey - 18}, ${a})`; ctx.strokeStyle = `rgba(60, 50, 40, ${a})`; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(-q.r, -q.r * 0.6); ctx.lineTo(q.r * 0.8, -q.r * 0.8); ctx.lineTo(q.r, q.r * 0.4); ctx.lineTo(-q.r * 0.3, q.r); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+      ctx.restore();
+    },
     // A finished site that is no longer whole (its headpiece out of place): see-through red; it is drawn as it is now.
     mapSiteBroken(ctx, x, y, r) {
       ctx.fillStyle = "rgba(224, 71, 59, 0.45)"; ctx.strokeStyle = "#7a2a1e"; ctx.lineWidth = 3;
@@ -1114,8 +1126,8 @@
   //   Pulling by a point beyond the middle helps only the piece itself, less and less the more it pushes.
   // - The fingers hold the piece where it was grabbed (a pin, never slipping). The wrist resists turning like
   //   friction with a static and a sliding level (the standard Stribeck friction curve, with its viscous part): while
-  //   still it holds up to the pull the arm feels times the distance from the piece's middle to the edge of its middle
-  //   third (towards the grab point), once turning only WRIST_SLIP of that, less and less once the piece has
+  //   still it holds up to the weight and the pull the arm feels, each times the distance from the piece's middle to the
+  //   edge of its middle third (towards the grab point; the grab point's own distance if that is less), once turning only WRIST_SLIP of that, less and less once the piece has
   //   turned in the fingers (WRIST_TURNED, so it hangs straight rather than stopping part way), and it damps swinging (WRIST_DAMP of
   //   critical). A pull through the grab point turns the piece by at most the grab
   //   point's distance from the middle, so a piece grabbed in its middle third never turns however the hand moves
@@ -1198,10 +1210,12 @@
       const sh = mm > 1e-9 ? Math.min(1, (HAND_GRIP + pull * ARM_PULL) * W / Math.sqrt(mm), (-mh + Math.sqrt(Math.max(0, mh * mh + mm * (cap * cap - hw * hw)))) / mm) : 0;
       let Fx = sh * Mt * ax, Fy = sh * Mt * ay + hw;
       body.applyForce(planck.Vec2(Fx, Fy), p, true);
-      // the wrist: against the weight it holds as far as the middle third reaches towards the grab point (the piece's
-      // own size); against the hand's own speeding up and slowing down it holds fully (the brain keeps what it moves steady)
+      // the wrist: against the weight, and against the hand's own speeding up and slowing down (the brain keeps what it
+      // moves steady), it holds as far as the middle third reaches towards the grab point (the piece's own size); held in
+      // an outer third, a push that turns the piece about something it rests on turns it in the fingers (owner 16 Nov:
+      // a plank lying across a log, pulled down by its raised end, tips like a lever)
       const reach = r < 1e-6 ? 1e3 : r * Math.min(Math.abs(lx) > 1e-6 ? hx / 3 / Math.abs(lx) : 1e3, Math.abs(ly) > 1e-6 ? hy / 3 / Math.abs(ly) : 1e3);
-      const w = body.getAngularVelocity(), hold = reach * W + r * Math.hypot(Fx, Fy - W);
+      const w = body.getAngularVelocity(), hold = reach * W + Math.min(r, reach) * Math.hypot(Fx, Fy - W);
       // the fingers hold firmly only in the position they closed on; once the piece has turned in them, loosely
       const turned = Math.exp(-Math.abs(piece.grip.getJointAngle()) / WRIST_TURNED);
       piece.grip.setMaxMotorTorque(hold * turned * (WRIST_SLIP + (1 - WRIST_SLIP) * Math.exp(-Math.abs(w) / WRIST_GIVE)));
@@ -1487,7 +1501,11 @@
     "drag-wood": [["sounds/drag-wood.mp3", 0.6]],   // same for wood
     "music-map": [["sounds/music-map.mp3", 0.2]],
     "music-level": [["sounds/music-level.mp3", 0.17]],
-    drumroll: [["sounds/drumroll.mp3", 0.8]],    // sped up or slowed down to last as long as the test load is lowered
+    drumroll: [["sounds/drumroll.mp3", 0.8]],
+    "map-tap-water": [["sounds/map-tap-water.mp3", 0.8]], // a tap on the map: on water, sand, green land, mountains (SECTION MAP, mapTap)
+    "map-tap-sand": [["sounds/map-tap-sand.mp3", 0.8]],
+    "map-tap-green": [["sounds/map-tap-green.mp3", 0.8]],
+    "map-tap-rock": [["sounds/map-tap-rock.mp3", 0.8]],    // sped up or slowed down to last as long as the test load is lowered
     // collapse.mp3 is in src/sounds but not used yet
   };
   let actx = null;
@@ -3367,6 +3385,7 @@
       else SKIN.mapSite(ctx, m.x, m.y, r);
     }
     drawTravellers(v);
+    drawTapBits(dt);
     // Parent override: hold the top-left corner for three seconds to open (or re-lock) every site.
     if (cornerHold && performance.now() - cornerHold.t > 3000) { allOpen = !allOpen; cornerHold = null; }
     const fb = freePlayButton();
@@ -3382,6 +3401,62 @@
   }
   function onMapPointerDown(e) { // the buttons and sites are screen buttons (they act when let go); the hidden corner is held
     if (e.clientX < 90 && e.clientY < 90) cornerHold = { id: e.pointerId, t: performance.now() };
+    mapTap(e.clientX, e.clientY);
+  }
+  // A tap on the map shows what is under the finger: water splashes with rings, desert throws up a sand cloud,
+  // green land throws leaves, mountains throw stone chips; each with its own sound.
+  // What is under the finger: water where the land picture has none (or the picture is blue there, rivers and lakes);
+  // otherwise by the picture's colour around the tap: green, pale sand (desert), the rest (browns, greys) mountain.
+  let groundCols = null;
+  function groundAt(mx, my) {
+    if (!isLand(mx, my)) return "water";
+    if (!groundCols) {
+      if (!mapImg.naturalWidth) return "green";
+      try { const c = document.createElement("canvas"); c.width = MAP_W / 4; c.height = MAP_H / 4; const o = c.getContext("2d");
+        o.drawImage(mapImg, 0, 0, c.width, c.height); groundCols = { w: c.width, h: c.height, d: o.getImageData(0, 0, c.width, c.height).data }; }
+      catch (err) { return "green"; } // picture not readable (opened from disk): no colour, no guess beyond land
+    }
+    let r = 0, g = 0, b = 0, n = 0;
+    const cx = Math.round(mx / 4), cy = Math.round(my / 4);
+    for (let y = cy - 2; y <= cy + 2; y++) for (let x = cx - 2; x <= cx + 2; x++) {
+      if (x < 0 || y < 0 || x >= groundCols.w || y >= groundCols.h) continue;
+      const i = (y * groundCols.w + x) * 4; r += groundCols.d[i]; g += groundCols.d[i + 1]; b += groundCols.d[i + 2]; n++;
+    }
+    r /= n; g /= n; b /= n;
+    if (b > r + 15 && b >= g) return "water";
+    if (g >= r - 6 && g > b + 25) return "green";
+    if ((r + g + b) / 3 > 190 && r > b + 40) return "sand";
+    return "rock";
+  }
+  const tapBits = [];
+  function mapTap(x, y) {
+    const v = mapView(), kind = groundAt((x - v.ox) / v.k, (y - v.oy) / v.k), R = Math.random;
+    if (kind === "water") {
+      for (let k = 0; k < 3; k++) tapBits.push({ kind: "ring", x, y, r: 4, grow: 38 - k * 8, life: 1 + k * 0.25, fade: 1 });
+      for (let k = 0; k < 12; k++) { const a = R() * Math.PI * 2, sp = 40 + R() * 70; tapBits.push({ kind: "drop", x, y, vx: Math.cos(a) * sp, vy: -110 - R() * 120, g: 520, r: 3 + R() * 3, life: 1, fade: 1.4 }); }
+    } else if (kind === "sand") {
+      for (let k = 0; k < 14; k++) { const a = R() * Math.PI * 2, sp = 20 + R() * 55; tapBits.push({ kind: "sand", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 25, g: 0, drag: 2, r: 6 + R() * 7, grow: 16, life: 1, fade: 0.9 }); }
+    } else if (kind === "green") {
+      for (let k = 0; k < 10; k++) { const a = -Math.PI * (0.1 + 0.8 * R()), sp = 60 + R() * 70; tapBits.push({ kind: "leaf", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 160, drag: 1.5, r: 5 + R() * 4, a: R() * 6, spin: (R() - 0.5) * 10, hue: 85 + R() * 45, life: 1, fade: 0.9 }); }
+    } else {
+      for (let k = 0; k < 9; k++) { const a = -Math.PI * (0.05 + 0.9 * R()), sp = 80 + R() * 90; tapBits.push({ kind: "rock", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 600, r: 4.5 + R() * 4, a: R() * 6, spin: (R() - 0.5) * 14, grey: 120 + Math.round(R() * 60), life: 1, fade: 1.3 }); }
+      for (let k = 0; k < 4; k++) { const a = R() * Math.PI * 2; tapBits.push({ kind: "sand", x, y, vx: Math.cos(a) * 25, vy: -15, g: 0, drag: 2, r: 4 + R() * 3, grow: 10, life: 0.7, fade: 1 }); }
+    }
+    playSound("map-tap-" + kind, 1);
+  }
+  function drawTapBits(dt) {
+    for (let i = tapBits.length - 1; i >= 0; i--) {
+      const q = tapBits[i];
+      if (q.kind === "ring") q.r += q.grow * dt * 1.6;
+      else {
+        if (q.drag) { q.vx *= Math.exp(-q.drag * dt); q.vy *= Math.exp(-q.drag * dt); }
+        q.vy += q.g * dt; q.x += q.vx * dt; q.y += q.vy * dt;
+        if (q.spin) q.a += q.spin * dt;
+        if (q.grow) q.r += q.grow * dt;
+      }
+      q.life -= q.fade * dt;
+      if (q.life <= 0) tapBits.splice(i, 1); else SKIN.mapTapBit(ctx, q);
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -3516,7 +3591,7 @@
     const memo = {}, pts = (names) => (names || []).flatMap((n) => pointTargets(n, x, memo));
     if (c.glow) { setMark(key, true); glowFor(pts(c.points), c.glow); then(); return c; }
     if (c.say == null) { setMark(key, true); then(); return c; }
-    if (!seq && (teachingBusy() || stepWaiting())) { if (c.keep && !kept.some((k) => k.c === c)) kept.push({ c, x, sc: scene }); return null; } // while a teaching line plays or waits, or a step waits for the child, other lines are dropped (their first time stays unused); a "keep" line waits and plays after
+    if (!seq && (teachingBusy() || stepWaiting())) return null; // while a teaching line plays or waits, or a step waits for the child, other lines are dropped (their first time stays unused)
     const n = lineOf(c, x);
     const line = say(n, {
       cue: c, kind: c.kind || "queued", attention: c.attention || "none", targets: pts(c.points), touch: c.touch ? pts(c.touch) : null,
@@ -3583,11 +3658,8 @@
   function finish(c) { if (c.fin) return; c.fin = true; if (c.then) c.then(); }
   const waiting = (c) => !!((c.waitEvent || c.waitUntil) && !c.fin && !c.done && !(c.waitUntil && cond(c.waitUntil)));
   function gameNow() { return cueClock * 1000; } // game time in ms (the frame clock): input, the pile and the button go by it, so a test run repeats exactly
-  const kept = []; // first-time lines marked keep, dropped while the teaching talked or a step waited: played once the site's teaching is over (owner 16 Nov night: "after the tutorial cues are done")
   function cueTick(dt) {
     cueFrame++; cueClock += dt;
-    const teachingOn = () => { const q = currentLevel != null && sequenceOf(currentLevel), v = q && cueMem().seq[q]; return !!v && v !== "done"; };
-    if (kept.length && !test && !teachingOn() && !teachingBusy() && !stepWaiting()) { const k = kept.shift(); if (k.sc === scene && !isMarked(onceKey(k.c, k.x))) fire(k.c, k.x); }
     const now = cueClock, c = voice.cur;
     if (c) { // the line playing: its action done, or its time up (text box), ends it
       const u = (now - c.t0) / LINE_TIME;

@@ -371,7 +371,6 @@
   "117": "Η τελευταία καμαρόπετρα μπαίνει στην κορυφή και κλειδώνει την καμάρα.",
   "118": "Τώρα βγάζεις το καλούπι. Η καμάρα στέκει μόνη της!",
   "119": "Η καμάρα στέκει. Τώρα βγάλε το ξύλινο καλούπι!",
-  "121": "Στήριξε πρώτα το δοκάρι σε έναν ξύλινο στύλο. Όταν πατήσει η στέγη από πάνω, βγάζεις τον στύλο.",
   "124": "Δες τι γίνεται αν βάλουμε τρεις πέτρες πάνω σε έναν πλίνθο.",
   "125": "Τώρα τις ίδιες τρεις πέτρες πάνω σε μια πέτρα.",
   "126": "Δες τι γίνεται αν βάλουμε τέσσερις πλίνθους πάνω στον μεσαίο.",
@@ -673,9 +672,7 @@
    "topic": "Building",
    "kind": "teach",
    "if": ["material:mudbrick"],
-   "once": "ever",
-   "keep": true,
-   "keepNote": "Owner 16 Nov night: dropped while the teaching talks or a step waits, it plays once the site's teaching is over."
+   "once": "ever"
   },
   {
    "id": "pick-stone",
@@ -694,8 +691,6 @@
    "kind": "teach",
    "if": ["material:wood"],
    "once": "ever",
-   "keep": true,
-   "keepNote": "Owner 16 Nov night: dropped while the teaching talks or a step waits, it plays once the site's teaching is over.",
    "note": "The Mastaba pile already has wood (its wrong choice), so it can first play there."
   },
   {
@@ -1188,8 +1183,7 @@
     ["put", ["column", "wood", -3.2, 2.2, 0], 17, 18, 21, 22, 23],
     ["wait", 0.5],
     ["pull"],
-    ["wait", 0.5],
-    ["say", 121],
+    ["wait", 1],
     ["fade"]
    ],
    "note": "Owner 15 Nov night: the base, columns and capitals stand ready both times. Wrong: no wood; the left lintel goes on, then the right one, which does not stand and tips over. Right: a wooden post under the joint of the two lintels, both lintels sitting on it, three roof stones over them; then the post is tapped out and both lintels stand. The right lintel is set 15 cm off the left one (set touching, its end catches on the left lintel's end and it stays up)."
@@ -1206,7 +1200,7 @@
   }
  },
  "notes": [
-  "Kept lines (owner 16 Nov night): a first-time line marked keep (the first mudbrick, the first wood) that is dropped because the teaching talks or a step waits is not lost: it plays once that site's teaching is over (at once where there is none).",
+  "First mudbrick and first wood (owner 16 Nov, late): each plays the first time that material is picked up while no teaching line plays and no step waits; dropped otherwise (its first time stays for a later pick-up). Never played later without a pick-up: the child could not connect it. The Mausoleum demo has two lines only: one during the wrong way, one during the right way.",
   "Demo waits (owner 16 Nov night): the voice after a demo came about 2 s too late; every wait before a line in a demo is 2 s shorter (at least 0.5 s).",
   "ΔΙΔΑΣΚΑΛΙΑ (owner 16 Nov): the second tick in the gear box; unticked, no teaching steps and no teaching lines (with their glows and the ghost hand); every other line and the demos stay. Ticked by default; ΕΠΑΝΕΚΚΙΝΗΣΗ keeps it.",
   "ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ (owner 16 Nov): the gear button on the map opens a box with this tick; unticked, no site plays its demo, and every other cue stays as it is. Ticked by default; ΕΠΑΝΕΚΚΙΝΗΣΗ keeps it.",
