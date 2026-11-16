@@ -3763,6 +3763,24 @@
       SKIN.ghostHand(ctx, x, y, held, Math.min(1, t / 0.4, (3.6 - t) / 0.5) * 0.9);
     }
   }
+  // Intro pictures (owner 16 Nov): full screen while the site's welcome line plays, zooming in very slowly; they fade in,
+  // and fade out when the line ends (owner's pictures, src/art/intro/<site>.jpg).
+  const INTRO_ART = { mastaba: "art/intro/mastaba.jpg", djoser: "art/intro/djoser.jpg", ziggurat: "art/intro/ziggurat.jpg", liongate: "art/intro/liongate.jpg", karnak: "art/intro/karnak.jpg",
+    ishtar: "art/intro/ishtar.jpg", parthenon: "art/intro/parthenon.jpg", mausoleum: "art/intro/mausoleum.jpg", pharos: "art/intro/pharos.jpg", valens: "art/intro/valens.jpg" };
+  const introImg = {}; for (const k in INTRO_ART) introImg[k] = Object.assign(new Image(), { src: INTRO_ART[k] });
+  const INTRO_ZOOM = 0.012, INTRO_FADE_IN = 0.5, INTRO_FADE_OUT = 0.8; // zoom: 1.2% bigger each second
+  let intro = null;
+  function drawIntro() {
+    const c = voice.cur, on = mode === "build" && c && c.cue && c.cue.id === "site-intro";
+    if (on && (!intro || intro.line !== c)) intro = { line: c, key: siteKeyOf(currentLevel), t0: cueClock, end: null };
+    if (!intro) return;
+    if (!on && intro.end == null) intro.end = cueClock;
+    if (mode !== "build" || (intro.end != null && cueClock - intro.end > INTRO_FADE_OUT)) { intro = null; return; }
+    const img = introImg[intro.key]; if (!img || !img.naturalWidth) return;
+    const t = cueClock - intro.t0, a = Math.min(1, t / INTRO_FADE_IN, intro.end == null ? 1 : 1 - (cueClock - intro.end) / INTRO_FADE_OUT);
+    const k = Math.max(cssWidth / img.naturalWidth, cssHeight / img.naturalHeight) * (1 + INTRO_ZOOM * t), w = img.naturalWidth * k, h = img.naturalHeight * k;
+    ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.drawImage(img, (cssWidth - w) / 2, (cssHeight - h) / 2, w, h); ctx.restore();
+  }
   function drawCues() {
     const at = attention();
     if (at) SKIN.dim(ctx, cssWidth, cssHeight, shapesOf(at.holes).map((t) => shapePath(t.shape, 6)));
@@ -3931,6 +3949,7 @@
     ctx.restore();
     drawPressed();
     drawCues();
+    drawIntro();
     requestAnimationFrame(frame);
   }
   // Try sound right away (browsers may hold it until the first press or key; it then starts).
