@@ -733,6 +733,12 @@ Owner's words: "# make parent mode, that is without level demos (still we have a
 2. Free play button on the map: three stacked blocks, two below and one on top in the middle.
 3. `cues.md` (written by `tools/cues_doc.py`): every cue, teaching step, demo and line now starts with the explanation in bold, then its Greek text on the next line.
 
+## Current state, update 55 (16 Nov 2026): ΔΙΔΑΣΚΑΛΙΑ tick
+
+Owner's words: "add another checkbox for teaching cues, by default clicked" (after he unticked ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ and still got the Mastaba teaching: "i had it unclicked, and the 1st lvl cues played").
+
+- The gear box now has a second tick, ΔΙΔΑΣΚΑΛΙΑ, ticked by default, remembered, kept by ΕΠΑΝΕΚΚΙΝΗΣΗ. Unticked: no teaching steps (the Mastaba starts with no see-through hand and no step lines) and no teaching lines anywhere; every other line stays, and the demos follow their own tick. Ticked again later, the teaching starts where it was left. Tests: `harness.py cuetest teaching-off demos-off`; real-mouse check: untick, reload, enter the Mastaba, nothing teaches.
+
 ## Task list
 
 No open items.

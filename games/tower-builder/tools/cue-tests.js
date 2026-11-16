@@ -287,6 +287,18 @@
     // list 15 Nov, 17: «καμαρόπετρες», never «σφήνες»
     "words-arch-stones": () => { const b = Object.entries(T.CUE_TABLE.lines).filter(([, t]) => /σφήν/i.test(t)).map(([n]) => n); return [!b.length, b.join(",")]; },
 
+    // owner 16 Nov: ΔΙΔΑΣΚΑΛΙΑ unticked: no teaching steps or teaching lines at the first site (map welcome still said); ticked again, the teaching runs
+    "teaching-off": () => {
+      const bad = [], teachLines = new Set(T.CUE_TABLE.cues.filter((c) => c.kind === "teach" && typeof c.say === "number").map((c) => c.say));
+      fresh(); T.setTeach(false); T.mapStart(); run(3); if (!said().length) bad.push("no welcome on the map");
+      start(0); T.onEnterSite(0); run(20);
+      const t = said().filter((n) => teachLines.has(n)); if (t.length) bad.push("teaching lines said: " + t.join(","));
+      if (T.active.some((s) => s.seq)) bad.push("a teaching step waits");
+      fresh(); T.setTeach(true); start(0); T.onEnterSite(0); run(20);
+      if (!said().some((n) => teachLines.has(n))) bad.push("no teaching with the tick on");
+      T.setTeach(true);
+      return [!bad.length, bad.join("; ") || "tick off: no teaching, other lines play; tick on: teaching"];
+    },
     // owner 16 Nov: ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ unticked: no site plays its demo; the welcome line still plays; ticked again, the demo is back
     "demos-off": () => {
       const bad = [], k = "djoser";

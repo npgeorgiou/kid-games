@@ -792,7 +792,7 @@
     const out = [], circ = (id, x, y, r, act, enabled = true) => out.push({ id, x, y, r, act, enabled });
     if (mode === "map" && settingsOpen) { // the popup takes every touch: the tick box row and the X
       const P = settingsPanel();
-      out.push({ id: "demos", rect: { x: P.row.x, y: P.row.y, w: P.row.w, h: P.row.h }, act: () => setDemos(!useDemos), enabled: true });
+      for (const r of P.rows) out.push({ id: r.id, rect: { x: r.x, y: r.y, w: r.w, h: r.h }, act: () => r.set(!r.on()), enabled: true });
       circ("settings-close", P.close.x, P.close.y, P.close.size / 2, () => { settingsOpen = false; });
       return out;
     }
@@ -1300,6 +1300,12 @@
   const DEMO_KEY = "tower-builder-progress-v1" + "-demos";
   let useDemos = (() => { try { return localStorage.getItem(DEMO_KEY) !== "0"; } catch (err) { return true; } })();
   function setDemos(on) { useDemos = on; try { localStorage.setItem(DEMO_KEY, on ? "1" : "0"); } catch (err) { /* ignore */ } }
+  // ΔΙΔΑΣΚΑΛΙΑ on or off (owner 16 Nov): off, no teaching steps and no teaching lines (with their glows and the ghost
+  // hand); every other line, and the demos (their own tick), stay. Ticked by default; kept by ΕΠΑΝΕΚΚΙΝΗΣΗ.
+  const TEACH_KEY = "tower-builder-progress-v1" + "-teaching";
+  let useTeach = (() => { try { return localStorage.getItem(TEACH_KEY) !== "0"; } catch (err) { return true; } })();
+  function setTeach(on) { useTeach = on; try { localStorage.setItem(TEACH_KEY, on ? "1" : "0"); } catch (err) { /* ignore */ } }
+  const SETTINGS = [{ id: "demos", text: "ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ", on: () => useDemos, set: (v) => setDemos(v) }, { id: "teaching", text: "ΔΙΔΑΣΚΑΛΙΑ", on: () => useTeach, set: (v) => setTeach(v) }];
   let settingsOpen = false;
   function setTextures(on) { useTextures = on; try { localStorage.setItem(TEX_KEY, on ? "1" : "0"); } catch (err) { /* ignore */ } }
   function chipRGB(material) { if (!useTextures) return material === "mudbrick" ? "140, 98, 60" : stoneKey() === "marble" ? "200, 194, 182" : "120, 128, 135"; return TEX_RGB[material === "mudbrick" ? "mudbrick" : stoneKey()]; }
@@ -3306,20 +3312,25 @@
   }
   function settingsButton() { const fb = freePlayButton(); return { x: fb.x, y: fb.size * 0.75, size: fb.size }; }
   function settingsPanel() { // the popup: one big tick box with its words, and a big X in the corner
-    const m = Math.min(cssWidth, cssHeight), w = Math.min(cssWidth * 0.8, m * 1.3), h = m * 0.5, x = (cssWidth - w) / 2, y = (cssHeight - h) / 2, box = m * 0.12, X = m * 0.13;
-    return { x, y, w, h, box, row: { x: x + w * 0.08, y: y + h / 2 - box / 2 - h * 0.02, w: w * 0.84, h: box }, close: { x: x + w - X * 0.35, y: y + X * 0.35, size: X } };
+    const m = Math.min(cssWidth, cssHeight), w = Math.min(cssWidth * 0.8, m * 1.3), h = m * 0.66, x = (cssWidth - w) / 2, y = (cssHeight - h) / 2, box = m * 0.12, X = m * 0.13;
+    const rows = SETTINGS.map((it, i) => Object.assign({ x: x + w * 0.08, y: y + h * (0.33 + i * 0.36) - box / 2, w: w * 0.84, h: box }, it));
+    return { x, y, w, h, box, rows, close: { x: x + w - X * 0.35, y: y + X * 0.35, size: X } };
   }
   function drawSettings() {
-    const P = settingsPanel(), r = P.row, b = P.box;
+    const P = settingsPanel(), b = P.box;
     ctx.save(); ctx.fillStyle = "rgba(0, 0, 0, 0.55)"; ctx.fillRect(0, 0, cssWidth, cssHeight);
     ctx.fillStyle = "#f3e9d2"; ctx.strokeStyle = "#3c3226"; ctx.lineWidth = 6;
     ctx.beginPath(); ctx.roundRect(P.x, P.y, P.w, P.h, b * 0.3); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#fff"; ctx.lineWidth = 7; ctx.beginPath(); ctx.roundRect(r.x, r.y, b, b, b * 0.15); ctx.fill(); ctx.stroke();
-    if (useDemos) { ctx.strokeStyle = "#4f8a3c"; ctx.lineWidth = b * 0.16; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.beginPath(); ctx.moveTo(r.x + b * 0.2, r.y + b * 0.52); ctx.lineTo(r.x + b * 0.42, r.y + b * 0.75); ctx.lineTo(r.x + b * 0.82, r.y + b * 0.25); ctx.stroke(); }
-    ctx.fillStyle = "#3c3226"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
     let fs = b * 0.62; ctx.font = "bold " + Math.round(fs) + "px sans-serif";
-    const room = r.w - b * 1.3, tw = ctx.measureText("ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ").width; if (tw > room) { fs *= room / tw; ctx.font = "bold " + Math.round(fs) + "px sans-serif"; }
-    ctx.fillText("ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ", r.x + b * 1.3, r.y + b / 2);
+    for (const r of P.rows) { const tw = ctx.measureText(r.text).width, room = r.w - b * 1.3; if (tw > room) fs = Math.min(fs, b * 0.62 * room / tw); }
+    for (const r of P.rows) {
+    ctx.save(); ctx.strokeStyle = "#3c3226";
+    ctx.fillStyle = "#fff"; ctx.lineWidth = 7; ctx.beginPath(); ctx.roundRect(r.x, r.y, b, b, b * 0.15); ctx.fill(); ctx.stroke();
+    if (r.on()) { ctx.strokeStyle = "#4f8a3c"; ctx.lineWidth = b * 0.16; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.beginPath(); ctx.moveTo(r.x + b * 0.2, r.y + b * 0.52); ctx.lineTo(r.x + b * 0.42, r.y + b * 0.75); ctx.lineTo(r.x + b * 0.82, r.y + b * 0.25); ctx.stroke(); }
+    ctx.fillStyle = "#3c3226"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.font = "bold " + Math.round(fs) + "px sans-serif";
+    ctx.fillText(r.text, r.x + b * 1.3, r.y + b / 2);
+    ctx.restore();
+    }
     const c = P.close; ctx.fillStyle = "#c0392b"; ctx.strokeStyle = "#3c3226"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(c.x, c.y, c.size / 2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.strokeStyle = "#fff"; ctx.lineWidth = c.size * 0.13; ctx.lineCap = "round"; const k = c.size * 0.2;
     ctx.beginPath(); ctx.moveTo(c.x - k, c.y - k); ctx.lineTo(c.x + k, c.y + k); ctx.moveTo(c.x + k, c.y - k); ctx.lineTo(c.x - k, c.y + k); ctx.stroke();
@@ -3480,7 +3491,8 @@
   function fire(c, x, seq) {
     const key = onceKey(c, x);
     const then = () => { if (c.after != null) say(c.after, { kind: "teach" }); if (seq) nextStep(seq, c.id); else if (c.then) cueEvent(c.then, x); };
-    if (c.do === "teaching") { setMark(key, true); runSequence(sequenceOf(x.site)); return c; }
+    if (c.do === "teaching") { if (!useTeach) return c; setMark(key, true); runSequence(sequenceOf(x.site)); return c; } // ΔΙΔΑΣΚΑΛΙΑ off: no steps (they wait, unmarked, for when it is ticked again)
+    if (!useTeach && c.kind === "teach") { then(); return c; } // ΔΙΔΑΣΚΑΛΙΑ off: a teaching line is not said (and stays unused); what follows it goes on
     if (c.do === "demo") { setMark(key, true); if (useDemos) startDemo(siteKeyOf(x.site), then); else then(); return c; } // ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ off: no demo, the rest goes on
     const memo = {}, pts = (names) => (names || []).flatMap((n) => pointTargets(n, x, memo));
     if (c.glow) { setMark(key, true); glowFor(pts(c.points), c.glow); then(); return c; }
@@ -3526,6 +3538,7 @@
   // --- part 1: the voice
   function say(n, o = {}) {
     const c = Object.assign({ n, kind: "queued", attention: "none", frame: cueFrame, scene, at: cueClock + (o.after || 0) }, o);
+    if (c.kind === "teach" && !useTeach) return null; // ΔΙΔΑΣΚΑΛΙΑ off
     const teachNow = voice.queue.some((q) => q.frame === cueFrame && q.kind === "teach");
     if (n == null || !(VOICE_FILES[n] || CUE_TABLE.lines[n]) || (n === 86 && !VOICE_FILES[n]) || (c.kind === "bg" && (voice.cur || voice.queue.length)) || (c.kind !== "teach" && teachNow)) return null;
     if (c.kind === "teach") voice.queue = voice.queue.filter((q) => { const drop = q.frame === cueFrame && q.kind !== "teach"; if (drop) setMark(q.onceKey, false); return !drop; });
