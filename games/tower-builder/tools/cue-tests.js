@@ -287,6 +287,15 @@
     // list 15 Nov, 17: «καμαρόπετρες», never «σφήνες»
     "words-arch-stones": () => { const b = Object.entries(T.CUE_TABLE.lines).filter(([, t]) => /σφήν/i.test(t)).map(([n]) => n); return [!b.length, b.join(",")]; },
 
+    // owner 16 Nov: ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ unticked: no site plays its demo; the welcome line still plays; ticked again, the demo is back
+    "demos-off": () => {
+      const bad = [], k = "djoser";
+      fresh(); noTeach(); T.setDemos(false); let i = lvl(k); start(i); T.onEnterSite(i); for (let n = 0; n < 100; n++) { run(0.1); if (T.demo) { bad.push("a demo played with the tick off"); break; } }
+      if (!said().length) bad.push("no line at all at the site");
+      fresh(); noTeach(); T.setDemos(true); i = lvl(k); start(i); T.onEnterSite(i); for (let n = 0; n < 100 && !T.demo; n++) run(0.1);
+      if (!T.demo) bad.push("no demo with the tick on");
+      return [!bad.length, bad.join("; ") || "tick off: no demo, lines still play; tick on: demo"];
+    },
     // list 15 Nov, 3b, 11, 18, 20, 21: demos (wrong then right with the same load; supports out by three taps; Valens none)
     "demos": () => {
       const bad = [], D = T.CUE_TABLE.demos;

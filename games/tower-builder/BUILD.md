@@ -725,6 +725,14 @@ Results (`python3 tools/harness.py cuetest`, 29 tests, all pass):
 - Mausoleum wrong way: the left lintel, then the right one; the right one tips over onto its column. It is set 15 cm off the left one: set touching, its end catches on the left lintel's end and it stays up.
 - Mausoleum right way: a wooden post under the joint of the two lintels, both lintels on it, three roof stones; the post tapped out, both stand. Test demos (also checks the post is gone at the end). Picture owner-shots/mausoleum-demo-15nov.png.
 
+## Current state, update 54 (16 Nov 2026): settings, sandbox icon, cues.md layout
+
+Owner's words: "# make parent mode, that is without level demos (still we have all the other cues, just not the level demos), with a settings gear button that opens a popup panel with that checkbox option, and an X to close the popup, all big and bold, remember its for kids, and the text should say (of the option) VOITHITIKA VIDEO # better sandbox main screen icon, make 3 stacked blocks, 2 bot 1 mid. # change https://github.com/npgeorgiou/kid-games/blob/main/games/tower-builder/cues.md so that the explanation of when it plays is first, in bold, and then teh greek text. this way I cn know what I read and make small changes on the fly as I speak"
+
+1. Settings: a gear button top right on the map opens a big box with one tick box, ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ, and a big red X. Unticked, no site plays its demo; every other cue stays. Ticked by default, remembered, kept by ΕΠΑΝΕΚΚΙΝΗΣΗ. The gear and its box can always be touched, also while a cue darkens the map. Test: `harness.py cuetest demos-off`; real-mouse check of gear, tick and X.
+2. Free play button on the map: three stacked blocks, two below and one on top in the middle.
+3. `cues.md` (written by `tools/cues_doc.py`): every cue, teaching step, demo and line now starts with the explanation in bold, then its Greek text on the next line.
+
 ## Task list
 
 No open items.

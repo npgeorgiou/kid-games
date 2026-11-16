@@ -384,6 +384,15 @@
         ctx.beginPath(); ctx.arc(0, 0, R, a, Math.PI * 1.3); ctx.stroke();
         const ex = Math.cos(a) * R, ey = Math.sin(a) * R, tx = Math.sin(a), ty = -Math.cos(a), nx = Math.cos(a), ny = Math.sin(a); // along the arc onward; outward
         ctx.beginPath(); ctx.moveTo(ex + tx * s * 0.45, ey + ty * s * 0.45); ctx.lineTo(ex + nx * s * 0.36, ey + ny * s * 0.36); ctx.lineTo(ex - nx * s * 0.36, ey - ny * s * 0.36); ctx.closePath(); ctx.fill();
+      } else if (name === "sandbox") {
+        // free play (owner 16 Nov): three stacked blocks, two below and one on top in the middle
+        const w = s * 0.92, h = s * 0.56, y0 = s * 0.1;
+        for (const [bx, by] of [[-w, y0], [0, y0], [-w / 2, y0 - h]]) { ctx.fillRect(bx, by, w, h); ctx.strokeRect(bx, by, w, h); }
+      } else if (name === "gear") {
+        // settings (owner 16 Nov): a cog with eight teeth and a hole
+        ctx.beginPath();
+        for (let k = 0; k < 16; k++) { const a0 = (k / 16) * Math.PI * 2, a1 = ((k + 1) / 16) * Math.PI * 2, R = k % 2 ? s * 0.68 : s * 0.92; ctx.arc(0, 0, R, a0, a1); }
+        ctx.closePath(); ctx.moveTo(s * 0.3, 0); ctx.arc(0, 0, s * 0.3, 0, Math.PI * 2, true); ctx.fill("evenodd"); ctx.stroke();
       }
       ctx.restore();
     },
@@ -781,7 +790,15 @@
   let btnDown = null;
   function screenButtons() {
     const out = [], circ = (id, x, y, r, act, enabled = true) => out.push({ id, x, y, r, act, enabled });
+    if (mode === "map" && settingsOpen) { // the popup takes every touch: the tick box row and the X
+      const P = settingsPanel();
+      out.push({ id: "demos", rect: { x: P.row.x, y: P.row.y, w: P.row.w, h: P.row.h }, act: () => setDemos(!useDemos), enabled: true });
+      circ("settings-close", P.close.x, P.close.y, P.close.size / 2, () => { settingsOpen = false; });
+      return out;
+    }
     if (mode === "map") {
+      const gb = settingsButton();
+      circ("settings", gb.x, gb.y, gb.size / 2, () => { settingsOpen = true; });
       const tb = texButton(), fb = freePlayButton(), rb = restartButton(), v = mapView();
       circ("tex", tb.x, tb.y, tb.size / 2, () => setTextures(!useTextures));
       circ("free", fb.x, fb.y, fb.size / 2, startFree);
@@ -1279,6 +1296,11 @@
   const stoneKey = () => STONE_OF[texSite || (currentLevel != null ? LEVELS[currentLevel].key : null)] || "silver-sandstone";
   const TEX_KEY = "tower-builder-progress-v1" + "-textures"; // next to the saved progress (SAVE_KEY), but kept by ΕΠΑΝΕΚΚΙΝΗΣΗ
   let useTextures = (() => { try { return localStorage.getItem(TEX_KEY) === "1"; } catch (err) { return false; } })();
+  // Settings (owner 16 Nov): ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ on or off; off, no site plays its demo (every other cue stays). Kept by ΕΠΑΝΕΚΚΙΝΗΣΗ.
+  const DEMO_KEY = "tower-builder-progress-v1" + "-demos";
+  let useDemos = (() => { try { return localStorage.getItem(DEMO_KEY) !== "0"; } catch (err) { return true; } })();
+  function setDemos(on) { useDemos = on; try { localStorage.setItem(DEMO_KEY, on ? "1" : "0"); } catch (err) { /* ignore */ } }
+  let settingsOpen = false;
   function setTextures(on) { useTextures = on; try { localStorage.setItem(TEX_KEY, on ? "1" : "0"); } catch (err) { /* ignore */ } }
   function chipRGB(material) { if (!useTextures) return material === "mudbrick" ? "140, 98, 60" : stoneKey() === "marble" ? "200, 194, 182" : "120, 128, 135"; return TEX_RGB[material === "mudbrick" ? "mudbrick" : stoneKey()]; }
   const texPat = {};
@@ -3282,6 +3304,27 @@
     const size = Math.max(70, Math.min(cssWidth, cssHeight) * 0.14);
     return { x: cssWidth - size * 0.75, y: cssHeight - size * 0.75, size };
   }
+  function settingsButton() { const fb = freePlayButton(); return { x: fb.x, y: fb.size * 0.75, size: fb.size }; }
+  function settingsPanel() { // the popup: one big tick box with its words, and a big X in the corner
+    const m = Math.min(cssWidth, cssHeight), w = Math.min(cssWidth * 0.8, m * 1.3), h = m * 0.5, x = (cssWidth - w) / 2, y = (cssHeight - h) / 2, box = m * 0.12, X = m * 0.13;
+    return { x, y, w, h, box, row: { x: x + w * 0.08, y: y + h / 2 - box / 2 - h * 0.02, w: w * 0.84, h: box }, close: { x: x + w - X * 0.35, y: y + X * 0.35, size: X } };
+  }
+  function drawSettings() {
+    const P = settingsPanel(), r = P.row, b = P.box;
+    ctx.save(); ctx.fillStyle = "rgba(0, 0, 0, 0.55)"; ctx.fillRect(0, 0, cssWidth, cssHeight);
+    ctx.fillStyle = "#f3e9d2"; ctx.strokeStyle = "#3c3226"; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.roundRect(P.x, P.y, P.w, P.h, b * 0.3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#fff"; ctx.lineWidth = 7; ctx.beginPath(); ctx.roundRect(r.x, r.y, b, b, b * 0.15); ctx.fill(); ctx.stroke();
+    if (useDemos) { ctx.strokeStyle = "#4f8a3c"; ctx.lineWidth = b * 0.16; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.beginPath(); ctx.moveTo(r.x + b * 0.2, r.y + b * 0.52); ctx.lineTo(r.x + b * 0.42, r.y + b * 0.75); ctx.lineTo(r.x + b * 0.82, r.y + b * 0.25); ctx.stroke(); }
+    ctx.fillStyle = "#3c3226"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    let fs = b * 0.62; ctx.font = "bold " + Math.round(fs) + "px sans-serif";
+    const room = r.w - b * 1.3, tw = ctx.measureText("ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ").width; if (tw > room) { fs *= room / tw; ctx.font = "bold " + Math.round(fs) + "px sans-serif"; }
+    ctx.fillText("ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ", r.x + b * 1.3, r.y + b / 2);
+    const c = P.close; ctx.fillStyle = "#c0392b"; ctx.strokeStyle = "#3c3226"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(c.x, c.y, c.size / 2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = c.size * 0.13; ctx.lineCap = "round"; const k = c.size * 0.2;
+    ctx.beginPath(); ctx.moveTo(c.x - k, c.y - k); ctx.lineTo(c.x + k, c.y + k); ctx.moveTo(c.x + k, c.y - k); ctx.lineTo(c.x - k, c.y + k); ctx.stroke();
+    ctx.restore();
+  }
   function renderMap(dt) {
     ctx.fillStyle = "#4f9ad0"; ctx.fillRect(0, 0, cssWidth, cssHeight);
     const v = mapView();
@@ -3303,7 +3346,9 @@
     // Parent override: hold the top-left corner for three seconds to open (or re-lock) every site.
     if (cornerHold && performance.now() - cornerHold.t > 3000) { allOpen = !allOpen; cornerHold = null; }
     const fb = freePlayButton();
-    SKIN.button(ctx, "block", fb.x, fb.y, fb.size, false);
+    SKIN.button(ctx, "sandbox", fb.x, fb.y, fb.size, false);
+    const gb = settingsButton();
+    SKIN.button(ctx, "gear", gb.x, gb.y, gb.size, false);
     const rb = restartButton();
     SKIN.button(ctx, "restart", rb.x, rb.y, rb.size, false);
     SKIN.buttonLabel(ctx, "ΕΠΑΝΕΚΚΙΝΗΣΗ", rb.x, rb.y + rb.size * 0.55, rb.size);
@@ -3436,7 +3481,7 @@
     const key = onceKey(c, x);
     const then = () => { if (c.after != null) say(c.after, { kind: "teach" }); if (seq) nextStep(seq, c.id); else if (c.then) cueEvent(c.then, x); };
     if (c.do === "teaching") { setMark(key, true); runSequence(sequenceOf(x.site)); return c; }
-    if (c.do === "demo") { setMark(key, true); startDemo(siteKeyOf(x.site), then); return c; }
+    if (c.do === "demo") { setMark(key, true); if (useDemos) startDemo(siteKeyOf(x.site), then); else then(); return c; } // ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ off: no demo, the rest goes on
     const memo = {}, pts = (names) => (names || []).flatMap((n) => pointTargets(n, x, memo));
     if (c.glow) { setMark(key, true); glowFor(pts(c.points), c.glow); then(); return c; }
     if (c.say == null) { setMark(key, true); then(); return c; }
@@ -3683,6 +3728,7 @@
   function cueBlocks(px, py) {
     lastInput = cueClock;
     if (tabHeldNow()) return false;
+    if (mode === "map") { const g = settingsButton(); if (settingsOpen || Math.hypot(px - g.x, py - g.y) <= g.size / 2) return false; } // the parent's gear and its box are never darkened away
     const at = attention();
     return !!at && !shapesOf(at.touch).some((t) => shapeHit(t.shape, px, py));
   }
@@ -3854,6 +3900,7 @@
       renderMap(dt);
       drawPressed();
       drawCues();
+      if (settingsOpen) { drawSettings(); drawPressed(); } // the settings box lies above everything, cues included
       requestAnimationFrame(frame);
       return;
     }
