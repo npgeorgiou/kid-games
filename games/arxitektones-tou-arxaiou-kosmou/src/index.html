@@ -2398,7 +2398,7 @@
   const QUAKE_HZ = 1.6;
   const TEST_FAST = 10, DRUM_LEAD = 1.5; // Ctrl test speed-up; seconds the drumroll may start before the load moves
   const DRUM_ROLL = 5.5; // s: the roll in drumroll.mp3; the rest of the file (to 10.3 s) is a quiet fade
-  const PHASE_TIME = { settle: 1.2, wind: 3.5, loadSettle: 1.5, quake: 3, pass: 3.5, fail: 3, why: 2 };
+  const PHASE_TIME = { settle: 1.2, settleLast: 0.6, wind: 3.5, loadSettle: 1.5, quake: 3, pass: 3.5, fail: 3, why: 2 };
 
   // Suggested builds (src/levels.js, made by tools/make-levels.py), in building order: [shape, material, x, y, angle]
   // in level coordinates. The quick build (Ctrl, then the button on the pile) builds these; the pile is made from them.
@@ -2797,6 +2797,7 @@
   function nextPhase(phase) {
     if (test.loop) { test.loop.stop(0.6); test.loop = null; }
     test.phase = phase; test.t = 0;
+    if (phase === "wind" || phase === "load" || phase === "quake") test.part = phase; // the part running now (or that just ran, while it settles)
     if (phase === "wind") test.loop = playSound("wind", 1, true);
     if (phase === "load") {
       spawnLoads();
@@ -2825,7 +2826,7 @@
   // Wait, then check; go on to `next` or stop with the reason shown.
   function settleThenCheck(next) { test.after = next; nextPhase("settle"); }
   function checkpoint() {
-    const part = test.phase === "load" ? "load" : test.after === "load" ? "wind" : test.after === "pass" ? "quake" : null; // the part that just ran
+    const part = test.part || null; // the part running or that just ran
     const c = runCheck();
     const badLoads = loads.filter((l) => !loadInPlace(l));
     if (test.broken.length) { // something broke: show where it was
@@ -2845,6 +2846,8 @@
   function testTick(dt) {
     if (!test) return;
     test.t += dt;
+    // something broke: the test fails at once, with its sound, not at the end of the part (owner 17 Nov: the failure came late)
+    if (test.broken.length && (test.phase === "wind" || test.phase === "load" || test.phase === "quake" || test.phase === "settle")) { checkpoint(); return; }
     const lv = currentLevel, T = test.t;
     if (test.phase === "supports") {
       if (test.toPull.length) {
@@ -2855,7 +2858,7 @@
         }
       } else settleThenCheck("wind");
     } else if (test.phase === "settle") {
-      if (T >= PHASE_TIME.settle && checkpoint()) {
+      if (T >= (test.after === "pass" ? PHASE_TIME.settleLast : PHASE_TIME.settle) && checkpoint()) { // after the earthquake a shorter wait, so the cheer comes soon after the shaking (owner 17 Nov)
         if (test.after === "pass") { nextPhase("pass"); celebrate(); playSound("cheer", 1); onWin(lv); }
         else enterPart(test.after);
       }
@@ -4075,10 +4078,20 @@
     if (out.ended) return out;
     const x = Object.assign({ site: currentLevel }, ctx);
     const hits = CUE_TABLE.cues.filter((c) => c.on === name && !isMarked(onceKey(c, x)) && (c.if || []).every((k) => cond(k, x)));
+    // what the child does wins (cues.json rules): a cue fired by the child's own action stops the cue playing, line and visuals together
+    if (hits.length && (CUE_TABLE.words.events[name] || {}).byChild) interruptCues();
     for (const c of hits) { const f = fire(c, x); if (f) out.fired.push(f); }
     return out;
   }
-  function stepWaiting() { return active.some((s) => waiting(s)); }
+  function interruptCues() { // the line playing and what it shows stop; lines waiting their turn are dropped (first times stay unused)
+    if (teachingBusy() || stepWaiting() || demo) return; // the first site's teaching and a demo are never cut
+    const c = voice.cur;
+    if (c) { c.fin = true; endLine(c); }
+    for (const q of voice.queue) setMark(q.onceKey, false);
+    voice.queue = [];
+    active = active.filter((a) => a.seq && waiting(a)); // glows, pointing and the ghost hand of what was playing go with it
+  }
+  function stepWaiting() { return active.some((s) => s.seq && waiting(s)); } // a teaching step (the first site's) waiting for the child
   function teachingBusy() { return (voice.cur && voice.cur.kind === "teach") || voice.queue.some((q) => q.kind === "teach"); }
   // fire one cue: its line (with what it points at, its hand, its wait), or its glow, or what it does
   function fire(c, x, seq) {
@@ -4096,7 +4109,7 @@
       cue: c, kind: c.kind || "queued", attention: c.attention || "none", targets: pts(c.points), touch: c.touch ? pts(c.touch) : null,
       act: showOf(c.show, x, memo), waitEvent: c.wait && !c.wait.startsWith("until:") ? c.wait : null,
       waitUntil: c.wait && c.wait.startsWith("until:") ? c.wait.slice(6) : null, needs: c.needs, seq,
-      duringTest: c.during === "test", after: c.delay ? soundLength(c.delay.slice(6)) : 0, onceKey: key, then,
+      duringTest: c.during === "test", after: typeof c.delay === "number" ? c.delay : c.delay ? soundLength(c.delay.slice(6)) : 0, onceKey: key, then,
     });
     if (line) setMark(key, true);
     return line;
@@ -4408,7 +4421,7 @@
   function mapStart() { newScene(); cueEvent("map-start"); cueEvent("map-shown"); }
   function lockedTap() { cueEvent("tap-locked-site"); }
   function restartPress() { if (confirmUntil > cueClock) { restartConfirm(); return; } confirmUntil = cueClock + CONFIRM_TIME; cueEvent("press-restart"); } // a second press within CONFIRM_TIME erases
-  function restartConfirm() { restartAll(); mapStart(); }
+  function restartConfirm() { restartAll(); showLoadScreen(mapStart); } // owner 17 Nov: the load screen again, so the child sees the game start over
   function onGoMap(i, leftTest) {
     cueEvent("go-map");
     newScene();
@@ -4564,14 +4577,18 @@
   startAudio();
   for (const ev of ["pointerdown", "touchstart", "mousedown", "keydown"]) window.addEventListener(ev, startAudio, { capture: true });
   // Load screen (owner 17 Nov): the game's title picture for two seconds, then it fades into the map and the game starts.
-  const LOAD_SCREEN_MS = 2000; // the harness sets 0
-  if (LOAD_SCREEN_MS > 0) {
+  const LOAD_SCREEN_MS = 2000; // the harness sets 0 for the start; the restart shows it for RESTART_SCREEN_MS
+  const RESTART_SCREEN_MS = 2000;
+  function showLoadScreen(then, ms = RESTART_SCREEN_MS) { // the title picture over everything, then it fades and `then` starts
     const ld = document.createElement("div");
+    ld.id = "load-screen";
     ld.style.cssText = "position:fixed;inset:0;z-index:50;background:#000 center/cover no-repeat;transition:opacity .5s;touch-action:none";
     ld.style.backgroundImage = "url(" + "art/loading.jpg" + ")";
     document.body.appendChild(ld);
-    setTimeout(() => { mapStart(); requestAnimationFrame(frame); ld.style.opacity = "0"; setTimeout(() => ld.remove(), 600); }, LOAD_SCREEN_MS);
-  } else { mapStart(); requestAnimationFrame(frame); }
+    setTimeout(() => { then(); ld.style.opacity = "0"; setTimeout(() => ld.remove(), 600); }, ms);
+  }
+  if (LOAD_SCREEN_MS > 0) showLoadScreen(() => { mapStart(); requestAnimationFrame(frame); }, LOAD_SCREEN_MS);
+  else { mapStart(); requestAnimationFrame(frame); }
 })();
 </script>
 </body>

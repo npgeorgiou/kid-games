@@ -21,12 +21,16 @@
   "The test button is red until the building is ready, then green with a 'go' triangle; open sites are yellow, damaged ones red.",
   "The parent override (Ctrl) has no voice line.",
   "The map: the open site glows every 60 s (no voice); its voice line plays the first time it opens and every time the child comes back from the site before it, 2 s after the win line ends. A flavour line plays every 30 s of quiet.",
-  "The restart: the first press says what it does; a second press while its line lasts erases everything."
+  "The restart: the first press says what it does; a second press while its line lasts erases everything.",
+  "A cue is one row: its line (voice) and what it shows (glow, pointing, ghost hand, darkening) start and stop together.",
+  "What the child does wins (owner 17 Nov): when an event the child causes (byChild in Events) fires a cue, whatever cue is playing stops, line and visuals, lines waiting their turn are dropped (their first times stay unused), and the new one starts at once. Not while a teaching line plays or a step waits for the child (the rule above): the first site's teaching is never cut.",
+  "Teaching (the ΔΙΔΑΣΚΑΛΙΑ tick) is only the first site's steps and the first explanation of each part of the test (owner 17 Nov); every other line plays with the tick off."
  ],
  "words": {
   "events": {
    "map-start": {
     "desc": "the map shows at the start of the game, or after the restart",
+    "byChild": true,
     "where": "MAIN LOOP start; restart confirm (MAP)"
    },
    "map-shown": {
@@ -39,10 +43,12 @@
    },
    "tap-locked-site": {
     "desc": "the child presses a locked site",
+    "byChild": true,
     "where": "screenButtons (POINTER HANDLING)"
    },
    "press-restart": {
     "desc": "the child presses the restart button",
+    "byChild": true,
     "where": "screenButtons"
    },
    "damage-flash": {
@@ -59,10 +65,12 @@
    },
    "leave-test": {
     "desc": "the child goes to the map in the middle of a test, before a pass",
+    "byChild": true,
     "where": "goMap"
    },
    "enter-site": {
     "desc": "the child enters a site from the map",
+    "byChild": true,
     "where": "screenButtons (a site)"
    },
    "intro-done": {
@@ -75,22 +83,27 @@
    },
    "pickup": {
     "desc": "the child picks up a piece",
+    "byChild": true,
     "where": "startHold, startPileHold"
    },
    "tap3": {
     "desc": "three quick taps send a piece back to the pile",
+    "byChild": true,
     "where": "onPointerUp"
    },
    "press-broom": {
     "desc": "the child presses the shovel",
+    "byChild": true,
     "where": "pressButton"
    },
    "press-test": {
     "desc": "the child presses the test button (red or green)",
+    "byChild": true,
     "where": "startTest"
    },
    "press-red": {
     "desc": "the child presses the red test button (building not ready)",
+    "byChild": true,
     "where": "startTest"
    },
    "crumble": {
@@ -111,6 +124,7 @@
    },
    "test-start": {
     "desc": "the test starts (green button)",
+    "byChild": true,
     "where": "startTest"
    },
    "test-part": {
@@ -139,6 +153,7 @@
    },
    "go-map": {
     "desc": "the child goes back to the map",
+    "byChild": true,
     "where": "goMap"
    },
    "idle": {
@@ -159,10 +174,12 @@
    },
    "drag-back": {
     "desc": "the child carries a piece from the building into the pile",
+    "byChild": true,
     "where": "worldToPile, onPointerUp"
    },
    "placed-in-plan": {
     "desc": "the child lets go of a piece over the building",
+    "byChild": true,
     "where": "releaseHold"
    }
   },
@@ -491,7 +508,6 @@
    "on": "welcomed-first",
    "say": 92,
    "topic": "Map",
-   "kind": "teach",
    "attention": "point",
    "points": ["site:next"],
    "show": "tap site:next",
@@ -510,7 +526,6 @@
    "on": "tap-locked-site",
    "say": 13,
    "topic": "Map",
-   "kind": "teach",
    "points": ["site:next"]
   },
   {
@@ -526,7 +541,6 @@
    "on": "map-shown",
    "say": 39,
    "topic": "Map",
-   "kind": "teach",
    "if": ["has-damaged"],
    "once": "ever",
    "points": ["site:damaged"],
@@ -648,7 +662,6 @@
    "on": "plan-shown",
    "say": 109,
    "topic": "Entering a site",
-   "kind": "teach",
    "if": ["has-openings", "first-openings-site"],
    "once": "ever",
    "points": ["plan:openings"],
@@ -669,7 +682,6 @@
    "on": "pickup",
    "say": 78,
    "topic": "Building",
-   "kind": "teach",
    "if": ["material:mudbrick"],
    "once": "ever"
   },
@@ -678,7 +690,6 @@
    "on": "pickup",
    "say": 79,
    "topic": "Building",
-   "kind": "teach",
    "if": ["material:stone"],
    "once": "ever"
   },
@@ -687,7 +698,6 @@
    "on": "pickup",
    "say": 80,
    "topic": "Building",
-   "kind": "teach",
    "if": ["material:wood"],
    "once": "ever",
    "note": "The Mastaba pile already has wood (its wrong choice), so it can first play there."
@@ -697,7 +707,6 @@
    "on": "crumble",
    "say": 72,
    "topic": "Building",
-   "kind": "teach",
    "once": "ever",
    "attention": "freeze",
    "points": ["broken-piece"],
@@ -717,7 +726,6 @@
    "on": "snap",
    "say": 73,
    "topic": "Building",
-   "kind": "teach",
    "once": "ever",
    "attention": "freeze",
    "points": ["broken-piece"],
@@ -737,7 +745,6 @@
    "on": "pile-empty-red",
    "say": 107,
    "topic": "Building",
-   "kind": "teach",
    "once": "ever",
    "points": ["button:broom"]
   },
@@ -746,7 +753,6 @@
    "on": "form-only-left",
    "say": 119,
    "topic": "Building",
-   "kind": "teach",
    "once": "ever",
    "attention": "point",
    "points": ["form"],
@@ -759,7 +765,6 @@
    "on": "press-red",
    "say": 70,
    "topic": "Building",
-   "kind": "teach",
    "points": ["button:test"],
    "note": "With the not-ready sound and the red marks."
   },
@@ -811,7 +816,6 @@
    "on": "test-fail",
    "say": 74,
    "topic": "Test",
-   "kind": "teach",
    "if": ["part:wind"],
    "once": "ever",
    "during": "test",
@@ -833,7 +837,6 @@
    "on": "test-fail",
    "say": 75,
    "topic": "Test",
-   "kind": "teach",
    "if": ["part:load", "not why:headpiece"],
    "once": "ever",
    "during": "test",
@@ -866,7 +869,6 @@
    "on": "test-fail",
    "say": 76,
    "topic": "Test",
-   "kind": "teach",
    "if": ["part:quake"],
    "once": "ever",
    "during": "test",
@@ -888,7 +890,6 @@
    "on": "fail-explain",
    "say": 105,
    "topic": "Test",
-   "kind": "teach",
    "during": "test",
    "points": ["fail-place"]
   },
@@ -899,7 +900,8 @@
     "bySite": [14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
    },
    "topic": "Test",
-   "delay": "sound:cheer",
+   "delay": 1,
+   "during": "test",
    "then": "won"
   },
   {
@@ -907,7 +909,6 @@
    "on": "won",
    "say": 104,
    "topic": "Test",
-   "kind": "teach",
    "once": "ever",
    "then": "first-win-said"
   },
@@ -916,7 +917,6 @@
    "on": "first-win-said",
    "say": 106,
    "topic": "Test",
-   "kind": "teach",
    "attention": "point",
    "points": ["button:home"],
    "show": "tap button:home",

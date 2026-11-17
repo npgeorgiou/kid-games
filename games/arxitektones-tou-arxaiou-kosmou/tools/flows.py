@@ -73,7 +73,86 @@ def first_site_ticks_on(b):
     q.close()
     return r['test_running'], r
 
-FLOWS = {'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on}
+def drag(q, a, b, steps=20):  # a real mouse drag, at about the rate a hand moves
+    q.mouse.move(a[0], a[1]); q.mouse.down(); time.sleep(0.05)
+    for k in range(1, steps + 1): q.mouse.move(a[0] + (b[0] - a[0]) * k / steps, a[1] + (b[1] - a[1]) * k / steps); time.sleep(0.015)
+    q.mouse.up(); time.sleep(0.05)
+
+def pile_piece(q, material):  # the screen point of a resting pile piece of that material
+    return q.evaluate("(m)=>{const T=__tb; const b=T.pileBodies().find((x)=>x.pileItem.material===m&&x.getLinearVelocity().length()<0.05); if(!b) return null; const p=b.getPosition(), r=T.pileBinRect; return [r.x+p.x*T.pileScale, r.y+r.h-p.y*T.pileScale];}", material)  # the pile has its own place and scale on the screen
+
+def later_launch(q):  # not the very first launch (its "press here to start" step lets only the first site be touched)
+    q.evaluate("()=>{const m=__tb.cueMem(); m.ever=m.ever||{}; for (const id of ['welcome-first','map-start-step']) m.ever[id]=1; __tb.active.length=0;}")
+
+def restart_load_screen(b):
+    # owner 17 Nov: the restart button shows the load screen again, so the player sees the game start over
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.progress.done.mastaba={pieces:[],loads:[]}}")
+    click(q, 'restart'); time.sleep(0.3); click(q, 'restart')
+    shown = until(q, "()=>!!document.getElementById('load-screen')", 1)
+    gone = shown and until(q, "()=>!document.getElementById('load-screen')", 4)
+    r = dict(load_screen_shown=shown, then_gone=gone, progress_erased=q.evaluate("()=>!__tb.progress.done.mastaba"), mode=q.evaluate("()=>__tb.mode"))
+    q.close()
+    return shown and gone and r['progress_erased'], r
+
+def child_action_cuts_line(b):
+    # owner 17 Nov: "I click a site I should go, and the line doesnt play because the restart warning plays. New rule:
+    # every interaction that is the result of my action stops the previous visual/audio cue and starts the new one"
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    click(q, 'restart'); playing91 = until(q, "()=>__tb.voice.cur&&__tb.voice.cur.n===91", 1)
+    click(q, 'site:mastaba')
+    intro = until(q, "()=>__tb.voice.cur&&__tb.voice.cur.cue&&__tb.voice.cur.cue.id==='site-intro'", 0.5)
+    r = dict(restart_line_playing=playing91, intro_at_once=intro, line=q.evaluate("()=>__tb.voice.cur&&__tb.voice.cur.n"), glows=q.evaluate("()=>__tb.active.filter((a)=>(a.targets||[]).some((t)=>t.btn==='restart')).length"))
+    q.close()
+    return playing91 and intro and r['glows'] == 0, r
+
+def ticks_off_lines_play(b):
+    # owner 17 Nov: "a lot of cues dont play when I have teaching clicked off. teaching is only the 1st lvl tutorials, and
+    # the first time I explain the tests": with both ticks off, the first pick-up of a mudbrick and the red button still speak
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); untick_all(q)
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q, 5)
+    p = pile_piece(q, 'mudbrick'); drag(q, p, (300, 400)); pick = until(q, "()=>__tb.voice.cur&&__tb.voice.cur.n===78", 1)
+    quiet(q); click(q, 'test'); red = until(q, "()=>__tb.voice.cur&&__tb.voice.cur.n===70", 1)
+    r = dict(first_mudbrick_line=pick, red_button_line=red, said=q.evaluate("()=>__tb.soundLog.slice(-5)"))
+    q.close()
+    return pick and red, r
+
+def test_end_sounds(b):
+    # owner 17 Nov: "the success (and maybe the failure) audio in the lvls, after the test, are quite delayed": the time
+    # from the earthquake's end to the cheer, and to the win line, at normal speed
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.cueMem().seq['first-site']='done'}")
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    q.keyboard.down('Control'); time.sleep(0.1); click(q, 'autobuild'); until(q, "()=>!__tb.auto", 30); q.keyboard.up('Control')
+    until(q, "()=>__tb.testReady()", 10); time.sleep(3.3)  # Ctrl let go more than its 3 s latch before: the test at normal speed
+    q.evaluate("""()=>{const T=__tb; window.__tl=[]; let ph=null, n=T.soundLog.length, ln=null; const t0=performance.now();
+      const f=()=>{const t=((performance.now()-t0)/1000).toFixed(2); const p=T.test?T.test.phase:'none'; if(p!==ph){__tl.push(t+' phase '+p); ph=p;}
+        if(T.soundLog.length){for(const x of T.soundLog) if(!x.startsWith('music')) __tl.push(t+' sound '+x); T.soundLog.length=0;} const l=T.voice.cur&&T.voice.cur.n; if(l!==ln){__tl.push(t+' line '+l); ln=l;}
+        if(performance.now()-t0<70000) requestAnimationFrame(f);}; requestAnimationFrame(f);}""")
+    click(q, 'test')
+    end = time.time() + 60
+    while time.time() < end and not q.evaluate("()=>!!__tb.progress.done.mastaba||(__tb.test&&__tb.test.phase==='fail')"):
+        if q.evaluate("()=>[101,102,103].includes(__tb.voice.cur&&__tb.voice.cur.n)"): q.keyboard.press('Escape')  # the test's explanations skipped, as a parent would
+        time.sleep(0.05)
+    time.sleep(7)
+    tl = q.evaluate("()=>__tl")
+    q.close()
+    def at(word):
+        for e in tl:
+            if word in e: return float(e.split()[0])
+    ch = at('sound cheer')
+    quake_end = next((float(e.split()[0]) for k, e in enumerate(tl) if 'phase settle' in e and any('phase quake' in x for x in tl[:k])), None)
+    tl = [e for e in tl if 'hit-' not in e and 'drag-' not in e and 'map-tap' not in e]
+    r = dict(timeline=tl[-14:], cheer_after_quake=(ch - quake_end) if ch and quake_end else None)
+    wl = next((float(e.split()[0]) for e in tl if e.endswith(' line 14')), None)
+    r['win_line_after_quake'] = (wl - quake_end) if wl and quake_end else None
+    return bool(ch and quake_end and wl and ch - quake_end <= 0.7 and wl - ch <= 1.3), r
+
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on}
 
 def run(b, names):
     for n, f in FLOWS.items():
