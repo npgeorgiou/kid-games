@@ -917,9 +917,11 @@ A recorded line now ends by the game clock at its recording's length (build.py p
 
 Owner (21:39): line 130's recording given (added). He records from a flat list that did not have the lines added on 15-16 Nov. Now build.py writes `voice-lines.md` from cues.json on every build: lines without a recording first (132-138), then all lines. CLAUDE.md: the flat list is the only place he records from; send it when lines change.
 
+Owner (21:47): his recordings are numbered by his own list, not by line number ("132->125 ... 138->131"). His list numbered the lines in order with one extra item at 86, so his 1-96 are lines 1-96 and from his 97 on his n is the line one place later in the table (97->98 ... 117->119, 118->124 ... 124->130, 125->132 ... 131->138; his 128 is line 135). Voice folder rebuilt with that; every line now has a recording (voice-lines.md: 0 to record). Recordings much shorter than their line's words (maybe recorded from older words): 40, 43, 44, 45, 47, 73, 90.
+
 ## Task list
 
-- Owner to record lines 132-138 (voice-lines.md).
+No open items.
 
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
