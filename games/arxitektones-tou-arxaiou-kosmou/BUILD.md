@@ -940,9 +940,19 @@ Owner, verbatim (17 Nov 2026, 22:21): "I refresh everything, have teaching and a
 Cause: with ΔΙΔΑΣΚΑΛΙΑ off, the first test's explanation line (a teaching line) was skipped but still counted as said, so the test waited for it to end and stood still. A skipped teaching line now counts as not said; nothing waits for it.
 Flow tests: `tools/flows.py` (`tools/harness.py flows`): the real page, real clicks and keys. first-site-ticks-off (his steps: both ticks off through the settings screen, first site, Ctrl quick build, green button, the test runs to its end) failed before the fix and passes now; first-site-ticks-on passes. CLAUDE.md: test-driven, flow tests for every happy path and the major failure paths.
 
+## Current state, update 80 (17 Nov 2026): the child's action wins, teaching is only the tutorial, restart shows the load screen, test result sooner
+
+Owner, verbatim (17 Nov 2026, 22:43): "1. the restart button should show the "loading screen" again, to truly show to the player we started again 2. I click a site I should go, and the line doest play because the restart warning plays. New rule: every interaction that is the result of my action, stops the previous visual/audio cue and starts the new one. find a way to model this properly in the cue framework, and I also hope your cue modeling bundles visuals and audio. 3. a lot of cues dont play when I have "teaching" clicked off. teaching is only the 1st lvl "tutorials", and the first time I explain the tests, udnerstnad? 4. the sucess (and maybe the failure) audio in the the lvls, after the test, are quite delayed."
+1. The restart (second press) shows the load screen for 2 s, then the map starts over (`showLoadScreen`).
+2. cues.json: events the child causes are marked `byChild`; a cue fired by one stops the cue playing (its line and its glow, pointing, hand together: one cue row is both) and drops waiting lines (`interruptCues`). Not while a first-site teaching line plays or a teaching step waits, or during a demo (earlier owner rule). "A step waits" now means a teaching step only; the first launch's "press here to start" no longer silences everything.
+3. Teaching (the ΔΙΔΑΣΚΑΛΙΑ tick) is only the first site's steps and the first explanation of each test part; 18 cues lost the teaching mark (first-pick lines, red button, fail lines, first win, openings, locked site and more).
+4. Measured at normal speed: the cheer came 1.2 s after the shaking, the win line 5 s after (it waited for the test to end). Now: something breaking fails the test at once; after the earthquake the wait is 0.6 s; the win line plays 1 s after the cheer, during the test's end. All ten suggested builds still pass; all wrong choices still fail (`harness.py spec`; Parthenon and Valens piles over the sidebar as before).
+Flows added: restart-load-screen, child-action-cuts-line, ticks-off-lines-play, test-end-sounds (all pass; the last takes 40 s, the test at normal speed).
+
 ## Task list
 
-- Flow tests still to write for the other happy paths (map, each kind of site, free play, restart, hand building, test failing, settings in the middle).
+- Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).
+- The flow suite takes about 100 s; make the slow flows faster.
 
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
