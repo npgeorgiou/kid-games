@@ -818,6 +818,12 @@ Owner, verbatim: "the sand hills of africa and arabia are counted as mountains b
 
 The map picture's shaded dunes are darker orange-tan, so the old colour rule (pale = sand, the rest = mountain) called them mountains. Now strongly coloured warm tan (hue 28-50, saturation at least 0.3) is sand too; the drawn mountain peaks (dull grey, mauve, brown) stay mountains. The brown hatched highlands of Anatolia and Iran are warm tan as well and now give sand. Owner test `map-ground`: nine places (dunes in Arabia and the Sahara, pale desert, peaks in Sinai, Arabia and Greece, sea, Nile valley); a dune failed before, all pass now.
 
+## Current state, update 64 (17 Nov 2026): mountains drawn by hand for map taps
+
+Owner, verbatim: "you tire me. you ame many mountains as sand. can you distinguis them? every human can, even 1 year old"
+
+Colour alone cannot tell the map's dunes from its hatched ranges (both warm tan with brown strokes). Now the kind of ground is a picture, src/art/map-ground.png (a quarter of the map size: blue water, green land, sand, brown mountains), made by tools/make-ground.py: water and green from the map's colours, mountains from shapes drawn by hand around every painted peak and range (Balkans, Pindus, Caucasus, Armenian highlands, Taurus, Zagros, the hills east of the Nile, the peaks of Libya, Sinai and Arabia), the rest of the land sand (so central Anatolia's plain is sand). The shapes are in the script, in map pixels; edit and rerun to change them. Picture of the result over the map: owner-shots/2026-11-17-map-ground.png. Owner test `map-ground` now has 19 places (7 more ranges and peaks, 3 more dune fields): Zagros, Caucasus and Armenian peaks were sand before, all right now.
+
 ## Task list
 
 No open items.

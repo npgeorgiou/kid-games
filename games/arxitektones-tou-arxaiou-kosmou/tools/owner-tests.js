@@ -588,7 +588,10 @@
   // on the map picture (map pixels) and what a tap there must show
   if (want("map-ground")) {
     const bad = [], want = { "sand dunes, Arabia": [1760, 1120, "sand"], "sand dunes, Arabia north": [1660, 1040, "sand"], "sand dunes, Sahara": [600, 1040, "sand"], "pale desert, Sahara": [300, 1000, "sand"],
-      "mountain peaks, Sinai": [1300, 1030, "rock"], "mountain peaks, Arabia": [1580, 1250, "rock"], "mountain peaks, Greece": [220, 120, "rock"], "sea": [600, 600, "water"], "Nile valley": [780, 1120, "green"] };
+      "mountain peaks, Sinai": [1300, 1030, "rock"], "mountain peaks, Arabia": [1580, 1250, "rock"], "mountain peaks, Greece": [220, 120, "rock"], "sea": [600, 600, "water"], "Nile valley": [780, 1120, "green"],
+      // owner 17 Nov: "you name many mountains as sand. can you distinguish them?"
+      "Zagros range": [2000, 600, "rock"], "Caucasus": [1800, 60, "rock"], "Armenian peaks": [1580, 250, "rock"], "Pindus": [190, 320, "rock"], "east Anatolian peak": [1230, 385, "rock"], "Libyan peaks": [210, 865, "rock"], "Balkan peaks": [190, 120, "rock"],
+      "Egyptian dune ridge": [560, 1050, "sand"], "dunes, south-east Arabia": [1800, 1200, "sand"], "dunes, central Arabia": [1500, 1080, "sand"] };
     for (const [n, [x, y, k]] of Object.entries(want)) { const got = T.groundAt(x, y); if (got !== k) bad.push(n + ": " + got); }
     out.push(["a map tap shows sand on the sand dunes, stones on the mountains", !bad.length, bad.join("; ") || "all " + Object.keys(want).length + " places right"]);
   }

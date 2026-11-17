@@ -3435,33 +3435,23 @@
   }
   // A tap on the map shows what is under the finger: water splashes with rings, desert throws up a sand cloud,
   // green land throws leaves, mountains throw stone chips; each with its own sound.
-  // What is under the finger: water where the land picture has none (or the picture is blue there, rivers and lakes);
-  // otherwise by the picture's colour around the tap: green, pale sand (desert), the rest (browns, greys) mountain.
+  // What is under the finger: art/map-ground.png, a picture of the map at a quarter size with one colour per kind
+  // (blue water, green land, sand, brown mountains), made by tools/make-ground.py (mountains drawn by hand around the
+  // painted peaks and ranges; owner 17 Nov: the dunes and the mountains must be told apart as a person sees them).
+  const groundImg = new Image(); groundImg.src = "art/map-ground.png";
   let groundCols = null;
   function groundAt(mx, my) {
-    if (!isLand(mx, my)) return "water";
     if (!groundCols) {
-      if (!mapImg.naturalWidth) return "green";
-      try { const c = document.createElement("canvas"); c.width = MAP_W / 4; c.height = MAP_H / 4; const o = c.getContext("2d");
-        o.drawImage(mapImg, 0, 0, c.width, c.height); groundCols = { w: c.width, h: c.height, d: o.getImageData(0, 0, c.width, c.height).data }; }
-      catch (err) { return "green"; } // picture not readable (opened from disk): no colour, no guess beyond land
+      if (!groundImg.naturalWidth) return isLand(mx, my) ? "sand" : "water";
+      try { const c = document.createElement("canvas"); c.width = groundImg.naturalWidth; c.height = groundImg.naturalHeight; const o = c.getContext("2d");
+        o.drawImage(groundImg, 0, 0); groundCols = { w: c.width, h: c.height, d: o.getImageData(0, 0, c.width, c.height).data }; }
+      catch (err) { return isLand(mx, my) ? "sand" : "water"; } // picture not readable (opened from disk unbuilt)
     }
-    let r = 0, g = 0, b = 0, n = 0;
-    const cx = Math.round(mx / 4), cy = Math.round(my / 4);
-    for (let y = cy - 2; y <= cy + 2; y++) for (let x = cx - 2; x <= cx + 2; x++) {
-      if (x < 0 || y < 0 || x >= groundCols.w || y >= groundCols.h) continue;
-      const i = (y * groundCols.w + x) * 4; r += groundCols.d[i]; g += groundCols.d[i + 1]; b += groundCols.d[i + 2]; n++;
-    }
-    r /= n; g /= n; b /= n;
-    if (b > r + 15 && b >= g) return "water";
-    if (g >= r - 6 && g > b + 25) return "green";
-    if ((r + g + b) / 3 > 190 && r > b + 40) return "sand";
-    // shaded sand dunes are warm and strongly coloured (orange-tan); the drawn mountains are dull grey, mauve or brown
-    // (owner 17 Nov: the sand hills of Africa and Arabia counted as mountains)
-    const hi = Math.max(r, g, b), lo = Math.min(r, g, b), sat = hi ? (hi - lo) / hi : 0;
-    const hue = hi === lo ? 0 : hi === r ? (60 * (g - b) / (hi - lo) + 360) % 360 : hi === g ? 60 * (b - r) / (hi - lo) + 120 : 60 * (r - g) / (hi - lo) + 240;
-    if (hue >= 28 && hue <= 50 && sat >= 0.3) return "sand";
-    return "rock";
+    const x = Math.max(0, Math.min(groundCols.w - 1, Math.floor(mx * groundCols.w / MAP_W))), y = Math.max(0, Math.min(groundCols.h - 1, Math.floor(my * groundCols.h / MAP_H)));
+    const i = (y * groundCols.w + x) * 4, r = groundCols.d[i], g = groundCols.d[i + 1], b = groundCols.d[i + 2];
+    if (b > r && b > g) return "water";
+    if (g > r) return "green";
+    return r > 200 ? "sand" : "rock";
   }
   const tapBits = [], WAVE_FRONT = 30; // screen px: how wide the first ring's pushing front is
   function mapTap(x, y) {
