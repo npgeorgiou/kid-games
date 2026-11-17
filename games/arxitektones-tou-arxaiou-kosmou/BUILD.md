@@ -934,9 +934,15 @@ Owner, verbatim (17 Nov 2026, 22:07): "many mistakes: I am angry:1. the "welcome
 3. A recording now ends its line at its real end (the audio's end event) as well as by the game clock at its length (update 76 had only the clock, which runs behind real time when frames are slow), so the intro picture goes when the narration ends.
 4. The voice was not normalised: it was about -30 LUFS against -16 for the other sounds. All recordings (and the boat-left-on-land sound) went through tools/normalize-sounds.php (-16 LUFS, peaks at most -1.5 dBTP), the same as the other sounds; the voice plays at full share (MASTER_VOLUME), the music at its own 0.17.
 
+## Current state, update 79 (17 Nov 2026): the test runs with the teaching off; flow tests
+
+Owner, verbatim (17 Nov 2026, 22:21): "I refresh everything, have teaching and all cues and videos disables, i go in first lvl, i fast build with ctrl, and then i click the green button, the "lets see if it will stand" cue plays, but notest starts. motherfucker, you ahve added 0 tests, i ahve told you 1000 times. now, in your fucking claude.md, go and write that we do test drive development, that everything EVERYTHING, every happy path is tested, not in unit tests but in brawser itneraction tests, that they should also be snappy as fuck, and cover all happy paths, and major failre paths"
+Cause: with ΔΙΔΑΣΚΑΛΙΑ off, the first test's explanation line (a teaching line) was skipped but still counted as said, so the test waited for it to end and stood still. A skipped teaching line now counts as not said; nothing waits for it.
+Flow tests: `tools/flows.py` (`tools/harness.py flows`): the real page, real clicks and keys. first-site-ticks-off (his steps: both ticks off through the settings screen, first site, Ctrl quick build, green button, the test runs to its end) failed before the fix and passes now; first-site-ticks-on passes. CLAUDE.md: test-driven, flow tests for every happy path and the major failure paths.
+
 ## Task list
 
-No open items.
+- Flow tests still to write for the other happy paths (map, each kind of site, free play, restart, hand building, test failing, settings in the middle).
 
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.

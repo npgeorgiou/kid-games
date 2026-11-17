@@ -4085,7 +4085,7 @@
     const key = onceKey(c, x);
     const then = () => { if (c.after != null) say(c.after, { kind: "teach" }); if (seq) nextStep(seq, c.id); else if (c.then) cueEvent(c.then, x); };
     if (c.do === "teaching") { if (!useTeach) return c; setMark(key, true); runSequence(sequenceOf(x.site)); return c; } // ΔΙΔΑΣΚΑΛΙΑ off: no steps (they wait, unmarked, for when it is ticked again)
-    if (!useTeach && c.kind === "teach") { then(); return c; } // ΔΙΔΑΣΚΑΛΙΑ off: a teaching line is not said (and stays unused); what follows it goes on
+    if (!useTeach && c.kind === "teach") { then(); return null; } // ΔΙΔΑΣΚΑΛΙΑ off: a teaching line is not said (and stays unused); what follows it goes on, and nothing waits for it (it did not fire: owner 17 Nov, the test waited for an unsaid explanation and never ran)
     if (c.do === "demo") { setMark(key, true); if (useDemos) startDemo(siteKeyOf(x.site), then); else then(); return c; } // ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ off: no demo, the rest goes on
     const memo = {}, pts = (names) => (names || []).flatMap((n) => pointTargets(n, x, memo));
     if (c.glow) { setMark(key, true); glowFor(pts(c.points), c.glow); then(); return c; }
