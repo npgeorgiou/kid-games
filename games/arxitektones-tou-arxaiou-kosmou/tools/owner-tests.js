@@ -790,6 +790,20 @@
     out.push(["a boat full of people for each finished site, none at the start", !bad.length, bad.length ? "failed: " + bad.join("; ") : res.length + " checks right"]);
   })
 
+  // --- owner 17 Nov: waves push a boat equally hard from every side (a tap the same screen distance beside, above or below it)
+  if (want("wave-even")) quick(() => {
+    T.goMap(); T.restartAll(); fleet(); T.renderMap(1 / 60); const cv = document.querySelector("canvas"), got = [];
+    const b = T.boats.find((x) => T.crewOf(x) && !x.parked && x.wait <= 0);
+    for (const [dx, dy] of [[25, 0], [-25, 0], [0, 25], [0, -25], [45, 0], [0, -45]]) {
+      for (let k = 0; k < 360; k++) T.renderMap(1 / 60); // settled back on its route
+      b.wait = 1000; const q = T.mapView().pt(b.x, b.y); // resting in port: it stays where it is while the wave passes
+      for (const t of ["pointerdown", "pointerup"]) cv.dispatchEvent(new PointerEvent(t, { clientX: q.x + dx, clientY: q.y + dy, pointerId: 35, isPrimary: true, pointerType: "mouse", button: 0, buttons: t === "pointerup" ? 0 : 1, bubbles: true }));
+      let m = 0; for (let k = 0; k < 120; k++) { T.renderMap(1 / 60); m = Math.max(m, Math.hypot(b.ox, b.oy)); } got.push(m);
+    }
+    const near = got.slice(0, 4), far = [got[4], got[5]], even = (a) => Math.max(...a) <= Math.min(...a) * 1.1 && Math.min(...a) > 3;
+    out.push(["waves push a boat equally from every side", even(near) && even(far), "25 px right, left, below, above: " + near.map((x) => x.toFixed(1)).join(", ") + "; 45 px right, above: " + far.map((x) => x.toFixed(1)).join(", ")]);
+  });
+
   // --- 1: the restart button on the map: everything as at the very beginning
   if (want("restart")) {
     T.mode = "map"; T.renderMap(0.016);

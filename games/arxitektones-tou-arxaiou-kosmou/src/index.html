@@ -3903,7 +3903,7 @@
   function mapTap(x, y, from = null) { // `from`: a boat whose own splash this is (its waves do not push it)
     const v = mapView(), kind = groundAt((x - v.ox) / v.k, (y - v.oy) / v.k), R = Math.random;
     if (kind === "water") {
-      for (let k = 0; k < 3; k++) tapBits.push({ kind: "ring", x, y, r: 4, grow: 38 - k * 8, life: 1 + k * 0.25, fade: 1, push: k ? 0 : 400, from }); // push: map px/s the first ring gives a boat it passes (one push per tap; owner 17 Nov: gentle, at most about half a boat)
+      for (let k = 0; k < 3; k++) tapBits.push({ kind: "ring", x, y, r: 4, grow: 38 - k * 8, life: 1 + k * 0.25, fade: 1, push: k ? 0 : 400, from, life0: 1 + k * 0.25 }); // push: map px/s the first ring gives a boat it passes (one push per tap; owner 17 Nov: gentle, at most about half a boat)
       for (let k = 0; k < 12; k++) { const a = R() * Math.PI * 2, sp = 40 + R() * 70; tapBits.push({ kind: "drop", x, y, vx: Math.cos(a) * sp, vy: -110 - R() * 120, g: 520, r: 3 + R() * 3, life: 1, fade: 1.4 }); }
     } else if (kind === "sand") {
       for (let k = 0; k < 20; k++) { const a = R() * Math.PI * 2, sp = 30 + R() * 80; tapBits.push({ kind: "sand", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 35, g: 0, drag: 2, r: 9 + R() * 10, grow: 26, life: 1, fade: 0.8 }); }
@@ -3927,7 +3927,8 @@
           // measured from the boat's place on its route (not where the push has moved it), so the front passes it once
           const s = v.pt(b.x - b.ox, b.y - b.oy), dx = s.x - q.x, dy = s.y - q.y, d = Math.hypot(dx, dy / 0.6), n = Math.hypot(dx, dy) || 1;
           const part = Math.max(0, Math.min(q.r, d + WAVE_FRONT) - Math.max(r0, d)) / WAVE_FRONT; // the share of the front that passed it this frame
-          if (part > 0) { const g = q.push * Math.max(0, q.life) * part; b.ovx += (dx / n) * g; b.ovy += (dy / n) * g; }
+          // as strong as the ring would be beside the tap at that screen distance: the same in every direction (owner 17 Nov; beside the tap this is the ring's own strength, as before)
+          if (part > 0) { const g = q.push * Math.max(0, 1 - (n + q.r - d - 4) / (q.grow * 1.6 * q.life0)) * part; b.ovx += (dx / n) * g; b.ovy += (dy / n) * g; }
         }
       }
       else {
@@ -3937,7 +3938,9 @@
         if (q.grow) q.r += q.grow * dt;
       }
       q.life -= q.fade * dt;
-      if (q.life <= 0) tapBits.splice(i, 1); else SKIN.mapTapBit(ctx, q);
+      // the pushing ring is drawn flattened, so it reaches a boat above or below later than one beside it: it keeps
+      // pushing (unseen, already faded) until it has reached as far up and down as it reached sideways
+      if (q.life <= 0 && !(q.push && q.r < (4 + q.grow * 1.6 * q.life0) / 0.6)) tapBits.splice(i, 1); else if (q.life > 0) SKIN.mapTapBit(ctx, q);
     }
   }
 

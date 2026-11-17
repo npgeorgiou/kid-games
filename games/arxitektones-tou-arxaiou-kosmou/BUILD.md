@@ -905,9 +905,11 @@ Cause: a boat the child had moved (sailing back to its route, or left empty on t
 Owner, verbatim (17 Nov 2026, 21:09): "a boat is now lushed BY ITS OWN WAVE. also, the wave doesnt seem to push teh same way from teh sides and from front/back, is this ok for a physics reason, or a bug?"
 A ring remembers the boat whose drop made it and does not push that one (check in `boat-drag`, 18 checks). Question answered, waiting: the push does not depend on which way a boat points; rings are drawn flattened (height 0.6 of width), so a tap above or below a boat reaches it later and weaker than one beside it at the same screen distance.
 
+Owner (21:12): "do it". A boat is now pushed as hard as by a tap the same screen distance beside it, whichever side the tap is: the push follows the front's progress past the boat measured on the screen, and the pushing ring keeps going (already faded) until it has reached as far up and down as sideways. Owner test `wave-even`: 26.5 map px from all four sides at 25 px, 7.0 at 45 px.
+
 ## Task list
 
-- Owner to decide: waves equally strong in every direction on the screen, or as now.
+No open items.
 
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
