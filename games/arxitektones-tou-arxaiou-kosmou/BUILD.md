@@ -926,6 +926,14 @@ Owner, verbatim (17 Nov 2026, 22:00): "now move the buttons on the main screen t
 2. The ΕΠΑΝΕΚΚΙΝΗΣΗ label is gone.
 3. The restart line (91, cue `restart-ask`) is no longer a teaching line, so it plays with the ticks off. Cue test `restart-ask-and-buttons`.
 
+## Current state, update 78 (17 Nov 2026): the voice heard from the start, louder, intro ends with it
+
+Owner, verbatim (17 Nov 2026, 22:07): "many mistakes: I am angry:1. the "welcome architect! your words await for you" does not play, is only shown as bubble. 2. when lvel intro is playing, lvl music must be half as loud, and my voice 20% louder. 3. I finished narrating lvl itnro, and the lvl itnro screen keeps there and keeps zooming, I ahd to press esc to make it go away. 3. generally make my voice louder, actually, did you normalize it as outer sounds? the lvl music is louder than my voice"
+1. The map's welcome line comes before any touch, when the browser allows no sound: it fell back to the text box. Now a recording the browser holds back waits (no box) and starts at the first touch (`voiceBlocked`, started from startAudio). Checked in the running game: `tools/harness.py realintro cuetest`.
+2. During a site's intro line the music plays at half (`musicDuck`) and the voice at 1.2 times. Cue test `intro-voice-and-music`.
+3. A recording now ends its line at its real end (the audio's end event) as well as by the game clock at its length (update 76 had only the clock, which runs behind real time when frames are slow), so the intro picture goes when the narration ends.
+4. The voice was not normalised: it was about -30 LUFS against -16 for the other sounds. All recordings (and the boat-left-on-land sound) went through tools/normalize-sounds.php (-16 LUFS, peaks at most -1.5 dBTP), the same as the other sounds; the voice plays at full share (MASTER_VOLUME), the music at its own 0.17.
+
 ## Task list
 
 No open items.

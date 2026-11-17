@@ -496,6 +496,22 @@
       T.setVoices(false);
       return [!bad.length, bad.join("; ") || "recordings play to their end; parts joined"];
     },
+    // owner 17 Nov: while a site's intro line speaks, the music at half and the voice 20% louder; the intro (its picture) ends when the recording ends
+    "intro-voice-and-music": () => {
+      const bad = []; fresh(); T.setVoices(true); start(0); T.onEnterSite(0); run(0.2);
+      const c = T.voice.cur; T.updateMusic(false);
+      if (!c || !c.cue || c.cue.id !== "site-intro") bad.push("no intro line (line " + (c && c.n) + ")");
+      else {
+        if (!T.cueAudio || Math.abs(T.cueAudio.volume - Math.min(1, T.MASTER_VOLUME * 1.2)) > 1e-6) bad.push("intro voice volume " + (T.cueAudio && T.cueAudio.volume));
+        if (T.musicDuck !== 0.5) bad.push("music share during the intro " + T.musicDuck);
+        T.cueAudio.dispatchEvent(new Event("ended")); run(0.1); T.updateMusic(false);
+        if (T.voice.cur === c) bad.push("the intro line did not end when its recording ended");
+        if (T.musicDuck !== 1) bad.push("music share after the intro " + T.musicDuck);
+      }
+      T.say(93); run(0.1); if (T.cueAudio && Math.abs(T.cueAudio.volume - T.MASTER_VOLUME) > 1e-6) bad.push("other lines' volume " + T.cueAudio.volume);
+      T.setVoices(false);
+      return [!bad.length, bad.join("; ") || "music at half and voice 20% louder during the intro; it ends with its recording"];
+    },
   };
   window.__cueTests = (names) => Object.keys(tests).filter((n) => !names.length || names.includes(n)).map((n) => {
     try { const [ok, info] = tests[n](); return [n, !!ok, info || ""]; } catch (e) { return [n, false, "error " + e.message]; }

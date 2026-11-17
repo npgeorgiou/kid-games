@@ -1598,6 +1598,7 @@
   const buffers = {};
   // Browsers only allow sound after the first press; called from the pointer handlers.
   function startAudio() {
+    if (voiceBlocked) { const go = voiceBlocked; voiceBlocked = null; go(); } // a recording held back until this first touch
     if (actx) { if (actx.state === "suspended") actx.resume(); return; }
     try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return; }
     const files = new Set();
@@ -1634,11 +1635,15 @@
   }
   // Music: one loop for the map, another while building.
   let music = null, musicName = null;
+  // While a site's intro line speaks, the music plays at half (owner 17 Nov); musicDuck is that share.
+  let musicDuck = 1;
   function updateMusic(force) {
     const want = mode === "map" ? "music-map" : "music-level";
+    const duck = voice.cur && voice.cur.cue && voice.cur.cue.id === "site-intro" ? 0.5 : 1;
+    if (duck !== musicDuck) { musicDuck = duck; if (music) music.setVolume(duck); }
     if (want === musicName && music && !force) return;
     if (want === musicName && music) return;
-    const next = playSound(want, 1, true);
+    const next = playSound(want, musicDuck, true);
     if (!next) return;
     if (music) music.stop(1);
     music = next; musicName = want;
@@ -3967,6 +3972,11 @@
   const VOICE_FILES = {}; // line number -> recording; build.py fills it from src/sounds/voice/NN.mp3
   const VOICE_SECONDS = {}; // line number -> how long its recording lasts (build.py)
   let useVoices = true; // the cue tests switch the recordings off: they test the rules with the text box's fixed time
+  // The recordings are made as loud as the other sounds (tools/normalize-sounds.php: -16 LUFS); a site's intro line
+  // plays 20% louder (owner 17 Nov). A recording the browser will not start before the first touch (sound is only
+  // allowed after one) waits, silent and with no text box, and starts at the child's first touch.
+  const VOICE_VOLUME = 1, INTRO_VOICE = 1.2;
+  let voiceBlocked = null;
   const LINE_TIME = 2, REPEAT_GAP = 5, HL_PERIOD = 1.8, HL_RING = 40, MAP_IDLE = 30, NEXT_EVERY = 60, NEXT_GAP = 2, DAMAGE_EVERY = 60, DEMO_SPEED = 12, DEMO_PAUSE = 0.35, CONFIRM_TIME = 6;
   // s, s (after a waiting step's line ends), s, px, s (no line on the map), s (the open site glows), s (win line to new-site line), s, m/s (about a second across the screen), s, s (a second restart press within it erases)
   const HL_COLOR = { yellow: "#ffd23f", green: "#3fd16b", red: "#e8463a" };
@@ -4134,8 +4144,15 @@
     voice.cur = c; c.t0 = cueClock; c.ended = false; if (!active.includes(c)) active.push(c);
     const box = () => { if (voice.cur !== c) return; cueAudio = null; c.t0 = cueClock; cueText.textContent = CUE_TABLE.lines[c.n] || ""; cueBar.style.left = "0"; cueBox.style.display = "block"; };
     if (useVoices && VOICE_FILES[c.n]) {
-      cueAudio = new Audio(VOICE_FILES[c.n]); cueAudio.volume = MASTER_VOLUME;
-      cueAudio.play().catch(box);
+      const a = (cueAudio = new Audio(VOICE_FILES[c.n]));
+      a.volume = Math.min(1, MASTER_VOLUME * VOICE_VOLUME * (c.cue && c.cue.id === "site-intro" ? INTRO_VOICE : 1));
+      a.onended = () => endLine(c); // the recording's real end; the game clock ends it too, at its length (cueTick)
+      const go = () => a.play().then(() => { c.t0 = cueClock; c.blocked = false; }).catch((err) => {
+        if (voice.cur !== c || cueAudio !== a) return;
+        if (err && err.name === "NotAllowedError") { c.blocked = true; voiceBlocked = go; } // waits for the first touch
+        else box();
+      });
+      go();
     } else box();
   }
   function endLine(c) {
@@ -4152,7 +4169,7 @@
     if (c) { // the line playing: its action done, or its time up (text box), ends it
       const u = (now - c.t0) / LINE_TIME;
       if ((c.waitEvent || c.waitUntil) && !waiting(c)) endLine(c);
-      else if (cueAudio) { if (now - c.t0 >= (VOICE_SECONDS[c.n] || 0)) endLine(c); } // a recording ends by the game clock, at its length
+      else if (cueAudio) { if (!c.blocked && now - c.t0 >= (VOICE_SECONDS[c.n] || 0)) endLine(c); } // a recording ends at its real end (onended) or by the game clock at its length, whichever comes first
       else { if (u >= 1) endLine(c); else cueBar.style.left = (u * 100).toFixed(1) + "%"; }
     }
     // a step in a sequence that needs something gone missing goes back to the step that makes it
