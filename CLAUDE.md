@@ -120,6 +120,8 @@ However many points a message has (5 or 100), none is dropped, none is half done
 
 Every game's cues live in one table, `games/<game>/cues.json` (version A); the readable `cues.md` (version B) is written from it by `tools/cues_doc.py`. The owner comments on B; every change goes into A, then B is written again. Never edit B by hand, never add a cue in code only.
 
+The owner records the voice from one flat list per game, `games/<game>/voice-lines.md`, made by the game's build from the table every time (never by hand), with the lines that have no recording at the top. Whenever a line is added or its words change, send him that file and say which numbers are new; never leave a line only in the table or in cues.md. A changed line's old recording must be deleted in the same change, so the list shows it as not recorded.
+
 ## Testing (owner, 14 and 17 Nov 2026; every game; overrides anything below that asks for more)
 
 The owner judges the work by how long it takes. Most of a slow session is lost to tests: long runs, repeated runs, and runs that fail because the test was wrong. These rules keep testing a small part of the time.

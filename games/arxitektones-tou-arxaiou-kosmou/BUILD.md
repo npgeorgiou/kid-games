@@ -915,9 +915,11 @@ Owner, verbatim (17 Nov 2026, 21:32): "the cue files. some files are like n.1, n
 `src/sounds/voice/N.mp3`: the owner's recordings; lines recorded in parts (3, 4, 6, 8, 9, 25, 56, 58, 62, 78, 89, 98, 106) joined in order with 0.1 s of silence (mono 44.1 kHz, 128 kbit/s). Lines with no recording (text box as before): 130, 132-138. Recordings with no line in the table (kept, unused): 97, 108, 120-123, 131. Not used: "Recording (19)_164.mp3" (no line 164).
 A recorded line now ends by the game clock at its recording's length (build.py puts the lengths in VOICE_SECONDS, from ffprobe), not by the audio's own end event, so tests and play agree. The cue tests switch the recordings off (`useVoices`) and test the rules with the text box's time; cue test `voice-recordings` checks a recorded line plays to its end and that the parts were joined. The game file is now 30 MB (the recordings are in it).
 
+Owner (21:39): line 130's recording given (added). He records from a flat list that did not have the lines added on 15-16 Nov. Now build.py writes `voice-lines.md` from cues.json on every build: lines without a recording first (132-138), then all lines. CLAUDE.md: the flat list is the only place he records from; send it when lines change.
+
 ## Task list
 
-No open items.
+- Owner to record lines 132-138 (voice-lines.md).
 
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.

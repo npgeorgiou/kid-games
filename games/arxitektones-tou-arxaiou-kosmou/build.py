@@ -24,4 +24,13 @@ out = out.replace("const VOICE_SECONDS = {};", "const VOICE_SECONDS = " + json.d
 # the cue table (cues.json, version A) goes into the game as it is
 out = out.replace("const CUE_TABLE = null;", "const CUE_TABLE = " + json.dumps(json.loads((here / "cues.json").read_text(encoding="utf-8")), ensure_ascii=False) + ";", 1)
 (here / "arxitektones-tou-arxaiou-kosmou.html").write_text(out, encoding="utf-8")
+# the flat list the owner records from (voice-lines.md), made from cues.json every build so it never falls behind:
+# every line, its number and its words; the ones without a recording first
+lines = json.loads((here / "cues.json").read_text(encoding="utf-8"))["lines"]
+have = {int(f.stem) for f in (here / "src" / "sounds" / "voice").glob("[0-9]*.mp3")}
+todo = [n for n in sorted(map(int, lines)) if n not in have]
+txt = "# Voice lines to record\n\nMade by build.py from cues.json; do not edit. File name: the number, e.g. 93.mp3 (a line in parts: 93.1.mp3, 93.2.mp3).\n\n"
+txt += "## Not recorded yet (%d)\n\n" % len(todo) + "".join("%d. %s\n" % (n, lines[str(n)]) for n in todo)
+txt += "\n## All lines\n\n" + "".join("%d. %s%s\n" % (n, lines[str(n)], "" if n in have else "  (not recorded)") for n in sorted(map(int, lines)))
+(here / "voice-lines.md").write_text(txt, encoding="utf-8")
 print("wrote arxitektones-tou-arxaiou-kosmou.html", len(out), "bytes")
