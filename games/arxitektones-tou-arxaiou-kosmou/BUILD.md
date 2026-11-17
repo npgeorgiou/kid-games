@@ -836,6 +836,12 @@ Owner, verbatim: "you now push them too far away and violently, that especially 
 
 The push is a quarter of what it was: a click right on a boat moves it about half a boat (27 map px, was 106), a click a little away less; it starts and stops gently. Owner test `wave-boat` also clicks right on the boat and requires at most 30 map px: failed before, passes now.
 
+## Current state, update 67 (17 Nov 2026): wave push doubled
+
+Owner, verbatim: "god youa nnoy me. now the barely push. double the current force"
+
+Push doubled (200 -> 400): a click right on a boat moves it about a boat's length (about 53 map px). Owner test `wave-boat`: a click on the boat moves it 45-60 map px, still once and smoothly.
+
 ## Task list
 
 No open items.
