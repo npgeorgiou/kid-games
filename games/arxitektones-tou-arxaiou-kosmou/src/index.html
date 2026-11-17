@@ -3477,7 +3477,8 @@
         // the first ring pushes a boat away from the tap while its front (WAVE_FRONT screen px wide) passes the boat: a
         // force spread over that time, weaker as the ring fades, so the boat starts moving smoothly, once (owner 17 Nov)
         if (q.push) for (const b of boats) {
-          const s = v.pt(b.x, b.y), dx = s.x - q.x, dy = s.y - q.y, d = Math.hypot(dx, dy / 0.6), n = Math.hypot(dx, dy) || 1;
+          // measured from the boat's place on its route (not where the push has moved it), so the front passes it once
+          const s = v.pt(b.x - b.ox, b.y - b.oy), dx = s.x - q.x, dy = s.y - q.y, d = Math.hypot(dx, dy / 0.6), n = Math.hypot(dx, dy) || 1;
           const part = Math.max(0, Math.min(q.r, d + WAVE_FRONT) - Math.max(r0, d)) / WAVE_FRONT; // the share of the front that passed it this frame
           if (part > 0) { const g = q.push * Math.max(0, q.life) * part; b.ovx += (dx / n) * g; b.ovy += (dy / n) * g; }
         }

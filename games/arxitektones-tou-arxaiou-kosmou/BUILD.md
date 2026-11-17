@@ -824,6 +824,12 @@ Owner, verbatim: "you tire me. you ame many mountains as sand. can you distingui
 
 Colour alone cannot tell the map's dunes from its hatched ranges (both warm tan with brown strokes). Now the kind of ground is a picture, src/art/map-ground.png (a quarter of the map size: blue water, green land, sand, brown mountains), made by tools/make-ground.py: water and green from the map's colours, mountains from shapes drawn by hand around every painted peak and range (Balkans, Pindus, Caucasus, Armenian highlands, Taurus, Zagros, the hills east of the Nile, the peaks of Libya, Sinai and Arabia), the rest of the land sand (so central Anatolia's plain is sand). The shapes are in the script, in map pixels; edit and rerun to change them. Picture of the result over the map: owner-shots/2026-11-17-map-ground.png. Owner test `map-ground` now has 19 places (7 more ranges and peaks, 3 more dune fields): Zagros, Caucasus and Armenian peaks were sand before, all right now.
 
+## Current state, update 65 (17 Nov 2026): wave push never double
+
+Owner, verbatim: "the boat pushing still feels double somethimes"
+
+Cause: whether the wave's front was passing the boat was measured at the boat's pushed place. A click close to a boat pushed it out ahead of the front; the front then caught up with it and pushed it again. Now it is measured at the boat's place on its route, so the front passes each boat once. Owner test `wave-boat` now clicks at eight places around a boat, near and far: clicks 8 px from the boat pushed twice before, every click pushes once now (far clicks, whose rings fade before reaching the boat, push nothing).
+
 ## Task list
 
 No open items.
