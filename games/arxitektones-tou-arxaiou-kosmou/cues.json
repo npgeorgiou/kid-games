@@ -518,9 +518,8 @@
    "on": "press-restart",
    "say": 91,
    "topic": "Map",
-   "kind": "teach",
    "points": ["button:restart"],
-   "note": "Pressing the restart button again while this line's time lasts (6 s) erases everything; there is no other button."
+   "note": "Pressing the restart button again while this line's time lasts (6 s) erases everything; there is no other button. Not a teaching line: it plays with ΔΙΔΑΣΚΑΛΙΑ unticked too (owner 17 Nov), since it is how the button works."
   },
   {
    "id": "damaged-first",

@@ -59,6 +59,23 @@
       return [one && late && erased, `one button ${one}, late press keeps ${late}, quick second press erases ${erased}`];
     },
 
+    // owner 17 Nov: the restart button's "are you sure? press twice" line plays even with the teaching ticks off; the map's
+    // buttons are in the top right, all one size: top row textures, settings, restart (left to right), free play below the restart
+    "restart-ask-and-buttons": () => {
+      const bad = [];
+      for (const [d, t] of [[false, false], [true, true]]) {
+        fresh(); noTeach(); T.setDemos(d); T.setTeach(t); T.progress.done.mastaba = { pieces: [] }; T.mapStart(); run(40, false);
+        T.restartPress(); run(0.1, false); if (cur() !== 91) bad.push(`demos ${d} teaching ${t}: line ${cur()} instead of 91`);
+        run(10, false);
+      }
+      T.setDemos(true); T.setTeach(true);
+      const tex = T.texButton(), set = T.settingsButton(), rst = T.restartButton(), fp = T.freePlayButton(), W = T.cssW;
+      if (!(tex.size === set.size && set.size === rst.size && rst.size === fp.size)) bad.push("sizes " + [tex.size, set.size, rst.size, fp.size]);
+      if (!(tex.y === set.y && set.y === rst.y && tex.x < set.x && set.x < rst.x && rst.x + rst.size / 2 <= W && rst.y - rst.size / 2 >= 0)) bad.push("top row not textures, settings, restart in the top right");
+      if (!(fp.x === rst.x && fp.y > rst.y + rst.size)) bad.push("free play not below the restart");
+      return [!bad.length, bad.join("; ") || "line 91 with the ticks off; buttons in place"];
+    },
+
     // list 15 Nov, 5: the textures button's stone is grey; each plain colour is close to its texture's colour; marble levels draw stone in marble
     "texture-button-colours": () => {
       const grey = T.TEX_BUTTON[0][0] === "silver-sandstone", far = T.TEX_BUTTON.filter(([k, m]) => !near(rgb(T.TEX_RGB[k]), rgb(T.PLAIN[m]), 45)).map((b) => b[0]);

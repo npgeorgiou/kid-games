@@ -919,6 +919,13 @@ Owner (21:39): line 130's recording given (added). He records from a flat list t
 
 Owner (21:47): his recordings are numbered by his own list, not by line number ("132->125 ... 138->131"). His list numbered the lines in order with one extra item at 86, so his 1-96 are lines 1-96 and from his 97 on his n is the line one place later in the table (97->98 ... 117->119, 118->124 ... 124->130, 125->132 ... 131->138; his 128 is line 135). Voice folder rebuilt with that; every line now has a recording (voice-lines.md: 0 to record). Lines 40, 43, 44, 45, 47, 73, 90: the owner recorded different, shorter words on purpose (21:53: "the purpose of the cue is covered"); keep them.
 
+## Current state, update 77 (17 Nov 2026): map buttons top right, restart line always
+
+Owner, verbatim (17 Nov 2026, 22:00): "now move the buttons on the main screen to the top right: on teh top row, from left to right: texture button, setting button., restart button, on second row, the sandbox. make the bigger buttons same size as the small ones ( restart/materials), and make the restart button not ahve the epanekkinisi tcapital greek text, but give the "are you sure? then double tap" cue, even when cues are disabled"
+1. Map buttons (`mapButtonAt`): top right, all the restart's size; top row textures, settings, restart; free play below the restart. Picture: owner-shots/2026-11-17-map-buttons.png.
+2. The ΕΠΑΝΕΚΚΙΝΗΣΗ label is gone.
+3. The restart line (91, cue `restart-ask`) is no longer a teaching line, so it plays with the ticks off. Cue test `restart-ask-and-buttons`.
+
 ## Task list
 
 No open items.
