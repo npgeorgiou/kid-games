@@ -909,6 +909,12 @@ Owner (21:12): "do it". A boat is now pushed as hard as by a tap the same screen
 
 Owner (21:17): "boat must make disappoitnment sound only when dropped full of people." Done: the sound plays only when a boat with its travellers is left on land (an empty one is silent). `boat-drag` checks both (20 checks).
 
+## Current state, update 76 (17 Nov 2026): the voice recordings
+
+Owner, verbatim (17 Nov 2026, 21:32): "the cue files. some files are like n.1, n.2, etch named. they belong tot he same cue, so unite them, and put 100 ms of silence between them maybe"
+`src/sounds/voice/N.mp3`: the owner's recordings; lines recorded in parts (3, 4, 6, 8, 9, 25, 56, 58, 62, 78, 89, 98, 106) joined in order with 0.1 s of silence (mono 44.1 kHz, 128 kbit/s). Lines with no recording (text box as before): 130, 132-138. Recordings with no line in the table (kept, unused): 97, 108, 120-123, 131. Not used: "Recording (19)_164.mp3" (no line 164).
+A recorded line now ends by the game clock at its recording's length (build.py puts the lengths in VOICE_SECONDS, from ffprobe), not by the audio's own end event, so tests and play agree. The cue tests switch the recordings off (`useVoices`) and test the rules with the text box's time; cue test `voice-recordings` checks a recorded line plays to its end and that the parts were joined. The game file is now 30 MB (the recordings are in it).
+
 ## Task list
 
 No open items.

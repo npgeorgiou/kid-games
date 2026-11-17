@@ -15,7 +15,7 @@
   const said = () => log.map((q) => q[1]);
   const cur = () => T.voice.cur && T.voice.cur.n;
   const seq = () => T.cueMem().seq["first-site"];
-  const fresh = () => { T.setTab(false); T.goMap(); T.pieces.slice().forEach(T.removePiece); T.progress.done = {}; T.cueReset(); T.goMap(); log = []; };
+  const fresh = () => { T.setVoices(false); T.setTab(false); T.goMap(); T.pieces.slice().forEach(T.removePiece); T.progress.done = {}; T.cueReset(); T.goMap(); log = []; };
   const noTeach = () => { T.cueMem().seq["first-site"] = "done"; T.cueMem().ever["welcome-first"] = 1; };
   const start = (i) => { if (T.currentLevel === i && !T.progress.done[T.LEVELS[i].key]) T.startLevel(i ? 0 : 1); T.startLevel(i); T.render(); }; // always a fresh site: re-entering an unfinished one keeps what was left there // the real game lays the screen out when it draws
   const lvl = (k) => T.LEVELS.findIndex((L) => L.key === k);
@@ -463,6 +463,21 @@
       }
       T.setDemos(true); T.setTeach(true);
       return [!bad.length, bad.join(" | ") || "green button works with every combination"];
+    },
+    // owner 17 Nov: the recorded lines (src/sounds/voice; a line recorded in parts, n.1, n.2, ..., joined with 0.1 s of
+    // silence between them): a recorded line plays its recording and ends when the recording does, by the game clock
+    "voice-recordings": () => {
+      const bad = []; fresh(); T.setVoices(true);
+      for (const n of [93, 3]) {
+        const len = T.VOICE_SECONDS[n]; if (!len) { bad.push("no recording for line " + n); continue; }
+        T.say(n); run(0.1); if (cur() !== n || !T.cueAudio) bad.push(n + " did not start its recording");
+        run(len - 0.3); if (cur() !== n) bad.push(n + " ended before its recording (" + len + " s)");
+        run(0.4); if (cur() === n) bad.push(n + " still playing after its recording ended");
+        run(1);
+      }
+      if (!(Math.abs(T.VOICE_SECONDS[3] - 51.41) < 0.1)) bad.push("line 3 (three parts) is " + T.VOICE_SECONDS[3] + " s, not 51.41");
+      T.setVoices(false);
+      return [!bad.length, bad.join("; ") || "recordings play to their end; parts joined"];
     },
   };
   window.__cueTests = (names) => Object.keys(tests).filter((n) => !names.length || names.includes(n)).map((n) => {

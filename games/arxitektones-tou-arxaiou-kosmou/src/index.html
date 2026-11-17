@@ -3966,6 +3966,8 @@
   const CUE_TABLE = null; // build.py puts cues.json here
   const CUES_OFF = false; // the harness turns the cues off for tests of other things
   const VOICE_FILES = {}; // line number -> recording; build.py fills it from src/sounds/voice/NN.mp3
+  const VOICE_SECONDS = {}; // line number -> how long its recording lasts (build.py)
+  let useVoices = true; // the cue tests switch the recordings off: they test the rules with the text box's fixed time
   const LINE_TIME = 2, REPEAT_GAP = 5, HL_PERIOD = 1.8, HL_RING = 40, MAP_IDLE = 30, NEXT_EVERY = 60, NEXT_GAP = 2, DAMAGE_EVERY = 60, DEMO_SPEED = 12, DEMO_PAUSE = 0.35, CONFIRM_TIME = 6;
   // s, s (after a waiting step's line ends), s, px, s (no line on the map), s (the open site glows), s (win line to new-site line), s, m/s (about a second across the screen), s, s (a second restart press within it erases)
   const HL_COLOR = { yellow: "#ffd23f", green: "#3fd16b", red: "#e8463a" };
@@ -4132,9 +4134,8 @@
   function startLine(c) {
     voice.cur = c; c.t0 = cueClock; c.ended = false; if (!active.includes(c)) active.push(c);
     const box = () => { if (voice.cur !== c) return; cueAudio = null; c.t0 = cueClock; cueText.textContent = CUE_TABLE.lines[c.n] || ""; cueBar.style.left = "0"; cueBox.style.display = "block"; };
-    if (VOICE_FILES[c.n]) {
+    if (useVoices && VOICE_FILES[c.n]) {
       cueAudio = new Audio(VOICE_FILES[c.n]); cueAudio.volume = MASTER_VOLUME;
-      cueAudio.onended = () => endLine(c);
       cueAudio.play().catch(box);
     } else box();
   }
@@ -4152,7 +4153,8 @@
     if (c) { // the line playing: its action done, or its time up (text box), ends it
       const u = (now - c.t0) / LINE_TIME;
       if ((c.waitEvent || c.waitUntil) && !waiting(c)) endLine(c);
-      else if (!cueAudio) { if (u >= 1) endLine(c); else cueBar.style.left = (u * 100).toFixed(1) + "%"; }
+      else if (cueAudio) { if (now - c.t0 >= (VOICE_SECONDS[c.n] || 0)) endLine(c); } // a recording ends by the game clock, at its length
+      else { if (u >= 1) endLine(c); else cueBar.style.left = (u * 100).toFixed(1) + "%"; }
     }
     // a step in a sequence that needs something gone missing goes back to the step that makes it
     for (const s of active) if (s.seq && s.needs && waiting(s) && !cond(s.needs)) {
