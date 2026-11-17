@@ -887,6 +887,14 @@ Owner, verbatim (17 Nov 2026, 20:31): "forget it, see that: 1, thre is a delay b
 5. Sand lines: a pen follows the finger by part of the gap (more when it moves fast), averaging away a mouse's small steps but keeping quick sharp turns; points every 8 map px, joined by quadratic curves; the bit from the pressed line to the finger is drawn live from the first touch (no lag). Groove walls shifted a little further and the shade a little darker.
 Owner tests: `boat-drag` (15, the waiting-boat part now set up directly: 55 s), `sand-writing` (15).
 
+## Current state, update 73 (17 Nov 2026): no hitches on the map, carrying half a second sooner, tests in seconds
+
+Owner, verbatim (17 Nov 2026, 20:51): "1. now there is lag when the boat is just about to hit the terrain, but only if the boat is full. 2. the waves no longer push teh boats, and sometimes thre is lag there too. 3. you obviosuly DONT write tests. 4. the ppl should get out of the boat half a second earlier. 5. 55 secs is still way too long, my whole java test suite takes 20 secs"
+
+1-2. Cause, measured: the map's land grid (LAND) was allocated columns x columns x rows (104 million cells instead of 191 thousand), so every search over it (a boat's way back: 1.5 s; the travellers' walks to a moved boat) stalled the game; during such stalls taps and waves misbehaved. Fixed the size; the way back now uses a water-distance field per route (made once, 4 ms) and a 0-1 search for the least carrying (1-2 ms); straightening looks at most 40 cells ahead. `tools/harness.py realwave`: real clicks in the running game: waves push (48, 31, 12 map px), longest frame 36 ms; `maptime`: a frame 16 ms, a way back 1 ms.
+4. The travellers get out half a second after the sound ends (was one second).
+5. Owner tests that do not look at the screen run with a one-pixel canvas (`quick` in owner-tests.js): boat-drag 3.5 s, the five map tests together 10 s. boat-drag sets up waiting boats directly and starts from a restart; it checks the slowest frame when a full boat lands.
+
 ## Task list
 
 No open items.

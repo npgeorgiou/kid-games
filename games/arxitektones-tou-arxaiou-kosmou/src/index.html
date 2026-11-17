@@ -3118,7 +3118,7 @@
   }
   // Land (src/map-routes.js MAP_LAND): finished buildings and travellers only ever stand where this is true.
   const LAND = (() => {
-    const g = new Uint8Array(MAP_LAND.w * Math.ceil(MAP_W / MAP_LAND.s) * Math.ceil(MAP_H / MAP_LAND.s));
+    const g = new Uint8Array(MAP_LAND.w * Math.ceil(MAP_H / MAP_LAND.s)); // one byte per cell: columns times rows (it was columns times columns times rows by mistake, 500 times too big and slow to search)
     let i = 0, on = 0;
     for (const n of MAP_LAND.runs.split(",")) { const m = +n; if (on) g.fill(1, i, i + m); i += m; on ^= 1; }
     return g;
@@ -3228,27 +3228,53 @@
     line.legs.forEach((leg, li) => { const L = polyLen(leg); for (let d = 0; d <= L; d += 2) { const [x, y] = polyPoint(leg, d); m.set(Math.floor(y / S) * MAP_LAND.w + Math.floor(x / S), [li, d]); } });
     ROUTE_CELLS.set(line, m); return m;
   }
-  function boatWayBack(b, goal) { // the way back from where the boat is (or to the cells of `goal`): runs of sailing and carrying, and where it rejoins its route
-    const w = MAP_LAND.w, S = MAP_LAND.s, n = LAND.length, h = n / w, targets = goal || routeCells(b.line);
-    const cell = (x, y) => Math.max(0, Math.min(h - 1, Math.floor(y / S))) * w + Math.max(0, Math.min(w - 1, Math.floor(x / S)));
-    const c0 = cell(b.x, b.y), cost = new Float64Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1);
-    const heap = [[0, c0]], push = (e) => { heap.push(e); let i = heap.length - 1; while (i) { const p = (i - 1) >> 1; if (heap[p][0] <= e[0]) break; heap[i] = heap[p]; i = p; } heap[i] = e; };
-    const pop = () => { const top = heap[0], e = heap.pop(); if (heap.length) { let i = 0; for (;;) { let c = 2 * i + 1; if (c >= heap.length) break; if (c + 1 < heap.length && heap[c + 1][0] < heap[c][0]) c++; if (heap[c][0] >= e[0]) break; heap[i] = heap[c]; i = c; } heap[i] = e; } return top; };
-    cost[c0] = 0; let end = -1;
-    while (heap.length) {
-      const [k, c] = pop();
-      if (k > cost[c]) continue;
-      if (targets.has(c)) { end = c; break; }
-      const x = c % w;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+  // How far each water cell is from a route, over water (grid steps); computed once per route, when first needed.
+  const WATER_FIELDS = new Map();
+  function waterField(line) {
+    if (WATER_FIELDS.has(line)) return WATER_FIELDS.get(line);
+    const n = LAND.length, w = MAP_LAND.w, F = new Int32Array(n).fill(-1), q = new Int32Array(n); let head = 0, tail = 0;
+    for (const c of routeCells(line).keys()) { F[c] = 0; q[tail++] = c; }
+    while (head < tail) {
+      const c = q[head++], x = c % w;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
         const nx = x + dx, d = c + dy * w + dx;
-        if (nx < 0 || nx >= w || d < 0 || d >= n) continue;
-        const step = (dx && dy ? Math.SQRT2 : 1) * (LAND[d] ? 1e5 : 1); // carrying a step costs more than any way round by water
-        if (k + step < cost[d]) { cost[d] = k + step; prev[d] = c; push([k + step, d]); }
+        if ((!dx && !dy) || nx < 0 || nx >= w || d < 0 || d >= n || F[d] >= 0 || LAND[d]) continue;
+        F[d] = F[c] + 1; q[tail++] = d;
+      }
+    }
+    WATER_FIELDS.set(line, F); return F;
+  }
+  function boatWayBack(b, goal) { // the way back from where the boat is (or to the cells of `goal`): runs of sailing and carrying, and where it rejoins its route
+    const w = MAP_LAND.w, S = MAP_LAND.s, n = LAND.length, h = n / w, targets = goal || routeCells(b.line), F = goal ? null : waterField(b.line);
+    const cell = (x, y) => Math.max(0, Math.min(h - 1, Math.floor(y / S))) * w + Math.max(0, Math.min(w - 1, Math.floor(x / S)));
+    const c0 = cell(b.x, b.y), reached = (c) => (goal ? goal.has(c) : F[c] >= 0 || targets.has(c));
+    // 1. the fewest land cells to a water cell from which the route can be sailed to (or to the goal): a 0-1 search,
+    //    stepping onto land costs one, onto water nothing
+    const cost = new Int32Array(n).fill(-1), prev = new Int32Array(n).fill(-1), dq = new Int32Array(2 * n + 2);
+    let lo = n + 1, hi = n + 1, end = -1;
+    cost[c0] = 0; dq[hi++] = c0;
+    while (lo < hi) {
+      const c = dq[lo++];
+      if (reached(c)) { end = c; break; }
+      const x = c % w, k = cost[c];
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, d = c + dy * w + dx;
+        if ((!dx && !dy) || nx < 0 || nx >= w || d < 0 || d >= n) continue;
+        const kd = k + (LAND[d] ? 1 : 0);
+        if (cost[d] >= 0 && cost[d] <= kd) continue;
+        cost[d] = kd; prev[d] = c;
+        if (LAND[d]) dq[hi++] = d; else dq[--lo] = d;
       }
     }
     if (end < 0) return null;
     const cells = []; for (let c = end; c !== c0; c = prev[c]) cells.push(c); cells.push(c0); cells.reverse();
+    // 2. then down the route's water field to the route itself
+    if (!goal) for (let c = end; !targets.has(c);) {
+      const x = c % w; let best = -1;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const nx = x + dx, d = c + dy * w + dx; if ((dx || dy) && nx >= 0 && nx < w && d >= 0 && d < n && F[d] >= 0 && F[d] < F[c] && (best < 0 || F[d] < F[best])) best = d; }
+      if (best < 0) break;
+      cells.push(best); c = best; end = best;
+    }
     const [leg, d] = targets.get(end) || [null, null], [rx, ry] = leg === null ? [(end % w) * S + S / 2, Math.floor(end / w) * S + S / 2] : polyPoint(b.line.legs[leg], d);
     const pts = cells.map((c) => [(c % w) * S + S / 2, Math.floor(c / w) * S + S / 2]);
     if (pts.length === 1) pts.push([rx, ry]); else pts[pts.length - 1] = [rx, ry];
@@ -3266,7 +3292,7 @@
   function straighten(pts, land) { // the cell-by-cell way pulled straight wherever a straight line keeps to the same ground
     const ok = (a, b) => { const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 2); for (let i = 1; i < n; i++) { const t = i / n; if (isLand(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t) !== land) return false; } return true; };
     const out = [pts[0]]; let i = 0;
-    while (i < pts.length - 1) { let j = pts.length - 1; while (j > i + 1 && !ok(pts[i], pts[j])) j--; out.push(pts[j]); i = j; }
+    while (i < pts.length - 1) { let j = i + 1; while (j + 1 < pts.length && j < i + 40 && ok(pts[i], pts[j + 1])) j++; out.push(pts[j]); i = j; } // as far ahead as a straight line keeps to the same ground (at most 40 cells, so a long way costs little)
     return out;
   }
   const crewOf = (b) => groups.find((g) => g.state === "boat" && g.boat === b);
@@ -3291,7 +3317,7 @@
     mapTap(q.x, q.y); // the splash and its waves, as a tap there (sand or stones on land)
     if (onLand) playSound(LEFT_ON_LAND, 1);
     letGoBoat(b);
-    if (onLand && b.back) b.back.delay = soundSeconds(LEFT_ON_LAND) + 1; // the travellers carry it a second after the sound
+    if (onLand && b.back) b.back.delay = soundSeconds(LEFT_ON_LAND) + 0.5; // the travellers get out half a second after the sound (owner 17 Nov: first one second, then half a second earlier)
   }
   function updateBoatBack(b, dt) { // part 2: on its way back to its route
     const W = b.back, r = W.runs[W.i];

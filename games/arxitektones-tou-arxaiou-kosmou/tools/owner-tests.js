@@ -2,6 +2,9 @@
 // Returns [[name, pass, detail], ...]. Uses window.__tb (tools/harness.py hook).
 (names) => {
   const T = __tb, out = [], want = (n) => !names.length || names.includes(n);
+  // Tests that do not look at the screen run without drawing: the canvas is one pixel while they run (a map frame then
+  // takes under a millisecond instead of sixteen); afterwards it is put back and resized as the game does.
+  const quick = (fn) => { const cv = document.querySelector("canvas"), W = cv.width, H = cv.height; cv.width = cv.height = 1; try { return fn(); } finally { cv.width = W; cv.height = H; window.dispatchEvent(new Event("resize")); } };
   const fleet = () => { for (const S of T.SITES) if (!T.progress.done[S.key]) T.progress.done[S.key] = { pieces: [], loads: [] }; T.renderMap(1 / 60); }; // owner 17 Nov: one boat per finished site
   const frame = (dt) => { const fast = T.test && T.test.fast && T.test.phase !== "fail" && T.test.phase !== "pass" ? 10 : 1;
     T.stepPhysics(dt * fast, 5 * fast); T.cleanupOutOfBounds(); T.updateCheck(dt); };
@@ -574,7 +577,7 @@
   // --- owner 17 Nov: "make the concentric waves from the clicks push the boats away from their route, according to the
   // concentric circles direction, and of course then the boats continue smoothly toward their destination". A mouse click
   // on the water just beside a sailing boat: the boat goes away from the click, then back onto its route smoothly, sailing on.
-  if (want("wave-boat")) {
+  if (want("wave-boat")) quick(() => {
     T.goMap(); fleet(); T.renderMap(1 / 60); const cv = document.querySelector("canvas"), v = T.mapView();
     // owner 17 Nov: "the boat pushing still feels double sometimes": clicks at several places around the boat, near and far (a far click's rings fade before they reach it: no push then, but never two); owner 17 Nov: "you now push them too far away and violently, especially when the click is right on the boat": at most about half a boat (30 map px); then "now they barely push. double the current force": a click right on the boat moves it 45-60 map px
     for (const [ox, oy] of [[0, 0], [-25, 10], [-8, 0], [0, -8], [40, 0], [-60, 20], [15, 30], [0, 70], [90, -20]]) {
@@ -587,7 +590,7 @@
     const back = Math.hypot(b.ox, b.oy);
     out.push(["a click's waves push a boat away and it sails back smoothly to its route (click " + ox + "," + oy + " px from it)", (Math.hypot(ox, oy / 0.6) > 50 || (most > 3 && (away > 0.8 || Math.hypot(ox, oy) < 2))) && most <= 60 && (Math.hypot(ox, oy) > 2 || most >= 45) && back < 1 && !jumps && goes === 1, "pushed in " + goes + " go(es) " + most.toFixed(0) + " map px, direction away " + away.toFixed(2) + ", off its route after 6 s " + back.toFixed(1) + " px, jumps " + jumps]);
     }
-  }
+  })
 
   // --- owner 17 Nov: "the sand hills of africa and arabia are counted as mountains by you, for the particle effects": places
   // on the map picture (map pixels) and what a tap there must show
@@ -617,7 +620,7 @@
   // --- owner 17 Nov: "the turning is not smooth, it just jumps to another orientation ... maybe the problem is that your sea
   // routes are angular and not bended": over a minute of sailing (60 frames a second) no boat's pointing or course jumps
   // between frames (the pointing turns at most 1.5 rad/s; the course bends at most 20 degrees from one frame to the next, that much only in the narrow Dardanelles, which cannot be rounded more without crossing land), and the rounded routes stay on the water
-  if (want("boat-turn")) {
+  if (want("boat-turn")) quick(() => {
     T.goMap(); fleet(); let worstHd = 0, worstCourse = 0, onLand = 0, prev = T.boats.map((b) => [b.hd, Math.atan2(b.vy, b.vx), b.wait]);
     for (const l of BOAT_LINES) for (const leg of l.legs) leg.forEach(([x, y], i) => { if (i > 10 && i < leg.length - 11 && T.isLand(x, y)) onLand++; }); // the ports sit on the coast and the drawn routes run along it by them
     for (let k = 0; k < 3600; k++) {
@@ -630,7 +633,7 @@
       });
     }
     out.push(["boats turn smoothly along rounded sea routes", worstHd <= 1.5 / 60 + 1e-6 && worstCourse < 0.35 && !onLand, "largest turn in one frame: pointing " + (worstHd * 180 / Math.PI).toFixed(1) + " deg, course " + (worstCourse * 180 / Math.PI).toFixed(1) + " deg; route points on land " + onLand]);
-  }
+  })
 
   // --- owner 17 Nov: "dragging on the sand plains of africa and arabia, leaves a line on the sand ... the sandhills
   // shouldnt be in that area ... 2 mins after the first stroke in each area is made, a wind blows that erases the
@@ -675,10 +678,10 @@
     }
     f.down([300, 1300]); f.up([300, 1300]); res.push(["a tap on the sand leaves no line", ink(300, 1300) === 0]);
     T.SAND_AREAS[0].t0 -= 121; T.SAND_AREAS[1].t0 -= 100; // Africa's first line two minutes ago, Arabia's 100 seconds ago
-    for (let k = 0; k < 480; k++) T.renderMap(1 / 60);
+    quick(() => { for (let k = 0; k < 480; k++) T.renderMap(1 / 60); });
     res.push(["two minutes after Africa's first line the wind there wiped it", ink(350, 1165) === 0 && !T.SAND_AREAS[0].c]);
     res.push(["the wind blew only in Africa: Arabia's line is still there", ink(1375, 890) > 0]);
-    T.SAND_AREAS[1].t0 -= 30; for (let k = 0; k < 480; k++) T.renderMap(1 / 60);
+    T.SAND_AREAS[1].t0 -= 30; quick(() => { for (let k = 0; k < 480; k++) T.renderMap(1 / 60); });
     res.push(["two minutes after Arabia's first line its wind wiped it", ink(1375, 890) === 0 && !T.SAND_AREAS[1].c]);
     f.drag([[250, 1150], [450, 1180]]); res.push(["after the wind a new line starts a new two minutes", ink(350, 1165) > 0 && T.SAND_AREAS[0].t0 !== null && !T.SAND_AREAS[0].wind]);
     for (const A of T.SAND_AREAS) { A.c = null; A.t0 = null; A.wind = null; }
@@ -688,8 +691,8 @@
 
   // --- owner 17 Nov: "make it so the boats are draggable, and if the kid leaves them on land, then the humans go out,
   // pick up the boat on their shoulders, and carry it to the sea again, and then they go on again and they continue sailing"
-  if (want("boat-drag")) {
-    T.goMap(); fleet(); T.renderMap(1 / 60);
+  if (want("boat-drag")) quick(() => {
+    T.goMap(); T.restartAll(); fleet(); T.renderMap(1 / 60); // a known start: whatever earlier tests left on the map is gone
     const f = mapFinger(32), res = [], cv = document.querySelector("canvas");
     let emptySailing = 0; // owner: no empty boats sailing around, checked every frame below
     const step = (dt = 1 / 60) => { T.active.length = 0; /* no cue holds the screen: these frames skip the cue clock */ T.renderMap(dt); for (const b of T.boats) if (!T.crewOf(b) && !(b.parked || b.stuck || b.held || b.drop || (b.back && b.back.then))) emptySailing++; };
@@ -700,18 +703,18 @@
       for (let k = 1; k <= 40; k++) { const fp = [x0 + (to[0] - x0) * k / 40, y0 - 5 + (to[1] - y0) * k / 40]; f.move(fp); step(); s.turn = Math.max(s.turn, Math.abs(b.hd - hd)); s.rise = Math.max(s.rise, b.lift || 0);
         s.offFinger = Math.max(s.offFinger, Math.hypot(b.x - (fp[0] + b.held.dx), b.y - b.lift * T.BOAT_LIFT_H - (fp[1] + b.held.dy))); } // the boat as seen stays at the finger
       s.shadowBelow = b.y - b.held.gy; const shadow = [b.x, b.y]; f.up([to[0], to[1] - 5]);
-      let lastLift = 1; for (let k = 0; k < 60 && b.drop; k++) { lastLift = b.lift; step(); }
+      let lastLift = 1; s.slowest = 0; for (let k = 0; k < 60 && b.drop; k++) { lastLift = b.lift; const t0 = performance.now(); step(); s.slowest = Math.max(s.slowest, performance.now() - t0); }
       s.lastLift = lastLift; s.landedAtShadow = Math.hypot(b.x - shadow[0], b.y - shadow[1]) < 0.01 && b.lift === 0 && !b.drop; return s;
     };
-    const follow = (b, secs) => { // frames until it sails its route again; what was seen
+    const follow = (b, secs, dt = 1 / 20) => { // until it sails its route again, in steps of dt (a boat moves 1 map px in 1/20 s); seconds seen in each part
       const seen = { wait: 0, waitMoved: 0, lift: 0, carry: 0, carryOnWater: 0, lower: 0, sail: 0, jump: 0 }; let px = b.x, py = b.y;
-      for (let k = 0; k < secs * 60; k++) {
-        step(); const W = b.back;
-        seen.jump = Math.max(seen.jump, Math.hypot(b.x - px, b.y - py)); if (W && W.delay > 0) { seen.wait++; if (Math.hypot(b.x - px, b.y - py) > 0) seen.waitMoved++; } px = b.x; py = b.y;
-        if (!W) return { ...seen, back: true, t: k / 60 };
+      for (let k = 0; k < secs / dt; k++) {
+        step(dt); const W = b.back;
+        seen.jump = Math.max(seen.jump, Math.hypot(b.x - px, b.y - py)); if (W && W.delay > 0) { seen.wait += dt; if (Math.hypot(b.x - px, b.y - py) > 0) seen.waitMoved++; } px = b.x; py = b.y;
+        if (!W) return { ...seen, back: true, t: k * dt };
         if (W.delay > 0) continue;
         const r = W.runs[Math.min(W.i, W.runs.length - 1)];
-        if (W.phase === "lift") seen.lift++; else if (W.phase === "lower") seen.lower++; else if (r.mode === "carry") { seen.carry++; if (!T.isLand(b.x, b.y)) seen.carryOnWater++; } else seen.sail++;
+        if (W.phase === "lift") seen.lift += dt; else if (W.phase === "lower") seen.lower += dt; else if (r.mode === "carry") { seen.carry += dt; if (!T.isLand(b.x, b.y)) seen.carryOnWater += dt; } else seen.sail += dt;
       }
       return { ...seen, back: false };
     };
@@ -724,10 +727,11 @@
       res.push(["held, it stays at the finger and its shadow drops away below it (" + d.offFinger.toFixed(2) + " px off the finger)", d.rise === 1 && d.offFinger < 0.01 && Math.abs(d.shadowBelow - T.BOAT_LIFT_H) < 0.01]);
       res.push(["it falls faster and faster and splashes the moment it reaches the shadow (height a frame before: " + d.lastLift.toFixed(2) + ")", d.lastLift > 0.15]);
       res.push(["let go, it falls onto the point of its shadow", d.landedAtShadow]);
+      res.push(["no hitch when it lands with people in it (slowest frame " + d.slowest.toFixed(1) + " ms without drawing; it was 1500 ms)", d.slowest < 30]); // owner 17 Nov: the way back took 1.5 s to find
       const s = follow(b1, 300);
-      const want = Math.round((T.soundSeconds("boat-left-on-land") + 1) * 60);
-      res.push(["left on land: they wait for the sound and one second more before carrying (" + s.wait + " frames, sound " + T.soundSeconds("boat-left-on-land").toFixed(2) + " s)", T.soundSeconds("boat-left-on-land") > 1 && Math.abs(s.wait - want) <= 2 && s.waitMoved === 0]);
-      res.push(["then its travellers lift it, carry it over land, put it down", s.lift >= 50 && s.carry > 0 && s.lower >= 50 && s.carryOnWater <= 12]);
+      const want = T.soundSeconds("boat-left-on-land") + 0.5;
+      res.push(["left on land: they wait for the sound and half a second more before getting out (" + s.wait.toFixed(2) + " s, sound " + T.soundSeconds("boat-left-on-land").toFixed(2) + " s)", T.soundSeconds("boat-left-on-land") > 1 && Math.abs(s.wait - want) <= 0.06 && s.waitMoved === 0]);
+      res.push(["then its travellers lift it, carry it over land, put it down", s.lift >= 0.9 && s.carry > 0 && s.lower >= 0.9 && s.carryOnWater <= 0.25 /* only the step into the water */]);
       res.push(["then it sails back to its route and on", s.back && s.sail > 0 && !!T.crewOf(b1)]);
       res.push(["no jumps on the way (" + s.jump.toFixed(1) + " map px in a frame at most)", s.jump < 1.5]);
     }
@@ -743,10 +747,10 @@
     } else res.push(["a boat to drop next to another", false]);
     // an empty boat: waiting where its travellers got off; moved onto land, they come for it when their round is done.
     // Set up directly: a boat with its travellers a moment before a port (all sites finished, so they get off there).
-    const park = (b) => { const g = T.crewOf(b); b.wait = 0; b.dir = 1; b.d = b.lens[b.leg] - 0.5; g.stops = 1; g.onFoot = 2; for (let k = 0; k < 120 && !b.parked; k++) step(); return b.parked ? g : null; };
+    const park = (b) => { const g = T.crewOf(b); b.wait = 0; b.dir = 1; b.d = b.lens[b.leg] - 0.5; g.recent = []; for (let k = 0; k < 900 && !b.parked; k++) { g.stops = 1; g.onFoot = 2; step(k < 60 ? 1 / 60 : 0.2); } return b.parked ? g : null; }; // on to the next port where they can walk to a site
     const under = (p) => { const q = T.mapView().pt(p[0], p[1] - 5); const sb = T.screenButtons().find((x) => x.r ? Math.hypot(q.x - x.x, q.y - x.y) <= x.r : x.rect && q.x >= x.rect.x && q.x <= x.rect.x + x.rect.w && q.y >= x.rect.y && q.y <= x.rect.y + x.rect.h); return sb ? sb.id : null; };
     let b3 = null, g3 = null; const why = [];
-    for (const b of T.boats) { if (b === b1 || b === b2 || !T.crewOf(b) || b.back) continue; const g = park(b); if (!g) { why.push(T.boats.indexOf(b) + ": did not stop"); continue; } f.down([b.x, b.y - 5]); if (b.held) { b3 = b; g3 = g; break; } why.push(T.boats.indexOf(b) + ": not held, under " + under([b.x, b.y])); f.up([b.x, b.y - 5]); }
+    for (const b of T.boats) { if (b === b1 || b === b2 || !T.crewOf(b) || b.back) continue; const g = park(b); if (!g) { why.push(T.boats.indexOf(b) + ": did not stop"); continue; } f.down([b.x, b.y - 5]); if (b.held) { b3 = b; g3 = g; break; } const other = T.boats.find((x) => x.held); why.push(T.boats.indexOf(b) + ": not held, " + (other ? "boat " + T.boats.indexOf(other) + " (in the same port) was held instead" : "under " + under([b.x, b.y]))); f.up([b.x, b.y - 5]); }
     if (!b3) res.push(["an empty waiting boat can be picked up (" + why.join("; ") + ")", false]);
     else {
       const at = [b3.x, b3.y]; f.up([b3.x, b3.y - 5]); for (let k = 0; k < 40; k++) step(0.2); // the tap's own waves rock it; then it is back
@@ -766,10 +770,10 @@
     res.push(["no empty boat ever sailed (" + emptySailing + " frames)", emptySailing === 0]);
     const bad = res.filter((r) => !r[1]).map((r) => r[0]);
     out.push(["boats: held without turning over a shadow, dropped with a splash, carried after a sound; empty boats wait", !bad.length, bad.length ? "failed: " + bad.join("; ") : res.length + " checks right"]);
-  }
+  });
 
   // --- owner 17 Nov: "each site that is finished makes a boat full of people appear ... game starts with 0 boats"
-  if (want("fleet")) {
+  if (want("fleet")) quick(() => {
     T.goMap(); T.restartAll(); T.renderMap(1 / 60); const res = [["no boats at the start", T.boats.length === 0]];
     T.progress.done[T.SITES[0].key] = { pieces: [], loads: [] }; T.renderMap(1 / 60);
     res.push(["one finished site: one boat, full of people", T.boats.length === 1 && T.crewOf(T.boats[0]) === T.groups[0]]);
@@ -778,7 +782,7 @@
     T.restartAll(); T.renderMap(1 / 60); res.push(["restart: none again", T.boats.length === 0]);
     const bad = res.filter((r) => !r[1]).map((r) => r[0]);
     out.push(["a boat full of people for each finished site, none at the start", !bad.length, bad.length ? "failed: " + bad.join("; ") : res.length + " checks right"]);
-  }
+  })
 
   // --- 1: the restart button on the map: everything as at the very beginning
   if (want("restart")) {
