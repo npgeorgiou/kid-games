@@ -600,6 +600,19 @@
     out.push(["a map tap shows sand on the sand dunes, stones on the mountains", !bad.length, bad.join("; ") || "all " + Object.keys(want).length + " places right"]);
   }
 
+  // --- owner 17 Nov: "make the boats change shape as they turn and move in different directions ... pick 3rd [a boat
+  // drawn by the game in 3D], give it the color and shape of the current boat": the boat seen sailing east, south and
+  // north-east covers different shapes on screen
+  if (want("boat-3d")) {
+    const shape = (a) => { const c = document.createElement("canvas"); c.width = c.height = 200; const x = c.getContext("2d");
+      T.SKIN.mapBoat(x, 100, 140, 110, a, 0, 0, null); const d = x.getImageData(0, 0, 200, 200).data, m = new Uint8Array(40000);
+      for (let i = 0; i < 40000; i++) m[i] = d[i * 4 + 3] > 128 ? 1 : 0; return m; };
+    const diff = (m, n) => { let a = 0, u = 0; for (let i = 0; i < m.length; i++) { a += m[i] !== n[i] ? 1 : 0; u += m[i] || n[i] ? 1 : 0; } return a / u; };
+    const e = shape(0), so = shape(Math.PI / 2), ne = shape(-Math.PI / 4);
+    const d1 = diff(e, so), d2 = diff(e, ne), d3 = diff(so, ne);
+    out.push(["a map boat changes shape as it turns", d1 > 0.2 && d2 > 0.2 && d3 > 0.2, "east/south " + d1.toFixed(2) + ", east/north-east " + d2.toFixed(2) + ", south/north-east " + d3.toFixed(2) + " of the boat's area differs"]);
+  }
+
   // --- 1: the restart button on the map: everything as at the very beginning
   if (want("restart")) {
     T.mode = "map"; T.renderMap(0.016);

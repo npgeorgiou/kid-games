@@ -842,6 +842,12 @@ Owner, verbatim: "god youa nnoy me. now the barely push. double the current forc
 
 Push doubled (200 -> 400): a click right on a boat moves it about a boat's length (about 53 map px). Owner test `wave-boat`: a click on the boat moves it 45-60 map px, still once and smoothly.
 
+## Current state, update 68 (17 Nov 2026): map boats drawn in 3D
+
+Owner, verbatim: "can you make anything to make the boats change shape as they turn and move in different directions? now its the same image, just rotated sometimes. are there any suggestions? like even 3d?" Offered: pictures from 8-16 directions, a 3D model, or a boat drawn by the game in 3D. Owner: "pick 3rd, try to give it the color and shape of the current boat".
+
+SKIN.mapBoat now draws the boat in 3D from points (hull of 14 sections with raised curled ends, one mast, yard, a cream square sail with two red stripes, rigging, dark ink lines), coloured like art/boat-owner.png, seen from the south 30 degrees above the sea, drawn far to near. The wind blows from the north: the yard is braced to lie across it (at most 60 degrees each way from across the boat) and the sail fills to the south, so it mostly shows its face. Travellers sit along the boat's middle, only heads above the near side. The wake starts at the stern whatever the heading. The owner's boat picture is no longer used. Picture of the boat in eight directions: owner-shots/2026-11-17-boats-3d.png. Owner test `boat-3d`: the boat sailing east, south and north-east covers different shapes.
+
 ## Task list
 
 No open items.
