@@ -27,7 +27,7 @@ The single source for what each level is. Code, suggested builds and piles follo
 
 ## Tests (12 Nov 2026: all pass)
 
-Run from `games/tower-builder/tools`: `python3 harness.py spec` (tests 1, 2, 3, 4; one line each) and `python3 harness.py real` (test 2, real game loop). `NJ=n` sets the number of placement runs (default 6).
+Run from `games/arxitektones-tou-arxaiou-kosmou/tools`: `python3 harness.py spec` (tests 1, 2, 3, 4; one line each) and `python3 harness.py real` (test 2, real game loop). `NJ=n` sets the number of placement runs (default 6).
 
 1. Headpiece: the level's load equals `tools/level-spec.json` exactly.
 2. Suggested build stands: quick build and the full test (at play speed, not the Tab speed-up) pass with every piece exactly placed and in five more runs with every piece off by up to 3 cm and 1 degree (never overlapping what is already there, as a careful player places them); and once through the real game loop (real frames, the real ready check, no Tab). Owner (12 Nov): it also passes with the earthquake and the headpiece 30% stronger, and quick build plus test gives the same result 20 times in a row (`harness.py owner repeat margin`).

@@ -11,9 +11,9 @@ Not in the prototype: building jobs, levels, test button, wind, statue, win or l
 ## Files
 
 - `src/index.html`: the source you write. Loads `../lib/planck.min.js` with a plain `<script src>` (not a module) so it opens by double-click. All CSS and JS inline in this file.
-- `build.py`: already written. `python3 games/tower-builder/build.py` writes `tower-builder.html`, the single self-contained file, with the library inlined.
+- `build.py`: already written. `python3 games/arxitektones-tou-arxaiou-kosmou/build.py` writes `arxitektones-tou-arxaiou-kosmou.html`, the single self-contained file, with the library inlined.
 - `lib/planck.min.js`: Planck.js 1.4.2, MIT (licence text alongside). Global `planck`.
-- `stack-test.js`: `node games/tower-builder/stack-test.js` checks a 10-block stack stays still. It passes with the settings below.
+- `stack-test.js`: `node games/arxitektones-tou-arxaiou-kosmou/stack-test.js` checks a 10-block stack stays still. It passes with the settings below.
 
 ## Screen
 
@@ -89,14 +89,14 @@ Defaults: flat warm stone colours with a darker outline, pale sky, sandy ground.
 
 ## Done when
 
-- `node games/tower-builder/stack-test.js` exits 0.
-- `python3 games/tower-builder/build.py` produces `tower-builder.html` and it opens by double-click with no console errors.
+- `node games/arxitektones-tou-arxaiou-kosmou/stack-test.js` exits 0.
+- `python3 games/arxitektones-tou-arxaiou-kosmou/build.py` produces `arxitektones-tou-arxaiou-kosmou.html` and it opens by double-click with no console errors.
 - In a browser: every pile button gives a piece; pieces stack, wobble and topple; a 6-block tower stands still; a held piece pushes others; dropping on the pile removes; the broom clears; resizing the window keeps everything usable.
 - Check it once in the browser yourself before reporting. If stacks jitter, raise the iteration counts in `world.step`; if that fails, report it. Do not switch library without asking.
 
 ## Finish
 
-Commit `src/index.html` and `tower-builder.html`, push, give `tower-builder.html` as the download, and set the Status section of the root `CLAUDE.md` to "Tower Builder prototype built, waiting for the test with the child".
+Commit `src/index.html` and `arxitektones-tou-arxaiou-kosmou.html`, push, give `arxitektones-tou-arxaiou-kosmou.html` as the download, and set the Status section of the root `CLAUDE.md` to "Tower Builder prototype built, waiting for the test with the child".
 
 ## World map (new)
 
@@ -121,7 +121,7 @@ Code: SECTIONs BREAKING, PILE and LEVELS in `src/index.html`. Their numbers are 
 
 ## Current state (11 Nov 2026, handoff; overrides earlier sections where they differ)
 
-Next chat: read this section first. The owner play-tests and sends numbered fix lists; build them all, push, give `tower-builder.html`.
+Next chat: read this section first. The owner play-tests and sends numbered fix lists; build them all, push, give `arxitektones-tou-arxaiou-kosmou.html`.
 
 - Files: `src/index.html` (code), `src/levels.js` (outlines), `src/sounds/*.mp3` (owner sounds, loudness-matched, re-encoded), `src/art/map.jpg` + `src/art/boat.png` (owner art). `build.py` inlines scripts and embeds every `"sounds/…"` / `"art/…"` string as a data URI. Tool: `tools/normalize-sounds.php` (ffmpeg two-pass loudnorm). The old coastline map data was removed.
 - Sound: Web Audio (`SOUNDS` table in SECTION FEEL: name -> files with per-file volume, set by ear). Hits per material pair (`hit-<a>-<b>`, ground first), `crumble`, `snap`, `wind` (loops through the wind test), `quake` (cut at the end), `drumroll` (while the load is lowered), `cheer`, `fail`, sliding loops `drag-stone` / `drag-wood`, music `music-map` / `music-level`. Sidebar pile hits at half volume, silent for 1.5 s after the pile is filled. Audio is started at load; browsers may hold it until the first click or key. `collapse.mp3` is unused.
@@ -484,7 +484,7 @@ Owner's words: "I need to see what you do in whirling. I cant and the problem is
 
 ## Current state, update 38 (14 Nov 2026, end of chat): the owner's chosen hand is the update-36 version
 
-Owner's words: "I like the file I sent you. keep that." The file he sent is the game as built at commit 475cd61 (update 36, 18:10); `src/index.html` and `tower-builder.html` are restored to it byte for byte. Update 37 (same effort for every piece, hand moving with the finger's speed, finger read by real time) is undone in the game; its write-up above stays as history.
+Owner's words: "I like the file I sent you. keep that." The file he sent is the game as built at commit 475cd61 (update 36, 18:10); `src/index.html` and `arxitektones-tou-arxaiou-kosmou.html` are restored to it byte for byte. Update 37 (same effort for every piece, hand moving with the finger's speed, finger read by real time) is undone in the game; its write-up above stays as history.
 
 Open, from the owner, for the next chat (ask before building, per the hard stops in CLAUDE.md):
 - "the wood rotation circles are wider than the stones, and that unnatural": whirling a wooden block by one end makes wider circles than a stone block. Cause unknown; find it with the real mouse in the running game (`tools/harness.py whirlvideo`) first.
@@ -519,7 +519,7 @@ Built: Ur as in `levels.md` section 3 (five rows, 14 m and 10 m planks; pile als
 ## Current state, update 43 (14 Nov 2026, late): cues as a table; the owner's cue list
 
 The owner chose: "I choose A, with B written from it, so I can read it. B should change when A changes, my comments will amke you change A. about Ur: forget it for now, anotehr caht is dealing with it."
-Built: `cues.json` (version A) is the only source of the cues; `cues.md` (version B) is written from it by `python3 tools/cues_doc.py games/tower-builder/cues.json` (never edit it by hand); `build.py` puts the table into the game; SECTION CUES is the engine (three-part model at its top); the pattern for every game is `docs/patterns/cues.md`. `tools/harness.py cues` checks the table's names, the demos, the first-site steps and the list below.
+Built: `cues.json` (version A) is the only source of the cues; `cues.md` (version B) is written from it by `python3 tools/cues_doc.py games/arxitektones-tou-arxaiou-kosmou/cues.json` (never edit it by hand); `build.py` puts the table into the game; SECTION CUES is the engine (three-part model at its top); the pattern for every game is `docs/patterns/cues.md`. `tools/harness.py cues` checks the table's names, the demos, the first-site steps and the list below.
 
 Owner's list, verbatim, with what was done:
 1. "you repeat instructions every 3 secs, thats annoying, amke it every 5 secs" — a waiting step's line now comes again 5 s after it ends.
@@ -727,7 +727,7 @@ Results (`python3 tools/harness.py cuetest`, 29 tests, all pass):
 
 ## Current state, update 54 (16 Nov 2026): settings, sandbox icon, cues.md layout
 
-Owner's words: "# make parent mode, that is without level demos (still we have all the other cues, just not the level demos), with a settings gear button that opens a popup panel with that checkbox option, and an X to close the popup, all big and bold, remember its for kids, and the text should say (of the option) VOITHITIKA VIDEO # better sandbox main screen icon, make 3 stacked blocks, 2 bot 1 mid. # change https://github.com/npgeorgiou/kid-games/blob/main/games/tower-builder/cues.md so that the explanation of when it plays is first, in bold, and then teh greek text. this way I cn know what I read and make small changes on the fly as I speak"
+Owner's words: "# make parent mode, that is without level demos (still we have all the other cues, just not the level demos), with a settings gear button that opens a popup panel with that checkbox option, and an X to close the popup, all big and bold, remember its for kids, and the text should say (of the option) VOITHITIKA VIDEO # better sandbox main screen icon, make 3 stacked blocks, 2 bot 1 mid. # change https://github.com/npgeorgiou/kid-games/blob/main/games/arxitektones-tou-arxaiou-kosmou/cues.md so that the explanation of when it plays is first, in bold, and then teh greek text. this way I cn know what I read and make small changes on the fly as I speak"
 
 1. Settings: a gear button top right on the map opens a big box with one tick box, ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ, and a big red X. Unticked, no site plays its demo; every other cue stays. Ticked by default, remembered, kept by ΕΠΑΝΕΚΚΙΝΗΣΗ. The gear and its box can always be touched, also while a cue darkens the map. Test: `harness.py cuetest demos-off`; real-mouse check of gear, tick and X.
 2. Free play button on the map: three stacked blocks, two below and one on top in the middle.
@@ -798,6 +798,14 @@ Owner, verbatim: "1. make the same 20% and 50% reduction to the terrain hits onc
 7. MASTER_VOLUME 0.5 on every sound, music and voice.
 8. Map music 0.16 -> 0.144.
 
+## Current state, update 61 (17 Nov 2026): waves push boats, load screen, game renamed
+
+Owner, verbatim: "make the cocnentric waves from the clicks, push the boats away from their route, according to the cocnentric circles direction, and of course then the boats continue smoothly toward their destination, after having been pushed. also, when the game starts, use this load screen for 2 secs. also, rename game in GitHub (and folder) to ARXITEKTONES TOU ARXAIOU KOSMOU" (with the title picture, saved as src/art/loading.jpg).
+
+1. Each ring of a water tap gives a boat it passes a push away from the tap (weaker for the later, fading rings); the boat is drawn off its route by that push and a critically damped spring brings it back smoothly while it keeps sailing (BOAT_BACK). Owner test `wave-boat`: pushed about 40 map px straight away from the click, back on its route within 6 s, no jump.
+2. Load screen: the title picture full screen for 2 s at start, then it fades and the map starts (the welcome line starts after it). The harness sets LOAD_SCREEN_MS to 0.
+3. Renamed: folder games/arxitektones-tou-arxaiou-kosmou, game file arxitektones-tou-arxaiou-kosmou.html, browser tab title "Αρχιτέκτονες του αρχαίου κόσμου". The repository stays kid-games (it holds the whole library). Saved progress keeps its old storage name, so nothing is lost.
+
 ## Task list
 
 No open items.
@@ -805,7 +813,7 @@ No open items.
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
 Done (12 Nov 2026, levels): all ten levels rebuilt to `levels.md` (approved, headpieces LOCKED in `tools/level-spec.json`); every test there passes (`tools/harness.py spec`, `tools/harness.py real`); picture `levels.png` (`tools/level-pictures.py`). Game changes are listed at the end of `levels.md`. Next: owner play-test and verdict on `levels.png`. Branch `level-proposals` is superseded.
-Done (12 Nov 2026, second and third level lists): see `games/tower-builder/levels.md` (levels and game changes). Arches are the standard nine wedges again (wedge trimmed so the arch top is exactly 3 m) with a big triangle sized to sit on the arch flush with its top; levels fill the screen height (only the Lighthouse shrinks); Parthenon columns 2 m apart; Mausoleum one roof layer less; all piles fit the sidebar; every test in levels.md passes. Level 3 quick build: not reproduced. Pre-existing harness failure, not from this work: probe 'whirls beam/wood'.
+Done (12 Nov 2026, second and third level lists): see `games/arxitektones-tou-arxaiou-kosmou/levels.md` (levels and game changes). Arches are the standard nine wedges again (wedge trimmed so the arch top is exactly 3 m) with a big triangle sized to sit on the arch flush with its top; levels fill the screen height (only the Lighthouse shrinks); Parthenon columns 2 m apart; Mausoleum one roof layer less; all piles fit the sidebar; every test in levels.md passes. Level 3 quick build: not reproduced. Pre-existing harness failure, not from this work: probe 'whirls beam/wood'.
 Fifth list (12 Nov 2026): 1 Pharos three tie courses and one stone course on top, test 8 outline vs build; 2 solid outlines beside arches with thin wedge lines; 3 Valens back to the old design (three piers, course between the tiers, narrow walls); 4 mudbrick breaks under four mudbrick and three stone blocks, Djoser stone only in the first layer; 5 question on the Ziggurat wood (answered); 6 Karnak four identical columns, every pillar a capital of two small blocks; 7 piece weight in the hand. Done, except: Valens pile does not fit the sidebar (120%), waiting for the owner.
 Sixth list (12 Nov 2026): owner's 17 items; all decisions below settled; the owner's screenshots are in `owner-shots/` (item06 Lion Gate red doorway, item10 Ishtar dips above the arch, item13 Mausoleum gaps at the roof steps, item15 Pharos line between openings, item17 Valens button lit with the upper tier unfinished): look at each before its item; build every item in one chat, generic fixes only (no per-level patches), each with a harness test that repeats what the owner does by hand.
 

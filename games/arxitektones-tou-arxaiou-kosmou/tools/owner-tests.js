@@ -570,6 +570,20 @@
     out.push(["sound levels as the owner set them", !bad.length, bad.join("; ") || "ok"]);
   }
 
+  // --- owner 17 Nov: "make the concentric waves from the clicks push the boats away from their route, according to the
+  // concentric circles direction, and of course then the boats continue smoothly toward their destination". A mouse click
+  // on the water just beside a sailing boat: the boat goes away from the click, then back onto its route smoothly, sailing on.
+  if (want("wave-boat")) {
+    T.goMap(); T.renderMap(1 / 60); const cv = document.querySelector("canvas"), v = T.mapView();
+    const b = T.boats.find((q) => q.wait <= 0) || T.boats[0], s0 = v.pt(b.x, b.y), tap = { x: s0.x - 25, y: s0.y + 10 };
+    const opt = { clientX: tap.x, clientY: tap.y, pointerId: 9, isPrimary: true, pointerType: "mouse", button: 0, bubbles: true };
+    cv.dispatchEvent(new PointerEvent("pointerdown", { ...opt, buttons: 1 })); cv.dispatchEvent(new PointerEvent("pointerup", { ...opt, buttons: 0 }));
+    let most = 0, away = 0, jumps = 0, prev = Math.hypot(b.ox, b.oy);
+    for (let k = 0; k < 360; k++) { T.renderMap(1 / 60); const o = Math.hypot(b.ox, b.oy); if (o > most) { most = o; away = (b.ox * (s0.x - tap.x) + b.oy * (s0.y - tap.y)) / (o * Math.hypot(s0.x - tap.x, s0.y - tap.y)); } if (Math.abs(o - prev) > 5) jumps++; /* more than 5 map px in one frame would look like a jump */ prev = o; }
+    const back = Math.hypot(b.ox, b.oy);
+    out.push(["a click's waves push a boat away and it sails back smoothly to its route", most > 10 && away > 0.8 && back < 1 && !jumps, "pushed " + most.toFixed(0) + " map px, direction away " + away.toFixed(2) + ", off its route after 6 s " + back.toFixed(1) + " px, jumps " + jumps]);
+  }
+
   // --- 1: the restart button on the map: everything as at the very beginning
   if (want("restart")) {
     T.mode = "map"; T.renderMap(0.016);

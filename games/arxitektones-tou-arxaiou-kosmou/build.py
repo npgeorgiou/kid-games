@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inline local scripts, sounds and pictures from src/index.html into one self-contained tower-builder.html."""
+"""Inline local scripts, sounds and pictures from src/index.html into one self-contained arxitektones-tou-arxaiou-kosmou.html."""
 import re, pathlib, json
 here = pathlib.Path(__file__).resolve().parent
 src = (here / "src" / "index.html").read_text(encoding="utf-8")
@@ -19,5 +19,5 @@ vf = {int(f.stem): "data:audio/mpeg;base64," + base64.b64encode(f.read_bytes()).
 out = out.replace("const VOICE_FILES = {};", "const VOICE_FILES = " + json.dumps(vf) + ";", 1)
 # the cue table (cues.json, version A) goes into the game as it is
 out = out.replace("const CUE_TABLE = null;", "const CUE_TABLE = " + json.dumps(json.loads((here / "cues.json").read_text(encoding="utf-8")), ensure_ascii=False) + ";", 1)
-(here / "tower-builder.html").write_text(out, encoding="utf-8")
-print("wrote tower-builder.html", len(out), "bytes")
+(here / "arxitektones-tou-arxaiou-kosmou.html").write_text(out, encoding="utf-8")
+print("wrote arxitektones-tou-arxaiou-kosmou.html", len(out), "bytes")

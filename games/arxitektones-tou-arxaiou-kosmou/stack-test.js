@@ -1,4 +1,4 @@
-// Physics check, no browser: node games/tower-builder/stack-test.js
+// Physics check, no browser: node games/arxitektones-tou-arxaiou-kosmou/stack-test.js
 // Stacks N blocks, lets them settle 3 s, then fails if the top block moves during the next 27 s.
 const pl = require('./lib/planck.min.js');
 const N = 10, HW = 1.0, HH = 0.5;
