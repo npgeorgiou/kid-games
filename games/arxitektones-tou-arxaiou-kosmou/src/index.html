@@ -475,10 +475,42 @@
       ctx.restore();
     },
     // map taps (SECTION MAP, mapTap): one particle; kind water/sand/leaf/rock, size r px, life 1..0
+    // A stone from the mountains: a cube seen as the boats are (from the south, 30 degrees above), lit from the top left.
+    // x, y: its bottom middle on screen; s: its side on screen; yaw: its turn on the ground; grey: its colour; a: see-through.
+    mapStone(ctx, x, y, s, yaw, grey, a) {
+      const SE = 0.5, CE = 0.866, h = s / 2, ca = Math.cos(yaw), sa = Math.sin(yaw);
+      const P = (u, w, z) => [x + u * ca - w * sa, y + (u * sa + w * ca) * SE - z * CE];
+      const c = [[-h, -h], [h, -h], [h, h], [-h, h]];
+      ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.strokeStyle = "rgba(55, 45, 35, 0.9)"; ctx.lineWidth = Math.max(0.8, s * 0.06); ctx.lineJoin = "round";
+      for (let i = 0; i < 4; i++) { // the sides that face the camera
+        const [u0, w0] = c[i], [u1, w1] = c[(i + 1) % 4], nu = (u0 + u1) / 2, nw = (w0 + w1) / 2, ny = nu * sa + nw * ca;
+        if (ny <= 0) continue;
+        const nx = nu * ca - nw * sa, lit = 0.62 + 0.22 * (nx > 0 ? -1 : 1) * Math.min(1, Math.abs(nx) / h);
+        const g = Math.round(grey * lit);
+        ctx.fillStyle = `rgb(${g}, ${g - 6}, ${g - 16})`;
+        ctx.beginPath(); [P(u0, w0, 0), P(u1, w1, 0), P(u1, w1, s), P(u0, w0, s)].forEach(([px, py], j) => (j ? ctx.lineTo(px, py) : ctx.moveTo(px, py))); ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      ctx.fillStyle = `rgb(${grey + 22}, ${grey + 16}, ${grey + 4})`; // the top, in the light
+      ctx.beginPath(); c.forEach(([u, w], j) => { const [px, py] = P(u, w, s); if (j) ctx.lineTo(px, py); else ctx.moveTo(px, py); }); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    },
+    mapStoneShadow(ctx, x, y, s) { ctx.fillStyle = "rgba(0, 0, 0, 0.25)"; ctx.beginPath(); ctx.ellipse(x, y, s * 0.6, s * 0.3, 0, 0, Math.PI * 2); ctx.fill(); },
     mapTapBit(ctx, q) {
       const a = Math.max(0, Math.min(1, q.life));
       ctx.save(); ctx.translate(q.x, q.y);
-      if (q.kind === "ring") { ctx.strokeStyle = `rgba(235, 248, 255, ${a * 0.9})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(0, 0, q.r, q.r * 0.6, 0, 0, Math.PI * 2); ctx.stroke(); }
+      if (q.kind === "ring") {
+        if (!q.stop) { ctx.strokeStyle = `rgba(235, 248, 255, ${a * 0.9})`; ctx.lineWidth = (q.w || 2.5); ctx.beginPath(); ctx.ellipse(0, 0, q.r, q.r * 0.6, 0, 0, Math.PI * 2); ctx.stroke(); }
+        else { // the ring on the water; where it has reached land it stays at the shore, whiter and wider (breaking)
+          const n = q.stop.length, sea = new Path2D(), shore = new Path2D();
+          for (let i = 0; i < n; i++) {
+            const r = Math.min(q.r, q.stop[i]), a0 = (i / n) * Math.PI * 2, a1 = ((i + 1) / n) * Math.PI * 2, p = q.r >= q.stop[i] ? shore : sea;
+            p.moveTo(Math.cos(a0) * r, Math.sin(a0) * r * 0.6); p.lineTo(Math.cos(a1) * r, Math.sin(a1) * r * 0.6);
+          }
+          ctx.lineCap = "round";
+          ctx.strokeStyle = `rgba(235, 248, 255, ${a * 0.9})`; ctx.lineWidth = (q.w || 2.5); ctx.stroke(sea);
+          ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(1, a * 1.3)})`; ctx.lineWidth = (q.w || 2.5) * 2.2; ctx.stroke(shore);
+        }
+      }
       else if (q.kind === "drop") { ctx.fillStyle = `rgba(225, 242, 255, ${a})`; ctx.beginPath(); ctx.arc(0, 0, q.r, 0, Math.PI * 2); ctx.fill(); }
       else if (q.kind === "sand") { ctx.fillStyle = `rgba(222, 190, 128, ${a * 0.55})`; ctx.beginPath(); ctx.arc(0, 0, q.r, 0, Math.PI * 2); ctx.fill(); }
       else if (q.kind === "leaf") { ctx.rotate(q.a); ctx.fillStyle = `hsla(${q.hue}, 55%, 38%, ${a})`; ctx.beginPath(); ctx.ellipse(0, 0, q.r, q.r * 0.45, 0, 0, Math.PI * 2); ctx.fill(); }
@@ -1510,6 +1542,7 @@
       const q = l.body.getPosition(), s = worldToScreen(q.x, q.y);
       drawLoadShape(l.verts, s.x, s.y, l.body.getAngle(), scale, !!(failShow && failShow.loads.includes(l)));
     }
+    if (loads.length && grid && !(failShow && (failShow.loads.length || failShow.loadZone))) SKIN.loadGhost(ctx, screenPath(grid.load), false); // owner 17 Nov late: the dotted outline stays when the headpiece comes down
     drawFailShow();
 
     // Right-side palette replaces the old bottom tray.
@@ -1567,22 +1600,22 @@
   // all at 0.8, then louder or quieter by the piece's weight in 2 m blocks of its material (a block as at 0.8).
   const SOUNDS = {
     "hit-ground-wood": [["sounds/hit-ground-wood.mp3", 0.8]],
-    "hit-ground-mudbrick": [["sounds/hit-ground-mudbrick.mp3", 0.8]],
-    "hit-ground-stone": [["sounds/hit-ground-stone.mp3", 0.8]],
-    "hit-wood-wood": [["sounds/hit-wood-wood.mp3", 0.8]],
-    "hit-mudbrick-wood": [["sounds/hit-mudbrick-wood.mp3", 0.8]],
-    "hit-stone-wood": [["sounds/hit-stone-wood.mp3", 0.8]],
-    "hit-mudbrick-mudbrick": [["sounds/hit-mudbrick-mudbrick.mp3", 0.8]],
-    "hit-mudbrick-stone": [["sounds/hit-mudbrick-mudbrick.mp3", 0.8]], // no own file: mudbrick on mudbrick
-    "hit-stone-stone": [["sounds/hit-stone-stone.mp3", 0.8]],
-    crumble: [["sounds/crumble.mp3", 0.8]],
-    snap: [["sounds/snap.mp3", 0.8]],
+    "hit-ground-mudbrick": [["sounds/hit-ground-mudbrick.mp3", 0.72]],
+    "hit-ground-stone": [["sounds/hit-ground-stone.mp3", 0.72]],
+    "hit-wood-wood": [["sounds/hit-wood-wood.mp3", 0.72]],
+    "hit-mudbrick-wood": [["sounds/hit-mudbrick-wood.mp3", 0.72]],
+    "hit-stone-wood": [["sounds/hit-stone-wood.mp3", 0.72]],
+    "hit-mudbrick-mudbrick": [["sounds/hit-mudbrick-mudbrick.mp3", 0.72]],
+    "hit-mudbrick-stone": [["sounds/hit-mudbrick-mudbrick.mp3", 0.72]], // no own file: mudbrick on mudbrick
+    "hit-stone-stone": [["sounds/hit-stone-stone.mp3", 0.72]],
+    crumble: [["sounds/crumble.mp3", 0.72]], // owner 17 Nov late: material sounds 10% lower
+    snap: [["sounds/snap.mp3", 0.72]],
     wind: [["sounds/wind.mp3", 0.35]],            // loops through the wind test
-    quake: [["sounds/quake.mp3", 1.6]],          // cut off when the shaking ends
+    quake: [["sounds/quake.mp3", 3.2]],          // cut off when the shaking ends; owner 17 Nov late: too low beside the others, twice as loud (through the limiter, its file already peaks at full scale)
     cheer: [["sounds/victory.mp3", 0.8], ["sounds/crowd-cheer.mp3", 0.6]],
     fail: [["sounds/loss.mp3", 0.8], ["sounds/crowd-disappointment.mp3", 0.6]],
-    "drag-stone": [["sounds/drag-stone.mp3", 0.8]], // loops; louder the faster stone or mudbrick slides
-    "drag-wood": [["sounds/drag-wood.mp3", 0.8]],   // same for wood
+    "drag-stone": [["sounds/drag-stone.mp3", 0.72]], // loops; louder the faster stone or mudbrick slides
+    "drag-wood": [["sounds/drag-wood.mp3", 0.72]],   // same for wood
     "music-map": [["sounds/music-map.mp3", 0.144]], // owner 16 Nov late: 20% lower, 17 Nov: 10% lower again
     "music-level": [["sounds/music-level.mp3", 0.17]],
     drumroll: [["sounds/drumroll.mp3", 0.8]],    // sped up or slowed down to last as long as the test load is lowered
@@ -1623,24 +1656,29 @@
       if (opts.rate) src.playbackRate.value = opts.rate;
       else if (fitSeconds > 0) src.playbackRate.value = Math.max(0.25, Math.min(4, buffers[f].duration / fitSeconds));
       gain.gain.value = MASTER_VOLUME * Math.max(0, Math.min(2, volume)) * v; // up to 2: a piece heavier than a block sounds louder than one
-      src.connect(gain).connect(actx.destination);
+      if (MASTER_VOLUME * v > 1) { // louder than its file: through a limiter, so its peaks do not clip
+        const lim = actx.createDynamicsCompressor(); lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.15;
+        src.connect(gain).connect(lim).connect(actx.destination);
+      } else src.connect(gain).connect(actx.destination);
       src.start(actx.currentTime, Math.min(opts.offset || 0, Math.max(0, buffers[f].duration - 0.05)));
       parts.push({ src, gain, v });
     }
     if (!parts.length) return null;
     return {
       stop(fade = 0.3) { for (const p of parts) { const t = actx.currentTime; p.gain.gain.setTargetAtTime(0, t, fade / 3); p.src.stop(t + fade + 0.05); } },
-      setVolume(x) { for (const p of parts) p.gain.gain.setTargetAtTime(MASTER_VOLUME * Math.max(0, Math.min(2, x)) * p.v, actx.currentTime, 0.05); },
+      setVolume(x, tc = 0.05) { for (const p of parts) p.gain.gain.setTargetAtTime(MASTER_VOLUME * Math.max(0, Math.min(2, x)) * p.v, actx.currentTime, tc); },
     };
   }
   // Music: one loop for the map, another while building.
   let music = null, musicName = null;
-  // While a site's intro line speaks, the music plays at half (owner 17 Nov); musicDuck is that share.
+  // While a site's intro line speaks, the music plays at half (owner 17 Nov); while a test runs it fades out, and back in
+  // after (owner 17 Nov late); musicDuck is that share.
   let musicDuck = 1;
   function updateMusic(force) {
     const want = mode === "map" ? "music-map" : "music-level";
-    const duck = voice.cur && voice.cur.cue && voice.cur.cue.id === "site-intro" ? 0.5 : 1;
-    if (duck !== musicDuck) { musicDuck = duck; if (music) music.setVolume(duck); }
+    const testing = mode !== "map" && typeof test !== "undefined" && !!test;
+    const duck = testing ? 0 : voice.cur && voice.cur.cue && voice.cur.cue.id === "site-intro" ? 0.5 : 1;
+    if (duck !== musicDuck) { const fade = testing || musicDuck === 0 ? 0.5 : 0.05; musicDuck = duck; if (music) music.setVolume(duck, fade); }
     if (want === musicName && music && !force) return;
     if (want === musicName && music) return;
     const next = playSound(want, musicDuck, true);
@@ -1997,6 +2035,9 @@
     if (!test || !grid) return;
     const v = planck.Vec2(0, 0);
     for (let f = p.body.getFixtureList(); f; f = f.getNext()) {
+      const sh = f.getShape(); // its place, as it was, drawn red with its own edges
+      if (sh.getType() === "circle") { const c = p.body.getPosition(), r = sh.getRadius(); test.brokenShapes.push(Array.from({ length: 24 }, (_, i) => [c.x + r * Math.cos(i * Math.PI / 12), c.y + r * Math.sin(i * Math.PI / 12)])); }
+      else test.brokenShapes.push(sh.m_vertices.map((u) => { const w = p.body.getWorldPoint(u); return [w.x, w.y]; }));
       const bb = f.getAABB(0);
       for (let x = Math.floor(bb.lowerBound.x / CELL); x <= Math.floor(bb.upperBound.x / CELL); x++)
         for (let y = Math.max(0, Math.floor(bb.lowerBound.y / CELL)); y <= Math.floor(bb.upperBound.y / CELL); y++) {
@@ -2524,7 +2565,7 @@
     return inRing(q.x, q.y, d.verts);
   }
   function runCheck(skip) {
-    const g = grid, cov = g.cov, v = planck.Vec2(0, 0);
+    const g = grid, cov = g.cov, v = planck.Vec2(0, 0), counted = (g.counted = []);
     cov.fill(0);
     let far = 0;
     for (const p of pieces) {
@@ -2543,6 +2584,7 @@
       }
       // a piece lying on the ground away from the building is just left-over material: it does not count
       if (!touchesSite && onGroundAlone(p)) continue;
+      counted.push(p);
       if (outside) far += 1000;
       for (const k of cells) cov[k] = code;
     }
@@ -2570,7 +2612,8 @@
     return c.fill >= CHECK.fill && c.far <= CHECK.farCells && c.hole <= CHECK.holeMax && c.load <= CHECK.loadCells &&
       (grid.L.woodRole !== "courses" || c.wood >= CHECK.woodMin);
   }
-  // The cells to paint red for each rule that fails (uses grid.cov from the last runCheck).
+  function woodShort(c, fillNeeded) { return fillNeeded === CHECK.fill && grid.L.woodRole === "courses" && c.wood < CHECK.woodMin; }
+  // The cells of each rule that fails (uses grid.cov from the last runCheck); they say where the voice points, the red is drawn by drawFailShow.
   function failingCells(c, fillNeeded) {
     const g = grid, support = g.L.woodRole === "support", out = [];
     const fillBad = c.fill < fillNeeded, farBad = c.far > CHECK.farCells, holeBad = c.hole > CHECK.holeMax;
@@ -2771,7 +2814,7 @@
       // grey button pressed: show why it is not ready yet
       if (pointers.size === 0) {
         check = runCheck();
-        failShow = { cells: failingCells(check, CHECK.fill), loads: [], loadZone: check.load > CHECK.loadCells, unfilled: true, until: gameNow() + PHASE_TIME.why * 1000 };
+        failShow = { cells: failingCells(check, CHECK.fill), loads: [], loadZone: check.load > CHECK.loadCells, unfilled: true, counted: grid.counted.slice(), wood: woodShort(check, CHECK.fill), until: gameNow() + PHASE_TIME.why * 1000 };
         playSound("not-ready", 1);
         onRedPress();
       }
@@ -2791,7 +2834,7 @@
     clearAllPieces(); freshWorld();
     for (const q of snapshot) spawnPiece(q.defKey, q.x, q.y, q.angle, q.material).seed = q.seed; // each keeps its look
     const toPull = []; // supports are no longer pulled by the test: left in, they fail the check
-    test = { phase: "supports", t: 0, snapshot, toPull, after: null, fast: tabHeldNow(), broken: [] };
+    test = { phase: "supports", t: 0, snapshot, toPull, after: null, fast: tabHeldNow(), broken: [], brokenShapes: [] };
     onTestStart();
   }
   function nextPhase(phase) {
@@ -2830,13 +2873,13 @@
     const c = runCheck();
     const badLoads = loads.filter((l) => !loadInPlace(l));
     if (test.broken.length) { // something broke: show where it was
-      failShow = { cells: test.broken.slice(), loads: [], unfilled: false, until: null };
+      failShow = { cells: test.broken.slice(), shapes: test.brokenShapes.slice(), loads: [], unfilled: false, until: null };
       nextPhase("fail"); playSound("fail", 1); onFail(part);
       return false;
     }
     if (c.fill < CHECK.fillAfter || badLoads.length) {
       failShow = badLoads.length ? { cells: [], loads: badLoads, unfilled: false, until: null } // only the load's place is red
-        : { cells: failingCells(c, CHECK.fillAfter), loads: [], unfilled: true, until: null };
+        : { cells: failingCells(c, CHECK.fillAfter), loads: [], unfilled: true, counted: grid.counted.slice(), wood: false, until: null };
       nextPhase("fail");
       playSound("fail", 1); onFail(part, badLoads.length && c.fill >= CHECK.fillAfter ? "headpiece" : null);
       return false;
@@ -3004,52 +3047,62 @@
     const badGhost = failShow && (failShow.loads.length || failShow.loadZone);
     if (!loads.length || badGhost) SKIN.loadGhost(ctx, screenPath(grid.load), badGhost);
   }
-  // Red, pulsing: the parts of the outline (or openings, or wood zones) that broke a rule.
-  // Unfilled outline = the outline with every piece cut out (a little wider than itself, so
-  // pieces that touch leave no seam), drawn on a spare canvas: straight edges, real gaps only.
+  // Red, pulsing (owner 17 Nov late: "show with red areas that are NOT filled while they should, and areas that ARE filled
+  // while they shouldn't"; "we work with straight lines"). Three layers, each drawn with the plan's and the pieces' own edges:
+  // 1. the plan not covered: the plan's shape minus its openings minus every piece (a little wider than itself, so pieces
+  //    that touch leave no seam);
+  // 2. the pieces outside the plan: every piece that counts, minus the plan's shape (a little wider, so a piece flush with
+  //    the plan's edge shows no hairline); a piece in an opening is outside the plan, so it is red too;
+  // 3. a wood course not made of wood (where wood is short): the wood zone minus the wooden pieces.
+  // Something broken in the test is drawn as the piece was when it broke.
   const SEAM = 0.05; // m: gaps narrower than twice this between pieces are seams, not painted
-  let unfilledCanvas = null;
-  function drawUnfilled(alpha) {
+  let redCanvas = null;
+  function pieceFixturePath(p) {
+    const path = new Path2D();
+    for (let f = p.body.getFixtureList(); f; f = f.getNext()) {
+      const sh = f.getShape();
+      if (sh.getType() === "circle") { const c = worldToScreen(p.body.getPosition().x, p.body.getPosition().y); path.moveTo(c.x + sh.getRadius() * scale, c.y); path.arc(c.x, c.y, sh.getRadius() * scale, 0, Math.PI * 2); }
+      else { sh.m_vertices.forEach((v, i) => { const w = p.body.getWorldPoint(v), q = worldToScreen(w.x, w.y); if (i) path.lineTo(q.x, q.y); else path.moveTo(q.x, q.y); }); path.closePath(); }
+    }
+    return path;
+  }
+  function redLayer(alpha, paint) { // paint(o) draws one layer on the spare canvas; it is then laid over the scene
     const dpr = window.devicePixelRatio || 1;
-    const oc = unfilledCanvas || (unfilledCanvas = document.createElement("canvas"));
+    const oc = redCanvas || (redCanvas = document.createElement("canvas"));
     if (oc.width !== canvas.width || oc.height !== canvas.height) { oc.width = canvas.width; oc.height = canvas.height; }
     const o = oc.getContext("2d");
-    o.setTransform(1, 0, 0, 1, 0, 0); o.clearRect(0, 0, oc.width, oc.height); o.setTransform(dpr, 0, 0, dpr, 0, 0);
-    o.globalCompositeOperation = "source-over";
-    o.fillStyle = "rgb(220, 40, 30)";
-    o.fill(screenPath(grid.solid));
-    o.globalCompositeOperation = "destination-out";
-    o.fillStyle = o.strokeStyle = "#000";
-    if (grid.holes.length) o.fill(screenPath(grid.holes)); // openings are never painted (owner)
-    o.lineWidth = 2 * SEAM * scale; o.lineJoin = "round";
-    for (const p of pieces) {
-      if (p.heldBy != null || p.auto) continue;
-      for (let f = p.body.getFixtureList(); f; f = f.getNext()) {
-        const sh = f.getShape(), path = new Path2D();
-        if (sh.getType() === "circle") {
-          const c = worldToScreen(p.body.getPosition().x, p.body.getPosition().y);
-          path.arc(c.x, c.y, sh.getRadius() * scale, 0, Math.PI * 2);
-        } else {
-          sh.m_vertices.forEach((v, i) => { const w = p.body.getWorldPoint(v), q = worldToScreen(w.x, w.y); if (i) path.lineTo(q.x, q.y); else path.moveTo(q.x, q.y); });
-          path.closePath();
-        }
-        o.fill(path); o.stroke(path);
-      }
-    }
+    o.setTransform(1, 0, 0, 1, 0, 0); o.globalCompositeOperation = "source-over"; o.clearRect(0, 0, oc.width, oc.height); o.setTransform(dpr, 0, 0, dpr, 0, 0);
+    o.fillStyle = "rgb(220, 40, 30)"; o.lineJoin = "round";
+    paint(o);
     o.globalCompositeOperation = "source-over";
     ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(oc, 0, 0, cssWidth, cssHeight); ctx.restore();
   }
+  function cutOut(o, path, wide) { o.globalCompositeOperation = "destination-out"; o.fillStyle = o.strokeStyle = "#000"; o.fill(path); if (wide) { o.lineWidth = 2 * SEAM * scale; o.stroke(path); } }
   function drawFailShow() {
-    if (!failShow) return;
+    if (!failShow || !grid) return;
     const alpha = 0.35 + 0.2 * Math.sin(performance.now() / 120);
-    if (failShow.unfilled && grid) drawUnfilled(alpha);
-    if (!failShow.cells.length) return;
-    const path = new Path2D(), px = CELL * scale;
-    for (const k of failShow.cells) {
-      const s = worldToScreen((k % GX) * CELL, (Math.floor(k / GX) + 1) * CELL);
-      path.rect(s.x, s.y, px + 0.5, px + 0.5);
+    const live = (failShow.counted || []).filter((p) => pieces.includes(p) && p.heldBy == null && !p.auto);
+    if (failShow.unfilled) {
+      redLayer(alpha, (o) => { // 1. the plan not covered
+        o.fill(screenPath(grid.solid));
+        if (grid.holes.length) cutOut(o, screenPath(grid.holes), false); // openings are never painted (owner)
+        for (const p of pieces) if (p.heldBy == null && !p.auto) cutOut(o, pieceFixturePath(p), true);
+      });
+      if (live.length) redLayer(alpha, (o) => { // 2. the pieces outside the plan
+        for (const p of live) o.fill(pieceFixturePath(p));
+        cutOut(o, screenPath(grid.solid), true);
+        if (grid.holes.length) { o.globalCompositeOperation = "source-over"; o.fillStyle = "rgb(220, 40, 30)"; o.save(); o.clip(screenPath(grid.holes)); for (const p of live) o.fill(pieceFixturePath(p)); o.restore(); } // in an opening: inside the plan's outer edge, still wrong
+      });
     }
-    SKIN.failCells(ctx, path, alpha);
+    if (failShow.wood && grid.wood.length) redLayer(alpha, (o) => { // 3. wood courses not of wood
+      o.fill(screenPath(grid.wood));
+      for (const p of pieces) if (p.material === "wood" && p.heldBy == null && !p.auto) cutOut(o, pieceFixturePath(p), true);
+    });
+    if (failShow.shapes && failShow.shapes.length) { // broken in the test
+      const path = new Path2D();
+      for (const r of failShow.shapes) { r.forEach(([x, y], i) => { const q = worldToScreen(x, y); if (i) path.lineTo(q.x, q.y); else path.moveTo(q.x, q.y); }); path.closePath(); }
+      SKIN.failCells(ctx, path, alpha);
+    }
   }
   // The player's finished building, small, on its map site.
   // Where the drawn building sits in its circle of radius r: half width and half height, in screen pixels.
@@ -3659,7 +3712,7 @@
     allOpen = false; cornerHold = null;
     if (currentLevel != null) { releaseAllPointers(); clearAllPieces(); fillPile([]); freshWorld(); currentLevel = null; grid = null; check = null; failShow = null; }
     ALL_BOATS.forEach((b, i) => { b.leg = i % b.line.legs.length; b.dir = 1; b.d = b.lens[b.leg] * ((i * 0.37) % 1); b.wait = 0; b.held = b.back = null; b.stuck = b.parked = false; b.drop = null; b.rise = b.lift = 0; b.hd = null; });
-    mapHolds.clear(); for (const A of SAND_AREAS) { A.c = null; A.t0 = null; A.wind = null; }
+    mapHolds.clear(); mapStones.length = 0; for (const A of SAND_AREAS) { A.c = null; A.t0 = null; A.wind = null; }
     ALL_GROUPS.forEach((g, i) => { for (const k of Object.keys(g)) delete g[k]; Object.assign(g, { state: "boat", boat: ALL_BOATS[i], home: ALL_BOATS[i], onFoot: 0, stops: 0, recent: [], plan: null }); });
     boats.length = groups.length = 0;
   }
@@ -3701,8 +3754,11 @@
     else SKIN.mapImage(ctx, mapImg, v.ox, v.oy, v.w, v.h);
     drawSandWriting(dt, v); drawSandTails(v);
     updateBoats(dt);
+    updateStones(dt);
     updateTravellers(dt, v);
+    drawStones(v, false);
     drawBoats(v);
+    drawStones(v, true);
     for (const site of SITES) {
       const m = siteMarker(v, site), r = m.r;
       const i = LEVELS.findIndex((L) => L.key === site.key);
@@ -3743,7 +3799,8 @@
       if (b.drop) b.y -= b.lift * BOAT_LIFT_H; // caught while falling: held where it is seen
       b.back = null; b.drop = null; b.rise = b.lift = 0; b.held = { dx: b.x - mx, dy: b.y - my, gx: b.x, gy: b.y, up: false }; b.ox = b.oy = 0; // picked up while carried: the carriers are back in it
       mapHolds.set(e.pointerId, { boat: b, x0: e.clientX, y0: e.clientY, moved: false, off });
-    } else if (sandArea(mx, my) >= 0) mapHolds.set(e.pointerId, { sand: [[mx, my]], sm: [mx, my], raw: [mx, my], end: [mx, my], x0: e.clientX, y0: e.clientY, moved: false });
+    } else if (groundAt(mx, my) === "rock") { mapTap(e.clientX, e.clientY); mapHolds.set(e.pointerId, { rock: true, stone: null, x0: e.clientX, y0: e.clientY, moved: false }); } // stone chips at once; moved, the finger takes a stone
+    else if (sandArea(mx, my) >= 0) mapHolds.set(e.pointerId, { sand: [[mx, my]], sm: [mx, my], raw: [mx, my], end: [mx, my], x0: e.clientX, y0: e.clientY, moved: false });
     else { mapTap(e.clientX, e.clientY); return; }
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
   }
@@ -3754,6 +3811,7 @@
       if (Math.hypot(ev.clientX - h.x0, ev.clientY - h.y0) > TAP_MOVE) h.moved = true;
       const [mx, my] = toMap(ev.clientX, ev.clientY);
       if (h.boat) { const b = h.boat; if (h.moved) b.held.up = true; b.held.gx = mx + b.held.dx; b.held.gy = my + b.held.dy; } // follows the finger at once, not turning
+      else if (h.rock) { if (h.moved && !h.stone) { h.stone = { x: mx, y: my, z: 0, vz: 0, rise: 0, held: { gx: mx, gy: my }, on: null, age: null, yaw: Math.random() * Math.PI / 2, grey: 120 + Math.round(Math.random() * 50) }; mapStones.push(h.stone); } if (h.stone) { h.stone.held.gx = mx; h.stone.held.gy = my; } }
       else { h.raw = [mx, my]; if (h.moved) sandFinger(h, [mx, my]); }
     }
   }
@@ -3767,7 +3825,8 @@
       mapTap(h.x0, h.y0); // a tap on a boat: what is under it splashes or flies up
       if (h.off) { b.stuck = false; letGoBoat(b); }
       else { const [x, y] = polyPoint(b.line.legs[b.leg], b.d); b.held = null; b.ox = b.x - x; b.oy = b.y - y; } // a boat tapped on its route: back to it smoothly (the waves' spring), and on
-    } else if (h.moved) sandFinger(h, null);
+    } else if (h.rock) { if (h.stone) h.stone.held = null; } // let go: it falls
+    else if (h.moved) sandFinger(h, null);
     else mapTap(h.x0, h.y0);
   }
   // A tap on the map shows what is under the finger: water splashes with rings, desert throws up a sand cloud,
@@ -3909,11 +3968,25 @@
     }
   }
   const tapBits = [], WAVE_FRONT = 30; // screen px: how wide the first ring's pushing front is
+  // Water drops fly only on the sea (owner 17 Nov late: none on rivers and small lakes, which the land picture counts as
+  // land). A wave ring stops where it meets land and shows white there, as a wave breaks on a beach: for each of
+  // RING_DIRS directions from the tap, how far the ring goes before land (screen px; the ring is drawn flattened).
+  const RING_DIRS = 48;
+  function ringStops(x, y, rMax) {
+    const v = mapView(), out = new Float32Array(RING_DIRS);
+    for (let i = 0; i < RING_DIRS; i++) {
+      const a = ((i + 0.5) / RING_DIRS) * Math.PI * 2, c = Math.cos(a), sn = Math.sin(a) * 0.6;
+      let r = 4;
+      for (; r <= rMax + 2; r += 2) if (groundAt((x + c * r - v.ox) / v.k, (y + sn * r - v.oy) / v.k) !== "water") break;
+      out[i] = r > rMax + 2 ? Infinity : Math.max(0, r - 2);
+    }
+    return out;
+  }
   function mapTap(x, y, from = null) { // `from`: a boat whose own splash this is (its waves do not push it)
     const v = mapView(), kind = groundAt((x - v.ox) / v.k, (y - v.oy) / v.k), R = Math.random;
     if (kind === "water") {
-      for (let k = 0; k < 3; k++) tapBits.push({ kind: "ring", x, y, r: 4, grow: 38 - k * 8, life: 1 + k * 0.25, fade: 1, push: k ? 0 : 400, from, life0: 1 + k * 0.25 }); // push: map px/s the first ring gives a boat it passes (one push per tap; owner 17 Nov: gentle, at most about half a boat)
-      for (let k = 0; k < 12; k++) { const a = R() * Math.PI * 2, sp = 40 + R() * 70; tapBits.push({ kind: "drop", x, y, vx: Math.cos(a) * sp, vy: -110 - R() * 120, g: 520, r: 3 + R() * 3, life: 1, fade: 1.4 }); }
+      for (let k = 0; k < 3; k++) tapBits.push({ kind: "ring", x, y, r: 4, grow: 38 - k * 8, life: 1 + k * 0.25, fade: 1, push: k ? 0 : 400, from, life0: 1 + k * 0.25, stop: ringStops(x, y, 4 + (38 - k * 8) * 1.6 * (1 + k * 0.25)) }); // push: map px/s the first ring gives a boat it passes (one push per tap; owner 17 Nov: gentle, at most about half a boat)
+      if (!isLand((x - v.ox) / v.k, (y - v.oy) / v.k)) for (let k = 0; k < 12; k++) { const a = R() * Math.PI * 2, sp = 40 + R() * 70; tapBits.push({ kind: "drop", x, y, vx: Math.cos(a) * sp, vy: -110 - R() * 120, g: 520, r: 3 + R() * 3, life: 1, fade: 1.4 }); }
     } else if (kind === "sand") {
       for (let k = 0; k < 20; k++) { const a = R() * Math.PI * 2, sp = 30 + R() * 80; tapBits.push({ kind: "sand", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 35, g: 0, drag: 2, r: 9 + R() * 10, grow: 26, life: 1, fade: 0.8 }); }
     } else if (kind === "green") {
@@ -3923,6 +3996,78 @@
       for (let k = 0; k < 4; k++) { const a = R() * Math.PI * 2; tapBits.push({ kind: "sand", x, y, vx: Math.cos(a) * 25, vy: -15, g: 0, drag: 2, r: 4 + R() * 3, grow: 10, life: 0.7, fade: 1 }); }
     }
     playSound("map-tap-" + kind, 1);
+  }
+  // Stones from the mountains (owner 17 Nov late: "same as grabbing boats, you should be able to grab stones from the
+  // mountain and drop them on the sea (many small splashes) or on the land (they stay there, 3d small cubes, and disappear
+  // after 1 min of presence. of course they are 3d, so they can pile up, or collide with the boats"). What it is, in four parts:
+  // 1. A finger pressed on a mountain and moved takes a stone (a small cube) out of it; the stone stays at the finger,
+  //    lifted over its shadow, as a held boat does. Let go, it falls, faster and faster.
+  // 2. It falls until it rests on the ground, or on a stone whose top its middle is over. Reaching water, it sinks with
+  //    small splashes and is gone.
+  // 3. Stones at the same height that overlap push each other apart; a boat that is not lifted pushes the stones on the
+  //    ground out of its way, and what lies on a stone moves with it.
+  // 4. A stone stays one minute after it lands; then it is gone, and what lay on it falls.
+  const STONE = 12, STONE_LIFT = 30, STONE_G = 900, STONE_LIFE = 60, STONE_CE = 0.866; // map px: a stone's side, how high a held one is lifted; fall speed-up (map px/s^2); seconds; the camera's view of heights (as the boats)
+  const mapStones = [];
+  function stoneSupport(st) { // the top it rests on (part 2): the highest stone below it whose top its middle is over, or the ground (0)
+    let top = 0, on = null;
+    for (const o of mapStones) {
+      if (o === st || o.held || Math.hypot(o.x - st.x, o.y - st.y) > STONE * 0.5) continue;
+      const t = o.z + STONE; if (t <= st.z + 0.5 && t > top) { top = t; on = o; }
+    }
+    return { top, on };
+  }
+  function removeStone(st) { const i = mapStones.indexOf(st); if (i >= 0) mapStones.splice(i, 1); }
+  function stoneSplash(x, y) { // part 2: many small splashes, at screen x, y
+    const v = mapView(), sea = !isLand((x - v.ox) / v.k, (y - v.oy) / v.k), R = Math.random;
+    for (let j = 0; j < 4; j++) {
+      const sx = x + (R() - 0.5) * 10, sy = y + (R() - 0.5) * 6;
+      tapBits.push({ kind: "ring", x: sx, y: sy, r: 2, grow: 14, life: 0.7, fade: 1, w: 1.5, push: 0, life0: 0.7, stop: ringStops(sx, sy, 2 + 14 * 1.6 * 0.7) });
+      if (sea) for (let k = 0; k < 4; k++) { const a = R() * Math.PI * 2, sp = 20 + R() * 35; tapBits.push({ kind: "drop", x: sx, y: sy, vx: Math.cos(a) * sp, vy: -60 - R() * 60, g: 520, r: 1.2 + R() * 1.3, life: 1, fade: 1.8 }); }
+    }
+    playSound("map-tap-water", 0.5);
+  }
+  function moveStone(st, dx, dy) { st.x += dx; st.y += dy; for (const o of mapStones) if (o.on === st) moveStone(o, dx, dy); } // part 3: what lies on it goes with it
+  function updateStones(dt) {
+    const v = mapView();
+    for (const st of mapStones.slice()) {
+      if (st.held) { // part 1
+        st.rise = Math.min(1, st.rise + dt / DROP_TIME); st.z = STONE_LIFT * st.rise * st.rise * (3 - 2 * st.rise);
+        st.x = st.held.gx; st.y = st.held.gy + st.z * STONE_CE; st.vz = 0; st.on = null; continue;
+      }
+      const sup = stoneSupport(st);
+      if (st.z > sup.top + 0.01) { st.vz += STONE_G * dt; st.z = Math.max(sup.top, st.z - st.vz * dt); st.on = null; if (st.z > sup.top) continue; }
+      const hit = st.vz; st.vz = 0; st.on = sup.on;
+      if (!sup.on && groundAt(st.x, st.y) === "water") { const q = v.pt(st.x, st.y); removeStone(st); stoneSplash(q.x, q.y); continue; }
+      if (hit > 150) playSound("map-tap-rock", Math.min(1, hit / 600)); // it lands
+      if (st.age == null) st.age = 0;
+      if ((st.age += dt) >= STONE_LIFE) removeStone(st); // part 4: what lay on it falls next frame
+    }
+    // part 3: overlapping stones at the same height are pushed apart; boats push the stones on the ground
+    for (let i = 0; i < mapStones.length; i++) for (let j = i + 1; j < mapStones.length; j++) {
+      const a = mapStones[i], b = mapStones[j];
+      if (a.held || b.held || Math.abs(a.z - b.z) >= STONE * 0.9) continue;
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), need = STONE * 0.9;
+      if (d >= need) continue;
+      const ux = d > 1e-6 ? dx / d : 1, uy = d > 1e-6 ? dy / d : 0, push = (need - d) / 2;
+      moveStone(a, -ux * push, -uy * push); moveStone(b, ux * push, uy * push);
+    }
+    for (const st of mapStones) {
+      if (st.held || st.z > 0.01) continue;
+      for (const b of boats) {
+        if (b.lift > 0) continue;
+        const dx = st.x - b.x, dy = st.y - b.y, d = Math.hypot(dx, dy), need = BOAT_SIZE * 0.35 + STONE * 0.5;
+        if (d < need) { const ux = d > 1e-6 ? dx / d : 1, uy = d > 1e-6 ? dy / d : 0; moveStone(st, ux * (need - d), uy * (need - d)); }
+      }
+    }
+  }
+  function drawStones(v, lifted) { // the ones on the ground (and on each other) before the boats, the held and falling ones after
+    const list = mapStones.filter((st) => !!(st.held || st.vz) === lifted).sort((a, b) => a.y - b.y || a.z - b.z);
+    for (const st of list) {
+      const q = v.pt(st.x, st.y), k = v.k;
+      if (st.z > 0.5 && !st.on) SKIN.mapStoneShadow(ctx, q.x, q.y, STONE * k);
+      SKIN.mapStone(ctx, q.x, q.y - st.z * STONE_CE * k, STONE * k, st.yaw, st.grey, Math.min(1, (STONE_LIFE - (st.age || 0)) / 0.5));
+    }
   }
   function drawTapBits(dt, v) {
     for (let i = tapBits.length - 1; i >= 0; i--) {
@@ -3978,9 +4123,9 @@
   // The recordings are made as loud as the other sounds (tools/normalize-sounds.php: -16 LUFS); a site's intro line
   // plays 20% louder (owner 17 Nov). A recording the browser will not start before the first touch (sound is only
   // allowed after one) waits, silent and with no text box, and starts at the child's first touch.
-  const VOICE_VOLUME = 1, INTRO_VOICE = 1.2;
+  const VOICE_VOLUME = 0.9, INTRO_VOICE = 1.2; // owner 17 Nov late: the voice 10% lower everywhere
   let voiceBlocked = null;
-  const LINE_TIME = 2, REPEAT_GAP = 5, HL_PERIOD = 1.8, HL_RING = 40, MAP_IDLE = 30, NEXT_EVERY = 60, NEXT_GAP = 2, DAMAGE_EVERY = 60, DEMO_SPEED = 12, DEMO_PAUSE = 0.35, CONFIRM_TIME = 6;
+  const LINE_TIME = 2, REPEAT_GAP = 5, HL_PERIOD = 1.8, HL_PERIOD_MAP = 0.9, HL_RING = 40, MAP_IDLE = 30, NEXT_EVERY = 60, NEXT_GAP = 2, DAMAGE_EVERY = 60, DEMO_SPEED = 12, DEMO_PAUSE = 0.35, CONFIRM_TIME = 6;
   // s, s (after a waiting step's line ends), s, px, s (no line on the map), s (the open site glows), s (win line to new-site line), s, m/s (about a second across the screen), s, s (a second restart press within it erases)
   const HL_COLOR = { yellow: "#ffd23f", green: "#3fd16b", red: "#e8463a" };
   const voice = { cur: null, queue: [] };
@@ -4096,9 +4241,9 @@
   // fire one cue: its line (with what it points at, its hand, its wait), or its glow, or what it does
   function fire(c, x, seq) {
     const key = onceKey(c, x);
-    const then = () => { if (c.after != null) say(c.after, { kind: "teach" }); if (seq) nextStep(seq, c.id); else if (c.then) cueEvent(c.then, x); };
+    const then = () => { if (c.after != null && (useTeach || !c.teaching)) say(c.after, { kind: "teach" }); if (seq) nextStep(seq, c.id); else if (c.then) cueEvent(c.then, x); };
     if (c.do === "teaching") { if (!useTeach) return c; setMark(key, true); runSequence(sequenceOf(x.site)); return c; } // ΔΙΔΑΣΚΑΛΙΑ off: no steps (they wait, unmarked, for when it is ticked again)
-    if (!useTeach && c.kind === "teach") { then(); return null; } // ΔΙΔΑΣΚΑΛΙΑ off: a teaching line is not said (and stays unused); what follows it goes on, and nothing waits for it (it did not fire: owner 17 Nov, the test waited for an unsaid explanation and never ran)
+    if (!useTeach && c.teaching) { then(); return null; } // ΔΙΔΑΣΚΑΛΙΑ off: a teaching line is not said (and stays unused); what follows it goes on, and nothing waits for it (it did not fire: owner 17 Nov, the test waited for an unsaid explanation and never ran)
     if (c.do === "demo") { setMark(key, true); if (useDemos) startDemo(siteKeyOf(x.site), then); else then(); return c; } // ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ off: no demo, the rest goes on
     const memo = {}, pts = (names) => (names || []).flatMap((n) => pointTargets(n, x, memo));
     if (c.glow) { setMark(key, true); glowFor(pts(c.points), c.glow); then(); return c; }
@@ -4144,7 +4289,6 @@
   // --- part 1: the voice
   function say(n, o = {}) {
     const c = Object.assign({ n, kind: "queued", attention: "none", frame: cueFrame, scene, at: cueClock + (o.after || 0) }, o);
-    if (c.kind === "teach" && !useTeach) return null; // ΔΙΔΑΣΚΑΛΙΑ off
     const teachNow = voice.queue.some((q) => q.frame === cueFrame && q.kind === "teach");
     if (n == null || !(VOICE_FILES[n] || CUE_TABLE.lines[n]) || (n === 86 && !VOICE_FILES[n]) || (c.kind === "bg" && (voice.cur || voice.queue.length)) || (c.kind !== "teach" && teachNow)) return null;
     if (c.kind === "teach") voice.queue = voice.queue.filter((q) => { const drop = q.frame === cueFrame && q.kind !== "teach"; if (drop) setMark(q.onceKey, false); return !drop; });
@@ -4385,7 +4529,7 @@
   const introImg = {}; for (const k in INTRO_ART) introImg[k] = Object.assign(new Image(), { src: INTRO_ART[k] });
   const INTRO_FOCUS = { mastaba: [0.620, 0.594], djoser: [0.624, 0.326], ziggurat: [0.633, 0.188], liongate: [0.633, 0.659], karnak: [0.514, 0.776],
     ishtar: [0.531, 0.652], parthenon: [0.438, 0.072], mausoleum: [0.410, 0.118], pharos: [0.496, 0.109], valens: [0.192, 0.459] };
-  const INTRO_ZOOM = 0.012, INTRO_PAN = 0.04, INTRO_FADE_IN = 0.5, INTRO_FADE_OUT = 0.8; // zoom: 1.2% bigger each second; the focus moves 4% of the way to the middle each second
+  const INTRO_ZOOM = 0.006, INTRO_PAN = 0.02, INTRO_FADE_IN = 0.5, INTRO_FADE_OUT = 0.8; // zoom: 0.6% bigger each second; the focus moves 2% of the way to the middle each second (owner 17 Nov late: half the speed)
   let intro = null;
   function drawIntro() {
     const c = voice.cur, on = mode === "build" && c && c.cue && c.cue.id === "site-intro";
@@ -4405,7 +4549,7 @@
   function drawCues() {
     const at = attention();
     if (at) SKIN.dim(ctx, cssWidth, cssHeight, shapesOf(at.holes).map((t) => shapePath(t.shape, 6)));
-    const u = (cueClock % HL_PERIOD) / HL_PERIOD;
+    const per = mode === "map" ? HL_PERIOD_MAP : HL_PERIOD, u = (cueClock % per) / per; // owner 17 Nov late: map alerts pulse faster
     for (const c of active) for (const t of shapesOf(c.targets)) SKIN.highlight(ctx, (d) => shapePath(t.shape, d), t.shape.kind === "region", t.color, u, HL_RING);
     if (mode === "map" && flashes.length) {
       const v = mapView();

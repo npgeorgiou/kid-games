@@ -62,6 +62,7 @@ def main(path):
         if c.get("start"): parts.append("Begins once " + word("conditions", c["start"]) + ".")
         if c.get("do") == "demo": parts.append("Plays the site's demo (below).")
         if c.get("do") == "teaching": parts.append("Runs the site's teaching steps, from where the child left them.")
+        if c.get("teaching"): parts.append("Teaching: silent when ΔΙΔΑΣΚΑΛΙΑ is unticked.")
         s = says(c.get("say"))
         if s:
             kind = {"teach": "teaching", "bg": "background, only if nothing else is playing or waiting"}.get(c.get("kind"), "queued")

@@ -365,7 +365,7 @@
     },
     // owner 16 Nov: ΔΙΔΑΣΚΑΛΙΑ unticked: no teaching steps or teaching lines at the first site (map welcome still said); ticked again, the teaching runs
     "teaching-off": () => {
-      const bad = [], teachLines = new Set(T.CUE_TABLE.cues.filter((c) => c.kind === "teach" && typeof c.say === "number").map((c) => c.say));
+      const bad = [], teachLines = new Set(T.CUE_TABLE.cues.filter((c) => c.teaching && typeof c.say === "number").map((c) => c.say));
       fresh(); T.setTeach(false); T.mapStart(); run(3); if (!said().length) bad.push("no welcome on the map");
       start(0); T.onEnterSite(0); run(20);
       const t = said().filter((n) => teachLines.has(n)); if (t.length) bad.push("teaching lines said: " + t.join(","));
@@ -502,13 +502,13 @@
       const c = T.voice.cur; T.updateMusic(false);
       if (!c || !c.cue || c.cue.id !== "site-intro") bad.push("no intro line (line " + (c && c.n) + ")");
       else {
-        if (!T.cueAudio || Math.abs(T.cueAudio.volume - Math.min(1, T.MASTER_VOLUME * 1.2)) > 1e-6) bad.push("intro voice volume " + (T.cueAudio && T.cueAudio.volume));
+        if (!T.cueAudio || Math.abs(T.cueAudio.volume - Math.min(1, T.MASTER_VOLUME * 0.9 * 1.2)) > 1e-6) bad.push("intro voice volume " + (T.cueAudio && T.cueAudio.volume));
         if (T.musicDuck !== 0.5) bad.push("music share during the intro " + T.musicDuck);
         T.cueAudio.dispatchEvent(new Event("ended")); run(0.1); T.updateMusic(false);
         if (T.voice.cur === c) bad.push("the intro line did not end when its recording ended");
         if (T.musicDuck !== 1) bad.push("music share after the intro " + T.musicDuck);
       }
-      T.say(93); run(0.1); if (T.cueAudio && Math.abs(T.cueAudio.volume - T.MASTER_VOLUME) > 1e-6) bad.push("other lines' volume " + T.cueAudio.volume);
+      T.say(93); run(0.1); if (T.cueAudio && Math.abs(T.cueAudio.volume - T.MASTER_VOLUME * 0.9) > 1e-6) bad.push("other lines' volume " + T.cueAudio.volume);
       T.setVoices(false);
       return [!bad.length, bad.join("; ") || "music at half and voice 20% louder during the intro; it ends with its recording"];
     },

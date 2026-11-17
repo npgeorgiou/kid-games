@@ -949,10 +949,42 @@ Owner, verbatim (17 Nov 2026, 22:43): "1. the restart button should show the "lo
 4. Measured at normal speed: the cheer came 1.2 s after the shaking, the win line 5 s after (it waited for the test to end). Now: something breaking fails the test at once; after the earthquake the wait is 0.6 s; the win line plays 1 s after the cheer, during the test's end. All ten suggested builds still pass; all wrong choices still fail (`harness.py spec`; Parthenon and Valens piles over the sidebar as before).
 Flows added: restart-load-screen, child-action-cuts-line, ticks-off-lines-play, test-end-sounds (all pass; the last takes 40 s, the test at normal speed).
 
+## Current state, update 81 (17 Nov 2026, late): red shows exactly what is wrong, teaching is what shows the game's things, sounds, stones from the mountains
+
+Owner, verbatim (17 Nov 2026, 23:41), with his screenshot `owner-shots/2026-11-17-red-jagged-mudbrick.png` (after a failed test: only the top of the leaning mudbrick is red, in steps):
+"last chat did some work, adn then said: "Tests: there are six browser tests now and they take about 100 seconds together. One of them alone takes 40 seconds, because it runs the test at normal speed to time the sounds. Speeding them up is on the BUILD.md list, along with the flows still missing.". my anser to this, adn to many other items regarding its work: what does this step test, and can it be tested with small, mock sounds? 2. thsi is wrong, you should show with red areas that are NOT filles while they should, and areas that ARE filles while they shouldnt. there is no reason for only that top part of the uppermost mudbrick to be red, all the part of that mudbrick that is outside the desigh should be red. 3. i had teaching turned off, but the "click here to go back to the map" and "well done, your momument withstood the tests" cues played. I think you ahve assigned as teaching cues some that are not. also "the dots stay empty, the headpiece goes there" did the same, I think you have it so it does it once per level, but it shouldn't when teaching is off. pls man, focus. you know, the teaching cues are ONLY those and ALL those that show the game elements. 4. when the tests are playing, the music should fade off.  the earthquake sound is too low compared to the others. make my voice 10% lower globally. Make material sounds 10% lower. 5. your red error to show wrong filling is jagged and weird for no reason. we work with straight lines. you ahve the compeltely wrong logic to show it, maybe even to calculate it. 6. by the way, how do you calculate if wind/headpiece/earthquake broke the design? by dong the red test, or more? 7. how do you calcualte red/green area filling? 8. the headpiece outlien shouldnt disappear when the headpieec comes down.   9. How often do you plain the main screen periodic cues? 10. dont do water particle effects on rivers and small lakes. 10. wave circles should stop at land, not continue on land, but crash (you know, not crash crash, but stop there with their white thing going at the beach) 11. make intro image zoom half as slow. 12. make map alerts be more intense: I imagine they should be faster pulsating. 13. How often is the "the next site waits" cue playing? 14. same as gabbing boats, you should be agle to grab stones from the mountain and drop them on the sea (many small splashes) or on the land (they stay there, 3d small cubes, and disappear after 1 min of presence. of course theya re 3d, so they can pile op, or collide with the boats. 15. how should the image be cut, so that as much of the map is seen is an many refular laptop/tablet dimensions?"
+
+Checklist:
+1a. Question: what the slow flow (test-end-sounds) checks. 1b. Question: can it use small mock sounds.
+2. Red: every part of the plan not covered, and every part of a piece outside the plan, exactly (not only the far part).
+3. Teaching tick: teaching = exactly the cues that show the game's things; "press here to go back to the map", the first win line, "the dots stay empty" are teaching (silent with the tick off).
+4a. Music fades out while a test runs. 4b. Earthquake louder. 4c. Voice 10% lower. 4d. Material sounds 10% lower.
+5. Red drawn with straight edges (the pieces' and the plan's own edges), not cells.
+6. Question: how the test decides that wind, headpiece or earthquake broke the building.
+7. Question: how the covered/uncovered share is worked out.
+8. The headpiece's dotted outline stays when the headpiece comes down.
+9. Question: how often the map's repeating cues play.
+10a. No water drops on rivers and small lakes. 10b. Wave circles stop at land, white at the shore.
+11. Intro picture zoom at half the speed.
+12. Map alerts pulse faster.
+13. Question: how often "a new site waits" plays.
+14. Stones: dragged from the mountains like boats; dropped on the sea: small splashes; on land: small 3D cubes that stay one minute, pile up, and are pushed by boats.
+15. Question: how to cut the map picture for most laptop and tablet screens.
+Done:
+2/5. The red is three layers drawn with the plan's and the pieces' own edges (`drawFailShow`): the plan not covered; every counted piece's part outside the plan's shape (a piece in an opening included); wood courses not of wood. A piece broken in the test is drawn as its shape. Cells only say where the voice points. The check itself is unchanged (10 cm squares). Picture: `owner-shots/2026-11-17-red-fixed.png`.
+3. cues.json field `teaching` (the tick gates on it, not on the kind of line): the first site's steps, map-start-step, openings, load-covered, pile-empty, form-out, explain-wind/load/quake, fail-explain, first-win, first-win-home.
+4. Music fades to nothing over about half a second while a test runs, and back after; quake 1.6 -> 3.2 through a limiter (its file peaks at full scale); VOICE_VOLUME 0.9; hits, drags, crumble, snap 0.8 -> 0.72.
+8. The dotted outline is drawn again over the headpiece once it is down.
+10. Water drops only where the land picture has sea (rivers and lakes are land there); each ring stops per direction where it meets land and is drawn white and wider there.
+11. INTRO_ZOOM 0.006, INTRO_PAN 0.02 (read as half the speed). 12. Map highlights pulse every 0.9 s (was 1.8 s).
+14. Map stones, four parts written at `mapStones` in SECTION MAP.
+Flows added (each failed on the old build, passes now): ticks-off-first-win, red-outside, map-water, map-stones. Cue test teaching-off now reads the `teaching` field.
+Open question to the owner: should any part of a piece outside the plan keep the button red (now only parts more than 50 cm out do)?
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).
-- The flow suite takes about 100 s; make the slow flows faster.
+- The flow suite takes about 130 s; make the slow flows faster (test-end-sounds: start the test at the earthquake with the building already standing).
 
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.

@@ -24,7 +24,7 @@
   "The restart: the first press says what it does; a second press while its line lasts erases everything.",
   "A cue is one row: its line (voice) and what it shows (glow, pointing, ghost hand, darkening) start and stop together.",
   "What the child does wins (owner 17 Nov): when an event the child causes (byChild in Events) fires a cue, whatever cue is playing stops, line and visuals, lines waiting their turn are dropped (their first times stay unused), and the new one starts at once. Not while a teaching line plays or a step waits for the child (the rule above): the first site's teaching is never cut.",
-  "Teaching (the ΔΙΔΑΣΚΑΛΙΑ tick) is only the first site's steps and the first explanation of each part of the test (owner 17 Nov); every other line plays with the tick off."
+  "Teaching (the ΔΙΔΑΣΚΑΛΙΑ tick) is exactly the cues that show the child a thing of the game (owner 17 Nov late: \"the teaching cues are ONLY those and ALL those that show the game elements\"), marked teaching in the table: the first site's steps, \"press here to start\", the openings, the dots, the shovel, the wooden form, the test's parts and its red, the first win and \"press here to go back to the map\". Unticked, they are silent (with their glows and hand); every other line plays."
  ],
  "words": {
   "events": {
@@ -243,6 +243,7 @@
    "on": "the event that fires it",
    "if": "conditions that must all hold",
    "once": "ever / site (once at each site) / visit (once per visit); none: every time",
+   "teaching": "true: a teaching cue, one that shows the child a thing of the game (a button, the plan's dots, an opening, the shovel, the test's parts, the red); silent, with its glows and hand, when ΔΙΔΑΣΚΑΛΙΑ is unticked",
    "kind": "teach: always plays, waits its turn; queued (default): waits its turn; bg: only if nothing is playing or waiting",
    "say": "a line number; or bySite (one per site, in site order); or a group (random, never one of the last half played)",
    "attention": "none (default): only what it points at glows; point: the screen darkens except what it points at, only that can be touched, while it waits; freeze: the screen darkens and the game freezes while its line plays",
@@ -505,6 +506,7 @@
   },
   {
    "id": "map-start-step",
+   "teaching": true,
    "on": "welcomed-first",
    "say": 92,
    "topic": "Map",
@@ -659,6 +661,7 @@
   },
   {
    "id": "openings",
+   "teaching": true,
    "on": "plan-shown",
    "say": 109,
    "topic": "Entering a site",
@@ -669,6 +672,7 @@
   },
   {
    "id": "load-covered",
+   "teaching": true,
    "on": "placed-in-plan",
    "say": 137,
    "topic": "Building",
@@ -742,6 +746,7 @@
   },
   {
    "id": "pile-empty",
+   "teaching": true,
    "on": "pile-empty-red",
    "say": 107,
    "topic": "Building",
@@ -750,6 +755,7 @@
   },
   {
    "id": "form-out",
+   "teaching": true,
    "on": "form-only-left",
    "say": 119,
    "topic": "Building",
@@ -777,6 +783,7 @@
   },
   {
    "id": "explain-wind",
+   "teaching": true,
    "on": "test-part",
    "say": 101,
    "topic": "Test",
@@ -789,6 +796,7 @@
   },
   {
    "id": "explain-load",
+   "teaching": true,
    "on": "test-part",
    "say": 102,
    "topic": "Test",
@@ -801,6 +809,7 @@
   },
   {
    "id": "explain-quake",
+   "teaching": true,
    "on": "test-part",
    "say": 103,
    "topic": "Test",
@@ -887,6 +896,7 @@
   },
   {
    "id": "fail-explain",
+   "teaching": true,
    "on": "fail-explain",
    "say": 105,
    "topic": "Test",
@@ -906,6 +916,7 @@
   },
   {
    "id": "first-win",
+   "teaching": true,
    "on": "won",
    "say": 104,
    "topic": "Test",
@@ -914,6 +925,7 @@
   },
   {
    "id": "first-win-home",
+   "teaching": true,
    "on": "first-win-said",
    "say": 106,
    "topic": "Test",
@@ -936,6 +948,7 @@
   },
   {
    "id": "t-drag-1",
+   "teaching": true,
    "on": "step",
    "say": 93,
    "topic": "First-site teaching",
@@ -948,6 +961,7 @@
   },
   {
    "id": "t-tap3",
+   "teaching": true,
    "on": "step",
    "say": 94,
    "topic": "First-site teaching",
@@ -963,6 +977,7 @@
   },
   {
    "id": "t-drag-2",
+   "teaching": true,
    "on": "step",
    "say": 93,
    "topic": "First-site teaching",
@@ -976,6 +991,7 @@
   },
   {
    "id": "t-dragback",
+   "teaching": true,
    "on": "step",
    "say": 134,
    "topic": "First-site teaching",
@@ -990,6 +1006,7 @@
   },
   {
    "id": "t-drag-3",
+   "teaching": true,
    "on": "step",
    "say": 138,
    "topic": "First-site teaching",
@@ -1003,6 +1020,7 @@
   },
   {
    "id": "t-shovel",
+   "teaching": true,
    "on": "step",
    "say": 95,
    "topic": "First-site teaching",
@@ -1019,6 +1037,7 @@
   },
   {
    "id": "t-build",
+   "teaching": true,
    "on": "step",
    "say": 98,
    "topic": "First-site teaching",
@@ -1027,6 +1046,7 @@
   },
   {
    "id": "t-load",
+   "teaching": true,
    "on": "step",
    "say": 136,
    "topic": "First-site teaching",
@@ -1037,6 +1057,7 @@
   },
   {
    "id": "t-red",
+   "teaching": true,
    "on": "step",
    "say": 99,
    "topic": "First-site teaching",
@@ -1050,6 +1071,7 @@
   },
   {
    "id": "t-undo",
+   "teaching": true,
    "on": "step",
    "say": 135,
    "topic": "First-site teaching",
@@ -1061,6 +1083,7 @@
   },
   {
    "id": "t-green",
+   "teaching": true,
    "on": "step",
    "say": 100,
    "topic": "First-site teaching",
