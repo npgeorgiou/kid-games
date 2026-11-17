@@ -830,6 +830,12 @@ Owner, verbatim: "the boat pushing still feels double somethimes"
 
 Cause: whether the wave's front was passing the boat was measured at the boat's pushed place. A click close to a boat pushed it out ahead of the front; the front then caught up with it and pushed it again. Now it is measured at the boat's place on its route, so the front passes each boat once. Owner test `wave-boat` now clicks at eight places around a boat, near and far: clicks 8 px from the boat pushed twice before, every click pushes once now (far clicks, whose rings fade before reaching the boat, push nothing).
 
+## Current state, update 66 (17 Nov 2026): gentler wave push
+
+Owner, verbatim: "you now push them too far away and violently, that especially noticable when the click is right ont he boat"
+
+The push is a quarter of what it was: a click right on a boat moves it about half a boat (27 map px, was 106), a click a little away less; it starts and stops gently. Owner test `wave-boat` also clicks right on the boat and requires at most 30 map px: failed before, passes now.
+
 ## Task list
 
 No open items.

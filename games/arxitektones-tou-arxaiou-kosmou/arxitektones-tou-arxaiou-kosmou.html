@@ -3514,7 +3514,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   function mapTap(x, y) {
     const v = mapView(), kind = groundAt((x - v.ox) / v.k, (y - v.oy) / v.k), R = Math.random;
     if (kind === "water") {
-      for (let k = 0; k < 3; k++) tapBits.push({ kind: "ring", x, y, r: 4, grow: 38 - k * 8, life: 1 + k * 0.25, fade: 1, push: k ? 0 : 800 }); // push: map px/s the first ring gives a boat it passes (one push per tap)
+      for (let k = 0; k < 3; k++) tapBits.push({ kind: "ring", x, y, r: 4, grow: 38 - k * 8, life: 1 + k * 0.25, fade: 1, push: k ? 0 : 200 }); // push: map px/s the first ring gives a boat it passes (one push per tap; owner 17 Nov: gentle, at most about half a boat)
       for (let k = 0; k < 12; k++) { const a = R() * Math.PI * 2, sp = 40 + R() * 70; tapBits.push({ kind: "drop", x, y, vx: Math.cos(a) * sp, vy: -110 - R() * 120, g: 520, r: 3 + R() * 3, life: 1, fade: 1.4 }); }
     } else if (kind === "sand") {
       for (let k = 0; k < 20; k++) { const a = R() * Math.PI * 2, sp = 30 + R() * 80; tapBits.push({ kind: "sand", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 35, g: 0, drag: 2, r: 9 + R() * 10, grow: 26, life: 1, fade: 0.8 }); }
