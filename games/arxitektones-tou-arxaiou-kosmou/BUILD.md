@@ -232,7 +232,7 @@ The owner's second fix list (18 items) is built and pushed. What changed:
 - Pieces are grabbed only on their real shape (`outsidePiece`), in the building area and the sidebar (triangles were grabbed on the empty half of their box).
 - Levels: Lion Gate one course taller; Karnak more mudbrick and wooden planks (wrong choices); Mausoleum two capitals side by side on the core; Pharos top square removed, headpiece a block lying down, three more wrong materials; outline dips shallower than 12 cm filled (arch tops). Load densities 5, 16, 12, 75, 25, 18.3, 60, 12, 13, 14.
 - Owner tests added (`harness.py owner fall shape carry triangle screens`); screens runs every level on five screen sizes, plain and 1.3x.
-- Open: Djoser suggested build placed roughly crushed its middle bottom mudbrick in 1 of 6 tries (new mudbrick strength); Ziggurat wrong material no longer fails; Valens pile 120%; Mausoleum posts no longer needed. Owner to decide.
+- Open: Djoser suggested build placed roughly crushed its middle bottom mudbrick in 1 of 6 tries (new mudbrick strength); Ziggurat wrong material no longer fails. Owner to decide.
 
 ## Current state, update 12 (13 Nov 2026, ninth list; overrides the sections above where they differ)
 
@@ -241,7 +241,7 @@ The owner's second fix list (18 items) is built and pushed. What changed:
 - Mausoleum: middle column of two squares with one capital. The posts are still not needed (the lintels hold each other); "posts pulled out early" does not fail and is not a wrong choice.
 - Openings where temporary wood stands are drawn as openings (no brown tint); the brown tint stays only for wood courses.
 - CLAUDE.md: "Rules for every change (owner, 13 Nov 2026)" written.
-- Open: Valens pile 120%; Mausoleum posts not needed; Djoser to be play-tested by the owner.
+- Open: Djoser to be play-tested by the owner.
 
 Tenth list (13 Nov), the owner's own words (verbatim): "Djoser can have 2 bot stone, 3 top mud, yous till dont think clearly, recheck every similar decision you took. FOR FUCKS SAKE, ARE YOU A MORON, NOW STONE MOES LIKE IN SLOW MOTION, AND CANT BE SWUNG IN CIRCLES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! YOU FUCKING PICE OF SHIT, YOU EXHAUST ME!!!! YOU MADE EVERYHTING HARDER THAN IT SHOULD BE!!!! CAN YOU DO A MIDDLE WAY?"
 Done: Djoser two stone layers and three mudbrick layers (headpiece density 8); the same check on the others: Ishtar towers back to two stone and three mudbrick courses (density 4); the Ziggurat keeps its stone lower terrace (with all-mudbrick terraces a roughly placed build crushed a mudbrick under the upper wooden course). Carrying: `CARRY_EASE` 0.07, `CARRY_SPEED` 4.6 (a stone block crosses 4 m in 0.85 s: the light version 0.77, the slow one 1.45; it swings round in circles again, test "10"). Lifting: the too-heavy limit is judged on the weight over the last half second (`wtSlow`), so two stone blocks lift again. Known: a long stone beam held at its end turns only a little in fast circles (probe "whirls beam/stone"; it turned with the old light carrying).
@@ -880,8 +880,7 @@ Ground rules settled with the owner:
 
 Items (numbers = the owner's points in his own words below):
 1 ΕΠΑΝΕΚΚΙΝΗΣΗ button (above). 2 music (above). 3 hand weight (above). 4 every wrong choice (material and build) must have its material in the pile, in every level; write that rule clearly in `levels.md` and fix all levels (Ziggurat had none for its wrong build). 5 re-entering a level must always show the headpiece (sometimes missing until re-entered several times). 6 red cells: paint only cells that really break a rule (doorway painted red, red seams between pieces; `failingCells` and the "unfilled" painting). 7/8 answered. 9 Lion Gate pile: 3 wooden planks (tempting as the upper door lintel) and more mudbricks. 10 no dips above arches (Ishtar, Valens): follows from the outline rule. 11 Ishtar: towers one layer taller, two more headpieces (same thickness as the roof) lowered onto the towers; stone in the pile exactly enough for the suggested build, more mudbrick than needed to tempt. 12 mudbrick strength (above). 13 Mausoleum: side lintels moved in to meet the roof steps with no notch, roof one small square narrower, the two top triangles removed; add wrong choices beyond the 2 mudbricks (materials in the pile that tempt and fail). 14 determinism (above). 15 Pharos line between openings (above). 16 finished site (above). 17 green button (above).
-Done (12 Nov 2026, sixth list): all 17 items; every `owner` test, `spec` (except the Valens pile) and `real` pass; each owner test was seen failing on the old build first, except mudbrick (the hand-placed stacks already behaved as agreed) and music (already started at load or first touch). Open for the owner: the Mausoleum posts are no longer needed now that the lintels meet (keep them or not); the Lion Gate wrong build changed to "one jamb left out".
-Still open from list five: the Valens pile does not fit the sidebar (120%); owner to decide.
+Done (12 Nov 2026, sixth list): all 17 items; every `owner` test, `spec` (except the Valens pile) and `real` pass; each owner test was seen failing on the old build first, except mudbrick (the hand-placed stacks already behaved as agreed) and music (already started at load or first touch). Open for the owner: the Lion Gate wrong build changed to "one jamb left out".
 CLAUDE.md now has "How to speak to the owner"; follow it in every reply.
 
 ### Sixth list: the owner's own words (12 Nov 2026, verbatim; this is the authority, the summary above only helps)
