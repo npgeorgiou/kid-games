@@ -848,6 +848,15 @@ Owner, verbatim: "can you make anything to make the boats change shape as they t
 
 SKIN.mapBoat now draws the boat in 3D from points (hull of 14 sections with raised curled ends, one mast, yard, a cream square sail with two red stripes, rigging, dark ink lines), coloured like art/boat-owner.png, seen from the south 30 degrees above the sea, drawn far to near. The wind blows from the north: the yard is braced to lie across it (at most 60 degrees each way from across the boat) and the sail fills to the south, so it mostly shows its face. Travellers sit along the boat's middle, only heads above the near side. The wake starts at the stern whatever the heading. The owner's boat picture is no longer used. Picture of the boat in eight directions: owner-shots/2026-11-17-boats-3d.png. Owner test `boat-3d`: the boat sailing east, south and north-east covers different shapes.
 
+## Current state, update 69 (17 Nov 2026): boats turn smoothly, curved sail
+
+Owner, verbatim: "exellent. but the turning is not smooth, it just jumps to another orientation. also the sail is not curced, its traight. about the not smooth rotation, maybe the problem is that your sea routes are angular and not bended"
+
+1. Sea routes rounded at load: each leg walked in 4 px steps, each point replaced by the average of the points up to 40 px each way along it (twice); in narrow straits (the Dardanelles) the average is made narrower so the route stays on water, changing gradually; ports kept.
+2. A boat now points its own way (b.hd) and turns towards its course at most 1.5 radians a second (BOAT_TURN), also turning round in port.
+3. Sail: the foot sags in the middle and the sides bow out, so its edges and stripes curve.
+Owner test `boat-turn`: a minute of sailing at 60 frames a second, largest turn in one frame 1.4 degrees (pointing), course bends at most 19 degrees in a frame (only in the Dardanelles), no rounded route point on land away from the ports. Pictures: owner-shots/2026-11-17-boats-3d.png (eight directions), owner-shots/2026-11-17-boats-turning.png (the real map, 0.7 s apart).
+
 ## Task list
 
 No open items.

@@ -613,6 +613,24 @@
     out.push(["a map boat changes shape as it turns", d1 > 0.2 && d2 > 0.2 && d3 > 0.2, "east/south " + d1.toFixed(2) + ", east/north-east " + d2.toFixed(2) + ", south/north-east " + d3.toFixed(2) + " of the boat's area differs"]);
   }
 
+  // --- owner 17 Nov: "the turning is not smooth, it just jumps to another orientation ... maybe the problem is that your sea
+  // routes are angular and not bended": over a minute of sailing (60 frames a second) no boat's pointing or course jumps
+  // between frames (the pointing turns at most 1.5 rad/s; the course bends at most 20 degrees from one frame to the next, that much only in the narrow Dardanelles, which cannot be rounded more without crossing land), and the rounded routes stay on the water
+  if (want("boat-turn")) {
+    T.goMap(); let worstHd = 0, worstCourse = 0, onLand = 0, prev = T.boats.map((b) => [b.hd, Math.atan2(b.vy, b.vx), b.wait]);
+    for (const l of BOAT_LINES) for (const leg of l.legs) leg.forEach(([x, y], i) => { if (i > 10 && i < leg.length - 11 && T.isLand(x, y)) onLand++; }); // the ports sit on the coast and the drawn routes run along it by them
+    for (let k = 0; k < 3600; k++) {
+      T.renderMap(1 / 60);
+      T.boats.forEach((b, i) => {
+        const [h0, c0, w0] = prev[i], c1 = Math.atan2(b.vy, b.vx), dd = (a, c) => Math.abs(Math.atan2(Math.sin(a - c), Math.cos(a - c)));
+        if (h0 !== null && b.hd !== null) worstHd = Math.max(worstHd, dd(b.hd, h0));
+        if (w0 <= 0 && b.wait <= 0) worstCourse = Math.max(worstCourse, dd(c1, c0)); // turning round in port is not a course change
+        prev[i] = [b.hd, c1, b.wait];
+      });
+    }
+    out.push(["boats turn smoothly along rounded sea routes", worstHd <= 1.5 / 60 + 1e-6 && worstCourse < 0.35 && !onLand, "largest turn in one frame: pointing " + (worstHd * 180 / Math.PI).toFixed(1) + " deg, course " + (worstCourse * 180 / Math.PI).toFixed(1) + " deg; route points on land " + onLand]);
+  }
+
   // --- 1: the restart button on the map: everything as at the very beginning
   if (want("restart")) {
     T.mode = "map"; T.renderMap(0.016);

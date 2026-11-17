@@ -191,7 +191,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       let be = ang + Math.PI / 2; be = Math.atan2(Math.sin(be), Math.cos(be)); if (be > Math.PI / 2) be -= Math.PI; else if (be < -Math.PI / 2) be += Math.PI;
       be = Math.max(-1.05, Math.min(1.05, be));
       const sb = Math.sin(be), cb = Math.cos(be), fill = cb * sa - sb * ca < 0 ? -1 : 1;
-      const sail = (w, z) => { const bu = fill * (B * (1 - (w / SW) ** 2) * Math.sin((Math.PI * (z - z0)) / (z1 - z0)) * 0.9 + B * 0.1); return P(w * sb + bu * cb, w * cb - bu * sb, z); };
+      // the wind-filled sail: its foot sags in the middle and its sides bow out, so its edges and stripes curve
+      const sail = (w, z) => { const f = (z - z0) / (z1 - z0), bu = fill * (B * (1 - (w / SW) ** 2) * Math.sin(Math.PI * f) * 0.9 + B * 0.1);
+        const wv = w * (1 + 0.1 * Math.sin(Math.PI * f)), zz = z - size * 0.1 * (1 - (w / SW) ** 2) * (1 - f) ** 1.5;
+        return P(wv * sb + bu * cb, wv * cb - bu * sb, zz); };
       const bands = [[-1, -0.6, "#f1e6cf"], [-0.6, -0.2, "#b5513a"], [-0.2, 0.2, "#f1e6cf"], [0.2, 0.6, "#b5513a"], [0.6, 1, "#f1e6cf"]];
       for (const [w0, w1, col] of bands) {
         const pts = [];
@@ -3225,7 +3228,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     return at;
   }
   // Ten boats, each sailing its fixed ports back and forth (src/map-routes.js: legs keep to open water).
-  const BOAT_SPEED = 20, BOAT_REST = 3, BOAT_SIZE = 56, BOAT_BACK = 2; // map pixels per second, seconds in port, map pixels wide; how quickly a pushed boat returns to its route (1/s)
+  const BOAT_SPEED = 20, BOAT_REST = 3, BOAT_SIZE = 56, BOAT_BACK = 2, BOAT_TURN = 1.5; // map pixels per second, seconds in port, map pixels wide; how quickly a pushed boat returns to its route (1/s)
   const polyLen = (r) => { let L = 0; for (let i = 1; i < r.length; i++) L += Math.hypot(r[i][0] - r[i - 1][0], r[i][1] - r[i - 1][1]); return L; };
   function polyPoint(r, d) { // point at distance d along a polyline, and the direction it runs there
     for (let i = 1; i < r.length; i++) {
@@ -3235,9 +3238,29 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     }
     return [r[0][0], r[0][1], 0, 0];
   }
+  // Sea routes are drawn as straight runs with corners; boats sail them rounded (owner 17 Nov: the boats turned in jumps
+  // at the corners). The standard way: walk the route in even 4 px steps and replace each point by the average of the
+  // points within 40 px of it along the route (a moving average; twice), the ports at the ends kept where they are.
+  const roundLeg = (r) => {
+    const pts = [r[0]];
+    for (let i = 1; i < r.length; i++) {
+      const [ax, ay] = r[i - 1], [bx, by] = r[i], L = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.round(L / 4));
+      for (let k = 1; k <= n; k++) pts.push([ax + ((bx - ax) * k) / n, ay + ((by - ay) * k) / n]);
+    }
+    let q = pts;
+    for (let pass = 0; pass < 2; pass++) {
+      const n = q.length, avg = (i, R) => { let sx = 0, sy = 0; for (let k = i - R; k <= i + R; k++) { const c = q[Math.max(0, Math.min(n - 1, k))]; sx += c[0]; sy += c[1]; } return [sx / (2 * R + 1), sy / (2 * R + 1)]; };
+      // the widest average (up to 40 px each way) that keeps the point on water: narrow straits round less (near a port,
+      // where the drawn route itself runs along the coast, fully); the width then changes only gradually along the route
+      const most = q.map((p, i) => { if (i < 10 || i > n - 11 || isLand(p[0], p[1])) return 10; for (let R = 10; R > 0; R--) { const m = avg(i, R); if (!isLand(m[0], m[1])) return R; } return 0; });
+      q = q.map((p, i) => { if (i === 0 || i === n - 1) return p; let R = 10; for (let k = Math.max(0, i - 8); k <= Math.min(n - 1, i + 8); k++) R = Math.min(R, most[k] + Math.abs(k - i)); return avg(i, R); });
+    }
+    return q;
+  };
+  for (const line of BOAT_LINES) line.legs = line.legs.map(roundLeg);
   const boats = BOAT_LINES.map((line, i) => {
     const lens = line.legs.map(polyLen), leg = i % line.legs.length;
-    return { line, lens, leg, dir: 1, d: lens[leg] * ((i * 0.37) % 1), wait: 0, x: 0, y: 0, vx: 1, vy: 0, ox: 0, oy: 0, ovx: 0, ovy: 0 };
+    return { line, lens, leg, dir: 1, d: lens[leg] * ((i * 0.37) % 1), wait: 0, x: 0, y: 0, vx: 1, vy: 0, ox: 0, oy: 0, ovx: 0, ovy: 0, hd: null };
   });
   // Seconds a boat of this line needs to sail from stop a to stop b (indexes), and for a whole round.
   const sailTime = (b, i, j) => { let L = 0; for (let k = Math.min(i, j); k < Math.max(i, j); k++) L += b.lens[k]; return L / BOAT_SPEED + Math.abs(i - j) * BOAT_REST; };
@@ -3260,13 +3283,17 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       b.ovx += (-BOAT_BACK * BOAT_BACK * b.ox - 2 * BOAT_BACK * b.ovx) * dt; b.ovy += (-BOAT_BACK * BOAT_BACK * b.oy - 2 * BOAT_BACK * b.ovy) * dt;
       b.ox += b.ovx * dt; b.oy += b.ovy * dt;
       const [x, y, dx, dy] = polyPoint(b.line.legs[b.leg], b.d); b.x = x + b.ox; b.y = y + b.oy; if (dx || dy) { b.vx = dx * b.dir; b.vy = dy * b.dir; }
+      // the way the boat points turns towards the way it sails at a boat's turning speed (also round in port)
+      const want = Math.atan2(b.vy, b.vx);
+      if (b.hd === null) b.hd = want;
+      else { const d = Math.atan2(Math.sin(want - b.hd), Math.cos(want - b.hd)); b.hd += Math.sign(d) * Math.min(Math.abs(d), BOAT_TURN * dt); }
     }
   }
   function drawBoats(v) {
     const t = performance.now() / 1000;
     boats.forEach((b, i) => {
       const q = v.pt(b.x, b.y), tilt = Math.sin(t * 1.3 + i) * 0.05;
-      const ang = Math.atan2(b.vy, b.vx), size = BOAT_SIZE * v.k;
+      const ang = b.hd ?? Math.atan2(b.vy, b.vx), size = BOAT_SIZE * v.k;
       if (b.wait <= 0) SKIN.mapWake(ctx, q.x, q.y, size, ang, t + i * 0.37);
       const g = groups.find((gr) => gr.state === "boat" && gr.boat === b);
       SKIN.mapBoat(ctx, q.x, q.y, size, ang, tilt, t + i, g && ((bg) => {
