@@ -3456,6 +3456,11 @@
     if (b > r + 15 && b >= g) return "water";
     if (g >= r - 6 && g > b + 25) return "green";
     if ((r + g + b) / 3 > 190 && r > b + 40) return "sand";
+    // shaded sand dunes are warm and strongly coloured (orange-tan); the drawn mountains are dull grey, mauve or brown
+    // (owner 17 Nov: the sand hills of Africa and Arabia counted as mountains)
+    const hi = Math.max(r, g, b), lo = Math.min(r, g, b), sat = hi ? (hi - lo) / hi : 0;
+    const hue = hi === lo ? 0 : hi === r ? (60 * (g - b) / (hi - lo) + 360) % 360 : hi === g ? 60 * (b - r) / (hi - lo) + 120 : 60 * (r - g) / (hi - lo) + 240;
+    if (hue >= 28 && hue <= 50 && sat >= 0.3) return "sand";
     return "rock";
   }
   const tapBits = [], WAVE_FRONT = 30; // screen px: how wide the first ring's pushing front is

@@ -812,6 +812,12 @@ Owner, verbatim: "the waves puth the boat in 2 goes, the motion is not smooth"
 
 Cause: each of the three rings gave the boat its own sudden kick as it passed, so the boat sped up twice. Now only the first ring pushes, and it pushes gradually while its front (30 screen px wide) passes the boat; the other two rings are only drawn. Owner test `wave-boat` now also counts how many times the boat speeds up going out: 2 before, 1 now; pushed about 40 map px, back on its route within 6 s. Frames from the real game, a quarter second apart: owner-shots/2026-11-17-wave-pushes-boat.png.
 
+## Current state, update 63 (17 Nov 2026): dunes are sand for map taps
+
+Owner, verbatim: "the sand hills of africa and arabia are counted as mountains by you, for the aprticle effects."
+
+The map picture's shaded dunes are darker orange-tan, so the old colour rule (pale = sand, the rest = mountain) called them mountains. Now strongly coloured warm tan (hue 28-50, saturation at least 0.3) is sand too; the drawn mountain peaks (dull grey, mauve, brown) stay mountains. The brown hatched highlands of Anatolia and Iran are warm tan as well and now give sand. Owner test `map-ground`: nine places (dunes in Arabia and the Sahara, pale desert, peaks in Sinai, Arabia and Greece, sea, Nile valley); a dune failed before, all pass now.
+
 ## Task list
 
 No open items.

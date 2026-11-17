@@ -584,6 +584,15 @@
     out.push(["a click's waves push a boat away and it sails back smoothly to its route", most > 10 && away > 0.8 && back < 1 && !jumps && goes === 1, "pushed in " + goes + " go(es) " + most.toFixed(0) + " map px, direction away " + away.toFixed(2) + ", off its route after 6 s " + back.toFixed(1) + " px, jumps " + jumps]);
   }
 
+  // --- owner 17 Nov: "the sand hills of africa and arabia are counted as mountains by you, for the particle effects": places
+  // on the map picture (map pixels) and what a tap there must show
+  if (want("map-ground")) {
+    const bad = [], want = { "sand dunes, Arabia": [1760, 1120, "sand"], "sand dunes, Arabia north": [1660, 1040, "sand"], "sand dunes, Sahara": [600, 1040, "sand"], "pale desert, Sahara": [300, 1000, "sand"],
+      "mountain peaks, Sinai": [1300, 1030, "rock"], "mountain peaks, Arabia": [1580, 1250, "rock"], "mountain peaks, Greece": [220, 120, "rock"], "sea": [600, 600, "water"], "Nile valley": [780, 1120, "green"] };
+    for (const [n, [x, y, k]] of Object.entries(want)) { const got = T.groundAt(x, y); if (got !== k) bad.push(n + ": " + got); }
+    out.push(["a map tap shows sand on the sand dunes, stones on the mountains", !bad.length, bad.join("; ") || "all " + Object.keys(want).length + " places right"]);
+  }
+
   // --- 1: the restart button on the map: everything as at the very beginning
   if (want("restart")) {
     T.mode = "map"; T.renderMap(0.016);
