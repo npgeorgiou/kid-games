@@ -907,6 +907,8 @@ A ring remembers the boat whose drop made it and does not push that one (check i
 
 Owner (21:12): "do it". A boat is now pushed as hard as by a tap the same screen distance beside it, whichever side the tap is: the push follows the front's progress past the boat measured on the screen, and the pushing ring keeps going (already faded) until it has reached as far up and down as sideways. Owner test `wave-even`: 26.5 map px from all four sides at 25 px, 7.0 at 45 px.
 
+Owner (21:17): "boat must make disappoitnment sound only when dropped full of people." Done: the sound plays only when a boat with its travellers is left on land (an empty one is silent). `boat-drag` checks both (20 checks).
+
 ## Task list
 
 No open items.

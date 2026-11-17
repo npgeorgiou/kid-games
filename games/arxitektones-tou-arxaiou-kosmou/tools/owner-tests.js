@@ -722,7 +722,8 @@
     const b1 = pick((b) => T.crewOf(b) && !b.parked);
     if (!b1) res.push(["a boat with travellers can be picked up", false]);
     else {
-      const d = drag(b1, landNear(b1, true));
+      T.soundLog.length = 0; const d = drag(b1, landNear(b1, true));
+      res.push(["a full boat left on land makes the disappointed sound", T.soundLog.includes("boat-left-on-land")]);
       res.push(["held, it does not turn (" + d.turn.toFixed(4) + " rad)", d.turn === 0]);
       res.push(["held, it stays at the finger and its shadow drops away below it (" + d.offFinger.toFixed(2) + " px off the finger)", d.rise === 1 && d.offFinger < 0.01 && Math.abs(d.shadowBelow - T.BOAT_LIFT_H) < 0.01]);
       res.push(["it falls faster and faster and splashes the moment it reaches the shadow (height a frame before: " + d.lastLift.toFixed(2) + ")", d.lastLift > 0.15]);
@@ -761,7 +762,8 @@
     else {
       const at = [b3.x, b3.y]; f.up([b3.x, b3.y - 5]); for (let k = 0; k < 40; k++) step(0.2); // the tap's own waves rock it; then it is back
       res.push(["it waits empty where they got off", Math.hypot(b3.x - at[0], b3.y - at[1]) < 0.5 && !T.crewOf(b3) && b3.parked]);
-      f.down([b3.x, b3.y - 5]); const d = drag(b3, landNear(b3, true)), left = [b3.x, b3.y];
+      T.soundLog.length = 0; f.down([b3.x, b3.y - 5]); const d = drag(b3, landNear(b3, true)), left = [b3.x, b3.y];
+      res.push(["an empty boat left on land makes no disappointed sound", !T.soundLog.includes("boat-left-on-land")]);
       for (let k = 0; k < 10; k++) step(0.2);
       res.push(["moved onto land, the empty boat stays there", d.landedAtShadow && b3.stuck && Math.hypot(b3.x - left[0], b3.y - left[1]) < 0.01]);
       let fetched = false, carried = false;

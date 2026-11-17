@@ -1666,7 +1666,9 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   // Plays a sound; returns a handle with stop(fadeSeconds) and setVolume(v), or null.
   // fitSeconds: play the clip faster or slower so it lasts exactly that long
   function soundLength(name) { const l = SOUNDS[name]; return l && buffers[l[0][0]] ? buffers[l[0][0]].duration : 0; }
+  const soundLog = []; // the last sounds asked for, newest last (the tests read it)
   function playSound(name, volume, loop = false, fitSeconds = 0, opts = {}) {
+    soundLog.push(name); if (soundLog.length > 50) soundLog.shift();
     const list = SOUNDS[name];
     if (!actx || !list) return null;
     const parts = [];
@@ -3275,7 +3277,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   //    point of its own route by the way that needs the least carrying, and of those the shortest: over water it
   //    sails; over land its travellers step out, lift it onto their shoulders, carry it at walking speed to the water,
   //    put it in and get back in. Then it sails its route again.
-  // 3. Left on land, a sound plays first (LEFT_ON_LAND); a second after it ends they start carrying.
+  // 3. Left on land with its travellers in it, a sound plays first (LEFT_ON_LAND); half a second after it ends they start carrying.
   // 4. An empty boat (its travellers on their round) stays where it was left; they come for it (goHome).
   const BOAT_LIFT = 1; // seconds to step out and lift the boat onto the shoulders, and to put it down and get in
   const ROUTE_CELLS = new Map(); // per route: map cell -> [leg, distance along it] for every few pixels of it
@@ -3372,7 +3374,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     b.drop = null; b.rise = b.lift = 0;
     const q = mapView().pt(b.x, b.y), onLand = isLand(b.x, b.y);
     mapTap(q.x, q.y, b); // the splash and its waves, as a tap there (sand or stones on land); they push the other boats, not this one
-    if (onLand) playSound(LEFT_ON_LAND, 1);
+    if (onLand && crewOf(b)) playSound(LEFT_ON_LAND, 1); // only travellers left on land are disappointed (owner 17 Nov)
     letGoBoat(b);
     if (onLand && b.back) b.back.delay = soundSeconds(LEFT_ON_LAND) + 0.5; // the travellers get out half a second after the sound (owner 17 Nov: first one second, then half a second earlier)
   }
