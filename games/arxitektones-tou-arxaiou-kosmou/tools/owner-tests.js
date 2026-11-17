@@ -744,6 +744,11 @@
       for (let k = 0; k < 90; k++) { step(); push = Math.max(push, Math.hypot(other.ox, other.oy)); }
       res.push(["dropped on the water, it splashes and the waves push the boat next to it (" + push.toFixed(1) + " map px)", d.landedAtShadow && push > 3]);
       const s = follow(b2, 400); res.push(["left on the water: it sails back, nobody carries it", s.back && s.carry === 0 && s.lift === 0]);
+      // owner 17 Nov: "the waves dont push the boats anymore": a boat sailing back after being moved (far over the water) is pushed like any other
+      f.down([b2.x, b2.y - 5]); drag(b2, landNear(b2, false)); const wasBack = !!b2.back, q = T.mapView().pt(b2.x, b2.y), cv = document.querySelector("canvas");
+      for (const t of ["pointerdown", "pointerup"]) cv.dispatchEvent(new PointerEvent(t, { clientX: q.x - 30, clientY: q.y, pointerId: 34, isPrimary: true, pointerType: "mouse", button: 0, buttons: t === "pointerup" ? 0 : 1, bubbles: true }));
+      let wp = 0; for (let k = 0; k < 90; k++) { step(); wp = Math.max(wp, Math.hypot(b2.ox, b2.oy)); }
+      res.push(["a boat sailing back after being moved is pushed by waves too (" + wp.toFixed(1) + " map px)", wasBack && wp > 3]);
     } else res.push(["a boat to drop next to another", false]);
     // an empty boat: waiting where its travellers got off; moved onto land, they come for it when their round is done.
     // Set up directly: a boat with its travellers a moment before a port (all sites finished, so they get off there).

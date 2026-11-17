@@ -895,6 +895,11 @@ Owner, verbatim (17 Nov 2026, 20:51): "1. now there is lag when the boat is just
 4. The travellers get out half a second after the sound ends (was one second).
 5. Owner tests that do not look at the screen run with a one-pixel canvas (`quick` in owner-tests.js): boat-drag 3.5 s, the five map tests together 10 s. boat-drag sets up waiting boats directly and starts from a restart; it checks the slowest frame when a full boat lands.
 
+## Current state, update 74 (17 Nov 2026): waves push moved boats too
+
+Owner, verbatim (17 Nov 2026, 21:03): "seriosuly, are you stupid? the fuckign waves, i told you before, dont push the boats anymore"
+Cause: a boat the child had moved (sailing back to its route, or left empty on the water) ignored waves; in play many boats are in that state. Now every boat floating free gets the same wave push and spring as on its route (not while held, falling, carried or on land). Check in `boat-drag`: a boat sailing back is pushed (17 checks, 3.5 s). `tools/harness.py realwave`: every boat in play clicked beside in the running game, all pushed; `maptime`: slowest frame in 5 min of play without drawing 14 ms.
+
 ## Task list
 
 No open items.

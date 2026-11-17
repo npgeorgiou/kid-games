@@ -249,17 +249,22 @@ with sync_playwright() as p:
           let t=performance.now(); for(let k=0;k<100;k++) T.renderMap(1/60); const frame=(performance.now()-t)/100; const cv=document.querySelector('canvas'), W=cv.width, H=cv.height; cv.width=cv.height=1; t=performance.now(); for(let k=0;k<100;k++) T.renderMap(1/60); const frame1=(performance.now()-t)/100; cv.width=W; cv.height=H;
           const b=T.boats.find((b)=>T.crewOf(b)); const x0=b.x,y0=b.y; let to=null; for(let r=60;r<900&&!to;r+=10) for(let a=0;a<6.28&&!to;a+=0.3){const x=x0+Math.cos(a)*r,y=y0+Math.sin(a)*r; if(T.isLand(x,y)&&T.isLand(x+20,y)&&T.isLand(x-20,y)) to=[x,y];}
           b.x=to[0]; b.y=to[1]; t=performance.now(); T.routeCells(b.line); const rc=performance.now()-t; t=performance.now(); T.waterField(b.line); const wf=performance.now()-t; t=performance.now(); const w=T.boatWayBack(b); const way=performance.now()-t; t=performance.now(); T.boatWayBack(b); const way2=performance.now()-t;
-          return 'frame '+frame.toFixed(1)+' ms (tiny canvas '+frame1.toFixed(1)+'), route cells '+rc.toFixed(0)+', field '+wf.toFixed(0)+', way back from land '+way.toFixed(0)+', again '+way2.toFixed(0)+' ms ('+(w&&w.runs.length)+' runs)';}""")); levels=[]
+          const cv2=document.querySelector('canvas'); cv2.width=cv2.height=1; let worst=0, what=''; const st=()=>T.groups.map((g)=>g.state+(g.then?Object.keys(g.then).join(''):'')).join(',');
+          for(let k=0;k<6000;k++){const s0=st(); const t1=performance.now(); T.renderMap(1/20); const d=performance.now()-t1; if(d>worst){worst=d; what=s0+' -> '+st();}} cv2.width=W; cv2.height=H;
+          return 'frame '+frame.toFixed(1)+' ms (tiny canvas '+frame1.toFixed(1)+'), slowest in 5 min of play '+worst.toFixed(0)+' ms at '+what+', route cells '+rc.toFixed(0)+', field '+wf.toFixed(0)+', way back from land '+way.toFixed(0)+', again '+way2.toFixed(0)+' ms ('+(w&&w.runs.length)+' runs)';}""")); levels=[]
     if 'realwave' in sys.argv:  # owner 17 Nov: real clicks in the running game (real frames): do the waves push the boats, and is there a hitch?
         q=b.new_page(viewport={'width':1280,'height':800}); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(500)
         q.evaluate("""()=>{const T=__tb; for(const S of T.SITES) T.progress.done[S.key]={pieces:[],loads:[]}; T.goMap();
           window.__gaps=[]; let last=performance.now(); const f=()=>{const n=performance.now(); __gaps.push(n-last); last=n; requestAnimationFrame(f);}; requestAnimationFrame(f);}""")
         q.wait_for_timeout(1500)
-        for off in [(0,-5),(30,0),(-45,10)]:
-            p=q.evaluate("()=>{const T=__tb; const b=T.boats.find((b)=>!b.parked&&b.wait<=0&&!b.back&&T.crewOf(b)); window.__wb=b; const v=T.mapView(), s=v.pt(b.x,b.y); return [s.x,s.y];}")
+        q.wait_for_timeout(20000)  # let the travellers get off and boats wait in ports, as in play
+        n=q.evaluate("__tb.boats.length")
+        for bi in range(n):
+            st=q.evaluate("(i)=>{const T=__tb,b=T.boats[i]; window.__wb=b; const v=T.mapView(), s=v.pt(b.x,b.y); return [s.x,s.y,b.parked?'waiting':b.back?'back':b.stuck?'left':b.wait>0?'in port':'sailing', s.x>0&&s.y>0&&s.x<1280&&s.y<800];}",bi)
+            if not st[3]: continue
             q.evaluate("()=>{__gaps.length=0; window.__mx=0; const b=__wb; const f=()=>{__mx=Math.max(__mx,Math.hypot(b.ox,b.oy)); if(__gaps.length<200) requestAnimationFrame(f);}; requestAnimationFrame(f);}")
-            q.mouse.click(p[0]+off[0],p[1]+off[1]); q.wait_for_timeout(1500)
-            print('click',off,'pushed',round(q.evaluate('__mx'),1),'map px; longest frame',round(q.evaluate('Math.max(...__gaps)')),'ms')
+            q.mouse.click(st[0]-30,st[1]); q.wait_for_timeout(1200)
+            print('boat',bi,st[2],'click 30 px left: pushed',round(q.evaluate('__mx'),1),'map px; longest frame',round(q.evaluate('Math.max(...__gaps)')),'ms')
         q.close(); levels=[]
     if 'mapshot' in sys.argv:  # owner 17 Nov: writing in the sand and a boat carried over land, as the child sees them
         JS=open(os.path.join(HERE,'owner-tests.js')).read()

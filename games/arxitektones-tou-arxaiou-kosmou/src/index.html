@@ -3364,9 +3364,14 @@
         if (b.drop.t >= T - 1e-6) landBoat(b); // (a frame's time adds up to T only within rounding)
         b.ox = b.oy = b.ovx = b.ovy = 0; continue; // it moves on from the next frame
       }
-      if (b.held || b.back || b.stuck || b.drop) { // moved by the child: off its route, no wave offset
-        b.ox = b.oy = b.ovx = b.ovy = 0;
+      if (b.held || b.back || b.stuck || b.drop) { // moved by the child: off its route
+        // waves push it too while it floats free (sailing back, or left on the water), by the same spring as on its route
+        b.x -= b.ox; b.y -= b.oy;
         if (b.back) updateBoatBack(b, dt);
+        const run = b.back && b.back.runs[Math.min(b.back.i, b.back.runs.length - 1)];
+        if (b.held || b.drop || (run && run.mode === "carry") || isLand(b.x, b.y)) b.ox = b.oy = b.ovx = b.ovy = 0;
+        else { b.ovx += (-BOAT_BACK * BOAT_BACK * b.ox - 2 * BOAT_BACK * b.ovx) * dt; b.ovy += (-BOAT_BACK * BOAT_BACK * b.oy - 2 * BOAT_BACK * b.ovy) * dt; b.ox += b.ovx * dt; b.oy += b.ovy * dt; }
+        b.x += b.ox; b.y += b.oy;
         if (b.back) { const want = Math.atan2(b.vy, b.vx); if (b.hd === null) b.hd = want; const d = Math.atan2(Math.sin(want - b.hd), Math.cos(want - b.hd)); b.hd += Math.sign(d) * Math.min(Math.abs(d), BOAT_TURN * dt); }
         continue;
       }
