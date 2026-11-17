@@ -866,6 +866,17 @@ Owner, verbatim (17 Nov 2026, 12:33): "1. make it so not tapping, but dragging o
 Owner tests `sand-writing` (11 checks) and `boat-drag` (8 checks). Picture: owner-shots/2026-11-17-sand-writing-and-boat-carried.png (`tools/harness.py mapshot`).
 Open for the owner: an empty boat left on land stays there (nobody to carry it); say if it should be different.
 
+## Current state, update 71 (17 Nov 2026): one boat per finished site, empty boats wait; held boats over a shadow; smooth deep grooves
+
+Owner, verbatim (17 Nov 2026, 18:27): "1. make it so there are no empty boats sailing around: each site that is finished makes a boat full of people appear, and the people do their rounds on land, and tthen they go back to their boat, that is waiting for them on the point they stopped. if a stopped, empty boat is moved, its people go there to pick it up.  2. when I pick up a boat, it shouldnt be rotating. 3. when I leave it on land, make a hook for  a disapointment sound I will give you later. then, after that soudn is done, and a second later, the people carry the boat, not immediately. 4. when I drag a boat, I want a shadow under it. when I drop it, it should drop on the point its shadow is, with a spals (same as the click splash), that also created waves that push other boats. 5. your sand draying is jagged, i want ti smooth and able to do curves. also, i want it to be more visibly as a groove, like, the light/darkess conrtast that we use to show indentations. udnerstoood?" Answers (18:35): "routes: theya re not connected to routes, only route count. so, similar route logic. yes game starts with 0 boats. they finish" (the moved boat's people finish their round first).
+
+1. Fleet: the game starts with no boats; each finished site adds one boat with its travellers (the n-th finished site the n-th route; `syncFleet`, ALL_BOATS/ALL_GROUPS). Travellers get off where a finished site is walkable; their boat waits empty at that point of its route (`b.parked`). Their round: on to finished sites they can walk to (at most three), then back to their own boat (`goHome`); the old taking of other boats between sites is gone. A moved empty boat stays where it was left (`b.stuck`); when the round is done they walk to it over land: on land they get in and carry it to the water; on the water they wait on the nearest shore and it comes to them (the only time a boat moves empty, to fetch them), then they sail back to the route. If it is moved again while they walk, they turn to where it is now; with no way there over land they wait and try again every 4 s.
+2. A held boat does not turn.
+3. Left on land: sound hook `boat-left-on-land` in SOUNDS (empty until the owner gives the file); a second after it ends the travellers lift and carry (`back.delay`). Also played when an empty boat is left on land.
+4. Held, the boat is lifted (0.2 s) over a shadow on the ground; let go, it falls (0.2 s) onto the shadow's point, with the tap effect there (on water the splash, whose waves push other boats; sand or stones on land).
+5. Sand: the finger's points (every 3 map px) are joined by quadratic curves through their midpoints, so fast strokes come out round. The groove is three layers of the same line: a dark wall shifted up-left, a light wall shifted down-right, a darker floor in the middle (lit from the top left).
+Owner tests: `fleet` (4), `boat-drag` (rewritten), `sand-writing` (13).
+
 ## Task list
 
 No open items.

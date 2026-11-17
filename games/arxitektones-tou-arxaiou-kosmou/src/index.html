@@ -1590,6 +1590,7 @@
     "map-tap-sand": [["sounds/map-tap-sand.mp3", 0.512]],
     "map-tap-green": [["sounds/map-tap-green.mp3", 0.512]],
     "map-tap-rock": [["sounds/map-tap-rock.mp3", 0.2]],
+    "boat-left-on-land": [], // owner 17 Nov: a disappointment sound when a boat is left on land; the owner will give the file
     // collapse.mp3 is in src/sounds but not used yet
   };
   const MASTER_VOLUME = 0.5; // owner 17 Nov: every sound (music, effects, voice) at half
@@ -3203,18 +3204,22 @@
     return q;
   };
   for (const line of BOAT_LINES) line.legs = line.legs.map(roundLeg);
-  const boats = BOAT_LINES.map((line, i) => {
+  // The fleet (owner 17 Nov): no boat sails empty. Each finished site adds one boat full of travellers (the first
+  // finished site the first route, and so on); the game starts with none. ALL_BOATS are made once, `boats` are those in play.
+  const boats = [], ALL_BOATS = BOAT_LINES.map((line, i) => {
     const lens = line.legs.map(polyLen), leg = i % line.legs.length;
-    return { line, lens, leg, dir: 1, d: lens[leg] * ((i * 0.37) % 1), wait: 0, x: 0, y: 0, vx: 1, vy: 0, ox: 0, oy: 0, ovx: 0, ovy: 0, hd: null };
+    return { line, lens, leg, dir: 1, d: lens[leg] * ((i * 0.37) % 1), wait: 0, x: 0, y: 0, vx: 1, vy: 0, ox: 0, oy: 0, ovx: 0, ovy: 0, hd: null, rise: 0 };
   });
   // Seconds a boat of this line needs to sail from stop a to stop b (indexes), and for a whole round.
   const sailTime = (b, i, j) => { let L = 0; for (let k = Math.min(i, j); k < Math.max(i, j); k++) L += b.lens[k]; return L / BOAT_SPEED + Math.abs(i - j) * BOAT_REST; };
-  // A boat the child moves (owner 17 Nov), in three parts.
-  // 1. Held, it follows the finger, pointing the way it is moved; its travellers stay in it.
-  // 2. Let go, it goes back to the nearest point of its own route by the way that needs the least carrying, and of
-  //    those the shortest: over water it sails; over land its travellers step out, lift it onto their shoulders, carry
-  //    it at walking speed to the water, put it in and get back in. Then it sails its route again.
-  // 3. A boat that would need carrying with nobody in it stays where it was left.
+  // A boat the child moves (owner 17 Nov), in four parts.
+  // 1. Held, it is lifted off its shadow and follows the finger without turning; its travellers stay in it.
+  // 2. Let go, it falls onto its shadow with the splash (and waves) of a tap there, then goes back to the nearest
+  //    point of its own route by the way that needs the least carrying, and of those the shortest: over water it
+  //    sails; over land its travellers step out, lift it onto their shoulders, carry it at walking speed to the water,
+  //    put it in and get back in. Then it sails its route again.
+  // 3. Left on land, a sound plays first (LEFT_ON_LAND); a second after it ends they start carrying.
+  // 4. An empty boat (its travellers on their round) stays where it was left; they come for it (goHome).
   const BOAT_LIFT = 1; // seconds to step out and lift the boat onto the shoulders, and to put it down and get in
   const ROUTE_CELLS = new Map(); // per route: map cell -> [leg, distance along it] for every few pixels of it
   function routeCells(line) {
@@ -3223,8 +3228,8 @@
     line.legs.forEach((leg, li) => { const L = polyLen(leg); for (let d = 0; d <= L; d += 2) { const [x, y] = polyPoint(leg, d); m.set(Math.floor(y / S) * MAP_LAND.w + Math.floor(x / S), [li, d]); } });
     ROUTE_CELLS.set(line, m); return m;
   }
-  function boatWayBack(b) { // the way back from where the boat is: runs of sailing and carrying, and where it rejoins its route
-    const w = MAP_LAND.w, S = MAP_LAND.s, n = LAND.length, h = n / w, targets = routeCells(b.line);
+  function boatWayBack(b, goal) { // the way back from where the boat is (or to the cells of `goal`): runs of sailing and carrying, and where it rejoins its route
+    const w = MAP_LAND.w, S = MAP_LAND.s, n = LAND.length, h = n / w, targets = goal || routeCells(b.line);
     const cell = (x, y) => Math.max(0, Math.min(h - 1, Math.floor(y / S))) * w + Math.max(0, Math.min(w - 1, Math.floor(x / S)));
     const c0 = cell(b.x, b.y), cost = new Float64Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1);
     const heap = [[0, c0]], push = (e) => { heap.push(e); let i = heap.length - 1; while (i) { const p = (i - 1) >> 1; if (heap[p][0] <= e[0]) break; heap[i] = heap[p]; i = p; } heap[i] = e; };
@@ -3244,7 +3249,7 @@
     }
     if (end < 0) return null;
     const cells = []; for (let c = end; c !== c0; c = prev[c]) cells.push(c); cells.push(c0); cells.reverse();
-    const [leg, d] = targets.get(end), [rx, ry] = polyPoint(b.line.legs[leg], d);
+    const [leg, d] = targets.get(end) || [null, null], [rx, ry] = leg === null ? [(end % w) * S + S / 2, Math.floor(end / w) * S + S / 2] : polyPoint(b.line.legs[leg], d);
     const pts = cells.map((c) => [(c % w) * S + S / 2, Math.floor(c / w) * S + S / 2]);
     if (pts.length === 1) pts.push([rx, ry]); else pts[pts.length - 1] = [rx, ry];
     pts[0] = [b.x, b.y];
@@ -3267,12 +3272,29 @@
   const crewOf = (b) => groups.find((g) => g.state === "boat" && g.boat === b);
   function letGoBoat(b) {
     b.held = null;
+    if (!crewOf(b)) { // no boat goes anywhere empty: it stays, and its travellers come to it when their round is done
+      b.stuck = true; b.parked = false;
+      const g = ALL_GROUPS[ALL_BOATS.indexOf(b)];
+      if (g.state === "stand" || (g.state === "walk" && (g.then.home || g.then.fetch))) goHome(g); // on their way to it: to where it is now
+      return;
+    }
     const way = boatWayBack(b);
-    if (!way || (way.runs.some((r) => r.mode === "carry") && !crewOf(b))) { b.stuck = true; return; } // nobody to carry it
+    if (!way) { b.stuck = true; return; }
     b.stuck = false; b.back = way;
+  }
+  const LEFT_ON_LAND = "boat-left-on-land", DROP_TIME = 0.2; // the sound when a boat is left on land; seconds a let-go boat takes to fall onto its shadow
+  const soundSeconds = (name) => Math.max(0, ...(SOUNDS[name] || []).map(([f]) => (buffers[f] ? buffers[f].duration : 0)));
+  function landBoat(b) { // part 4: a let-go boat reaches its shadow
+    b.drop = false; b.rise = 0;
+    const q = mapView().pt(b.x, b.y), onLand = isLand(b.x, b.y);
+    mapTap(q.x, q.y); // the splash and its waves, as a tap there (sand or stones on land)
+    if (onLand) playSound(LEFT_ON_LAND, 1);
+    letGoBoat(b);
+    if (onLand && b.back) b.back.delay = soundSeconds(LEFT_ON_LAND) + 1; // the travellers carry it a second after the sound
   }
   function updateBoatBack(b, dt) { // part 2: on its way back to its route
     const W = b.back, r = W.runs[W.i];
+    if (W.delay > 0) { W.delay -= dt; return; } // part 3: left on land, the sound first
     if (W.phase === "lift" || W.phase === "lower") {
       W.t += dt;
       if (W.t < BOAT_LIFT) return;
@@ -3286,11 +3308,11 @@
       if (r.mode === "carry") { W.phase = "lower"; W.t = 0; return; }
       W.i++; W.s = 0; if (W.i < W.runs.length && W.runs[W.i].mode === "carry") W.phase = "lift";
     }
-    if (W.i >= W.runs.length) { b.leg = W.leg; b.d = W.d; b.back = null; b.wait = 0; } // on its route again
+    if (W.i >= W.runs.length) { b.back = null; if (W.then) { W.then(); return; } b.leg = W.leg; b.d = W.d; b.wait = 0; } // on its route again (or where it was sent)
   }
   function updateBoats(dt) {
     for (const b of boats) {
-      if (b.held || b.back || b.stuck) continue;
+      if (b.held || b.back || b.stuck || b.drop || b.parked) continue; // moved by the child, or waiting for its travellers
       if (b.wait > 0) { b.wait -= dt; continue; }
       b.d += b.dir * BOAT_SPEED * dt;
       const L = b.lens[b.leg];
@@ -3305,10 +3327,12 @@
     // pushed by a wave (SECTION MAP, drawTapBits): the boat is drawn off its route by an offset that a critically damped
     // spring (the standard smooth return, no overshoot) brings back to the route while the boat sails on
     for (const b of boats) {
-      if (b.held || b.back || b.stuck) { // moved by the child: off its route, no wave offset
+      if (b.held && b.held.up) b.rise = Math.min(1, b.rise + dt / DROP_TIME); // part 4: lifted off its shadow while dragged
+      if (b.drop) { b.rise -= dt / DROP_TIME; if (b.rise <= 0) landBoat(b); b.ox = b.oy = b.ovx = b.ovy = 0; continue; } // it moves on from the next frame
+      if (b.held || b.back || b.stuck || b.drop) { // moved by the child: off its route, no wave offset
         b.ox = b.oy = b.ovx = b.ovy = 0;
         if (b.back) updateBoatBack(b, dt);
-        if (b.held || b.back) { const want = Math.atan2(b.vy, b.vx); if (b.hd === null) b.hd = want; const d = Math.atan2(Math.sin(want - b.hd), Math.cos(want - b.hd)); b.hd += Math.sign(d) * Math.min(Math.abs(d), BOAT_TURN * dt); }
+        if (b.back) { const want = Math.atan2(b.vy, b.vx); if (b.hd === null) b.hd = want; const d = Math.atan2(Math.sin(want - b.hd), Math.cos(want - b.hd)); b.hd += Math.sign(d) * Math.min(Math.abs(d), BOAT_TURN * dt); }
         continue;
       }
       b.ovx += (-BOAT_BACK * BOAT_BACK * b.ox - 2 * BOAT_BACK * b.ovx) * dt; b.ovy += (-BOAT_BACK * BOAT_BACK * b.oy - 2 * BOAT_BACK * b.ovy) * dt;
@@ -3325,17 +3349,18 @@
     boats.forEach((b, i) => {
       const q = v.pt(b.x, b.y), tilt = Math.sin(t * 1.3 + i) * 0.05;
       const ang = b.hd ?? Math.atan2(b.vy, b.vx), size = BOAT_SIZE * v.k, W = b.back, run = W && W.runs[Math.min(W.i, W.runs.length - 1)];
-      const sailing = W ? run.mode === "sail" && W.phase === "go" : !b.held && !b.stuck && b.wait <= 0;
+      const sailing = W ? run.mode === "sail" && W.phase === "go" && !(W.delay > 0) : !b.held && !b.stuck && !b.drop && !b.parked && b.wait <= 0;
       if (sailing) SKIN.mapWake(ctx, q.x, q.y, size, ang, t + i * 0.37);
-      const g = crewOf(b);
-      if (g && W && run.mode === "carry") { // part 2: the travellers out of it, the boat on their shoulders
+      const g = crewOf(b), up = b.rise * b.rise * (3 - 2 * b.rise) * size * 0.7; // part 1: how high it is held over its shadow
+      if (up > 0) { ctx.fillStyle = `rgba(30, 25, 15, ${0.12 + 0.18 * (1 - up / (size * 0.7))})`; ctx.beginPath(); ctx.ellipse(q.x, q.y, size * 0.5, size * 0.16, 0, 0, Math.PI * 2); ctx.fill(); }
+      if (g && W && run.mode === "carry" && !(W.delay > 0)) { // part 2: the travellers out of it, the boat on their shoulders
         const up = W.phase === "lift" ? W.t / BOAT_LIFT : W.phase === "lower" ? 1 - W.t / BOAT_LIFT : 1, ease = up * up * (3 - 2 * up);
         const pts = PEOPLE.map((_, k) => { const u = ((k >> 1) - 1) * BOAT_SIZE * 0.28, w = (k & 1 ? 1 : -1) * BOAT_SIZE * 0.1; return [b.x + Math.cos(ang) * u - Math.sin(ang) * w, b.y + (Math.sin(ang) * u + Math.cos(ang) * w) * 0.5]; }); // three each side of it
         drawGroup(v, g, pts, W.phase === "go" ? "walk" : "idle", Math.cos(ang) < 0);
         SKIN.mapBoat(ctx, q.x, q.y - ease * PERSON_H * v.k * 0.5, size, ang, 0, t + i, null);
         return;
       }
-      SKIN.mapBoat(ctx, q.x, q.y, size, ang, tilt, t + i, g && ((bg) => {
+      SKIN.mapBoat(ctx, q.x, q.y - up, size, ang, up > 0 ? 0 : tilt, t + i, g && ((bg) => {
         // in the boat: six travellers along its middle, only their heads above its near side
         const pts = [], cl = new Path2D();
         PEOPLE.forEach((n, k) => {
@@ -3348,10 +3373,11 @@
     });
   }
 
-  // Travellers (owner decision): ten groups of the six villagers (src/art/villagers, craftpix free licence).
-  // They start on the boats; in a port with a finished site reachable over land they get off and walk there
-  // at boat speed, then on to another finished site by whichever is quicker, walking or a boat; after at most
-  // three sites on foot they board the next boat that calls and go where it goes.
+  // Travellers (owner decision): a group of the six villagers (src/art/villagers, craftpix free licence) to each boat.
+  // 1. They sail in their own boat; in a port with a finished site reachable over land they get off and walk there at
+  //    boat speed; the boat waits for them there, empty (owner 17 Nov).
+  // 2. Their round on land: on to another finished site they can walk to, at most three sites, then back to their boat.
+  // 3. If the child moved their boat, they go to where it is (goHome) and take it back to its route (letGoBoat).
   const PEOPLE = ["Boy", "Girl", "Man", "Old_man", "Old_woman", "Woman"];
   const PEOPLE_ART = {
     Boy: ["art/villagers/Boy_walk.png", "art/villagers/Boy_idle.png"], Girl: ["art/villagers/Girl_walk.png", "art/villagers/Girl_idle.png"],
@@ -3364,7 +3390,12 @@
   const PEOPLE_FEET = { Boy: 12, Girl: 11.5, Man: 14.5, Old_man: 13, Old_woman: 10.5, Woman: 12.5 }; // column of each villager's feet in its 48 px frame (from the art)
   const HEAD_ROWS = 10, PERSON_H = 40; // frame rows of a head; map pixels a 48 px frame is drawn tall
   const WALK_SPEED = BOAT_SPEED, MAX_ON_FOOT = 3, VISIT_TIME = 4, PERSON_GAP = 9; // map px/s, sites, seconds, map px between walkers
-  const groups = boats.map((b) => ({ state: "boat", boat: b, onFoot: 0, stops: 0, recent: [], plan: null }));
+  const groups = [], ALL_GROUPS = ALL_BOATS.map((b) => ({ state: "boat", boat: b, home: b, onFoot: 0, stops: 0, recent: [] })); // `home`: their own boat
+  function syncFleet() { // one boat (with its travellers) per finished site
+    const n = Math.min(ALL_BOATS.length, Object.keys(progress.done).length);
+    while (boats.length < n) { boats.push(ALL_BOATS[boats.length]); groups.push(ALL_GROUPS[groups.length]); }
+    boats.length = groups.length = n;
+  }
   function walkPath(from, to) {
     const p = MAP_WALKS[from + ">" + to];
     if (p) return p;
@@ -3383,8 +3414,7 @@
       if (g.state === "boat" && g.boat === b) {
         g.stops++;
         let site = null;
-        if (g.plan) { if (g.plan.offAt === port) site = g.plan.site; }
-        else if (g.stops >= 1) { // off where a finished site can be walked to; the nearest one
+        if (g.stops >= 1) { // off where a finished site can be walked to; the nearest one
           let best = Infinity;
           for (const k of doneSites()) {
             const p = walkPath("port:" + port, "site:" + k);
@@ -3392,41 +3422,58 @@
           }
         }
         const p = site && walkPath("port:" + port, "site:" + site);
-        if (p) { g.plan = null; g.boat = null; startWalk(g, p, { site }); } // off the boat straight onto the shore
-      } else if (g.state === "port" && g.port === port && (!g.plan || g.plan.line === b.line)) {
-        g.state = "boat"; g.boat = b; g.onFoot = 0; g.stops = 0; // aboard: off at the planned port, or wherever a site is near
+        if (p) { g.boat = null; g.offPort = port; b.parked = true; startWalk(g, p, { site }); } // off the boat straight onto the shore; it waits for them there
       }
     }
   }
-  // At a site: where next. Walking there, or walking to a port and taking a boat, whichever is quicker.
+  // At a site: where next. Another finished site they can walk to (at most three on foot), else back to their boat.
   function chooseNext(g) {
-    const here = g.site, ports = Object.keys(MAP_PORTS).filter((p) => walkPath("port:" + p, "site:" + here));
-    const toPort = (p) => polyLen(walkPath("site:" + here, "port:" + p)) / WALK_SPEED;
+    const here = g.site;
     if (g.onFoot < MAX_ON_FOOT) {
       let best = null;
       for (const k of doneSites()) {
         if (k === here || g.recent.includes(k)) continue;
         const w = walkPath("site:" + here, "site:" + k);
-        if (w) { const t = polyLen(w) / WALK_SPEED; if (!best || t < best.t) best = { t, walk: w, site: k }; }
-        for (const b of boats) for (const p1 of ports) {
-          const i = b.line.stops.indexOf(p1);
-          if (i < 0) continue;
-          b.line.stops.forEach((p2, j) => {
-            const w2 = j !== i && walkPath("port:" + p2, "site:" + k);
-            if (!w2) return;
-            const t = toPort(p1) + sailTime(b, 0, b.lens.length) + sailTime(b, i, j) + polyLen(w2) / WALK_SPEED; // waiting: about one round
-            if (!best || t < best.t) best = { t, port: p1, plan: { line: b.line, offAt: p2, site: k } };
-          });
-        }
+        if (w && (!best || polyLen(w) < polyLen(best.walk))) best = { walk: w, site: k };
       }
-      if (best && best.walk) { startWalk(g, best.walk, { site: best.site }); return; }
-      if (best) { startWalk(g, walkPath("site:" + here, "port:" + best.port), { port: best.port, plan: best.plan }); return; }
+      if (best) { startWalk(g, best.walk, { site: best.site }); return; }
     }
-    // three sites on foot (or nowhere else to go): the nearest port, and the next boat that calls
-    let near = null;
-    for (const p of ports) if (!near || toPort(p) < toPort(near)) near = p;
-    if (near) startWalk(g, walkPath("site:" + here, "port:" + near), { port: near, plan: null });
-    else { g.wait = VISIT_TIME; if (g.tour) g.phase = "out"; } // nowhere to go yet: stay a little longer
+    goHome(g);
+  }
+  // Back to their own boat: to the port where they left it, or, when the child has moved it, over land to where it
+  // is (to the shore nearest it when it is on the water). With no way there over land they wait and try again.
+  function goHome(g) {
+    const b = g.home, from = g.state === "visit" || g.state === "walk" || g.state === "stand" ? trailPoints(g)[0].slice(0, 2) : [b.x, b.y];
+    let path = null, then = null;
+    if (!b.stuck) {
+      path = (g.state === "visit" && walkPath("site:" + g.site, "port:" + g.offPort)) || landRoutes(from, [nearLand(...MAP_PORTS[g.offPort])])[0];
+      then = { home: true };
+    } else {
+      const to = nearLand(b.x, b.y);
+      path = to && landRoutes(from, [to])[0];
+      then = { fetch: true };
+    }
+    if (path) startWalk(g, path, then);
+    else { g.state = "stand"; g.path = [from, from]; g.len = 0; g.s = 0; g.wait = VISIT_TIME; }
+  }
+  function nearLand(x, y) { // the point itself if on land, else the nearest land to it
+    if (isLand(x, y)) return [x, y];
+    for (let r = 4; r < 600; r += 4) for (let a = 0; a < 6.28; a += 0.2) { const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; if (isLand(px, py)) return [px, py]; }
+    return null;
+  }
+  function board(g) { const b = g.home; g.state = "boat"; g.boat = b; g.onFoot = 0; g.stops = 0; b.parked = b.stuck = false; b.wait = 0; }
+  function arriveHome(g) {
+    const b = g.home;
+    if (g.then.home) { board(g); return; } // their boat where they left it
+    if (isLand(b.x, b.y)) { board(g); letGoBoat(b); return; } // on land: in, then they carry it to the water
+    // on the water: they wait on the shore; it comes to them, they get in and sail back to the route
+    g.state = "stand"; g.wait = Infinity;
+    const [sx, sy] = trailPoints(g)[0], d = Math.hypot(b.x - sx, b.y - sy) || 1;
+    let w = [sx, sy]; for (let t = 0; t <= d && isLand(w[0], w[1]); t += 2) w = [sx + ((b.x - sx) * t) / d, sy + ((b.y - sy) * t) / d];
+    const S = MAP_LAND.s, way = boatWayBack(b, new Map([[Math.floor(w[1] / S) * MAP_LAND.w + Math.floor(w[0] / S), null]]));
+    b.stuck = false;
+    if (!way || way.runs.some((r) => r.mode === "carry")) { board(g); letGoBoat(b); return; }
+    b.back = way; way.then = () => { board(g); letGoBoat(b); };
   }
   function updateTravellers(dt, v) {
     const rSite = (siteRadius() * DONE_SIZE) / v.k + 6; // walkers stop at the edge of a finished site's circle
@@ -3437,8 +3484,9 @@
         if (g.s >= end) {
           g.s = Math.max(0, end);
           if (g.then.site) { g.state = "visit"; g.site = g.then.site; g.wait = siteFinished(g.site) ? VISIT_TIME : 0; g.onFoot++; g.recent = [g.site].concat(g.recent).slice(0, 2); g.tour = siteFinished(g.site) ? admireTour(v, g) : null; g.d = 0; g.phase = "out"; }
-          else { g.state = "port"; g.port = g.then.port; g.plan = g.then.plan; }
+          else arriveHome(g);
         }
+      } else if (g.state === "stand") { if ((g.wait -= dt) <= 0) goHome(g);
       } else if (g.state === "visit" && visitStep(g, dt)) {
         if (!siteFinished(g.site)) g.recent = []; // the site is gone or no longer whole: just move on
         chooseNext(g);
@@ -3534,7 +3582,7 @@
       } else if (g.state === "visit" && g.tour) { // round the building and back
         const P = tourPeople(g);
         drawGroup(v, g, P.map((p) => [p.x, p.y]), P.map((p) => (p.walking ? "walk" : "idle")), P.map((p) => p.flip));
-      } else if (g.state === "visit" || g.state === "port") {
+      } else if (g.state === "visit" || g.state === "stand") {
         drawGroup(v, g, trailPoints(g), "idle", false);
       }
     }
@@ -3557,9 +3605,10 @@
     try { localStorage.removeItem(SAVE_KEY); } catch (err) { /* ignore */ }
     allOpen = false; cornerHold = null;
     if (currentLevel != null) { releaseAllPointers(); clearAllPieces(); fillPile([]); freshWorld(); currentLevel = null; grid = null; check = null; failShow = null; }
-    boats.forEach((b, i) => { b.leg = i % b.line.legs.length; b.dir = 1; b.d = b.lens[b.leg] * ((i * 0.37) % 1); b.wait = 0; b.held = b.back = null; b.stuck = false; b.hd = null; });
+    ALL_BOATS.forEach((b, i) => { b.leg = i % b.line.legs.length; b.dir = 1; b.d = b.lens[b.leg] * ((i * 0.37) % 1); b.wait = 0; b.held = b.back = null; b.stuck = b.parked = b.drop = false; b.rise = 0; b.hd = null; });
     mapHolds.clear(); for (const A of SAND_AREAS) { A.c = null; A.t0 = null; A.wind = null; }
-    groups.forEach((g, i) => { for (const k of Object.keys(g)) delete g[k]; Object.assign(g, { state: "boat", boat: boats[i], onFoot: 0, stops: 0, recent: [], plan: null }); });
+    ALL_GROUPS.forEach((g, i) => { for (const k of Object.keys(g)) delete g[k]; Object.assign(g, { state: "boat", boat: ALL_BOATS[i], home: ALL_BOATS[i], onFoot: 0, stops: 0, recent: [], plan: null }); });
+    boats.length = groups.length = 0;
   }
   // Real textures on or off (owner): a round button above ΕΠΑΝΕΚΚΙΝΗΣΗ, showing a little wall in the look it gives.
   function texButton() { const rb = restartButton(); return { x: rb.x, y: rb.y - rb.size * 1.45, size: rb.size }; }
@@ -3594,6 +3643,7 @@
     ctx.restore();
   }
   function renderMap(dt) {
+    syncFleet();
     ctx.fillStyle = "#4f9ad0"; ctx.fillRect(0, 0, cssWidth, cssHeight);
     const v = mapView();
     const land = mapLandCanvas(v);
@@ -3631,7 +3681,7 @@
   const mapHolds = new Map(), TAP_MOVE = 10; // pointer id -> what it holds; screen px a tap may move
   function boatAt(x, y) {
     const v = mapView(); let best = null, bd = Infinity;
-    for (const b of boats) { const q = v.pt(b.x, b.y), r = BOAT_SIZE * v.k * 0.6, d = Math.hypot(x - q.x, y - (q.y - r * 0.4)); if (d < r && d < bd) { bd = d; best = b; } }
+    for (const b of boats) { const q = v.pt(b.x, b.y), r = BOAT_SIZE * v.k * 0.6, d = Math.hypot(x - q.x, y - (q.y - r * 0.4 - b.rise * BOAT_SIZE * v.k * 0.7)); if (d < r && d < bd) { bd = d; best = b; } }
     return best;
   }
   const toMap = (x, y) => { const v = mapView(); return [(x - v.ox) / v.k, (y - v.oy) / v.k]; };
@@ -3639,10 +3689,11 @@
     if (e.clientX < 90 && e.clientY < 90) cornerHold = { id: e.pointerId, t: performance.now() };
     const [mx, my] = toMap(e.clientX, e.clientY), b = boatAt(e.clientX, e.clientY);
     if (b && ![...mapHolds.values()].some((h) => h.boat === b)) {
-      const off = b.stuck || !!b.back; // already off its route (left somewhere, or on its way back)
-      b.back = null; b.stuck = false; b.held = { dx: b.x - mx, dy: b.y - my }; b.ox = b.oy = 0; // picked up while carried: the carriers are back in it
+      const off = b.stuck || !!b.back || b.drop; // already off its route (left somewhere, on its way back, or falling)
+      if (b.back && b.back.then) b.back = null, b.stuck = true; // coming to its travellers on the shore: still empty
+      b.back = null; b.drop = false; b.held = { dx: b.x - mx, dy: b.y - my, up: false }; b.ox = b.oy = 0; // picked up while carried: the carriers are back in it
       mapHolds.set(e.pointerId, { boat: b, x0: e.clientX, y0: e.clientY, moved: false, off });
-    } else if (sandArea(mx, my) >= 0) mapHolds.set(e.pointerId, { sand: [mx, my], x0: e.clientX, y0: e.clientY, moved: false });
+    } else if (sandArea(mx, my) >= 0) mapHolds.set(e.pointerId, { sand: [[mx, my]], x0: e.clientX, y0: e.clientY, moved: false });
     else { mapTap(e.clientX, e.clientY); return; }
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
   }
@@ -3652,8 +3703,8 @@
     for (const ev of (e.getCoalescedEvents && e.getCoalescedEvents().length ? e.getCoalescedEvents() : [e])) {
       if (Math.hypot(ev.clientX - h.x0, ev.clientY - h.y0) > TAP_MOVE) h.moved = true;
       const [mx, my] = toMap(ev.clientX, ev.clientY);
-      if (h.boat) { const b = h.boat, nx = mx + b.held.dx, ny = my + b.held.dy; if (Math.hypot(nx - b.x, ny - b.y) > 0.5) { b.vx = nx - b.x; b.vy = ny - b.y; } b.x = nx; b.y = ny; }
-      else if (h.moved) { sandGroove(h.sand, [mx, my]); h.sand = [mx, my]; }
+      if (h.boat) { const b = h.boat; if (h.moved) { b.held.up = true; b.x = mx + b.held.dx; b.y = my + b.held.dy; } } // follows the finger, not turning
+      else if (h.moved) sandFinger(h, [mx, my]);
     }
   }
   function onMapPointerUp(e) {
@@ -3661,9 +3712,12 @@
     if (!h) return;
     mapHolds.delete(e.pointerId);
     if (h.boat) {
-      if (!h.moved) mapTap(h.x0, h.y0); // a tap on a boat: what is under it splashes or flies up
-      if (h.moved || h.off) letGoBoat(h.boat); else h.boat.held = null; // a boat tapped on its route sails on
-    } else if (!h.moved) mapTap(h.x0, h.y0);
+      const b = h.boat;
+      if (h.moved) { b.held = null; b.drop = true; return; } // it falls onto its shadow (landBoat)
+      mapTap(h.x0, h.y0); // a tap on a boat: what is under it splashes or flies up
+      if (h.off) { b.stuck = false; letGoBoat(b); } else b.held = null; // a boat tapped on its route sails on
+    } else if (h.moved) sandFinger(h, null);
+    else mapTap(h.x0, h.y0);
   }
   // A tap on the map shows what is under the finger: water splashes with rings, desert throws up a sand cloud,
   // green land throws leaves, mountains throw stone chips; each with its own sound.
@@ -3703,6 +3757,14 @@
     const xs = a.poly.map((p) => p[0]), ys = a.poly.map((p) => p[1]);
     return { ...a, x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys), c: null, t0: null, wind: null };
   });
+  // How a groove is drawn (owner 17 Nov: smooth, and plainly pressed in): as an indentation lit from the top left, its
+  // upper-left wall in shadow, its lower-right wall catching the light, and its floor a little darker than the sand.
+  // Each is the same line on its own layer, drawn shifted by dx, dy line widths.
+  const SAND_LAYERS = [
+    { col: "#fffaee", w: 1, dx: 0.28, dy: 0.28, a: 0.95 }, // the lit lower-right wall
+    { col: "#5c3a16", w: 1, dx: -0.22, dy: -0.22, a: 0.8 }, // the shaded upper-left wall
+    { col: "#c49a62", w: 0.7, dx: 0, dy: 0, a: 0.9 },     // the floor
+  ];
   const SAND_LINE = 6, WIND_AFTER = 120, WIND_SWEEP = 4, WIND_SPEED = 220; // map px wide; seconds (owner: two minutes); seconds the wind's front takes to cross an area; map px/s the blown sand flies
   const inPoly = (poly, x, y) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c; } return c; };
   function sandArea(mx, my) { // the area whose flat sand this map point is, or -1
@@ -3710,23 +3772,40 @@
     if (!px || !(px[0] > 200 && px[1] > 200 && px[2] < px[1])) return -1; // flat sand only (dunes are darker, mountains brown)
     return SAND_AREAS.findIndex((a) => inPoly(a.poly, mx, my));
   }
-  function sandGroove(m0, m1) { // a finger moved from map point m0 to m1: grooves on the flat sand along it
-    const n = Math.max(1, Math.ceil(Math.hypot(m1[0] - m0[0], m1[1] - m0[1]) / 2)), runs = [];
+  // The finger's points (h.sand, kept every SAND_STEP map px) are joined by a smooth curve: from the middle of one
+  // pair to the middle of the next, bent towards the point between them (a quadratic curve); straight at the two ends.
+  const SAND_STEP = 3;
+  const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  function sandFinger(h, p) { // p: the finger's map point, or null when it is lifted
+    const k = h.sand;
+    if (p) { if (Math.hypot(p[0] - k[k.length - 1][0], p[1] - k[k.length - 1][1]) < SAND_STEP) return; k.push(p); }
+    const n = k.length;
+    if (!p) { if (n >= 2) sandGroove([n > 2 ? mid(k[n - 2], k[n - 1]) : k[0], k[n - 1]]); return; }
+    if (n === 2) { sandGroove([k[0], mid(k[0], k[1])]); return; }
+    const a = mid(k[n - 3], k[n - 2]), c = k[n - 2], b = mid(k[n - 2], k[n - 1]), pts = [];
+    const m = Math.max(2, Math.ceil((Math.hypot(c[0] - a[0], c[1] - a[1]) + Math.hypot(b[0] - c[0], b[1] - c[1])) / 1.5));
+    for (let i = 0; i <= m; i++) { const t = i / m, u = 1 - t; pts.push([u * u * a[0] + 2 * u * t * c[0] + t * t * b[0], u * u * a[1] + 2 * u * t * c[1] + t * t * b[1]]); }
+    sandGroove(pts);
+    if (k.length > 3) k.shift();
+  }
+  function sandGroove(line) { // grooves on the flat sand along a line of map points
+    const runs = [], pts0 = [];
+    for (let j = 1; j < line.length; j++) { const [x0, y0] = line[j - 1], [x1, y1] = line[j], n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 2)); for (let i = j > 1 ? 1 : 0; i <= n; i++) pts0.push([x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n]); }
     let run = null;
-    for (let i = 0; i <= n; i++) {
-      const x = m0[0] + ((m1[0] - m0[0]) * i) / n, y = m0[1] + ((m1[1] - m0[1]) * i) / n, a = sandArea(x, y);
+    for (const [x, y] of pts0) {
+      const a = sandArea(x, y);
       if (a < 0) { run = null; continue; }
       if (!run || run.a !== a) { run = { a, pts: [] }; runs.push(run); }
       run.pts.push([x, y]);
     }
     for (const { a, pts } of runs) {
       const A = SAND_AREAS[a];
-      if (!A.c) { A.c = document.createElement("canvas"); A.c.width = A.x1 - A.x0; A.c.height = A.y1 - A.y0; A.lit = document.createElement("canvas"); A.lit.width = A.c.width; A.lit.height = A.c.height; }
+      if (!A.c) A.c = SAND_LAYERS.map(() => Object.assign(document.createElement("canvas"), { width: A.x1 - A.x0, height: A.y1 - A.y0 }));
       if (A.t0 === null) A.t0 = performance.now() / 1000;
-      for (const [cv, col] of [[A.c, "#9c6d3a"], [A.lit, "#fff3d6"]]) { // the groove's shaded inside, and the same groove in light for its lit far wall
-        const o = cv.getContext("2d"); o.lineCap = o.lineJoin = "round"; o.strokeStyle = col; o.lineWidth = SAND_LINE; o.beginPath();
+      A.c.forEach((cv, li) => {
+        const o = cv.getContext("2d"); o.lineCap = o.lineJoin = "round"; o.strokeStyle = SAND_LAYERS[li].col; o.lineWidth = SAND_LINE * SAND_LAYERS[li].w; o.beginPath();
         pts.forEach(([x, y], i) => (i ? o.lineTo : o.moveTo).call(o, x - A.x0, y - A.y0)); if (pts.length === 1) o.lineTo(pts[0][0] - A.x0 + 0.1, pts[0][1] - A.y0); o.stroke();
-      }
+      });
     }
   }
   function drawSandWriting(dt, v) {
@@ -3734,11 +3813,11 @@
     for (let ai = 0; ai < SAND_AREAS.length; ai++) {
       const A = SAND_AREAS[ai];
       if (A.t0 !== null && !A.wind && now - A.t0 >= WIND_AFTER) A.wind = { front: A.y0, bits: [] };
-      if (A.c) { const q = v.pt(A.x0, A.y0), w = A.c.width * v.k, h = A.c.height * v.k, e = SAND_LINE * 0.3 * v.k; ctx.save(); ctx.globalAlpha = 0.75; ctx.drawImage(A.lit, q.x + e, q.y + e * 1.2, w, h); ctx.drawImage(A.c, q.x, q.y, w, h); ctx.restore(); }
+      if (A.c) { const q = v.pt(A.x0, A.y0), w = A.c[0].width * v.k, h = A.c[0].height * v.k, e = SAND_LINE * v.k; ctx.save(); SAND_LAYERS.forEach((L, li) => { ctx.globalAlpha = L.a; ctx.drawImage(A.c[li], q.x + L.dx * e, q.y + L.dy * e, w, h); }); ctx.restore(); }
       const W = A.wind;
       if (!W) continue;
       W.front += ((A.y1 - A.y0) / WIND_SWEEP) * dt; // the front moves south; behind it the grooves fill in
-      if (A.c) for (const cv of [A.c, A.lit]) { const o = cv.getContext("2d"); o.save(); o.globalCompositeOperation = "destination-out"; o.fillStyle = `rgba(0,0,0,${1 - Math.exp(-3 * dt)})`; o.fillRect(0, 0, cv.width, Math.min(cv.height, W.front - A.y0)); o.restore(); }
+      if (A.c) for (const cv of A.c) { const o = cv.getContext("2d"); o.save(); o.globalCompositeOperation = "destination-out"; o.fillStyle = `rgba(0,0,0,${1 - Math.exp(-3 * dt)})`; o.fillRect(0, 0, cv.width, Math.min(cv.height, W.front - A.y0)); o.restore(); }
       if (W.front < A.y1) for (let k = 0; k < 40; k++) { // blown sand over this area's flat sand, near the front
         const x = A.x0 + Math.random() * (A.x1 - A.x0), y = W.front - Math.random() * 120;
         if (Math.random() < 0.25 && sandArea(x, y) === ai) W.bits.push({ x, y, life: 0.7 });
@@ -3750,7 +3829,7 @@
         ctx.strokeStyle = `rgba(246, 226, 180, ${Math.min(1, b.life * 2) * 0.8})`; ctx.lineWidth = Math.max(1.5, 2.5 * v.k); ctx.lineCap = "round";
         ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(q.x - 4 * v.k, q.y - 26 * v.k); ctx.stroke();
       }
-      if (W.front >= A.y1 + (A.y1 - A.y0) * 0.4 && !W.bits.length) { A.c = A.lit = null; A.t0 = null; A.wind = null; } // wiped clean
+      if (W.front >= A.y1 + (A.y1 - A.y0) * 0.4 && !W.bits.length) { A.c = null; A.t0 = null; A.wind = null; } // wiped clean
     }
   }
   const tapBits = [], WAVE_FRONT = 30; // screen px: how wide the first ring's pushing front is

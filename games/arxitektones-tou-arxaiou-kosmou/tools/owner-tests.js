@@ -2,6 +2,7 @@
 // Returns [[name, pass, detail], ...]. Uses window.__tb (tools/harness.py hook).
 (names) => {
   const T = __tb, out = [], want = (n) => !names.length || names.includes(n);
+  const fleet = () => { for (const S of T.SITES) if (!T.progress.done[S.key]) T.progress.done[S.key] = { pieces: [], loads: [] }; T.renderMap(1 / 60); }; // owner 17 Nov: one boat per finished site
   const frame = (dt) => { const fast = T.test && T.test.fast && T.test.phase !== "fail" && T.test.phase !== "pass" ? 10 : 1;
     T.stepPhysics(dt * fast, 5 * fast); T.cleanupOutOfBounds(); T.updateCheck(dt); };
   const run = (s, dt = 1 / 60) => { for (let k = 0; k < s / dt; k++) frame(dt); };
@@ -574,7 +575,7 @@
   // concentric circles direction, and of course then the boats continue smoothly toward their destination". A mouse click
   // on the water just beside a sailing boat: the boat goes away from the click, then back onto its route smoothly, sailing on.
   if (want("wave-boat")) {
-    T.goMap(); T.renderMap(1 / 60); const cv = document.querySelector("canvas"), v = T.mapView();
+    T.goMap(); fleet(); T.renderMap(1 / 60); const cv = document.querySelector("canvas"), v = T.mapView();
     // owner 17 Nov: "the boat pushing still feels double sometimes": clicks at several places around the boat, near and far (a far click's rings fade before they reach it: no push then, but never two); owner 17 Nov: "you now push them too far away and violently, especially when the click is right on the boat": at most about half a boat (30 map px); then "now they barely push. double the current force": a click right on the boat moves it 45-60 map px
     for (const [ox, oy] of [[0, 0], [-25, 10], [-8, 0], [0, -8], [40, 0], [-60, 20], [15, 30], [0, 70], [90, -20]]) {
     for (const q of T.boats) { q.ox = q.oy = q.ovx = q.ovy = 0; } T.renderMap(1 / 60); // nothing left over from the click before
@@ -617,7 +618,7 @@
   // routes are angular and not bended": over a minute of sailing (60 frames a second) no boat's pointing or course jumps
   // between frames (the pointing turns at most 1.5 rad/s; the course bends at most 20 degrees from one frame to the next, that much only in the narrow Dardanelles, which cannot be rounded more without crossing land), and the rounded routes stay on the water
   if (want("boat-turn")) {
-    T.goMap(); let worstHd = 0, worstCourse = 0, onLand = 0, prev = T.boats.map((b) => [b.hd, Math.atan2(b.vy, b.vx), b.wait]);
+    T.goMap(); fleet(); let worstHd = 0, worstCourse = 0, onLand = 0, prev = T.boats.map((b) => [b.hd, Math.atan2(b.vy, b.vx), b.wait]);
     for (const l of BOAT_LINES) for (const leg of l.legs) leg.forEach(([x, y], i) => { if (i > 10 && i < leg.length - 11 && T.isLand(x, y)) onLand++; }); // the ports sit on the coast and the drawn routes run along it by them
     for (let k = 0; k < 3600; k++) {
       T.renderMap(1 / 60);
@@ -640,7 +641,7 @@
       drag(pts, frames) { ev("pointerdown", pts[0], 1); for (let i = 1; i < pts.length; i++) for (let k = 1; k <= 12; k++) { ev("pointermove", [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * k / 12, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * k / 12], 1); if (frames) T.renderMap(1 / 60); } ev("pointerup", pts[pts.length - 1], 0); } }; };
   if (want("sand-writing")) {
     T.goMap(); T.renderMap(1 / 60); for (const A of T.SAND_AREAS) { A.c = null; A.t0 = null; A.wind = null; }
-    const ink = (x, y) => { for (const A of T.SAND_AREAS) { if (!A.c || x < A.x0 || y < A.y0 || x >= A.x1 || y >= A.y1) continue; const d = A.c.getContext("2d").getImageData(Math.round(x - A.x0) - 3, Math.round(y - A.y0) - 3, 7, 7).data; let n = 0; for (let i = 3; i < d.length; i += 4) n += d[i] > 20; if (n) return n; } return 0; };
+    const ink = (x, y) => { for (const A of T.SAND_AREAS) { if (!A.c || x < A.x0 || y < A.y0 || x >= A.x1 || y >= A.y1) continue; const d = A.c[2].getContext("2d").getImageData(Math.round(x - A.x0) - 3, Math.round(y - A.y0) - 3, 7, 7).data; /* the groove's floor */ let n = 0; for (let i = 3; i < d.length; i += 4) n += d[i] > 20; if (n) return n; } return 0; };
     const f = mapFinger(31), res = [];
     f.drag([[250, 1150], [450, 1180]]); res.push(["a line across the flat sand of Africa", ink(350, 1165) > 0]);
     f.drag([[1300, 880], [1450, 900]]); res.push(["a line across the flat sand of Arabia (Syrian desert)", ink(1375, 890) > 0]);
@@ -648,6 +649,13 @@
     f.drag([[1500, 1060], [1650, 1080]]); res.push(["no line on the Arabian dunes", ink(1575, 1070) === 0]);
     f.drag([[1300, 1035], [1330, 1040]]); res.push(["no line on the Arabian mountains", ink(1315, 1037) === 0]);
     res.push(["Anatolia's plateau is not a writing area", T.sandArea(900, 350) === -1]);
+    { // owner 17 Nov: "smooth and able to do curves": a sharp turn of the finger is drawn round, not as a corner
+      const one = (x, y) => { const A = T.SAND_AREAS[0], d = A.c[2].getContext("2d").getImageData(Math.round(x - A.x0), Math.round(y - A.y0), 1, 1).data; return d[3] > 20; };
+      f.down([380, 1250]); f.move([395, 1265]); f.move([410, 1280]); f.move([425, 1265]); f.move([440, 1250]); f.up([440, 1250]); // a fast V (few touch points): its tip at 410,1280
+      res.push(["a sharp turn is drawn as a curve (the tip of the V is rounded off)", !one(410, 1280) && one(230, 1275)]);
+      const A = T.SAND_AREAS[0], sh = A.c[1].getContext("2d").getImageData(Math.round(395 - A.x0) - 4, Math.round(1265 - A.y0) - 4, 9, 9).data, lt = A.c[0].getContext("2d").getImageData(Math.round(395 - A.x0) - 4, Math.round(1265 - A.y0) - 4, 9, 9).data;
+      res.push(["the groove has a shaded wall and a lit wall", sh.some((v, i) => i % 4 === 3 && v > 20) && lt.some((v, i) => i % 4 === 3 && v > 20)]);
+    }
     f.down([300, 1300]); f.up([300, 1300]); res.push(["a tap on the sand leaves no line", ink(300, 1300) === 0]);
     T.SAND_AREAS[0].t0 -= 121; T.SAND_AREAS[1].t0 -= 100; // Africa's first line two minutes ago, Arabia's 100 seconds ago
     for (let k = 0; k < 480; k++) T.renderMap(1 / 60);
@@ -664,50 +672,89 @@
   // --- owner 17 Nov: "make it so the boats are draggable, and if the kid leaves them on land, then the humans go out,
   // pick up the boat on their shoulders, and carry it to the sea again, and then they go on again and they continue sailing"
   if (want("boat-drag")) {
-    T.goMap(); T.renderMap(1 / 60);
-    const f = mapFinger(32), res = [];
-    const pick = (ok) => { for (const b of T.boats) { if (b.wait > 0 || !ok(b)) continue; f.down([b.x, b.y - 5]); if (b.held) return b; f.up([b.x, b.y - 5]); T.renderMap(1 / 60); } return null; };
-    const landNear = (b, land) => { for (let r = 120; r < 400; r += 20) for (let a = 0; a < 6.28; a += 0.2) { const x = b.x + Math.cos(a) * r, y = b.y + Math.sin(a) * r; let all = T.SITES.every((S) => Math.hypot(S.x - x, S.y - y) > 200); /* away from the site circles, which lie on top */ for (let rr = 0; rr <= 40 && all; rr += 8) for (let aa = 0; aa < 6.28 && all; aa += 0.4) all = T.isLand(x + Math.cos(aa) * rr, y + Math.sin(aa) * rr) === land; if (all) return [x, y]; } return null; };
+    T.goMap(); fleet(); T.renderMap(1 / 60);
+    const f = mapFinger(32), res = [], cv = document.querySelector("canvas");
+    let emptySailing = 0; // owner: no empty boats sailing around, checked every frame below
+    const step = (dt = 1 / 60) => { T.active.length = 0; /* no cue holds the screen: these frames skip the cue clock */ T.renderMap(dt); for (const b of T.boats) if (!T.crewOf(b) && !(b.parked || b.stuck || b.held || b.drop || (b.back && b.back.then))) emptySailing++; };
+    const pick = (ok) => { for (const b of T.boats) { if (b.wait > 0 || !ok(b)) continue; f.down([b.x, b.y - 5]); if (b.held) return b; f.up([b.x, b.y - 5]); step(); } return null; };
+    const landNear = (b, land) => { for (let r = 120; r < 900; r += 20) for (let a = 0; a < 6.28; a += 0.2) { const x = b.x + Math.cos(a) * r, y = b.y + Math.sin(a) * r; let all = T.SITES.every((S) => Math.hypot(S.x - x, S.y - y) > 200); for (let rr = 0; rr <= 40 && all; rr += 8) for (let aa = 0; aa < 6.28 && all; aa += 0.4) all = T.isLand(x + Math.cos(aa) * rr, y + Math.sin(aa) * rr) === land; if (all) return [x, y]; } return null; };
+    const drag = (b, to) => { // held (already down on it), moved to `to` frame by frame, let go; what was seen
+      const s = { turn: 0, rise: 0 }, hd = b.hd, x0 = b.x, y0 = b.y;
+      for (let k = 1; k <= 40; k++) { f.move([x0 + (to[0] - x0) * k / 40, y0 - 5 + (to[1] - y0) * k / 40]); step(); s.turn = Math.max(s.turn, Math.abs(b.hd - hd)); s.rise = Math.max(s.rise, b.rise); }
+      const shadow = [b.x, b.y]; f.up([to[0], to[1] - 5]);
+      for (let k = 0; k < 60 && b.drop; k++) step();
+      s.landedAtShadow = Math.hypot(b.x - shadow[0], b.y - shadow[1]) < 0.01 && b.rise === 0 && !b.drop; return s;
+    };
     const follow = (b, secs) => { // frames until it sails its route again; what was seen
-      const seen = { lift: 0, carry: 0, carryOnWater: 0, lower: 0, sail: 0, jump: 0, crewOut: 0 }; let px = b.x, py = b.y;
+      const seen = { wait: 0, waitMoved: 0, lift: 0, carry: 0, carryOnWater: 0, lower: 0, sail: 0, jump: 0 }; let px = b.x, py = b.y;
       for (let k = 0; k < secs * 60; k++) {
-        T.renderMap(1 / 60); const W = b.back;
-        seen.jump = Math.max(seen.jump, Math.hypot(b.x - px, b.y - py)); px = b.x; py = b.y;
+        step(); const W = b.back;
+        seen.jump = Math.max(seen.jump, Math.hypot(b.x - px, b.y - py)); if (W && W.delay > 0) { seen.wait++; if (Math.hypot(b.x - px, b.y - py) > 0) seen.waitMoved++; } px = b.x; py = b.y;
         if (!W) return { ...seen, back: true, t: k / 60 };
+        if (W.delay > 0) continue;
         const r = W.runs[Math.min(W.i, W.runs.length - 1)];
         if (W.phase === "lift") seen.lift++; else if (W.phase === "lower") seen.lower++; else if (r.mode === "carry") { seen.carry++; if (!T.isLand(b.x, b.y)) seen.carryOnWater++; } else seen.sail++;
       }
       return { ...seen, back: false };
     };
     // a boat with its travellers, dragged onto land and left there
-    const b1 = pick((b) => T.crewOf(b));
+    const b1 = pick((b) => T.crewOf(b) && !b.parked);
     if (!b1) res.push(["a boat with travellers can be picked up", false]);
     else {
-      const to = landNear(b1, true), from = [b1.x, b1.y];
-      f.drag([[from[0], from[1] - 5], [to[0], to[1] - 5]], true);
-      const moved = Math.hypot(b1.x - to[0], b1.y - to[1]) < 3;
-      res.push(["a boat follows the finger onto land", moved]);
-      const s = follow(b1, 240);
-      res.push(["left on land: its travellers lift it, carry it over land, put it down", s.lift >= 50 && s.carry > 0 && s.lower >= 50 && s.carryOnWater <= 12 /* only the step into the water (one map cell) */]);
+      const d = drag(b1, landNear(b1, true));
+      res.push(["held, it does not turn (" + d.turn.toFixed(4) + " rad)", d.turn === 0]);
+      res.push(["held, it is lifted over its shadow", d.rise === 1]);
+      res.push(["let go, it falls onto the point of its shadow", d.landedAtShadow]);
+      const s = follow(b1, 300);
+      res.push(["left on land: they wait a second after the sound (none yet) before carrying (" + s.wait + " frames)", s.wait >= 58 && s.wait <= 62 && s.waitMoved === 0]);
+      res.push(["then its travellers lift it, carry it over land, put it down", s.lift >= 50 && s.carry > 0 && s.lower >= 50 && s.carryOnWater <= 12]);
       res.push(["then it sails back to its route and on", s.back && s.sail > 0 && !!T.crewOf(b1)]);
       res.push(["no jumps on the way (" + s.jump.toFixed(1) + " map px in a frame at most)", s.jump < 1.5]);
-      res.push(["it sails its route again", (() => { const d0 = b1.d, l0 = b1.leg; for (let k = 0; k < 60; k++) T.renderMap(1 / 60); return b1.d !== d0 || b1.leg !== l0 || b1.wait > 0; })()]);
     }
-    // a boat moved over the water: it sails back without being carried
-    const b2 = pick((b) => true);
-    if (b2) { const to = landNear(b2, false); f.drag([[b2.x, b2.y - 5], [to[0], to[1] - 5]], true); const s = follow(b2, 240); res.push(["left on the water: it sails back, nobody carries it", s.back && s.carry === 0 && s.lift === 0]); }
-    // a boat with nobody in it left on land stays there
-    const b3 = pick((b) => T.crewOf(b)), g3 = b3 && T.crewOf(b3);
-    if (b3) {
-      if (g3) g3.state = "away"; const to = landNear(b3, true); f.drag([[b3.x, b3.y - 5], [to[0], to[1] - 5]], true);
-      for (let k = 0; k < 300; k++) T.renderMap(1 / 60);
-      res.push(["an empty boat left on land stays there", b3.stuck && Math.hypot(b3.x - to[0], b3.y - to[1]) < 3]);
-      if (g3) g3.state = "boat";
-      f.drag([[b3.x, b3.y - 5], [b3.x + 8, b3.y - 5]], true); const s = follow(b3, 300);
-      res.push(["with its travellers back in, it is carried to the sea ", s.back && s.carry > 0]);
+    // a boat dropped on the water next to another: the splash's waves push the other one; it sails back, not carried
+    let b2 = null, other = null, to2 = null;
+    for (const o of T.boats) { if (o.parked || o.wait > 0 || !T.crewOf(o)) continue; for (let a = 0; a < 6.28 && !to2; a += 0.5) { const p = [o.x + Math.cos(a) * 40, o.y + Math.sin(a) * 40]; if (!T.isLand(p[0], p[1]) && !T.isLand(p[0], p[1] - 30)) to2 = p; } if (to2) { other = o; break; } }
+    if (other) b2 = pick((b) => b !== other && T.crewOf(b) && !b.parked);
+    if (b2) {
+      const d = drag(b2, to2); let push = 0;
+      for (let k = 0; k < 90; k++) { step(); push = Math.max(push, Math.hypot(other.ox, other.oy)); }
+      res.push(["dropped on the water, it splashes and the waves push the boat next to it (" + push.toFixed(1) + " map px)", d.landedAtShadow && push > 3]);
+      const s = follow(b2, 400); res.push(["left on the water: it sails back, nobody carries it", s.back && s.carry === 0 && s.lift === 0]);
+    } else res.push(["a boat to drop next to another", false]);
+    // an empty boat: waiting where its travellers got off; moved onto land, they come for it when their round is done
+    let b3 = null, at = null;
+    const tried = new Set(); // a parked boat under a site's circle is hidden and cannot be held: the next one
+    for (let k = 0; k < 3000 && !b3; k++) { step(0.2); for (const b of T.boats) { const key = T.boats.indexOf(b) + ":" + Math.round(b.x) + "," + Math.round(b.y); if (!b.parked || tried.has(key)) continue; tried.add(key); f.down([b.x, b.y - 5]); if (b.held) { b3 = b; break; } f.up([b.x, b.y - 5]); } }
+    if (!b3) res.push(["travellers get off and leave their boat waiting", false]);
+    else {
+      at = [b3.x, b3.y]; f.up([b3.x, b3.y - 5]); for (let k = 0; k < 25; k++) step(0.2);
+      res.push(["it waits empty where they got off", Math.hypot(b3.x - at[0], b3.y - at[1]) < 0.5 && !T.crewOf(b3) && b3.parked]);
+      f.down([b3.x, b3.y - 5]); const d = drag(b3, landNear(b3, true)), left = [b3.x, b3.y];
+      for (let k = 0; k < 25; k++) step(0.2);
+      res.push(["moved onto land, the empty boat stays there", d.landedAtShadow && b3.stuck && Math.hypot(b3.x - left[0], b3.y - left[1]) < 0.01]);
+      const g = T.groups[T.boats.indexOf(b3)]; let fetched = false, carried = false;
+      for (let k = 0; k < 10000 && !(fetched && !b3.back); k++) { step(0.2); if (g.state === "walk" && g.then.fetch) fetched = true; if (b3.back && b3.back.runs.some((r) => r.mode === "carry")) carried = true; }
+      res.push(["its travellers walk to it, carry it to the sea and sail on", fetched && carried && !b3.back && T.crewOf(b3) === g && !b3.stuck]);
     }
+    // the others: back at their waiting boat, they get in where they left it
+    let parked = null, spot = null, boarded = false;
+    for (let k = 0; k < 10000 && !boarded; k++) { step(0.2); if (!parked) { parked = T.boats.find((b) => b.parked && b !== b3) || null; if (parked) spot = [parked.x, parked.y]; } else if (T.crewOf(parked)) boarded = Math.hypot(parked.x - spot[0], parked.y - spot[1]) < 0.5; }
+    res.push(["back from their round, they get in their boat where they left it", boarded]);
+    res.push(["no empty boat ever sailed (" + emptySailing + " frames)", emptySailing === 0]);
     const bad = res.filter((r) => !r[1]).map((r) => r[0]);
-    out.push(["boats can be dragged; left on land, their travellers carry them to the sea and they sail on", !bad.length, bad.length ? "failed: " + bad.join("; ") : res.length + " checks right"]);
+    out.push(["boats: held without turning over a shadow, dropped with a splash, carried after a sound; empty boats wait", !bad.length, bad.length ? "failed: " + bad.join("; ") : res.length + " checks right"]);
+  }
+
+  // --- owner 17 Nov: "each site that is finished makes a boat full of people appear ... game starts with 0 boats"
+  if (want("fleet")) {
+    T.goMap(); T.restartAll(); T.renderMap(1 / 60); const res = [["no boats at the start", T.boats.length === 0]];
+    T.progress.done[T.SITES[0].key] = { pieces: [], loads: [] }; T.renderMap(1 / 60);
+    res.push(["one finished site: one boat, full of people", T.boats.length === 1 && T.crewOf(T.boats[0]) === T.groups[0]]);
+    T.progress.done[T.SITES[1].key] = { pieces: [], loads: [] }; T.renderMap(1 / 60);
+    res.push(["two finished sites: two boats", T.boats.length === 2 && !!T.crewOf(T.boats[1])]);
+    T.restartAll(); T.renderMap(1 / 60); res.push(["restart: none again", T.boats.length === 0]);
+    const bad = res.filter((r) => !r[1]).map((r) => r[0]);
+    out.push(["a boat full of people for each finished site, none at the start", !bad.length, bad.length ? "failed: " + bad.join("; ") : res.length + " checks right"]);
   }
 
   // --- 1: the restart button on the map: everything as at the very beginning
