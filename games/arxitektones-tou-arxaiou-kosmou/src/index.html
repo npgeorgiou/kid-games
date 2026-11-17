@@ -1590,7 +1590,7 @@
     "map-tap-sand": [["sounds/map-tap-sand.mp3", 0.512]],
     "map-tap-green": [["sounds/map-tap-green.mp3", 0.512]],
     "map-tap-rock": [["sounds/map-tap-rock.mp3", 0.2]],
-    "boat-left-on-land": [], // owner 17 Nov: a disappointment sound when a boat is left on land; the owner will give the file
+    "boat-left-on-land": [["sounds/boat-left-on-land.mp3", 0.512]], // owner 17 Nov: a disappointed crowd when a boat is left on land (his file, trimmed, peak-normalised); as loud as the map taps
     // collapse.mp3 is in src/sounds but not used yet
   };
   const MASTER_VOLUME = 0.5; // owner 17 Nov: every sound (music, effects, voice) at half
@@ -3282,10 +3282,11 @@
     if (!way) { b.stuck = true; return; }
     b.stuck = false; b.back = way;
   }
+  const BOAT_LIFT_H = BOAT_SIZE * 0.7; // map px a held boat is lifted over its shadow
   const LEFT_ON_LAND = "boat-left-on-land", DROP_TIME = 0.2; // the sound when a boat is left on land; seconds a let-go boat takes to fall onto its shadow
   const soundSeconds = (name) => Math.max(0, ...(SOUNDS[name] || []).map(([f]) => (buffers[f] ? buffers[f].duration : 0)));
   function landBoat(b) { // part 4: a let-go boat reaches its shadow
-    b.drop = false; b.rise = 0;
+    b.drop = null; b.rise = b.lift = 0;
     const q = mapView().pt(b.x, b.y), onLand = isLand(b.x, b.y);
     mapTap(q.x, q.y); // the splash and its waves, as a tap there (sand or stones on land)
     if (onLand) playSound(LEFT_ON_LAND, 1);
@@ -3327,8 +3328,16 @@
     // pushed by a wave (SECTION MAP, drawTapBits): the boat is drawn off its route by an offset that a critically damped
     // spring (the standard smooth return, no overshoot) brings back to the route while the boat sails on
     for (const b of boats) {
-      if (b.held && b.held.up) b.rise = Math.min(1, b.rise + dt / DROP_TIME); // part 4: lifted off its shadow while dragged
-      if (b.drop) { b.rise -= dt / DROP_TIME; if (b.rise <= 0) landBoat(b); b.ox = b.oy = b.ovx = b.ovy = 0; continue; } // it moves on from the next frame
+      if (b.held) { // part 1: the boat stays at the finger; once moved, its shadow drops away below it as it is lifted
+        if (b.held.up) { b.rise = Math.min(1, b.rise + dt / DROP_TIME); b.lift = b.rise * b.rise * (3 - 2 * b.rise); }
+        b.x = b.held.gx; b.y = b.held.gy + (b.lift || 0) * BOAT_LIFT_H;
+      }
+      if (b.drop) { // part 2: it falls as things fall (faster and faster) and the splash comes the moment it reaches its shadow
+        b.drop.t += dt; const T = DROP_TIME * Math.sqrt(b.drop.h0);
+        b.lift = b.drop.h0 * Math.max(0, 1 - (b.drop.t / T) ** 2);
+        if (b.drop.t >= T - 1e-6) landBoat(b); // (a frame's time adds up to T only within rounding)
+        b.ox = b.oy = b.ovx = b.ovy = 0; continue; // it moves on from the next frame
+      }
       if (b.held || b.back || b.stuck || b.drop) { // moved by the child: off its route, no wave offset
         b.ox = b.oy = b.ovx = b.ovy = 0;
         if (b.back) updateBoatBack(b, dt);
@@ -3351,7 +3360,7 @@
       const ang = b.hd ?? Math.atan2(b.vy, b.vx), size = BOAT_SIZE * v.k, W = b.back, run = W && W.runs[Math.min(W.i, W.runs.length - 1)];
       const sailing = W ? run.mode === "sail" && W.phase === "go" && !(W.delay > 0) : !b.held && !b.stuck && !b.drop && !b.parked && b.wait <= 0;
       if (sailing) SKIN.mapWake(ctx, q.x, q.y, size, ang, t + i * 0.37);
-      const g = crewOf(b), up = b.rise * b.rise * (3 - 2 * b.rise) * size * 0.7; // part 1: how high it is held over its shadow
+      const g = crewOf(b), up = (b.lift || 0) * size * 0.7; // parts 1-2: how high it is over its shadow (BOAT_LIFT_H on the map)
       if (up > 0) { ctx.fillStyle = `rgba(30, 25, 15, ${0.12 + 0.18 * (1 - up / (size * 0.7))})`; ctx.beginPath(); ctx.ellipse(q.x, q.y, size * 0.5, size * 0.16, 0, 0, Math.PI * 2); ctx.fill(); }
       if (g && W && run.mode === "carry" && !(W.delay > 0)) { // part 2: the travellers out of it, the boat on their shoulders
         const up = W.phase === "lift" ? W.t / BOAT_LIFT : W.phase === "lower" ? 1 - W.t / BOAT_LIFT : 1, ease = up * up * (3 - 2 * up);
@@ -3605,7 +3614,7 @@
     try { localStorage.removeItem(SAVE_KEY); } catch (err) { /* ignore */ }
     allOpen = false; cornerHold = null;
     if (currentLevel != null) { releaseAllPointers(); clearAllPieces(); fillPile([]); freshWorld(); currentLevel = null; grid = null; check = null; failShow = null; }
-    ALL_BOATS.forEach((b, i) => { b.leg = i % b.line.legs.length; b.dir = 1; b.d = b.lens[b.leg] * ((i * 0.37) % 1); b.wait = 0; b.held = b.back = null; b.stuck = b.parked = b.drop = false; b.rise = 0; b.hd = null; });
+    ALL_BOATS.forEach((b, i) => { b.leg = i % b.line.legs.length; b.dir = 1; b.d = b.lens[b.leg] * ((i * 0.37) % 1); b.wait = 0; b.held = b.back = null; b.stuck = b.parked = false; b.drop = null; b.rise = b.lift = 0; b.hd = null; });
     mapHolds.clear(); for (const A of SAND_AREAS) { A.c = null; A.t0 = null; A.wind = null; }
     ALL_GROUPS.forEach((g, i) => { for (const k of Object.keys(g)) delete g[k]; Object.assign(g, { state: "boat", boat: ALL_BOATS[i], home: ALL_BOATS[i], onFoot: 0, stops: 0, recent: [], plan: null }); });
     boats.length = groups.length = 0;
@@ -3649,7 +3658,7 @@
     const land = mapLandCanvas(v);
     if (land && waterImg.naturalWidth) { SKIN.mapWater(ctx, waterImg, v, performance.now() / 1000); ctx.drawImage(land, v.ox, v.oy, v.w, v.h); }
     else SKIN.mapImage(ctx, mapImg, v.ox, v.oy, v.w, v.h);
-    drawSandWriting(dt, v);
+    drawSandWriting(dt, v); drawSandTails(v);
     updateBoats(dt);
     updateTravellers(dt, v);
     drawBoats(v);
@@ -3681,7 +3690,7 @@
   const mapHolds = new Map(), TAP_MOVE = 10; // pointer id -> what it holds; screen px a tap may move
   function boatAt(x, y) {
     const v = mapView(); let best = null, bd = Infinity;
-    for (const b of boats) { const q = v.pt(b.x, b.y), r = BOAT_SIZE * v.k * 0.6, d = Math.hypot(x - q.x, y - (q.y - r * 0.4 - b.rise * BOAT_SIZE * v.k * 0.7)); if (d < r && d < bd) { bd = d; best = b; } }
+    for (const b of boats) { const q = v.pt(b.x, b.y), r = BOAT_SIZE * v.k * 0.6, d = Math.hypot(x - q.x, y - (q.y - r * 0.4 - (b.lift || 0) * BOAT_LIFT_H * v.k)); if (d < r && d < bd) { bd = d; best = b; } }
     return best;
   }
   const toMap = (x, y) => { const v = mapView(); return [(x - v.ox) / v.k, (y - v.oy) / v.k]; };
@@ -3691,9 +3700,10 @@
     if (b && ![...mapHolds.values()].some((h) => h.boat === b)) {
       const off = b.stuck || !!b.back || b.drop; // already off its route (left somewhere, on its way back, or falling)
       if (b.back && b.back.then) b.back = null, b.stuck = true; // coming to its travellers on the shore: still empty
-      b.back = null; b.drop = false; b.held = { dx: b.x - mx, dy: b.y - my, up: false }; b.ox = b.oy = 0; // picked up while carried: the carriers are back in it
+      if (b.drop) b.y -= b.lift * BOAT_LIFT_H; // caught while falling: held where it is seen
+      b.back = null; b.drop = null; b.rise = b.lift = 0; b.held = { dx: b.x - mx, dy: b.y - my, gx: b.x, gy: b.y, up: false }; b.ox = b.oy = 0; // picked up while carried: the carriers are back in it
       mapHolds.set(e.pointerId, { boat: b, x0: e.clientX, y0: e.clientY, moved: false, off });
-    } else if (sandArea(mx, my) >= 0) mapHolds.set(e.pointerId, { sand: [[mx, my]], x0: e.clientX, y0: e.clientY, moved: false });
+    } else if (sandArea(mx, my) >= 0) mapHolds.set(e.pointerId, { sand: [[mx, my]], sm: [mx, my], raw: [mx, my], end: [mx, my], x0: e.clientX, y0: e.clientY, moved: false });
     else { mapTap(e.clientX, e.clientY); return; }
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
   }
@@ -3703,8 +3713,8 @@
     for (const ev of (e.getCoalescedEvents && e.getCoalescedEvents().length ? e.getCoalescedEvents() : [e])) {
       if (Math.hypot(ev.clientX - h.x0, ev.clientY - h.y0) > TAP_MOVE) h.moved = true;
       const [mx, my] = toMap(ev.clientX, ev.clientY);
-      if (h.boat) { const b = h.boat; if (h.moved) { b.held.up = true; b.x = mx + b.held.dx; b.y = my + b.held.dy; } } // follows the finger, not turning
-      else if (h.moved) sandFinger(h, [mx, my]);
+      if (h.boat) { const b = h.boat; if (h.moved) b.held.up = true; b.held.gx = mx + b.held.dx; b.held.gy = my + b.held.dy; } // follows the finger at once, not turning
+      else { h.raw = [mx, my]; if (h.moved) sandFinger(h, [mx, my]); }
     }
   }
   function onMapPointerUp(e) {
@@ -3713,9 +3723,10 @@
     mapHolds.delete(e.pointerId);
     if (h.boat) {
       const b = h.boat;
-      if (h.moved) { b.held = null; b.drop = true; return; } // it falls onto its shadow (landBoat)
+      if (h.moved) { b.held = null; b.drop = { t: 0, h0: b.lift }; if (!(b.lift > 0)) landBoat(b); return; } // it falls onto its shadow (landBoat)
       mapTap(h.x0, h.y0); // a tap on a boat: what is under it splashes or flies up
-      if (h.off) { b.stuck = false; letGoBoat(b); } else b.held = null; // a boat tapped on its route sails on
+      if (h.off) { b.stuck = false; letGoBoat(b); }
+      else { const [x, y] = polyPoint(b.line.legs[b.leg], b.d); b.held = null; b.ox = b.x - x; b.oy = b.y - y; } // a boat tapped on its route: back to it smoothly (the waves' spring), and on
     } else if (h.moved) sandFinger(h, null);
     else mapTap(h.x0, h.y0);
   }
@@ -3761,8 +3772,8 @@
   // upper-left wall in shadow, its lower-right wall catching the light, and its floor a little darker than the sand.
   // Each is the same line on its own layer, drawn shifted by dx, dy line widths.
   const SAND_LAYERS = [
-    { col: "#fffaee", w: 1, dx: 0.28, dy: 0.28, a: 0.95 }, // the lit lower-right wall
-    { col: "#5c3a16", w: 1, dx: -0.22, dy: -0.22, a: 0.8 }, // the shaded upper-left wall
+    { col: "#fffaee", w: 1, dx: 0.31, dy: 0.31, a: 0.97 }, // the lit lower-right wall
+    { col: "#5c3a16", w: 1, dx: -0.25, dy: -0.25, a: 0.86 }, // the shaded upper-left wall
     { col: "#c49a62", w: 0.7, dx: 0, dy: 0, a: 0.9 },     // the floor
   ];
   const SAND_LINE = 6, WIND_AFTER = 120, WIND_SWEEP = 4, WIND_SPEED = 220; // map px wide; seconds (owner: two minutes); seconds the wind's front takes to cross an area; map px/s the blown sand flies
@@ -3772,21 +3783,46 @@
     if (!px || !(px[0] > 200 && px[1] > 200 && px[2] < px[1])) return -1; // flat sand only (dunes are darker, mountains brown)
     return SAND_AREAS.findIndex((a) => inPoly(a.poly, mx, my));
   }
-  // The finger's points (h.sand, kept every SAND_STEP map px) are joined by a smooth curve: from the middle of one
-  // pair to the middle of the next, bent towards the point between them (a quadratic curve); straight at the two ends.
-  const SAND_STEP = 3;
+  // A line in the sand follows the finger without corners and without lag (owner 17 Nov):
+  // 1. The finger's positions are smoothed: each moves a pen part of the way to the finger, a small part when the gap
+  //    is small (the little steps of a mouse or a shaky finger are averaged away), nearly all of it when the finger
+  //    moves fast (so a quick sharp turn stays sharp); the pen's points are kept every SAND_STEP map px.
+  // 2. Kept points are joined by quadratic curves from the middle of one pair to the middle of the next, bent towards
+  //    the point between them, and pressed into the sand (sandGroove).
+  // 3. The last bit, from the end of what is pressed to the finger itself, is drawn every frame on top (drawSandTails)
+  //    from the moment the finger goes down, so the line is under the finger at once; it is pressed in when the finger lifts.
+  const SAND_STEP = 8, SAND_EASE = [0.2, 25]; // map px between kept points; how far the pen moves towards the finger: 0.2 of the way, plus the gap / 25 (all of it for a gap of 20 px or more)
   const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  function quadPts(a, c, b) { // a quadratic curve from a to b bent towards c, every 1.5 map px or so
+    const m = Math.max(2, Math.ceil((Math.hypot(c[0] - a[0], c[1] - a[1]) + Math.hypot(b[0] - c[0], b[1] - c[1])) / 1.5)), pts = [];
+    for (let i = 0; i <= m; i++) { const t = i / m, u = 1 - t; pts.push([u * u * a[0] + 2 * u * t * c[0] + t * t * b[0], u * u * a[1] + 2 * u * t * c[1] + t * t * b[1]]); }
+    return pts;
+  }
+  const sandTail = (h) => quadPts(h.end, h.sand[h.sand.length - 1], h.raw); // from the end of what is pressed to the finger
   function sandFinger(h, p) { // p: the finger's map point, or null when it is lifted
     const k = h.sand;
-    if (p) { if (Math.hypot(p[0] - k[k.length - 1][0], p[1] - k[k.length - 1][1]) < SAND_STEP) return; k.push(p); }
-    const n = k.length;
-    if (!p) { if (n >= 2) sandGroove([n > 2 ? mid(k[n - 2], k[n - 1]) : k[0], k[n - 1]]); return; }
-    if (n === 2) { sandGroove([k[0], mid(k[0], k[1])]); return; }
-    const a = mid(k[n - 3], k[n - 2]), c = k[n - 2], b = mid(k[n - 2], k[n - 1]), pts = [];
-    const m = Math.max(2, Math.ceil((Math.hypot(c[0] - a[0], c[1] - a[1]) + Math.hypot(b[0] - c[0], b[1] - c[1])) / 1.5));
-    for (let i = 0; i <= m; i++) { const t = i / m, u = 1 - t; pts.push([u * u * a[0] + 2 * u * t * c[0] + t * t * b[0], u * u * a[1] + 2 * u * t * c[1] + t * t * b[1]]); }
-    sandGroove(pts);
+    if (!p) { sandGroove(sandTail(h)); return; }
+    const e = Math.min(1, SAND_EASE[0] + Math.hypot(p[0] - h.sm[0], p[1] - h.sm[1]) / SAND_EASE[1]);
+    h.sm = [h.sm[0] + (p[0] - h.sm[0]) * e, h.sm[1] + (p[1] - h.sm[1]) * e];
+    if (Math.hypot(h.sm[0] - k[k.length - 1][0], h.sm[1] - k[k.length - 1][1]) < SAND_STEP) return;
+    k.push(h.sm.slice());
+    const n = k.length, b = mid(k[n - 2], k[n - 1]);
+    sandGroove(n === 2 ? [k[0], b] : quadPts(h.end, k[n - 2], b));
+    h.end = b;
     if (k.length > 3) k.shift();
+  }
+  function drawSandTails(v) { // part 3, on the screen only
+    for (const h of mapHolds.values()) {
+      if (!h.sand) continue;
+      const runs = []; let run = null;
+      for (const p of sandTail(h)) { if (sandArea(p[0], p[1]) < 0) { run = null; continue; } if (!run) runs.push((run = [])); run.push(p); }
+      ctx.save(); ctx.lineCap = ctx.lineJoin = "round";
+      for (const L of SAND_LAYERS) {
+        ctx.globalAlpha = L.a; ctx.strokeStyle = L.col; ctx.lineWidth = SAND_LINE * L.w * v.k;
+        for (const r of runs) { ctx.beginPath(); r.forEach((p, i) => { const q = v.pt(p[0] + L.dx * SAND_LINE, p[1] + L.dy * SAND_LINE); (i ? ctx.lineTo : ctx.moveTo).call(ctx, q.x, q.y + (r.length === 1 ? 0.1 : 0)); }); if (r.length === 1) { const q = v.pt(r[0][0] + L.dx * SAND_LINE, r[0][1] + L.dy * SAND_LINE); ctx.lineTo(q.x + 0.1, q.y); } ctx.stroke(); }
+      }
+      ctx.restore();
+    }
   }
   function sandGroove(line) { // grooves on the flat sand along a line of map points
     const runs = [], pts0 = [];

@@ -449,6 +449,21 @@
       T.say(84); run(1); const during = said().includes(84);
       return [!during, "a plain line played during the test: " + during];
     },
+    // owner 17 Nov: "when some of the setting checkboxes are unchecked, the green test button doesnt work": every
+    // combination of the two ticks, a first visit as the child makes it (entered from the map, built, the green button clicked)
+    "settings-test-button": () => {
+      const bad = [];
+      for (const k of ["djoser", "ziggurat"]) for (const [d, t] of [[true, true], [false, true], [true, false], [false, false]]) {
+        fresh(); noTeach(); T.setDemos(d); T.setTeach(t); const i = lvl(k); start(i); T.onEnterSite(i); run(40);
+        T.setTab(true); T.startAutoBuild(); run(14); T.setTab(false); run(4);
+        const b = T.screenButtons().find((x) => x.id === "test"), ready = T.testReady();
+        tap(b); run(0.5);
+        if (!T.test) bad.push(`${k} demos ${d} teaching ${t}: ready ${ready}, enabled ${b.enabled}, holding ${JSON.stringify(T.attention())}, demo ${!!T.demo}, active ${T.active.map((s) => s.id || s.n).join(",")}`);
+        T.setTab(true); run(20); T.setTab(false);
+      }
+      T.setDemos(true); T.setTeach(true);
+      return [!bad.length, bad.join(" | ") || "green button works with every combination"];
+    },
   };
   window.__cueTests = (names) => Object.keys(tests).filter((n) => !names.length || names.includes(n)).map((n) => {
     try { const [ok, info] = tests[n](); return [n, !!ok, info || ""]; } catch (e) { return [n, false, "error " + e.message]; }

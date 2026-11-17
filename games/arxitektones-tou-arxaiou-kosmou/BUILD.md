@@ -877,6 +877,16 @@ Owner, verbatim (17 Nov 2026, 18:27): "1. make it so there are no empty boats sa
 5. Sand: the finger's points (every 3 map px) are joined by quadratic curves through their midpoints, so fast strokes come out round. The groove is three layers of the same line: a dark wall shifted up-left, a light wall shifted down-right, a darker floor in the middle (lit from the top left).
 Owner tests: `fleet` (4), `boat-drag` (rewritten), `sand-writing` (13).
 
+## Current state, update 72 (17 Nov 2026): boat lifting and dropping, the left-on-land sound, smoother sand lines
+
+Owner, verbatim (17 Nov 2026, 20:31): "forget it, see that: 1, thre is a delay between teh boat falling and the drop effects happening. 2 when I lift a boat it should go away from my hand, instead make the shadow drop. 3. this is the disappoint ment sound: trim it cause the sound is not in start and end of file, and normalize it as other sounds are, then reduce it to the same way the terrain tap effects are. 5. sand still feel a bit jagged, there must be some way to smoothen either the line (maybe you dont really follow the movement) or the movement (if the movement is somehow jagged in small, computer mouse ways). also ther is a small lag from when motion starts to the line being started to be drawn, and also I want the light/dark groove effect a tiny tiny bit more" ("forget it": the green test button report of 20:12, which could not be repeated; cue test `settings-test-button` kept.)
+
+1. The let-go boat falls faster and faster (as things fall) and the splash comes in the frame it reaches its shadow (before, the eased fall looked landed for several frames before the splash).
+2. Held, the boat stays at the finger (it follows from the first touch); once dragged, its shadow drops away below it (BOAT_LIFT_H). A tap on a boat on its route moves it back smoothly.
+3. `src/sounds/boat-left-on-land.mp3`: the owner's disappointed crowd, trimmed to the sound (0.54-2.10 s), peak-normalised to -1.5 dB like the others, played at the map taps' 0.512. The carrying starts one second after it ends.
+5. Sand lines: a pen follows the finger by part of the gap (more when it moves fast), averaging away a mouse's small steps but keeping quick sharp turns; points every 8 map px, joined by quadratic curves; the bit from the pressed line to the finger is drawn live from the first touch (no lag). Groove walls shifted a little further and the shade a little darker.
+Owner tests: `boat-drag` (15, the waiting-boat part now set up directly: 55 s), `sand-writing` (15).
+
 ## Task list
 
 No open items.

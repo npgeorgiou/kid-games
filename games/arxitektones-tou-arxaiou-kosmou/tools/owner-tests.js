@@ -652,9 +652,26 @@
     { // owner 17 Nov: "smooth and able to do curves": a sharp turn of the finger is drawn round, not as a corner
       const one = (x, y) => { const A = T.SAND_AREAS[0], d = A.c[2].getContext("2d").getImageData(Math.round(x - A.x0), Math.round(y - A.y0), 1, 1).data; return d[3] > 20; };
       f.down([380, 1250]); f.move([395, 1265]); f.move([410, 1280]); f.move([425, 1265]); f.move([440, 1250]); f.up([440, 1250]); // a fast V (few touch points): its tip at 410,1280
-      res.push(["a sharp turn is drawn as a curve (the tip of the V is rounded off)", !one(410, 1280) && one(230, 1275)]);
+      res.push(["a sharp turn is drawn as a curve (the tip of the V is rounded off, the line passing just above it: " + [0, 2, 4, 6, 8, 10, 12, 14, 16, 20].filter((d) => one(410, 1280 - d)) + ")", !one(410, 1280) && [2, 4, 6, 8, 10, 12].some((d) => one(410, 1280 - d))]);
       const A = T.SAND_AREAS[0], sh = A.c[1].getContext("2d").getImageData(Math.round(395 - A.x0) - 4, Math.round(1265 - A.y0) - 4, 9, 9).data, lt = A.c[0].getContext("2d").getImageData(Math.round(395 - A.x0) - 4, Math.round(1265 - A.y0) - 4, 9, 9).data;
       res.push(["the groove has a shaded wall and a lit wall", sh.some((v, i) => i % 4 === 3 && v > 20) && lt.some((v, i) => i % 4 === 3 && v > 20)]);
+      // owner 17 Nov evening: no lag at the start: the line is under the finger before it has moved far enough to count as a drag
+      const scr = (p) => { T.renderMap(0); const q = T.mapView().pt(p[0], p[1]), d = document.querySelector("canvas").getContext("2d").getImageData(Math.round(q.x * devicePixelRatio), Math.round(q.y * devicePixelRatio), 1, 1).data; return [d[0], d[1], d[2]]; };
+      const before = scr([352, 1330]); f.down([350, 1330]); f.move([354, 1330]); const during = scr([352, 1330]); f.up([354, 1330]);
+      res.push(["the line shows under the finger at once", Math.abs(during[0] - before[0]) + Math.abs(during[1] - before[1]) + Math.abs(during[2] - before[2]) > 40]);
+      // a mouse moved along a straight slant: whole screen pixels, each point 1 px off to alternate sides; the groove stays straight
+      let A0 = null, B0 = null; // a slant of flat sand away from the earlier lines and the buttons
+      for (let y = 1220; y < 1400 && !A0; y += 20) for (let x = 450; x < 900 && !A0; x += 25) { let ok = true; for (let t = 0; t <= 1 && ok; t += 0.02) for (const o of [-10, 0, 10]) ok = ok && T.sandArea(x + 160 * t, y + 50 * t + o) === 0; if (ok) { A0 = [x, y]; B0 = [x + 160, y + 50]; } }
+      const v = T.mapView(), qa = v.pt(...A0), qb = v.pt(...B0), cv = document.querySelector("canvas");
+      const ev = (type, x, y) => cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: 33, isPrimary: true, pointerType: "mouse", button: 0, buttons: type === "pointerup" ? 0 : 1, bubbles: true }));
+      const n = Math.ceil(Math.hypot(qb.x - qa.x, qb.y - qa.y) / 3); ev("pointerdown", Math.round(qa.x), Math.round(qa.y));
+      for (let k = 1; k <= n; k++) { const t = k / n, sgn = k % 2 ? 1 : -1; ev("pointermove", Math.round(qa.x + (qb.x - qa.x) * t + sgn), Math.round(qa.y + (qb.y - qa.y) * t - sgn)); }
+      ev("pointerup", Math.round(qb.x), Math.round(qb.y));
+      const L = Math.hypot(B0[0] - A0[0], B0[1] - A0[1]), nx = -(B0[1] - A0[1]) / L, ny = (B0[0] - A0[0]) / L, Ar = T.SAND_AREAS[0], fl = Ar.c[2].getContext("2d");
+      let worst = 0, seen = 0; const offs = [];
+      for (let t = 0.15; t <= 0.85; t += 0.05) { let sw = 0, so = 0; for (let o = -8; o <= 8; o += 0.5) { const x = A0[0] + (B0[0] - A0[0]) * t + nx * o, y = A0[1] + (B0[1] - A0[1]) * t + ny * o; if (T.sandArea(x, y) < 0) continue; const al = fl.getImageData(Math.round(x - Ar.x0), Math.round(y - Ar.y0), 1, 1).data[3]; sw += al; so += al * o; } if (sw) { seen++; worst = Math.max(worst, Math.abs(so / sw)); offs.push((so / sw).toFixed(1)); } }
+      const wob = offs.length ? (Math.max(...offs.map(Number)) - Math.min(...offs.map(Number))) / 2 : 99; // how much it wavers either side of its own straight course
+      res.push(["a shaky mouse line (each point 1.4 map px to alternate sides) comes out straight: wavers " + wob.toFixed(2) + " map px either side", seen > 8 && wob < 0.6]);
     }
     f.down([300, 1300]); f.up([300, 1300]); res.push(["a tap on the sand leaves no line", ink(300, 1300) === 0]);
     T.SAND_AREAS[0].t0 -= 121; T.SAND_AREAS[1].t0 -= 100; // Africa's first line two minutes ago, Arabia's 100 seconds ago
@@ -679,11 +696,12 @@
     const pick = (ok) => { for (const b of T.boats) { if (b.wait > 0 || !ok(b)) continue; f.down([b.x, b.y - 5]); if (b.held) return b; f.up([b.x, b.y - 5]); step(); } return null; };
     const landNear = (b, land) => { for (let r = 120; r < 900; r += 20) for (let a = 0; a < 6.28; a += 0.2) { const x = b.x + Math.cos(a) * r, y = b.y + Math.sin(a) * r; let all = T.SITES.every((S) => Math.hypot(S.x - x, S.y - y) > 200); for (let rr = 0; rr <= 40 && all; rr += 8) for (let aa = 0; aa < 6.28 && all; aa += 0.4) all = T.isLand(x + Math.cos(aa) * rr, y + Math.sin(aa) * rr) === land; if (all) return [x, y]; } return null; };
     const drag = (b, to) => { // held (already down on it), moved to `to` frame by frame, let go; what was seen
-      const s = { turn: 0, rise: 0 }, hd = b.hd, x0 = b.x, y0 = b.y;
-      for (let k = 1; k <= 40; k++) { f.move([x0 + (to[0] - x0) * k / 40, y0 - 5 + (to[1] - y0) * k / 40]); step(); s.turn = Math.max(s.turn, Math.abs(b.hd - hd)); s.rise = Math.max(s.rise, b.rise); }
-      const shadow = [b.x, b.y]; f.up([to[0], to[1] - 5]);
-      for (let k = 0; k < 60 && b.drop; k++) step();
-      s.landedAtShadow = Math.hypot(b.x - shadow[0], b.y - shadow[1]) < 0.01 && b.rise === 0 && !b.drop; return s;
+      const s = { turn: 0, rise: 0, offFinger: 0 }, hd = b.hd, x0 = b.x, y0 = b.y, gy = y0 - (y0 - 5 - y0); // the finger went down 5 px above the boat's middle
+      for (let k = 1; k <= 40; k++) { const fp = [x0 + (to[0] - x0) * k / 40, y0 - 5 + (to[1] - y0) * k / 40]; f.move(fp); step(); s.turn = Math.max(s.turn, Math.abs(b.hd - hd)); s.rise = Math.max(s.rise, b.lift || 0);
+        s.offFinger = Math.max(s.offFinger, Math.hypot(b.x - (fp[0] + b.held.dx), b.y - b.lift * T.BOAT_LIFT_H - (fp[1] + b.held.dy))); } // the boat as seen stays at the finger
+      s.shadowBelow = b.y - b.held.gy; const shadow = [b.x, b.y]; f.up([to[0], to[1] - 5]);
+      let lastLift = 1; for (let k = 0; k < 60 && b.drop; k++) { lastLift = b.lift; step(); }
+      s.lastLift = lastLift; s.landedAtShadow = Math.hypot(b.x - shadow[0], b.y - shadow[1]) < 0.01 && b.lift === 0 && !b.drop; return s;
     };
     const follow = (b, secs) => { // frames until it sails its route again; what was seen
       const seen = { wait: 0, waitMoved: 0, lift: 0, carry: 0, carryOnWater: 0, lower: 0, sail: 0, jump: 0 }; let px = b.x, py = b.y;
@@ -703,10 +721,12 @@
     else {
       const d = drag(b1, landNear(b1, true));
       res.push(["held, it does not turn (" + d.turn.toFixed(4) + " rad)", d.turn === 0]);
-      res.push(["held, it is lifted over its shadow", d.rise === 1]);
+      res.push(["held, it stays at the finger and its shadow drops away below it (" + d.offFinger.toFixed(2) + " px off the finger)", d.rise === 1 && d.offFinger < 0.01 && Math.abs(d.shadowBelow - T.BOAT_LIFT_H) < 0.01]);
+      res.push(["it falls faster and faster and splashes the moment it reaches the shadow (height a frame before: " + d.lastLift.toFixed(2) + ")", d.lastLift > 0.15]);
       res.push(["let go, it falls onto the point of its shadow", d.landedAtShadow]);
       const s = follow(b1, 300);
-      res.push(["left on land: they wait a second after the sound (none yet) before carrying (" + s.wait + " frames)", s.wait >= 58 && s.wait <= 62 && s.waitMoved === 0]);
+      const want = Math.round((T.soundSeconds("boat-left-on-land") + 1) * 60);
+      res.push(["left on land: they wait for the sound and one second more before carrying (" + s.wait + " frames, sound " + T.soundSeconds("boat-left-on-land").toFixed(2) + " s)", T.soundSeconds("boat-left-on-land") > 1 && Math.abs(s.wait - want) <= 2 && s.waitMoved === 0]);
       res.push(["then its travellers lift it, carry it over land, put it down", s.lift >= 50 && s.carry > 0 && s.lower >= 50 && s.carryOnWater <= 12]);
       res.push(["then it sails back to its route and on", s.back && s.sail > 0 && !!T.crewOf(b1)]);
       res.push(["no jumps on the way (" + s.jump.toFixed(1) + " map px in a frame at most)", s.jump < 1.5]);
@@ -721,25 +741,28 @@
       res.push(["dropped on the water, it splashes and the waves push the boat next to it (" + push.toFixed(1) + " map px)", d.landedAtShadow && push > 3]);
       const s = follow(b2, 400); res.push(["left on the water: it sails back, nobody carries it", s.back && s.carry === 0 && s.lift === 0]);
     } else res.push(["a boat to drop next to another", false]);
-    // an empty boat: waiting where its travellers got off; moved onto land, they come for it when their round is done
-    let b3 = null, at = null;
-    const tried = new Set(); // a parked boat under a site's circle is hidden and cannot be held: the next one
-    for (let k = 0; k < 3000 && !b3; k++) { step(0.2); for (const b of T.boats) { const key = T.boats.indexOf(b) + ":" + Math.round(b.x) + "," + Math.round(b.y); if (!b.parked || tried.has(key)) continue; tried.add(key); f.down([b.x, b.y - 5]); if (b.held) { b3 = b; break; } f.up([b.x, b.y - 5]); } }
-    if (!b3) res.push(["travellers get off and leave their boat waiting", false]);
+    // an empty boat: waiting where its travellers got off; moved onto land, they come for it when their round is done.
+    // Set up directly: a boat with its travellers a moment before a port (all sites finished, so they get off there).
+    const park = (b) => { const g = T.crewOf(b); b.wait = 0; b.dir = 1; b.d = b.lens[b.leg] - 0.5; g.stops = 1; g.onFoot = 2; for (let k = 0; k < 120 && !b.parked; k++) step(); return b.parked ? g : null; };
+    const under = (p) => { const q = T.mapView().pt(p[0], p[1] - 5); const sb = T.screenButtons().find((x) => x.r ? Math.hypot(q.x - x.x, q.y - x.y) <= x.r : x.rect && q.x >= x.rect.x && q.x <= x.rect.x + x.rect.w && q.y >= x.rect.y && q.y <= x.rect.y + x.rect.h); return sb ? sb.id : null; };
+    let b3 = null, g3 = null; const why = [];
+    for (const b of T.boats) { if (b === b1 || b === b2 || !T.crewOf(b) || b.back) continue; const g = park(b); if (!g) { why.push(T.boats.indexOf(b) + ": did not stop"); continue; } f.down([b.x, b.y - 5]); if (b.held) { b3 = b; g3 = g; break; } why.push(T.boats.indexOf(b) + ": not held, under " + under([b.x, b.y])); f.up([b.x, b.y - 5]); }
+    if (!b3) res.push(["an empty waiting boat can be picked up (" + why.join("; ") + ")", false]);
     else {
-      at = [b3.x, b3.y]; f.up([b3.x, b3.y - 5]); for (let k = 0; k < 25; k++) step(0.2);
+      const at = [b3.x, b3.y]; f.up([b3.x, b3.y - 5]); for (let k = 0; k < 40; k++) step(0.2); // the tap's own waves rock it; then it is back
       res.push(["it waits empty where they got off", Math.hypot(b3.x - at[0], b3.y - at[1]) < 0.5 && !T.crewOf(b3) && b3.parked]);
       f.down([b3.x, b3.y - 5]); const d = drag(b3, landNear(b3, true)), left = [b3.x, b3.y];
-      for (let k = 0; k < 25; k++) step(0.2);
+      for (let k = 0; k < 10; k++) step(0.2);
       res.push(["moved onto land, the empty boat stays there", d.landedAtShadow && b3.stuck && Math.hypot(b3.x - left[0], b3.y - left[1]) < 0.01]);
-      const g = T.groups[T.boats.indexOf(b3)]; let fetched = false, carried = false;
-      for (let k = 0; k < 10000 && !(fetched && !b3.back); k++) { step(0.2); if (g.state === "walk" && g.then.fetch) fetched = true; if (b3.back && b3.back.runs.some((r) => r.mode === "carry")) carried = true; }
-      res.push(["its travellers walk to it, carry it to the sea and sail on", fetched && carried && !b3.back && T.crewOf(b3) === g && !b3.stuck]);
+      let fetched = false, carried = false;
+      for (let k = 0; k < 3000 && !(fetched && T.crewOf(b3) && !b3.back); k++) { step(0.2); if (g3.state === "walk" && g3.then.fetch) fetched = true; if (b3.back && b3.back.runs.some((r) => r.mode === "carry")) carried = true; }
+      res.push(["when their round is done they walk to it, carry it to the sea and sail on (" + g3.state + ")", fetched && carried && !b3.back && T.crewOf(b3) === g3 && !b3.stuck]);
     }
-    // the others: back at their waiting boat, they get in where they left it
-    let parked = null, spot = null, boarded = false;
-    for (let k = 0; k < 10000 && !boarded; k++) { step(0.2); if (!parked) { parked = T.boats.find((b) => b.parked && b !== b3) || null; if (parked) spot = [parked.x, parked.y]; } else if (T.crewOf(parked)) boarded = Math.hypot(parked.x - spot[0], parked.y - spot[1]) < 0.5; }
-    res.push(["back from their round, they get in their boat where they left it", boarded]);
+    // another: back from their round, they get in their boat where they left it
+    const b4 = T.boats.find((b) => b !== b1 && b !== b2 && b !== b3 && b.parked && !b.stuck) || T.boats.find((b) => b !== b1 && b !== b2 && b !== b3 && T.crewOf(b) && !b.back); let boarded = false;
+    let info = b4 ? "" : "no boat";
+    if (b4) { const g4 = b4.parked ? T.groups[T.boats.indexOf(b4)] : park(b4); if (!g4) info = "did not stop"; else { const spot = [b4.x, b4.y]; let k = 0; for (; k < 3000 && !T.crewOf(b4); k++) step(0.2); boarded = !!T.crewOf(b4) && Math.hypot(b4.x - spot[0], b4.y - spot[1]) < 0.5; info = `after ${(k * 0.2).toFixed(0)} s: ${g4.state} ${g4.then ? JSON.stringify(g4.then) : ""}, ${Math.hypot(b4.x - spot[0], b4.y - spot[1]).toFixed(1)} px from where they left it`; } }
+    res.push(["back from their round, they get in their boat where they left it (" + info + ")", boarded]);
     res.push(["no empty boat ever sailed (" + emptySailing + " frames)", emptySailing === 0]);
     const bad = res.filter((r) => !r[1]).map((r) => r[0]);
     out.push(["boats: held without turning over a shadow, dropped with a splash, carried after a sound; empty boats wait", !bad.length, bad.length ? "failed: " + bad.join("; ") : res.length + " checks right"]);
