@@ -23,6 +23,12 @@ ELLIPSES = [
     (1315, 1035, 85, 35), (1248, 1120, 80, 35), (1575, 1195, 65, 25), (1608, 1255, 80, 32), (1385, 1322, 80, 28), (1710, 1335, 55, 22),  # Arabia peaks
     (1250, 830, 40, 20),                      # rock outcrop, Syrian desert
 ]
+# sand dunes painted on the map (owner 17 Nov: the lines drawn in the sand stay off the sand hills); a tap there still throws sand
+DUNES = [
+    [(495, 1112), (520, 1010), (645, 990), (610, 1060), (565, 1112)],                                   # Egyptian dune ridge
+    [(1320, 1115), (1395, 1020), (1500, 995), (1600, 1030), (1725, 1045), (1725, 1125), (1480, 1145), (1330, 1145)],  # central Arabia
+    [(1690, 1125), (1820, 1115), (1950, 1170), (2035, 1230), (2035, 1335), (1890, 1335), (1760, 1275), (1690, 1205)],  # south-east Arabia
+]
 def main():
     img = Image.open(os.path.join(ART, 'map.jpg')).convert('RGB'); W, H = img.size; w, h = W // 4, H // 4
     col = img.resize((w, h), Image.BOX).filter(ImageFilter.BoxBlur(2))
@@ -30,6 +36,8 @@ def main():
     mount = Image.new('L', (w, h), 0); d = ImageDraw.Draw(mount)
     for p in POLYS: d.polygon([(x / 4, y / 4) for x, y in p], fill=255)
     for cx, cy, rx, ry in ELLIPSES: d.ellipse([(cx - rx) / 4, (cy - ry) / 4, (cx + rx) / 4, (cy + ry) / 4], fill=255)
+    dune = Image.new('L', (w, h), 0); dd = ImageDraw.Draw(dune)
+    for p in DUNES: dd.polygon([(x / 4, y / 4) for x, y in p], fill=255)
     out = Image.new('RGB', (w, h))
     for y in range(h):
         for x in range(w):
@@ -37,6 +45,7 @@ def main():
             if land.getpixel((x, y))[3] < 128 or (b > r + 15 and b >= g): k = (40, 90, 220)
             elif g >= r - 6 and g > b + 25: k = (40, 170, 40)
             elif mount.getpixel((x, y)): k = (120, 80, 60)
+            elif dune.getpixel((x, y)): k = (250, 170, 80)
             else: k = (250, 220, 120)
             out.putpixel((x, y), k)
     out.save(os.path.join(ART, 'map-ground.png'))

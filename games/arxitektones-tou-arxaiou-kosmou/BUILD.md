@@ -857,6 +857,15 @@ Owner, verbatim: "exellent. but the turning is not smooth, it just jumps to anot
 3. Sail: the foot sags in the middle and the sides bow out, so its edges and stripes curve.
 Owner test `boat-turn`: a minute of sailing at 60 frames a second, largest turn in one frame 1.4 degrees (pointing), course bends at most 19 degrees in a frame (only in the Dardanelles), no rounded route point on land away from the ports. Pictures: owner-shots/2026-11-17-boats-3d.png (eight directions), owner-shots/2026-11-17-boats-turning.png (the real map, 0.7 s apart).
 
+## Current state, update 70 (17 Nov 2026): writing in the sand, boats dragged and carried
+
+Owner, verbatim (17 Nov 2026, 12:33): "1. make it so not tapping, but dragging on the sand plains of africa and arabia, leaves aline on the sand, so the kid can draw and write there. the sandhills shouldnt be in that area. also, 2 mins after the first stroke in each area is made, a wind blows that erases the writing, the wind must be local in that area only. 2. make it so the boats are draggable, and if the kid leaves them on land, then the humans go out, pick up the boat on their shoulders, and carry it to the sea again, and then they go on again adn they continue sailing."
+
+1. Writing in the sand: a finger dragged over the flat sand of Africa or of Arabia leaves a groove; a tap still throws sand (on flat sand the tap now shows when the finger is let go without moving). The Gulf of Suez and the Red Sea divide the two areas (Sinai and the Syrian desert count as Arabia); Anatolia's plateau is not a writing area. Dunes take no lines: `tools/make-ground.py` now marks the painted dunes (Egyptian ridge, central and south-east Arabia) in their own colour in `art/map-ground.png`; a tap there still throws sand. Two minutes after an area's first line a wind blows over that area only, from the north, its front crossing the area in 4 s with blown sand, wiping the lines behind it; the next line starts a new two minutes. Restart (ΕΠΑΝΕΚΚΙΝΗΣΗ) wipes the writing.
+2. Boats: a boat can be picked up and dragged; it points the way it is moved, its travellers stay in it. Let go, it goes back to the nearest point of its route by the way that needs the least carrying, then the shortest: over water it sails; over land its travellers step out, lift it onto their shoulders (1 s), carry it at walking speed (three each side), put it down at the water (1 s), get in and sail on. A boat with nobody aboard that would need carrying stays where it was left until dragged again. A tap on a boat on its route still makes waves; picking up a carried boat puts the carriers back in it.
+Owner tests `sand-writing` (11 checks) and `boat-drag` (8 checks). Picture: owner-shots/2026-11-17-sand-writing-and-boat-carried.png (`tools/harness.py mapshot`).
+Open for the owner: an empty boat left on land stays there (nobody to carry it); say if it should be different.
+
 ## Task list
 
 No open items.

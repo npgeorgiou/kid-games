@@ -631,6 +631,85 @@
     out.push(["boats turn smoothly along rounded sea routes", worstHd <= 1.5 / 60 + 1e-6 && worstCourse < 0.35 && !onLand, "largest turn in one frame: pointing " + (worstHd * 180 / Math.PI).toFixed(1) + " deg, course " + (worstCourse * 180 / Math.PI).toFixed(1) + " deg; route points on land " + onLand]);
   }
 
+  // --- owner 17 Nov: "dragging on the sand plains of africa and arabia, leaves a line on the sand ... the sandhills
+  // shouldnt be in that area ... 2 mins after the first stroke in each area is made, a wind blows that erases the
+  // writing, the wind must be local in that area only": a finger dragged as the child does (touch moves every few px)
+  const mapFinger = (id) => { const cv = document.querySelector("canvas");
+    const ev = (type, [x, y], b) => { const q = T.mapView().pt(x, y); cv.dispatchEvent(new PointerEvent(type, { clientX: q.x, clientY: q.y, pointerId: id, isPrimary: true, pointerType: "touch", button: 0, buttons: b, bubbles: true })); };
+    return { down: (p) => ev("pointerdown", p, 1), move: (p) => ev("pointermove", p, 1), up: (p) => ev("pointerup", p, 0),
+      drag(pts, frames) { ev("pointerdown", pts[0], 1); for (let i = 1; i < pts.length; i++) for (let k = 1; k <= 12; k++) { ev("pointermove", [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * k / 12, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * k / 12], 1); if (frames) T.renderMap(1 / 60); } ev("pointerup", pts[pts.length - 1], 0); } }; };
+  if (want("sand-writing")) {
+    T.goMap(); T.renderMap(1 / 60); for (const A of T.SAND_AREAS) { A.c = null; A.t0 = null; A.wind = null; }
+    const ink = (x, y) => { for (const A of T.SAND_AREAS) { if (!A.c || x < A.x0 || y < A.y0 || x >= A.x1 || y >= A.y1) continue; const d = A.c.getContext("2d").getImageData(Math.round(x - A.x0) - 3, Math.round(y - A.y0) - 3, 7, 7).data; let n = 0; for (let i = 3; i < d.length; i += 4) n += d[i] > 20; if (n) return n; } return 0; };
+    const f = mapFinger(31), res = [];
+    f.drag([[250, 1150], [450, 1180]]); res.push(["a line across the flat sand of Africa", ink(350, 1165) > 0]);
+    f.drag([[1300, 880], [1450, 900]]); res.push(["a line across the flat sand of Arabia (Syrian desert)", ink(1375, 890) > 0]);
+    f.drag([[540, 1060], [610, 1040]]); res.push(["no line on the Egyptian dunes", ink(575, 1050) === 0]);
+    f.drag([[1500, 1060], [1650, 1080]]); res.push(["no line on the Arabian dunes", ink(1575, 1070) === 0]);
+    f.drag([[1300, 1035], [1330, 1040]]); res.push(["no line on the Arabian mountains", ink(1315, 1037) === 0]);
+    res.push(["Anatolia's plateau is not a writing area", T.sandArea(900, 350) === -1]);
+    f.down([300, 1300]); f.up([300, 1300]); res.push(["a tap on the sand leaves no line", ink(300, 1300) === 0]);
+    T.SAND_AREAS[0].t0 -= 121; T.SAND_AREAS[1].t0 -= 100; // Africa's first line two minutes ago, Arabia's 100 seconds ago
+    for (let k = 0; k < 480; k++) T.renderMap(1 / 60);
+    res.push(["two minutes after Africa's first line the wind there wiped it", ink(350, 1165) === 0 && !T.SAND_AREAS[0].c]);
+    res.push(["the wind blew only in Africa: Arabia's line is still there", ink(1375, 890) > 0]);
+    T.SAND_AREAS[1].t0 -= 30; for (let k = 0; k < 480; k++) T.renderMap(1 / 60);
+    res.push(["two minutes after Arabia's first line its wind wiped it", ink(1375, 890) === 0 && !T.SAND_AREAS[1].c]);
+    f.drag([[250, 1150], [450, 1180]]); res.push(["after the wind a new line starts a new two minutes", ink(350, 1165) > 0 && T.SAND_AREAS[0].t0 !== null && !T.SAND_AREAS[0].wind]);
+    for (const A of T.SAND_AREAS) { A.c = null; A.t0 = null; A.wind = null; }
+    const bad = res.filter((r) => !r[1]).map((r) => r[0]);
+    out.push(["writing in the sand of Africa and Arabia, wiped by a local wind after two minutes", !bad.length, bad.length ? "failed: " + bad.join("; ") : res.length + " checks right"]);
+  }
+
+  // --- owner 17 Nov: "make it so the boats are draggable, and if the kid leaves them on land, then the humans go out,
+  // pick up the boat on their shoulders, and carry it to the sea again, and then they go on again and they continue sailing"
+  if (want("boat-drag")) {
+    T.goMap(); T.renderMap(1 / 60);
+    const f = mapFinger(32), res = [];
+    const pick = (ok) => { for (const b of T.boats) { if (b.wait > 0 || !ok(b)) continue; f.down([b.x, b.y - 5]); if (b.held) return b; f.up([b.x, b.y - 5]); T.renderMap(1 / 60); } return null; };
+    const landNear = (b, land) => { for (let r = 120; r < 400; r += 20) for (let a = 0; a < 6.28; a += 0.2) { const x = b.x + Math.cos(a) * r, y = b.y + Math.sin(a) * r; let all = T.SITES.every((S) => Math.hypot(S.x - x, S.y - y) > 200); /* away from the site circles, which lie on top */ for (let rr = 0; rr <= 40 && all; rr += 8) for (let aa = 0; aa < 6.28 && all; aa += 0.4) all = T.isLand(x + Math.cos(aa) * rr, y + Math.sin(aa) * rr) === land; if (all) return [x, y]; } return null; };
+    const follow = (b, secs) => { // frames until it sails its route again; what was seen
+      const seen = { lift: 0, carry: 0, carryOnWater: 0, lower: 0, sail: 0, jump: 0, crewOut: 0 }; let px = b.x, py = b.y;
+      for (let k = 0; k < secs * 60; k++) {
+        T.renderMap(1 / 60); const W = b.back;
+        seen.jump = Math.max(seen.jump, Math.hypot(b.x - px, b.y - py)); px = b.x; py = b.y;
+        if (!W) return { ...seen, back: true, t: k / 60 };
+        const r = W.runs[Math.min(W.i, W.runs.length - 1)];
+        if (W.phase === "lift") seen.lift++; else if (W.phase === "lower") seen.lower++; else if (r.mode === "carry") { seen.carry++; if (!T.isLand(b.x, b.y)) seen.carryOnWater++; } else seen.sail++;
+      }
+      return { ...seen, back: false };
+    };
+    // a boat with its travellers, dragged onto land and left there
+    const b1 = pick((b) => T.crewOf(b));
+    if (!b1) res.push(["a boat with travellers can be picked up", false]);
+    else {
+      const to = landNear(b1, true), from = [b1.x, b1.y];
+      f.drag([[from[0], from[1] - 5], [to[0], to[1] - 5]], true);
+      const moved = Math.hypot(b1.x - to[0], b1.y - to[1]) < 3;
+      res.push(["a boat follows the finger onto land", moved]);
+      const s = follow(b1, 240);
+      res.push(["left on land: its travellers lift it, carry it over land, put it down", s.lift >= 50 && s.carry > 0 && s.lower >= 50 && s.carryOnWater <= 12 /* only the step into the water (one map cell) */]);
+      res.push(["then it sails back to its route and on", s.back && s.sail > 0 && !!T.crewOf(b1)]);
+      res.push(["no jumps on the way (" + s.jump.toFixed(1) + " map px in a frame at most)", s.jump < 1.5]);
+      res.push(["it sails its route again", (() => { const d0 = b1.d, l0 = b1.leg; for (let k = 0; k < 60; k++) T.renderMap(1 / 60); return b1.d !== d0 || b1.leg !== l0 || b1.wait > 0; })()]);
+    }
+    // a boat moved over the water: it sails back without being carried
+    const b2 = pick((b) => true);
+    if (b2) { const to = landNear(b2, false); f.drag([[b2.x, b2.y - 5], [to[0], to[1] - 5]], true); const s = follow(b2, 240); res.push(["left on the water: it sails back, nobody carries it", s.back && s.carry === 0 && s.lift === 0]); }
+    // a boat with nobody in it left on land stays there
+    const b3 = pick((b) => T.crewOf(b)), g3 = b3 && T.crewOf(b3);
+    if (b3) {
+      if (g3) g3.state = "away"; const to = landNear(b3, true); f.drag([[b3.x, b3.y - 5], [to[0], to[1] - 5]], true);
+      for (let k = 0; k < 300; k++) T.renderMap(1 / 60);
+      res.push(["an empty boat left on land stays there", b3.stuck && Math.hypot(b3.x - to[0], b3.y - to[1]) < 3]);
+      if (g3) g3.state = "boat";
+      f.drag([[b3.x, b3.y - 5], [b3.x + 8, b3.y - 5]], true); const s = follow(b3, 300);
+      res.push(["with its travellers back in, it is carried to the sea ", s.back && s.carry > 0]);
+    }
+    const bad = res.filter((r) => !r[1]).map((r) => r[0]);
+    out.push(["boats can be dragged; left on land, their travellers carry them to the sea and they sail on", !bad.length, bad.length ? "failed: " + bad.join("; ") : res.length + " checks right"]);
+  }
+
   // --- 1: the restart button on the map: everything as at the very beginning
   if (want("restart")) {
     T.mode = "map"; T.renderMap(0.016);
