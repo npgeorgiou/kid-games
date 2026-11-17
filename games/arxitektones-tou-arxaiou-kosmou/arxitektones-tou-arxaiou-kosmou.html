@@ -3371,7 +3371,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   function landBoat(b) { // part 4: a let-go boat reaches its shadow
     b.drop = null; b.rise = b.lift = 0;
     const q = mapView().pt(b.x, b.y), onLand = isLand(b.x, b.y);
-    mapTap(q.x, q.y); // the splash and its waves, as a tap there (sand or stones on land)
+    mapTap(q.x, q.y, b); // the splash and its waves, as a tap there (sand or stones on land); they push the other boats, not this one
     if (onLand) playSound(LEFT_ON_LAND, 1);
     letGoBoat(b);
     if (onLand && b.back) b.back.delay = soundSeconds(LEFT_ON_LAND) + 0.5; // the travellers get out half a second after the sound (owner 17 Nov: first one second, then half a second earlier)
@@ -3957,10 +3957,10 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     }
   }
   const tapBits = [], WAVE_FRONT = 30; // screen px: how wide the first ring's pushing front is
-  function mapTap(x, y) {
+  function mapTap(x, y, from = null) { // `from`: a boat whose own splash this is (its waves do not push it)
     const v = mapView(), kind = groundAt((x - v.ox) / v.k, (y - v.oy) / v.k), R = Math.random;
     if (kind === "water") {
-      for (let k = 0; k < 3; k++) tapBits.push({ kind: "ring", x, y, r: 4, grow: 38 - k * 8, life: 1 + k * 0.25, fade: 1, push: k ? 0 : 400 }); // push: map px/s the first ring gives a boat it passes (one push per tap; owner 17 Nov: gentle, at most about half a boat)
+      for (let k = 0; k < 3; k++) tapBits.push({ kind: "ring", x, y, r: 4, grow: 38 - k * 8, life: 1 + k * 0.25, fade: 1, push: k ? 0 : 400, from }); // push: map px/s the first ring gives a boat it passes (one push per tap; owner 17 Nov: gentle, at most about half a boat)
       for (let k = 0; k < 12; k++) { const a = R() * Math.PI * 2, sp = 40 + R() * 70; tapBits.push({ kind: "drop", x, y, vx: Math.cos(a) * sp, vy: -110 - R() * 120, g: 520, r: 3 + R() * 3, life: 1, fade: 1.4 }); }
     } else if (kind === "sand") {
       for (let k = 0; k < 20; k++) { const a = R() * Math.PI * 2, sp = 30 + R() * 80; tapBits.push({ kind: "sand", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 35, g: 0, drag: 2, r: 9 + R() * 10, grow: 26, life: 1, fade: 0.8 }); }
@@ -3980,6 +3980,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
         // the first ring pushes a boat away from the tap while its front (WAVE_FRONT screen px wide) passes the boat: a
         // force spread over that time, weaker as the ring fades, so the boat starts moving smoothly, once (owner 17 Nov)
         if (q.push) for (const b of boats) {
+          if (b === q.from) continue;
           // measured from the boat's place on its route (not where the push has moved it), so the front passes it once
           const s = v.pt(b.x - b.ox, b.y - b.oy), dx = s.x - q.x, dy = s.y - q.y, d = Math.hypot(dx, dy / 0.6), n = Math.hypot(dx, dy) || 1;
           const part = Math.max(0, Math.min(q.r, d + WAVE_FRONT) - Math.max(r0, d)) / WAVE_FRONT; // the share of the front that passed it this frame

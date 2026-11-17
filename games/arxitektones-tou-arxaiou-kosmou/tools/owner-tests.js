@@ -740,9 +740,10 @@
     for (const o of T.boats) { if (o.parked || o.wait > 0 || !T.crewOf(o)) continue; for (let a = 0; a < 6.28 && !to2; a += 0.5) { const p = [o.x + Math.cos(a) * 40, o.y + Math.sin(a) * 40]; if (!T.isLand(p[0], p[1]) && !T.isLand(p[0], p[1] - 30)) to2 = p; } if (to2) { other = o; break; } }
     if (other) b2 = pick((b) => b !== other && T.crewOf(b) && !b.parked);
     if (b2) {
-      const d = drag(b2, to2); let push = 0;
-      for (let k = 0; k < 90; k++) { step(); push = Math.max(push, Math.hypot(other.ox, other.oy)); }
+      const d = drag(b2, to2); let push = 0, own = 0;
+      for (let k = 0; k < 90; k++) { step(); push = Math.max(push, Math.hypot(other.ox, other.oy)); own = Math.max(own, Math.hypot(b2.ox, b2.oy)); }
       res.push(["dropped on the water, it splashes and the waves push the boat next to it (" + push.toFixed(1) + " map px)", d.landedAtShadow && push > 3]);
+      res.push(["its own splash does not push it (" + own.toFixed(1) + " map px)", own === 0]); // owner 17 Nov
       const s = follow(b2, 400); res.push(["left on the water: it sails back, nobody carries it", s.back && s.carry === 0 && s.lift === 0]);
       // owner 17 Nov: "the waves dont push the boats anymore": a boat sailing back after being moved (far over the water) is pushed like any other
       f.down([b2.x, b2.y - 5]); drag(b2, landNear(b2, false)); const wasBack = !!b2.back, q = T.mapView().pt(b2.x, b2.y), cv = document.querySelector("canvas");

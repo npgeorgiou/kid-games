@@ -900,9 +900,14 @@ Owner, verbatim (17 Nov 2026, 20:51): "1. now there is lag when the boat is just
 Owner, verbatim (17 Nov 2026, 21:03): "seriosuly, are you stupid? the fuckign waves, i told you before, dont push the boats anymore"
 Cause: a boat the child had moved (sailing back to its route, or left empty on the water) ignored waves; in play many boats are in that state. Now every boat floating free gets the same wave push and spring as on its route (not while held, falling, carried or on land). Check in `boat-drag`: a boat sailing back is pushed (17 checks, 3.5 s). `tools/harness.py realwave`: every boat in play clicked beside in the running game, all pushed; `maptime`: slowest frame in 5 min of play without drawing 14 ms.
 
+## Current state, update 75 (17 Nov 2026): a dropped boat is not pushed by its own splash
+
+Owner, verbatim (17 Nov 2026, 21:09): "a boat is now lushed BY ITS OWN WAVE. also, the wave doesnt seem to push teh same way from teh sides and from front/back, is this ok for a physics reason, or a bug?"
+A ring remembers the boat whose drop made it and does not push that one (check in `boat-drag`, 18 checks). Question answered, waiting: the push does not depend on which way a boat points; rings are drawn flattened (height 0.6 of width), so a tap above or below a boat reaches it later and weaker than one beside it at the same screen distance.
+
 ## Task list
 
-No open items.
+- Owner to decide: waves equally strong in every direction on the screen, or as now.
 
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.
