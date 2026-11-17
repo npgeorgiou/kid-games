@@ -806,6 +806,12 @@ Owner, verbatim: "make the cocnentric waves from the clicks, push the boats away
 2. Load screen: the title picture full screen for 2 s at start, then it fades and the map starts (the welcome line starts after it). The harness sets LOAD_SCREEN_MS to 0.
 3. Renamed: folder games/arxitektones-tou-arxaiou-kosmou, game file arxitektones-tou-arxaiou-kosmou.html, browser tab title "Αρχιτέκτονες του αρχαίου κόσμου". The repository stays kid-games (it holds the whole library). Saved progress keeps its old storage name, so nothing is lost.
 
+## Current state, update 62 (17 Nov 2026): one smooth wave push
+
+Owner, verbatim: "the waves puth the boat in 2 goes, the motion is not smooth"
+
+Cause: each of the three rings gave the boat its own sudden kick as it passed, so the boat sped up twice. Now only the first ring pushes, and it pushes gradually while its front (30 screen px wide) passes the boat; the other two rings are only drawn. Owner test `wave-boat` now also counts how many times the boat speeds up going out: 2 before, 1 now; pushed about 40 map px, back on its route within 6 s. Frames from the real game, a quarter second apart: owner-shots/2026-11-17-wave-pushes-boat.png.
+
 ## Task list
 
 No open items.

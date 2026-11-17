@@ -3458,11 +3458,11 @@
     if ((r + g + b) / 3 > 190 && r > b + 40) return "sand";
     return "rock";
   }
-  const tapBits = [];
+  const tapBits = [], WAVE_FRONT = 30; // screen px: how wide the first ring's pushing front is
   function mapTap(x, y) {
     const v = mapView(), kind = groundAt((x - v.ox) / v.k, (y - v.oy) / v.k), R = Math.random;
     if (kind === "water") {
-      for (let k = 0; k < 3; k++) tapBits.push({ kind: "ring", x, y, r: 4, grow: 38 - k * 8, life: 1 + k * 0.25, fade: 1, push: [150, 90, 50][k] }); // push: map px/s given to a boat the ring passes
+      for (let k = 0; k < 3; k++) tapBits.push({ kind: "ring", x, y, r: 4, grow: 38 - k * 8, life: 1 + k * 0.25, fade: 1, push: k ? 0 : 800 }); // push: map px/s the first ring gives a boat it passes (one push per tap)
       for (let k = 0; k < 12; k++) { const a = R() * Math.PI * 2, sp = 40 + R() * 70; tapBits.push({ kind: "drop", x, y, vx: Math.cos(a) * sp, vy: -110 - R() * 120, g: 520, r: 3 + R() * 3, life: 1, fade: 1.4 }); }
     } else if (kind === "sand") {
       for (let k = 0; k < 20; k++) { const a = R() * Math.PI * 2, sp = 30 + R() * 80; tapBits.push({ kind: "sand", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 35, g: 0, drag: 2, r: 9 + R() * 10, grow: 26, life: 1, fade: 0.8 }); }
@@ -3479,10 +3479,12 @@
       const q = tapBits[i];
       if (q.kind === "ring") {
         const r0 = q.r; q.r += q.grow * dt * 1.6;
-        // a ring passing a boat pushes it away from the tap, weaker as the ring fades (owner 17 Nov)
-        for (const b of boats) {
+        // the first ring pushes a boat away from the tap while its front (WAVE_FRONT screen px wide) passes the boat: a
+        // force spread over that time, weaker as the ring fades, so the boat starts moving smoothly, once (owner 17 Nov)
+        if (q.push) for (const b of boats) {
           const s = v.pt(b.x, b.y), dx = s.x - q.x, dy = s.y - q.y, d = Math.hypot(dx, dy / 0.6), n = Math.hypot(dx, dy) || 1;
-          if (d > r0 && d <= q.r) { b.ovx += (dx / n) * q.push * Math.max(0, q.life); b.ovy += (dy / n) * q.push * Math.max(0, q.life); }
+          const part = Math.max(0, Math.min(q.r, d + WAVE_FRONT) - Math.max(r0, d)) / WAVE_FRONT; // the share of the front that passed it this frame
+          if (part > 0) { const g = q.push * Math.max(0, q.life) * part; b.ovx += (dx / n) * g; b.ovy += (dy / n) * g; }
         }
       }
       else {
