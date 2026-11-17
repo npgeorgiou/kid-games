@@ -120,14 +120,34 @@ However many points a message has (5 or 100), none is dropped, none is half done
 
 Every game's cues live in one table, `games/<game>/cues.json` (version A); the readable `cues.md` (version B) is written from it by `tools/cues_doc.py`. The owner comments on B; every change goes into A, then B is written again. Never edit B by hand, never add a cue in code only.
 
-## Testing (owner, 14 Nov 2026; overrides anything below that asks for more)
+## Testing (owner, 14 and 17 Nov 2026; every game; overrides anything below that asks for more)
 
-- Every test run is reproducible: the same inputs give the same result. Never run the same test twice to "see if it varies". If two runs with the same inputs differ, find what leaks in (the clock, unseeded random numbers, state left over from an earlier run, a measurement of something that changes with time) and fix it; where chance is part of what is tested, the test fixes the seed.
-- Before running anything, decide from the code what the change can affect, and run only those tests. Example: a change to the hand acts only while a piece is held; the quick build and the level test never hold pieces, so level runs are not needed.
-- Run the level runs (quick build + test of every level) only when the change touches what they use: piece shapes or weights, breaking, the test itself, the outline check, level data. Then once per level, one screen size, fast test.
-- Repeated runs with different rough placements: a few (3-6), only for wrong choices and strength rules; never 100.
-- Use short timeouts (a few minutes). A run that needs more is doing too much; cut it down rather than wait.
-- Each new rule gets one small test repeating what the owner did; see it fail, fix, see it pass. No other test runs during the fixing.
+The owner judges the work by how long it takes. Most of a slow session is lost to tests: long runs, repeated runs, and runs that fail because the test was wrong. These rules keep testing a small part of the time.
+
+Time
+- Budget: a normal list of changes takes minutes, not half an hour. One test run takes seconds, at most a minute. A run that would take longer is badly designed: redesign it before starting it, never wait for it.
+- Never sleep or poll while a long run finishes. If a run cannot finish in the foreground in about a minute, it is too big.
+- If the work is clearly taking longer than it should, stop, tell the owner in one line why, and change approach.
+
+Designing a test
+- Build the situation directly; do not simulate your way to it. If the test needs "a boat waiting at a port", put a boat there through the test hook. Do not run the world for ten simulated minutes hoping it happens. Add a small setter to the hook when one is missing.
+- Simulate only the seconds the checked behaviour takes, with the largest time step that still shows it.
+- Switch off every system the test is not about: voice and cue prompts, demos, idle timers, music, other moving actors. A test that touches the screen must make sure nothing (a prompt, a button, a circle) sits over the spot it presses, and must check that the press took effect before going on.
+- Each test starts from a known state it sets itself, never from what an earlier test left behind.
+- Before the full check, run a tiny probe of the setup (one frame: did the hold/tap/state actually happen?). Only then the real check.
+- Every check reports, when it fails, the values needed to see why: what was expected, what happened, the state of the objects involved. The first failure must be enough to diagnose; never rerun just to get more information.
+
+When a test fails
+- First decide whether the game or the test is wrong, from the failure detail and the code. Do not rerun anything until you know.
+- Fix the cause, then rerun only that test, once.
+- Never change the game to make a test pass, and never loosen a check to make it pass. If the test was wrong, fix the test and say nothing about it to the owner unless it matters to him.
+
+What to run
+- Every run is reproducible: the same inputs give the same result. Never run the same test twice to "see if it varies". If two runs with the same inputs differ, find what leaks in (the clock, unseeded random numbers, leftover state, something measured that changes with time) and fix it; where chance is part of what is tested, fix the seed.
+- Before running anything, decide from the code what the change can affect, and run only those tests. Example: a change to the hand acts only while a piece is held; the level runs never hold pieces, so they are not needed.
+- Run whole-level or whole-game runs only when the change touches what they use, then once each, one screen size, fast mode.
+- Repeated runs with varied input: a few (3-6), only where variation is the point; never 100.
+- Each new rule gets one small test repeating what the owner did: see it fail, fix, see it pass. No other test runs during the fixing.
 - Never rerun the whole suite after a small change. The full suite only when the owner asks, or once before a handover.
 
 ## Rules for every change (owner, 13 Nov 2026)
