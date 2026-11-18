@@ -786,9 +786,8 @@
   function removePiece(piece) {
     const idx = pieces.indexOf(piece);
     if (idx >= 0) pieces.splice(idx, 1);
-    if (piece.grip) {
-      dropHand(piece);
-    }
+    if (piece.grip) dropHand(piece);
+    if (piece.second) { dropHand(piece.second); piece.second = null; }
     for (let e = piece.body.getContactList(); e; e = e.next) e.other.setAwake(true); // what rested on it feels it go (a sleeping beam would float)
     world.destroyBody(piece.body);
   }
@@ -994,14 +993,14 @@
   }
   function hitPiece(worldPt) {
     if (!test && !auto) for (const l of loads) { // a finished site's headpiece, on top of everything
-      if (l.piece && l.piece.heldBy != null) continue;
+      if (l.piece && l.piece.second) continue; // two fingers at most
       const q = l.body.getLocalPoint(planck.Vec2(worldPt.x, worldPt.y));
       if (inRing(q.x, q.y, l.verts)) return headpieceHand(l);
     }
     // iterate from most-recently-added (likely on top) backwards
     for (let i = pieces.length - 1; i >= 0; i--) {
       const piece = pieces[i];
-      if (piece.heldBy != null || piece.auto) continue;
+      if (piece.second || piece.auto) continue; // a held piece takes a second finger
       const local = piece.body.getLocalPoint(planck.Vec2(worldPt.x, worldPt.y));
       if (outsidePiece(PIECE_DEFS[piece.defKey], local) <= PICK_MARGIN) return piece;
     }
@@ -1028,20 +1027,21 @@
   }
   function undoButton() { const size = Math.max(44, Math.min(64, cssHeight * 0.09)); return { x: 10 + size / 2, y: 10 + size / 2, size }; }
   function startHold(piece, worldPt, pointerId, clientX, clientY, centred = false) {
-    if (pointers.has(pointerId) || piece.heldBy != null) return;
-    commitSnap(); if (!piece.load) onPickup(piece.material); // the headpiece is not a stone of the pile
-    piece.heldBy = pointerId;
+    if (pointers.has(pointerId) || piece.second) return;
+    let fg = piece; // the first finger's hold is kept on the piece, a second finger's in piece.second (tools/physics/hand.js)
+    if (piece.heldBy != null) fg = piece.second = {};
+    else { commitSnap(); if (!piece.load) onPickup(piece.material); piece.heldBy = pointerId; piece.controlMode = "hand"; } // the headpiece is not a stone of the pile
 
     // the fingers close on the piece at the point under the finger (no jump towards the click)
     const at = planck.Vec2(worldPt.x, worldPt.y), v = piece.body.getLinearVelocityFromWorldPoint(at);
-    piece.grabLocal = piece.body.getLocalPoint(at);
-    piece.desired = { x: worldPt.x, y: worldPt.y };
-    piece.controlMode = "hand";
-    piece.handBody = world.createBody({ type: "dynamic", position: at, fixedRotation: true, gravityScale: 0, linearVelocity: v });
-    piece.handBody.setMassData({ mass: HAND_MASS, center: planck.Vec2(0, 0), I: 1 });
-    piece.grip = world.createJoint(planck.RevoluteJoint({ enableMotor: true, maxMotorTorque: 0, motorSpeed: 0 }, piece.handBody, piece.body, at));
+    fg.grabLocal = piece.body.getLocalPoint(at);
+    fg.desired = { x: worldPt.x, y: worldPt.y };
+    fg.handBody = world.createBody({ type: "dynamic", position: at, fixedRotation: true, gravityScale: 0, linearVelocity: v });
+    fg.handBody.setMassData({ mass: HAND_MASS, center: planck.Vec2(0, 0), I: 1 });
+    fg.grip = world.createJoint(planck.RevoluteJoint({ enableMotor: true, maxMotorTorque: 0, motorSpeed: 0 }, fg.handBody, piece.body, at));
     pointers.set(pointerId, {
       piece,
+      finger: fg,
       lastX: clientX,
       lastY: clientY,
       lastMoveTime: gameNow(),
@@ -1056,7 +1056,16 @@
     if (hand.pileBody && pileBodies().includes(hand.pileBody)) { hand.pileBody.setAngularDamping(PILE_ANG_DAMP); hand.pileBody.setLinearDamping(0.3); }
     const piece = hand.piece;
     if (!piece) return;
-    dropHand(piece);
+    const fg = hand.finger || piece, other = piece.second;
+    dropHand(fg);
+    if (other) { // one of two fingers lets go: the other keeps the piece, as its only finger
+      piece.second = null;
+      if (fg === piece) {
+        for (const k of ["grabLocal", "desired", "handBody", "grip", "fingerHist"]) piece[k] = other[k];
+        for (const [id, h] of pointers) if (h.finger === other) { h.finger = piece; piece.heldBy = id; }
+      }
+      return;
+    }
     // let go while still passing through other pieces: it was never placed, so it goes back to the pile
     if (piece.ghost && currentLevel != null && pieces.includes(piece)) { piece.heldBy = null; returnToPile(piece); return; }
     piece.heldBy = null;
@@ -1136,7 +1145,7 @@
     hand.lastX = e.clientX;
     hand.lastY = e.clientY;
     hand.lastMoveTime = gameNow();
-    hand.piece.desired = screenToWorld(e.clientX, e.clientY);
+    (hand.finger || hand.piece).desired = screenToWorld(e.clientX, e.clientY);
   }
 
   function onPointerUp(e) {
@@ -1978,7 +1987,7 @@
   function worldToPile(pointerId, hand, px, py) {
     // held at the same point, moving and turning as it was (screen speed kept across the two scales);
     // only nudged sideways as far as needed to be inside the bin
-    const piece = hand.piece, a = piece.body.getAngle(), g = piece.grabLocal;
+    const piece = hand.piece, a = piece.body.getAngle(), g = (hand.finger || piece).grabLocal;
     const k = scale / pileScale, vg = piece.body.getLinearVelocityFromWorldPoint(piece.body.getWorldPoint(g)), om = piece.body.getAngularVelocity();
     piece.ghost = false;
     releaseHold(pointerId);

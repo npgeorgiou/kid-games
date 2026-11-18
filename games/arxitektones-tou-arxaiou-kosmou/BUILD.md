@@ -1081,6 +1081,15 @@ Owner, verbatim (12:50): "wait. what a site is??? otehr games will not ahve site
 3. build.py puts each `// @include ../../../tools/...` line's file in its place; the harness's hook check reads the code the same way.
 All flows, all cue tests and the level checks pass as before (Parthenon and Valens piles over the sidebar, as before).
 
+## Current state, update 90 (18 Nov 2026): two fingers carry a piece
+
+Owner, 18 Nov: "I think we are done. now I want you to add whatever is needed, if something is needed, so 2 finvers can be used to carry a block, cause thsi way a kid can rotate the blocks better, rather than shing them to palce like I do"
+
+- A second finger on a held piece closes on it at its own point (tools/physics/hand.js, part "Two fingers"). Each finger is the same hand on its own point with half the effort, so the strength in all is unchanged and what is too heavy for one finger is too heavy for two. With two fingers the wrists are loose: turning the fingers about each other turns the piece. Lifting one finger leaves the piece in the other.
+- The headpiece takes two fingers too. A third finger on a piece does nothing.
+- Flow `two-finger-turn`: a plank on the ground, a finger near each end, the fingers turned a quarter round while lifting: the plank turns about a quarter; one finger let go, the other still holds it.
+- Not checked on the real touchscreen yet (the PC has a mouse only).
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).

@@ -401,7 +401,45 @@ def ishtar_planks(b):
     q.close()
     return wood.get('beam') == 4 and not wood.get('block'), dict(wood_in_pile=wood)
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
+def two_finger_turn(b):
+    # owner 18 Nov: "2 fingers can be used to carry a block, cause this way a kid can rotate the blocks better": a plank lying
+    # on the ground, one finger near each end, the fingers turned a quarter round about each other while lifting: the plank
+    # turns with them; one finger let go, the other still carries it
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); untick_all(q)
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    st = q.evaluate("""()=>{const T=__tb, s0=T.worldToScreen(0,0).x, s1=T.worldToScreen(1,0).x, p=T.spawnPiece('beam',(350-s0)/(s1-s0),0.3,0,'wood'), hx=T.PIECE_DEFS.beam.hx, c=p.body.getPosition();
+      const a=T.worldToScreen(c.x-0.7*hx,c.y), z=T.worldToScreen(c.x+0.7*hx,c.y), m=T.worldToScreen(c.x,c.y); return {a:[a.x,a.y],z:[z.x,z.y],m:[m.x,m.y]};}""")
+    time.sleep(0.5)
+    s = q.context.new_cdp_session(q)
+    q.evaluate("()=>{window.__pev=[]; for(const t of ['pointerdown','pointerup','pointercancel','lostpointercapture']) window.addEventListener(t,(e)=>__pev.push(t+':'+e.pointerId+':'+e.pointerType+':'+Math.round(e.clientX)),true);}")
+    def touch(kind, pts):
+        s.send('Input.dispatchTouchEvent', {'type': kind, 'touchPoints': [{'x': x, 'y': y, 'id': i} for i, (x, y) in pts]})
+    import math
+    (ax, ay), (zx, zy), (mx, my) = st['a'], st['z'], st['m']
+    r = (zx - ax) / 2
+    touch('touchStart', [(1, (ax, ay))]); time.sleep(0.03)
+    touch('touchStart', [(1, (ax, ay)), (2, (zx, zy))])
+    two = q.evaluate("()=>{const p=__tb.pieces[__tb.pieces.length-1]; return !!(p.heldBy!=null&&p.second&&p.second.grip);}")
+    seen = q.evaluate("()=>{const p=__tb.pieces[__tb.pieces.length-1]; return {pointers:__tb.pointers.size, held:p.heldBy, second:!!p.second, n:__tb.pieces.length, def:p.defKey, mode:__tb.mode};}")
+    for k in range(1, 41):  # about 0.7 s, a hand's rate; the middle rises 150 px while the fingers turn a quarter round
+        th = math.pi / 2 * k / 40; cy = my - 150 * k / 40
+        touch('touchMove', [(1, (mx - r * math.cos(th), cy + r * math.sin(th))), (2, (mx + r * math.cos(th), cy - r * math.sin(th)))])
+        time.sleep(0.016)
+    time.sleep(0.8)
+    turned = q.evaluate("()=>__tb.pieces[__tb.pieces.length-1].body.getAngle()")
+    touch('touchEnd', [(2, (mx, my - 150 - r))])
+    time.sleep(0.05)
+    still = q.evaluate("()=>{const p=__tb.pieces[__tb.pieces.length-1]; return p.heldBy!=null&&!p.second&&!!p.grip;}")
+    touch('touchEnd', [])
+    time.sleep(0.05)
+    free = q.evaluate("()=>__tb.pieces[__tb.pieces.length-1].heldBy==null&&__tb.pointers.size===0")
+    pev = q.evaluate('()=>__pev')
+    q.close()
+    r = dict(pev=pev, seen=seen, st=st, two_fingers_hold=two, turned_deg=round(math.degrees(turned)), one_finger_still_holds=still, let_go=free)
+    return two and 70 <= abs(math.degrees(turned)) <= 110 and still and free, r
+
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
 
 def run(b, names):
     for n, f in FLOWS.items():
