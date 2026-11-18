@@ -1539,12 +1539,16 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   const DEMO_KEY = "tower-builder-progress-v1" + "-demos";
   let useDemos = (() => { try { return localStorage.getItem(DEMO_KEY) !== "0"; } catch (err) { return true; } })();
   function setDemos(on) { useDemos = on; try { localStorage.setItem(DEMO_KEY, on ? "1" : "0"); } catch (err) { /* ignore */ } }
+  // owner 18 Nov: "make checkbox option in setting for music (main menu and level)": unticked, the music is silent everywhere
+  const MUSIC_KEY = DEMO_KEY + "-music";
+  let useMusic = (() => { try { return localStorage.getItem(MUSIC_KEY) !== "0"; } catch (err) { return true; } })();
+  function setMusic(on) { useMusic = on; try { localStorage.setItem(MUSIC_KEY, on ? "1" : "0"); } catch (err) { /* ignore */ } }
   // ΔΙΔΑΣΚΑΛΙΑ on or off (owner 16 Nov): off, no teaching steps and no teaching lines (with their glows and the ghost
   // hand); every other line, and the demos (their own tick), stay. Ticked by default; kept by ΕΠΑΝΕΚΚΙΝΗΣΗ.
   const TEACH_KEY = "tower-builder-progress-v1" + "-teaching";
   let useTeach = (() => { try { return localStorage.getItem(TEACH_KEY) !== "0"; } catch (err) { return true; } })();
   function setTeach(on) { useTeach = on; try { localStorage.setItem(TEACH_KEY, on ? "1" : "0"); } catch (err) { /* ignore */ } }
-  const SETTINGS = [{ id: "demos", text: "ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ", on: () => useDemos, set: (v) => setDemos(v) }, { id: "teaching", text: "ΔΙΔΑΣΚΑΛΙΑ", on: () => useTeach, set: (v) => setTeach(v) }];
+  const SETTINGS = [{ id: "demos", text: "ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ", on: () => useDemos, set: (v) => setDemos(v) }, { id: "teaching", text: "ΔΙΔΑΣΚΑΛΙΑ", on: () => useTeach, set: (v) => setTeach(v) }, { id: "music", text: "ΜΟΥΣΙΚΗ", on: () => useMusic, set: (v) => setMusic(v) }];
   let settingsOpen = false;
   function setTextures(on) { useTextures = on; try { localStorage.setItem(TEX_KEY, on ? "1" : "0"); } catch (err) { /* ignore */ } }
   function chipRGB(material) { if (!useTextures) return material === "mudbrick" ? "140, 98, 60" : stoneKey() === "marble" ? "200, 194, 182" : "120, 128, 135"; return TEX_RGB[material === "mudbrick" ? "mudbrick" : stoneKey()]; }
@@ -1788,7 +1792,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   function updateMusic(force) {
     const want = mode === "map" ? "music-map" : "music-level";
     const testing = mode !== "map" && typeof test !== "undefined" && !!test;
-    const duck = testing ? 0 : voice.cur && voice.cur.cue && voice.cur.cue.id === "site-intro" ? 0.5 : 1;
+    const duck = !useMusic || testing ? 0 : voice.cur && voice.cur.cue && voice.cur.cue.id === "site-intro" ? 0.5 : 1;
     if (duck !== musicDuck) { const fade = testing || musicDuck === 0 ? 0.5 : 0.05; musicDuck = duck; if (music) music.setVolume(duck, fade); }
     if (want === musicName && music && !force) return;
     if (want === musicName && music) return;
@@ -3872,8 +3876,8 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   function freePlayButton() { return mapButtonAt(0, 1); }
   function settingsButton() { return mapButtonAt(1, 0); }
   function settingsPanel() { // the popup: one big tick box with its words, and a big X in the corner
-    const m = Math.min(cssWidth, cssHeight), w = Math.min(cssWidth * 0.8, m * 1.3), h = m * 0.66, x = (cssWidth - w) / 2, y = (cssHeight - h) / 2, box = m * 0.12, X = m * 0.13;
-    const rows = SETTINGS.map((it, i) => Object.assign({ x: x + w * 0.08, y: y + h * (0.33 + i * 0.36) - box / 2, w: w * 0.84, h: box }, it));
+    const m = Math.min(cssWidth, cssHeight), u = m * 0.66, w = Math.min(cssWidth * 0.8, m * 1.3), h = u * (0.64 + 0.36 * (SETTINGS.length - 1)), x = (cssWidth - w) / 2, y = (cssHeight - h) / 2, box = m * 0.12, X = m * 0.13; // the box grows a row's height for each tick row
+    const rows = SETTINGS.map((it, i) => Object.assign({ x: x + w * 0.08, y: y + u * (0.33 + i * 0.36) - box / 2, w: w * 0.84, h: box }, it));
     return { x, y, w, h, box, rows, close: { x: x + w - X * 0.35, y: y + X * 0.35, size: X } };
   }
   function drawSettings() {

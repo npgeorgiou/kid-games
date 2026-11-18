@@ -695,7 +695,24 @@ def button_click_sound(b):
     q.close()
     return all(v == 1 for v in got.values()) and vol[0] == vol[1], dict(clicks=got, gains=vol)
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick, 'boat-on-boat': boat_on_boat, 'sidebar-icons-spread': sidebar_icons_spread, 'button-click-sound': button_click_sound}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
+def music_tick(b):
+    # owner 18 Nov: "make checkbox option in setting for music (main menu and level)": unticked in the settings box, no music on
+    # the map or in a site, and it stays so after the page is opened again; ticked again, the music is back
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.cueMem().seq['first-site']='done'}")
+    click(q, 'settings'); time.sleep(0.1); click(q, 'music'); click(q, 'settings-close'); time.sleep(0.3)
+    r = dict(map_off=q.evaluate("()=>__tb.musicDuck"))
+    click(q, 'site:mastaba'); time.sleep(0.4); quiet(q); time.sleep(0.2)
+    r['site_off'] = q.evaluate("()=>__tb.musicDuck")
+    q.reload(); q.wait_for_function('()=>!!window.__tb'); q.mouse.click(640, 400); quiet(q); time.sleep(0.3)
+    r['after_reopen'] = q.evaluate("()=>[__tb.SETTINGS.find((s)=>s.id==='music').on(), __tb.musicDuck]")
+    click(q, 'settings'); time.sleep(0.1); click(q, 'music'); click(q, 'settings-close'); time.sleep(0.3)
+    r['map_on'] = q.evaluate("()=>__tb.musicDuck")
+    q.close()
+    return r['map_off'] == 0 and r['site_off'] == 0 and r['after_reopen'] == [False, 0] and r['map_on'] == 1, r
+
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick, 'boat-on-boat': boat_on_boat, 'sidebar-icons-spread': sidebar_icons_spread, 'button-click-sound': button_click_sound, 'music-tick': music_tick}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
 
 def run(b, names):
     for n, f in FLOWS.items():
