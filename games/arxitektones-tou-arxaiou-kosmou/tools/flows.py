@@ -235,10 +235,16 @@ def map_stones(b):
     fell = until(q, "()=>!window.__top||(__tb.mapStones.includes(window.__top)&&window.__top.z===0)", 2)
     # thrown: a quick drag let go while moving: the stones land on beyond where the finger let go
     q.evaluate("()=>{__tb.mapStones.splice(0)}")
-    far_end = (land[0] + 60, land[1]); q.mouse.move(*rock); q.mouse.down(); time.sleep(0.05)
-    for k in range(1, 9): q.mouse.move(rock[0] + (far_end[0] - rock[0]) * k / 8, rock[1] + (far_end[1] - rock[1]) * k / 8); time.sleep(0.016)
-    q.mouse.up(); until(q, rest, 3)
-    thrown = q.evaluate("([p,r])=>{const T=__tb, v=T.mapView(), mx=(p[0]-v.ox)/v.k, my=(p[1]-v.oy)/v.k, dx=p[0]-r[0], dy=p[1]-r[1], n=Math.hypot(dx,dy); if(!T.mapStones.length) return null; const cx=T.mapStones.reduce((a,s)=>a+s.x,0)/T.mapStones.length, cy=T.mapStones.reduce((a,s)=>a+s.y,0)/T.mapStones.length-30*0.866; return ((cx-mx)*dx+(cy-my)*dy)/n;}", [far_end, rock])
+    q.evaluate("()=>{window.__slide=0; window.__slideEnd=performance.now()+4000; const seen=new Map(); const f=()=>{for(const s of __tb.mapStones){ if(s.held||s.z>0.01){seen.delete(s);continue;} if(!seen.has(s)) seen.set(s,[s.x,s.y]); const [x,y]=seen.get(s); __slide=Math.max(__slide,Math.hypot(s.x-x,s.y-y)); } if(performance.now()<window.__slideEnd) requestAnimationFrame(f);}; requestAnimationFrame(f);}")
+    flat = map_point(q, "[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19].every((k)=>{const v=T.mapView(); return ['green','sand'].includes(T.groundAt(mx+k*20/v.k,my))&&['green','sand'].includes(T.groundAt(mx+k*20/v.k,my+40/v.k))&&T.sandArea(mx+k*20/v.k,my)<0;})")  # land for 380 px to the right
+    q.mouse.move(*rock); q.mouse.down(); time.sleep(0.05)
+    for k in range(1, 21): q.mouse.move(rock[0] + (flat[0] - rock[0]) * k / 20, rock[1] + (flat[1] - rock[1]) * k / 20); time.sleep(0.016)
+    time.sleep(0.4)
+    q.mouse.move(flat[0] + 120, flat[1], steps=4); q.mouse.up()  # a throw to the right: the browser here sends a move about every 55 ms, so 30 px a move is about 550 px a second
+    far_end = (flat[0] + 120, flat[1])
+    until(q, rest, 3)
+    slide = q.evaluate("()=>__slide")  # owner 18 Nov: "the thrown stones slide too much on land": at most about their own size
+    thrown = q.evaluate("(p)=>{const T=__tb, v=T.mapView(), mx=(p[0]-v.ox)/v.k; if(!T.mapStones.length) return null; return T.mapStones.reduce((a,s)=>a+s.x,0)/T.mapStones.length - mx;}", far_end)
     # onto a boat on the water: a knock, they bounce off and sink, and the boat's people groan
     q.evaluate("()=>{__tb.mapStones.splice(0); __tb.soundLog.length=0;}")
     q.evaluate("(p)=>{const T=__tb, v=T.mapView(), b=T.boats[0]; b.held=b.back=b.drop=null; b.stuck=true; b.ox=b.oy=b.ovx=b.ovy=0; b.x=(p[0]-v.ox)/v.k; b.y=(p[1]-v.oy)/v.k+30*0.866;}", sea)
@@ -248,9 +254,9 @@ def map_stones(b):
     q.evaluate("()=>{__tb.mapStones.push({x:0,y:0,z:0,vz:0,vx:0,vy:0,rise:1,held:null,on:null,age:0,yaw:0,grey:140})}")
     q.evaluate("(p)=>{const T=__tb, v=T.mapView(), b=T.boats[0], s=T.mapStones[0], mx=(p[0]-v.ox)/v.k, my=(p[1]-v.oy)/v.k; b.held=b.back=b.drop=null; b.stuck=true; b.ox=b.oy=b.ovx=b.ovy=0; b.x=mx; b.y=my; s.x=mx+2; s.y=my;}", land); time.sleep(0.2)
     pushed = q.evaluate("()=>{const T=__tb, b=T.boats[0], s=T.mapStones[0]; return !!s && Math.hypot(s.x-b.x,s.y-b.y)>=56*0.35+6-0.5;}")
-    r = dict(rock=rock, land=land, sea=sea, five_land_and_stay=held_gone, piles=piled, sinks_with_splashes=sank, top_falls_when_bottom_goes=fell, thrown_beyond_px=thrown, boat_knock_and_sink=bounced, boat_groans=groan, boat_pushes=pushed, stones=n())
+    r = dict(rock=rock, land=land, sea=sea, five_land_and_stay=held_gone, piles=piled, sinks_with_splashes=sank, top_falls_when_bottom_goes=fell, thrown_beyond_px=thrown, slide_on_land_px=round(slide, 1), boat_knock_and_sink=bounced, boat_groans=groan, boat_pushes=pushed, stones=n())
     q.close()
-    return bool(rock and land and sea and held_gone and piled and sank and fell and thrown and thrown > 15 and bounced and groan and pushed), r
+    return bool(rock and land and sea and held_gone and piled and sank and fell and thrown and thrown > 30 and slide <= 1.2 * 12 and bounced and groan and pushed), r
 
 def test_fail_sounds(b):
     # owner 18 Nov: "is there a test for the failure too?": a building that does not hold (one mudbrick, the test forced with

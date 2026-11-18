@@ -503,13 +503,21 @@
         else { // the ring on the water; where it has reached land it stays at the shore, whiter and wider (breaking)
           // owner 18 Nov: no flicker; how far past the shore a part has got decides, smoothly, how far it washes up the
           // land and how white and wide it is, so the ring turns into the white with no jump
-          const n = q.stop.length, w0 = q.w || 2.5;
-          ctx.lineCap = "round";
+          // owner 18 Nov: the rings are continuous lines: the part still on the water is one unbroken line; only the parts at the
+          // shore are drawn one by one (square ends, so where they meet no dots appear)
+          const n = q.stop.length, w0 = q.w || 2.5, at = (i, r) => { const t = (i / n) * Math.PI * 2; return [Math.cos(t) * r, Math.sin(t) * r * 0.6]; };
+          const sea = new Path2D(); let open = false;
+          for (let i = 0; i <= n; i++) {
+            const k = i % n, on = q.r < q.stop[k] && q.r < q.stop[(k + n - 1) % n];
+            if (on) { const [x, y] = at(i, q.r); if (open) sea.lineTo(x, y); else sea.moveTo(x, y); open = true; } else open = false;
+          }
+          ctx.lineCap = "butt"; ctx.lineJoin = "round";
+          ctx.strokeStyle = `rgba(235, 248, 255, ${a * 0.9})`; ctx.lineWidth = w0; ctx.stroke(sea);
           for (let i = 0; i < n; i++) {
-            const past = Math.max(0, q.r - q.stop[i]), f = Math.min(1, past / 10), e = f * f * (3 - 2 * f);
-            const r = Math.min(q.r, q.stop[i]) + Math.min(past * 0.45, 12), a0 = (i / n) * Math.PI * 2, a1 = ((i + 1) / n) * Math.PI * 2;
+            const past = Math.max(0, q.r - q.stop[i]); if (!past) continue;
+            const f = Math.min(1, past / 10), e = f * f * (3 - 2 * f), r = q.stop[i] + Math.min(past * 0.45, 12), [x0, y0] = at(i, r), [x1, y1] = at(i + 1, r);
             ctx.strokeStyle = `rgba(${235 + 20 * e}, ${248 + 7 * e}, 255, ${Math.min(1, a * (0.9 + 0.4 * e))})`; ctx.lineWidth = w0 * (1 + 1.2 * e);
-            ctx.beginPath(); ctx.moveTo(Math.cos(a0) * r, Math.sin(a0) * r * 0.6); ctx.lineTo(Math.cos(a1) * r, Math.sin(a1) * r * 0.6); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
           }
         }
       }
@@ -4050,7 +4058,7 @@
   //    ground out of its way, and what lies on a stone moves with it.
   // 4. A stone stays one minute after it lands; then it is gone, and what lay on it falls.
   const STONE = 12, STONE_LIFT = 30, STONE_G = 441, STONE_LIFE = 60, STONE_CE = 0.866, STONES_PER_GRAB = 5; // map px: a stone's side, how high held ones are lifted; fall speed-up (map px/s^2); seconds; the camera's view of heights (as the boats)
-  const BOAT_DECK = BOAT_SIZE * 0.15, BOAT_REACH = BOAT_SIZE * 0.35, STONE_SLIDE = 10, THROW_MAX = 1050, THROW_SHARE = 0.7; // map px: a boat's height and reach for stones; how fast a stone on the ground stops (1/s); the fastest throw (map px/s)
+  const BOAT_DECK = BOAT_SIZE * 0.15, BOAT_REACH = BOAT_SIZE * 0.35, STONE_SLIDE = 60, THROW_MAX = 1050, THROW_SHARE = 0.7; // map px: a boat's height and reach for stones; how fast a stone on the ground stops (1/s; owner 18 Nov: it slid too far, now about its own size); the fastest throw (map px/s)
   const GRAB_AT = [[0, 0], [1.05, 0], [-1.05, 0], [0.53, -0.95], [-0.53, -0.95]]; // where the five sit round the finger, in stone sides
   const mapStones = [];
   function stoneSupport(st) { // the top it rests on (part 2): the highest stone below it whose top its middle is over, or the ground (0)

@@ -1029,6 +1029,16 @@ Checklist and results:
 10. INTRO_ZOOM 0.00384, INTRO_PAN 0.0128.
 11. Zoom points: mastaba 0.548, 0.483; ziggurat 0.543, 0.359; parthenon 0.504, 0.370; mausoleum 0.635, 0.384; pharos 0.501, 0.274 (the middle of each red square).
 
+## Current state, update 84 (18 Nov 2026): stones stop sooner, an earthquake you can hear, continuous wave rings
+
+Owner, verbatim (18 Nov 2026, 11:25): "1. the thrown stones slide too much on land. 2 earchquake is probabely too rumbling and low to become easier to hear, its too base maybe. can you modify it without distorting it, so it is actualy more audible? 5, halicarnassus? the 4 palns can lay on top of each other to make the wooden base for the semi-circle, no? 6: hmmm, well, if i ask you later on to add support so the kid on a touch screen can use 2 fingers to grab and rotate a piece, will then a hit NOT tilt a stone, as it is supposedle grbbed from 2 ends? 7: Now concentric rings are dots, I dont liek this, i likes the continuous circles."
+
+1. STONE_SLIDE 10 -> 60 (a stone on the ground stops within about its own size). Flow map-stones: a throw over open land, the slide after landing at most 1.2 stone sides.
+2. quake.mp3: its sound was almost all below 150 Hz (20 dB more there), which laptop and touch-PC speakers hardly play. Equalised (cut under 40 Hz, bass shelf -9 dB at 110 Hz, +13 dB at 250 and 700 Hz, +8 dB at 2 kHz), then normalize-sounds.php: the audible part is about 8 dB stronger, the deep rumble 7 dB weaker, same overall loudness; no clipping (peaks -1.9 dBTP). Original kept nowhere else; this replaces src/sounds/quake.mp3.
+5. Question answered, nothing built: four Mycenae planks stacked are 2 m tall, the gap under the Halicarnassus beams is 2.4 m; there is no half circle at Halicarnassus (the arches on wooden forms are at Valens).
+6. Question answered: two fingers would hold the piece at two points, like two hands; it can then turn only if a hit beats the arm at both points, so a hit would not tilt it. Still open from update 83: middle grab vs the lever.
+7. Wave rings: the part on the water is one unbroken line again; only the parts at the shore are drawn piece by piece, with square ends. Picture `owner-shots/2026-11-18-wave-rings.png`.
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).
