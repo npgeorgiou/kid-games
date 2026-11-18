@@ -4,6 +4,8 @@ Read `WARNINGS.md` first. Rules the owner gave live in the tests (`tools/flows.p
 
 ## Now
 
+Done (owner, 18 Nov 2026). Music can be switched off in the settings box; every button clicks.
+
 You are an architect of the ancient world. On a picture map of the Mediterranean and the Middle East you sail to ten famous sites in order, from an Egyptian mastaba to Valens' aqueduct. At each site you take mudbricks, stones and wood from a small pile with your hand and build the building's shape. Then the green button tests it: wind from both sides, a load lowered on top, an earthquake. If anything breaks or falls, the test fails and shows in red where; fix it and try again.
 
 - Map: ten sites with boats on fixed ports, traveller groups, waves, sand you can draw in, stones and boats you can throw; restart button; parent key Ctrl opens every site.
@@ -16,10 +18,9 @@ You are an architect of the ancient world. On a picture map of the Mediterranean
 
 ## Open
 
-- Owner's answer needed: the Halicarnassus pile's wood (two posts in the gap under the beams); the steadier middle grab against the lever rule (flow `middle-grab-bump` is held back).
-- Flow `map-stones`: its watcher once counted tips and distance wrongly; check it still passes.
+- None. The game is done (owner, 18 Nov 2026: "consider done").
+- Known and accepted: the Valens pile does not fit the sidebar (owner, 13 Nov); the Parthenon pile does not fit it either at 1280x800.
 
 ## Task list
 
-- Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).
-- The flow suite takes several minutes; make it faster.
+- None.

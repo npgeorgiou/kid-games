@@ -115,7 +115,7 @@ Shared event system in `tools/cues/` (engine `engine.js`, pattern `README.md`, d
 
 ## Status
 
-- Αρχιτέκτονες του αρχαίου κόσμου, was Tower Builder (`games/arxitektones-tou-arxaiou-kosmou`): playable; what it is now and what is open: its `BUILD.md`.
+- Αρχιτέκτονες του αρχαίου κόσμου, was Tower Builder (`games/arxitektones-tou-arxaiou-kosmou`): done (owner, 18 Nov 2026); what it is: its `BUILD.md`.
 
 ## Decided
 
