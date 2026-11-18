@@ -238,16 +238,18 @@ def map_stones(b):
     # thrown: a quick drag let go while moving: the stones land on beyond where the finger let go
     q.evaluate("()=>{__tb.mapStones.splice(0)}")
     # owner 18 Nov: "they do a sudden drop-and-slide motion, its not smooth": one stone's speed over the ground, frame by frame, from the throw to rest
-    q.evaluate("()=>{window.__slide=0; window.__sp=[]; window.__slideEnd=performance.now()+4000; const seen=new Map(); let one=null, last=null; const f=()=>{for(const s of __tb.mapStones){ if(s.held||s.z>0.01){seen.delete(s);continue;} if(!seen.has(s)) seen.set(s,[s.x,s.y]); const [x,y]=seen.get(s); __slide=Math.max(__slide,Math.hypot(s.x-x,s.y-y)); } if(!one) one=__tb.mapStones.find(s=>!s.held&&s.vz!==undefined&&(s.vx||s.vy)); if(one){ if(one.roll) window.__rolled=true; if(one.z>0.01||one.held) window.__land=null; else if(!window.__land) window.__land=[one.x,one.y]; if(window.__land) window.__gs=Math.hypot(one.x-__land[0],one.y-__land[1]); } if(performance.now()<window.__slideEnd) requestAnimationFrame(f);}; requestAnimationFrame(f);}")
-    flat = map_point(q, "[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19].every((k)=>{const v=T.mapView(); return ['green','sand'].includes(T.groundAt(mx+k*20/v.k,my))&&['green','sand'].includes(T.groundAt(mx+k*20/v.k,my+40/v.k))&&T.sandArea(mx+k*20/v.k,my)<0;})")  # land for 380 px to the right
+    flat = map_point(q, "Array.from({length:60},(_,k)=>k).every((k)=>{const v=T.mapView(), x=mx+k*5/v.k; return [-20,0,20].every((dy)=>['green','sand'].includes(T.groundAt(x,my+dy/v.k)))&&T.sandArea(x,my)<0;})")  # dry land, no river, for 300 px to the right
+    q.evaluate("()=>{window.__slide=0; window.__sp=[]; window.__slideEnd=performance.now()+9000; const seen=new Map(); let one=null, last=null; const f=()=>{for(const s of __tb.mapStones){ if(s.held||s.z>0.01){seen.delete(s);continue;} if(!seen.has(s)) seen.set(s,[s.x,s.y]); const [x,y]=seen.get(s); __slide=Math.max(__slide,Math.hypot(s.x-x,s.y-y)); } if(!one) one=__tb.mapStones.find(s=>!s.held&&s.vz!==undefined&&(s.vx||s.vy)); if(one){ if(one.roll&&!window.__inroll){ window.__tips=(window.__tips||0)+1; } window.__inroll=!!one.roll; if(one.roll) window.__rolled=true; if(one.z>0.01||one.held) window.__land=null; else if(!window.__land) window.__land=[one.x,one.y]; if(window.__land) window.__gs=Math.hypot(one.x-__land[0],one.y-__land[1]); } if(performance.now()<window.__slideEnd) requestAnimationFrame(f);}; requestAnimationFrame(f);}")
     q.mouse.move(*rock); q.mouse.down(); time.sleep(0.05)
     for k in range(1, 21): q.mouse.move(rock[0] + (flat[0] - rock[0]) * k / 20, rock[1] + (flat[1] - rock[1]) * k / 20); time.sleep(0.016)
-    time.sleep(0.4)
+    time.sleep(0.4); q.evaluate("()=>{__tb.soundLog.length=0; window.__rockTaps=0; const end=performance.now()+3500; let n=0; const f=()=>{ const L=__tb.soundLog; if(L.length<n) n=0; for(;n<L.length;n++) if(L[n]==='map-tap-rock') __rockTaps++; if(performance.now()<end) requestAnimationFrame(f);}; requestAnimationFrame(f);}")
     q.mouse.move(flat[0] + 120, flat[1], steps=4); q.mouse.up()  # a throw to the right: the browser here sends a move about every 55 ms, so 30 px a move is about 550 px a second
     far_end = (flat[0] + 120, flat[1])
     until(q, rest, 3)
     slide = q.evaluate("()=>window.__gs||0")  # owner 18 Nov: "the thrown stones slide too much on land": at most about their own size
     rolled = q.evaluate("()=>!!window.__rolled")  # owner 18 Nov: "make stones not slide but ... roll like cubes roll"
+    tips = q.evaluate("()=>window.__tips||0")  # owner 18 Nov: "even when I throw with force they don't roll a lot"
+    rock_taps = q.evaluate("()=>window.__rockTaps")  # owner 18 Nov: "remove the rolling sounds": one landing knock per stone, nothing while tipping
     thrown = q.evaluate("(p)=>{const T=__tb, v=T.mapView(), mx=(p[0]-v.ox)/v.k; if(!T.mapStones.length) return null; return T.mapStones.reduce((a,s)=>a+s.x,0)/T.mapStones.length - mx;}", far_end)
     # onto a boat on the water: a knock, they bounce off and sink, and the boat's people groan
     q.evaluate("()=>{__tb.mapStones.splice(0); __tb.soundLog.length=0;}")
@@ -259,9 +261,9 @@ def map_stones(b):
     q.evaluate("()=>{__tb.mapStones.push({x:0,y:0,z:0,vz:0,vx:0,vy:0,rise:1,held:null,on:null,age:0,yaw:0,grey:140})}")
     q.evaluate("(p)=>{const T=__tb, v=T.mapView(), b=T.boats[0], s=T.mapStones[0], mx=(p[0]-v.ox)/v.k, my=(p[1]-v.oy)/v.k; b.held=b.back=b.drop=null; b.stuck=true; b.ox=b.oy=b.ovx=b.ovy=0; b.x=mx; b.y=my; s.x=mx+2; s.y=my;}", land); time.sleep(0.2)
     pushed = q.evaluate("()=>{const T=__tb, b=T.boats[0], s=T.mapStones[0]; return !!s && Math.hypot(s.x-b.x,s.y-b.y)>=56*0.35+6-0.5;}")
-    r = dict(rock=rock, land=land, sea=sea, five_land_and_stay=held_gone, piles=piled, sinks_with_splashes=sank, seconds_on_the_water=round(on_water_left, 2), top_falls_when_bottom_goes=fell, thrown_beyond_px=thrown, moved_after_landing_px=round(slide, 1), tipped_over=rolled, boat_knock_and_sink=bounced, boat_groans=groan, knocks=knocks, boat_pushes=pushed, stones=n())
+    r = dict(rock=rock, land=land, sea=sea, five_land_and_stay=held_gone, piles=piled, sinks_with_splashes=sank, seconds_on_the_water=round(on_water_left, 2), top_falls_when_bottom_goes=fell, thrown_beyond_px=thrown, moved_after_landing_px=round(slide, 1), tipped_over=rolled, tips=tips, rock_sounds=rock_taps, boat_knock_and_sink=bounced, boat_groans=groan, knocks=knocks, boat_pushes=pushed, stones=n())
     q.close()
-    return bool(rock and land and sea and held_gone and piled and sank and fell and thrown and thrown > 30 and slide <= 3 * 12 and rolled and on_water_left < 0.05 and bounced and groan and knocks <= 2 and pushed), r
+    return bool(rock and land and sea and held_gone and piled and sank and fell and thrown and thrown > 30 and slide <= 6 * 12 and rolled and tips >= 2 and rock_taps <= 5 and on_water_left < 0.05 and bounced and groan and knocks <= 2 and pushed), r
 
 def test_fail_sounds(b):
     # owner 18 Nov: "is there a test for the failure too?": a building that does not hold (one mudbrick, the test forced with

@@ -1056,6 +1056,14 @@ Owner, verbatim (18 Nov 2026, 12:10): "stone still slide TOO MUCH. ishtar demo r
 2. Stones on water sink the moment they touch it (the hop had kept them up for 0.2 s). Flow map-stones: under 0.05 s on the water.
 3. Every demo takes its wooden supports out from the top down (Ishtar: the form under the arch, then the planks from the top plank down); before, it took the bottom plank first, every time. Cue test demo-takes-supports-out-from-the-top.
 
+## Current state, update 87 (18 Nov 2026): silent tipping, throws as fast as the hand, longer rolls
+
+Owner, verbatim (18 Nov 2026, 12:29): "great, now remove the rolling sounds, they are annowing, and i see that even when i throw with force they dont roll a lot, you ahe some error in your force calculation"
+
+1. Tipping is silent (only the landing knock stays).
+2. The error: a throw's speed was measured over the time up to the finger lifting, so the pause before letting go made every throw slower; now it is the speed between the finger's last moves. The air slows a flying stone less (STONE_AIR 0.5/s) and each tip keeps 0.55 of its speed (was 0.4). A direct trace of a fast throw: five tips, 425, 234, 128, 71 map px/s, then it stops.
+Open: flow map-stones counts tips and the distance after landing wrongly (its watcher reports one tip and no distance where the trace shows five); it fails on that until fixed. Owner 18 Nov: new testing rules in CLAUDE.md (time limit per point, one small check per change, checks never break each other, look at the game before blaming the check, two strikes, clean up after a stop).
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).

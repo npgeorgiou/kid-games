@@ -3936,7 +3936,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       else { const [x, y] = polyPoint(b.line.legs[b.leg], b.d); b.held = null; b.ox = b.x - x; b.oy = b.y - y; } // a boat tapped on its route: back to it smoothly (the waves' spring), and on
     } else if (h.rock) { // let go: thrown on with the finger's speed (over its last tenth of a second)
       if (!h.stones) return;
-      const [t0, x0, y0] = h.track[0], [t1, x1, y1] = h.track[h.track.length - 1], dt = (e.timeStamp - t0) / 1000;
+      const [t0, x0, y0] = h.track[0], [t1, x1, y1] = h.track[h.track.length - 1], dt = (t1 - t0) / 1000; // the finger's speed between its moves (owner 18 Nov: not counting the moment before it lets go, which made throws weaker)
       throwStones(h.stones.filter((st) => st.held), dt > 0.01 && e.timeStamp - t1 < 60 ? (x1 - x0) / dt : 0, dt > 0.01 && e.timeStamp - t1 < 60 ? (y1 - y0) / dt : 0);
     }
     else if (h.moved) sandFinger(h, null);
@@ -4134,7 +4134,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   //    ground out of its way, and what lies on a stone moves with it.
   // 4. A stone stays one minute after it lands; then it is gone, and what lay on it falls.
   const STONE = 12, STONE_LIFT = 30, STONE_G = 441, STONE_LIFE = 60, STONE_CE = 0.866, STONES_PER_GRAB = 5; // map px: a stone's side, how high held ones are lifted; fall speed-up (map px/s^2); seconds; the camera's view of heights (as the boats)
-  const BOAT_DECK = BOAT_SIZE * 0.15, BOAT_REACH = BOAT_SIZE * 0.35, STONE_AIR = 1.5, STONE_ROLL_MIN = 60, STONE_ROLL_KEEP = 0.4, THROW_MAX = 1050, THROW_SHARE = 0.7; // map px: a boat's height and reach for stones; the air slows a flying one a little (1/s); on the ground a cube does not slide, it tips over its edge (owner 18 Nov: "roll like cubes roll") if it is moving at least STONE_ROLL_MIN (map px/s), each tip one side further and keeping STONE_ROLL_KEEP of its speed; the fastest throw (map px/s)
+  const BOAT_DECK = BOAT_SIZE * 0.15, BOAT_REACH = BOAT_SIZE * 0.35, STONE_AIR = 0.5, STONE_ROLL_MIN = 60, STONE_ROLL_KEEP = 0.55, THROW_MAX = 1050, THROW_SHARE = 0.7; // map px: a boat's height and reach for stones; the air slows a flying one a little (1/s); on the ground a cube does not slide, it tips over its edge (owner 18 Nov: "roll like cubes roll") if it is moving at least STONE_ROLL_MIN (map px/s), each tip one side further and keeping STONE_ROLL_KEEP of its speed; the fastest throw (map px/s)
   const GRAB_AT = [[0, 0], [1.05, 0], [-1.05, 0], [0.53, -0.95], [-0.53, -0.95]]; // where the five sit round the finger, in stone sides
   const mapStones = [];
   function stoneSupport(st) { // the top it rests on (part 2): the highest stone below it whose top its middle is over, or the ground (0)
@@ -4192,7 +4192,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       if (hit > 150) playSound("map-tap-rock", Math.min(1, hit / 600) * 0.6); // it lands
       if (st.roll) { // tipping over its edge
         st.roll.th += (Math.PI / 2) * dt / st.roll.dur;
-        if (st.roll.th >= Math.PI / 2) { const r = st.roll, dir = st.yaw + (r.face * Math.PI) / 2; st.roll = null; moveStone(st, Math.cos(dir) * STONE, Math.sin(dir) * STONE); const sp = r.sp * STONE_ROLL_KEEP; st.vx = Math.cos(dir) * sp; st.vy = Math.sin(dir) * sp; playSound("map-tap-rock", 0.25); }
+        if (st.roll.th >= Math.PI / 2) { const r = st.roll, dir = st.yaw + (r.face * Math.PI) / 2; st.roll = null; moveStone(st, Math.cos(dir) * STONE, Math.sin(dir) * STONE); const sp = r.sp * STONE_ROLL_KEEP; st.vx = Math.cos(dir) * sp; st.vy = Math.sin(dir) * sp; } // silent (owner 18 Nov: the tipping sounds were annoying)
       } else if (st.vx || st.vy) { // moving on the ground: over onto the side it is going to, if it is fast enough, else it stops
         const sp = Math.hypot(st.vx, st.vy), go = Math.atan2(st.vy, st.vx), face = ((Math.round((go - st.yaw) / (Math.PI / 2)) % 4) + 4) % 4;
         st.vx = st.vy = 0;
