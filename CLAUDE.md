@@ -12,7 +12,7 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 ## The two gates (they come before everything else)
 
 1. **A question is answered first.** If the owner's message contains a question, the first thing sent is the answer (SendUserMessage), before any tool call that changes or tests anything. If an answer could change what gets built, stop after answering and wait.
-2. **Name the owner of the behaviour before any edit.** Before changing code, send one plain sentence: "this is decided by X; X does it like this now; I will change X like this." X is the existing thing that already owns the behaviour: the cue table and its engine, the level spec, the shared physics, the hand model. If the change does not go into X, it is a workaround: do not build it, say so.
+2. **Name the owner of the behaviour before any edit.** Before changing code, send one short line: "this is decided by X; X does it like this now; I will change X like this." X is the existing thing that already owns the behaviour: the cue table and its engine, the level spec, the shared physics, the hand model. If the change does not go into X, it is a workaround: do not build it, say so.
 
 ## How to think about any change (first principles)
 
@@ -33,7 +33,7 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 
 ## Talking to the owner
 
-- English only. Short plain prose: what changed (one line each), answers, downloads. No reasoning, logs, diffs, recaps or offers.
+- English only. One short line per item, nothing else: what changed, the answer, or the yes/no question. No causes, explanations, how it was found or tested, reasoning, logs, recaps or offers unless he asks. The whole reply fits on a phone screen.
 - Game terms only: pieces, hand, button, test, map, what he sees. Never code names or internals.
 - Never contradict what he says he did or saw; an unknown cause is stated as unknown and found with a test.
 - Never call anything agreed or done unless he said so. A proposal stays a proposal.
