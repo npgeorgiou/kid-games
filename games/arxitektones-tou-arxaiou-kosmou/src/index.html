@@ -1158,7 +1158,7 @@
     if (cornerHold && cornerHold.id === e.pointerId) cornerHold = null;
     if (btnDown && btnDown.pointerId === e.pointerId) { // a button acts when let go over it
       const id = btnDown.id, b = hitScreenButton(e.clientX, e.clientY); btnDown = null;
-      if (b && b.id === id && b.enabled) b.act();
+      if (b && b.id === id && b.enabled) { playSound("button-click", 1); b.act(); }
       return;
     }
     if (mode === "map") { onMapPointerUp(e); return; }
@@ -1485,6 +1485,7 @@
     drumroll: [["sounds/drumroll.mp3", 0.8]],    // sped up or slowed down to last as long as the test load is lowered
     "map-tap-water": [["sounds/map-tap-water.mp3", 0.512]], // owner 16 Nov late and 17 Nov: twice 20% lower, rock twice 50% lower // a tap on the map: on water, sand, green land, mountains (SECTION MAP, mapTap)
     "map-tap-sand": [["sounds/map-tap-sand.mp3", 0.512]],
+    "button-click": [["sounds/button-click.mp3", 0.512]], // owner 18 Nov: his click on every button, as loud as the map taps
     "map-tap-green": [["sounds/map-tap-green.mp3", 0.512]],
     "map-tap-rock": [["sounds/map-tap-rock.mp3", 0.2]],
     "map-stone-boat": [["sounds/hit-stone-wood.mp3", 0.512]], // owner 18 Nov: a stone on a boat, as loud as the ground taps

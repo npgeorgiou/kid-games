@@ -680,7 +680,22 @@ def sidebar_icons_spread(b):
     q.close()
     return r['n'] > 1 and r['left_gap'] <= 12 and r['right_gap'] <= 12, r
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick, 'boat-on-boat': boat_on_boat, 'sidebar-icons-spread': sidebar_icons_spread}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
+def button_click_sound(b):
+    # owner 18 Nov: "add this to all button clicks, at same volume as the terrain touch effects": the settings gear, its X, a
+    # site, then in the site the broom and the map button; each press clicks once, as loud as a tap on the map
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.cueMem().seq['first-site']='done'}")
+    got = {}
+    for bid in ('settings', 'settings-close', 'site:mastaba', 'broom', 'home'):
+        time.sleep(0.4); quiet(q); q.evaluate("()=>{__tb.soundLog.length=0}")
+        click(q, bid); time.sleep(0.15)
+        got[bid] = q.evaluate("()=>__tb.soundLog.filter((x)=>x==='button-click').length")
+    vol = q.evaluate("()=>[__tb.SOUNDS['button-click'][0][1], __tb.SOUNDS['map-tap-sand'][0][1]]")
+    q.close()
+    return all(v == 1 for v in got.values()) and vol[0] == vol[1], dict(clicks=got, gains=vol)
+
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick, 'boat-on-boat': boat_on_boat, 'sidebar-icons-spread': sidebar_icons_spread, 'button-click-sound': button_click_sound}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
 
 def run(b, names):
     for n, f in FLOWS.items():
