@@ -3024,6 +3024,8 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
         if (test.after === "pass") { nextPhase("pass"); celebrate(); playSound("cheer", 1); onWin(lv); }
         else enterPart(test.after);
       }
+    } else if (test.phase === "voice") {
+      if (!voiceBusy()) enterPart(test.after);
     } else if (test.phase === "wind") {
       // from the left, a one-second lull, then from the right
       const D = PHASE_TIME.wind, GAP = 1, right = T >= D + GAP, t = right ? T - D - GAP : T;
@@ -4850,7 +4852,12 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     voice.queue = voice.queue.filter((q) => { if (q.duringTest) return true; setMark(q.onceKey, false); return false; });
     if (!cueEvent("press-test").ended) cueEvent("test-start");
   }
+  // A part of the test begins only when the voice is free (owner 18 Nov: "the 'lets see, will it stand' cue ... should play
+  // first, then the tests start, and for each one of the 3 tests, its voice cue starts with it"): the line before it ends
+  // first, then the part and its own line start together.
+  const voiceBusy = () => !!voice.cur || voice.queue.some((q) => q.duringTest);
   function enterPart(ph) { // a part may first wait for its freezing line (the first test's explanations)
+    if (voiceBusy()) { test.phase = "voice"; test.t = 0; test.after = ph; return; }
     const f = cueEvent("test-part", { part: ph }).fired.find((c) => c.attention === "freeze");
     if (!f) { nextPhase(ph); return; }
     test.phase = "cue"; test.t = 0;

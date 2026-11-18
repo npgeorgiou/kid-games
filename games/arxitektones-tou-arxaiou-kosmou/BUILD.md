@@ -1125,6 +1125,13 @@ Owner, 18 Nov: "moron, the first esc stops the lvl intro, now an esc stops the l
 
 - In a site, ESC while the intro plays (its picture and line) skips the intro and stays; any other time ESC leaves at once (update 92). Flow `esc-leaves-site`, cue test `esc`.
 
+## Current state, update 94 (18 Nov 2026): test lines start with their parts
+
+Owner: "the first time the 3 test explanations run, the first one, the wind cue, is playing AFTER the wind has started. the "lets see, will it stand" cue, that plays when you press the green button, should play first, then the tests start, and for each one of the 3 tests, its voice cue starts with it"
+
+- A part of the test (wind, load, earthquake) begins only when no line is speaking; then the part and its own line start together. The "let's see if it will stand" line therefore ends before the wind starts. If a line ever runs longer than its part, the next part waits for it (no darkening).
+- Flow `test-lines-start-with-parts` (green button at normal speed, teaching on): passes.
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).

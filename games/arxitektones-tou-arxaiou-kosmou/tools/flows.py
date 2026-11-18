@@ -556,7 +556,32 @@ def sand_draw_quieter(b):
     q.close()
     return abs(v - 0.512 * 0.8) < 0.005, dict(volume=v)
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
+def test_lines_start_with_parts(b):
+    # owner 18 Nov: "the first time the 3 test explanations run, the first one, the wind cue, is playing AFTER the wind has started.
+    # the 'lets see, will it stand' cue, that plays when you press the green button, should play first, then the tests start,
+    # and for each one of the 3 tests, its voice cue starts with it": the green button pressed, the first test with the teaching on
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.cueMem().seq['first-site']='done'}")
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    q.evaluate("""()=>{window.__ev=[]; const T=__tb, t0=performance.now(); let ph=null, ln=null;
+      const f=()=>{const t=+((performance.now()-t0)/1000).toFixed(2), p=T.test?T.test.phase:null, l=T.voice.cur?T.voice.cur.n:null;
+        if(p!==ph){__ev.push([t,'phase',p]); ph=p;} if(l!==ln){ if(ln!=null) __ev.push([t,'end',ln]); if(l!=null) __ev.push([t,'line',l]); ln=l;} requestAnimationFrame(f);}; requestAnimationFrame(f);}""")
+    q.keyboard.down('Control'); time.sleep(0.1); click(q, 'autobuild'); until(q, "()=>!__tb.auto", 30); q.keyboard.up('Control')
+    time.sleep(3.2)  # past the Ctrl latch: the green button pressed as the child does, the test at its normal speed
+    until(q, "()=>__tb.testReady()", 10); click(q, 'test')
+    until(q, "()=>!__tb.test||__tb.test.phase==='pass'||__tb.test.phase==='fail'", 40)
+    ev = q.evaluate("()=>__ev")
+    q.close()
+    at = lambda kind, v: next((e[0] for e in ev if e[1] == kind and e[2] == v), None)
+    r = dict(lets_see_ends=at('end', 71), wind=at('phase', 'wind'), wind_line=at('line', 101), load=at('phase', 'load'), load_line=at('line', 102), quake=at('phase', 'quake'), quake_line=at('line', 103))
+    ok = r['lets_see_ends'] is not None and r['wind'] is not None and r['lets_see_ends'] <= r['wind'] + 0.05
+    for part, line in (('wind', 'wind_line'), ('load', 'load_line'), ('quake', 'quake_line')):
+        ok = ok and r[part] is not None and r[line] is not None and abs(r[line] - r[part]) <= 0.25
+    if not ok: r['events'] = [e for e in ev if e[1] != 'phase' or e[2] in ('wind', 'load', 'quake', 'voice', 'settle', 'supports')][:30]
+    return ok, r
+
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
 
 def run(b, names):
     for n, f in FLOWS.items():
