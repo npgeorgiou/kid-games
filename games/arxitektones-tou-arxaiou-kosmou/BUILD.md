@@ -1048,6 +1048,14 @@ Owner, verbatim (18 Nov 2026, 11:50): "1. i wouldnt say that stones slide less, 
 3. A stone on a boat: as loud as the ground taps (0.512, the +20% removed), and stones landing on one boat together knock once (0.12 s apart at least). Flow map-stones counts the knocks.
 4. Drawing in the sand: a looping sand sound, as loud as the ground taps at a quick stroke, quieter when slow, silent when the finger stops or leaves the map. The sound `src/sounds/map-sand-draw.mp3` is made from filtered noise (normalised like the others) until the owner gives one. Flow sand-draw-sound.
 
+## Current state, update 86 (18 Nov 2026): stones tip over like cubes, sink at once, demos take supports out from the top
+
+Owner, verbatim (18 Nov 2026, 12:10): "stone still slide TOO MUCH. ishtar demo removes base first, then semicircle on top? are you OK? stone stand on water a bit and them sink. stones shouldnt slide at all on water, just sink. make stones not slide but, i dont know the word, you know, roll like cubes roll"
+
+1. Stones never slide: landing on land with speed left, a cube tips over the bottom edge on the side it is moving to (drawn turning about that edge), lands one side further, keeps STONE_ROLL_KEEP (0.4) of its speed and tips again while at least STONE_ROLL_MIN (60 map px/s); slower, it stops. The landing hop is gone. Flow map-stones: the thrown stone tipped over, moved at most three sides after landing. Picture `owner-shots/2026-11-18-stones-tip-over.png`.
+2. Stones on water sink the moment they touch it (the hop had kept them up for 0.2 s). Flow map-stones: under 0.05 s on the water.
+3. Every demo takes its wooden supports out from the top down (Ishtar: the form under the arch, then the planks from the top plank down); before, it took the bottom plank first, every time. Cue test demo-takes-supports-out-from-the-top.
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).

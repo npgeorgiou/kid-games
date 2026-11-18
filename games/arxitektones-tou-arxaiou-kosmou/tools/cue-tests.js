@@ -317,6 +317,23 @@
     // list 15 Nov, 17: «καμαρόπετρες», never «σφήνες»
     "words-arch-stones": () => { const b = Object.entries(T.CUE_TABLE.lines).filter(([, t]) => /σφήν/i.test(t)).map(([n]) => n); return [!b.length, b.join(",")]; },
 
+    // owner 18 Nov: "ishtar demo removes base first, then semicircle on top? are you OK?": a demo takes the wooden
+    // supports out from the top down (the form under the arch before the planks it stands on)
+    "demo-takes-supports-out-from-the-top": () => {
+      fresh(); noTeach(); T.setDemos(true); const i = lvl("ishtar"); start(i); T.onEnterSite(i);
+      const esc = () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      const seen = []; for (let k = 0; k < 300 && !T.demo; k++) { if (k % 20 === 0) seen.push(cur() + "/" + T.mode + "/" + !!T.demo); run(0.1); }
+      const out = []; let last = new Map();
+      for (let k = 0; k < 1500; k++) {
+        if (!T.demo) break;
+        T.voice.queue.length = 0; run(0.1);
+        const now = new Map(T.pieces.filter((p) => p.demo && p.material === "wood").map((p) => [p, +p.body.getPosition().y.toFixed(2)]));
+        for (const [p, y] of last) if (!now.has(p) && T.demo) out.push(p.defKey + "@" + y);
+        last = now;
+      }
+      const ys = out.map((x) => +x.split("@")[1]), ok = ys.length >= 5 && ys.every((y, j) => !j || y <= ys[j - 1] + 0.05);
+      return [ok, "taken out in this order: " + out.join(", ") + (out.length ? "" : "; before the demo: " + seen.join(" "))];
+    },
     // owner 16 Nov night, 3 and 11: ESC ends the line playing (the intro and its picture); with none, it leaves a site or free play
     "esc": () => {
       const bad = [], esc = () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
