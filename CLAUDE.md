@@ -164,6 +164,13 @@ When a test fails
 - Fix the cause, then rerun only that test, once.
 - Never change the game to make a test pass, and never loosen a check to make it pass. If the test was wrong, fix the test and say nothing about it to the owner unless it matters to him.
 
+Earlier rules are guarded, never rewritten (owner 18 Nov: ESC was changed to "leave the site at once" and the test that kept his earlier "ESC skips the intro" was rewritten to match, so nothing failed and he found the break himself)
+- Tests are functional, never unit tests: each one is the owner's action in the running game and what he sees, and each takes seconds.
+- Before changing how an input, button or rule behaves, list every situation it already handles (its existing tests, BUILD.md notes, the cue table). Keep a test for each, and run them before and after the change.
+- Read a new instruction narrowly: it changes the case he names, nothing else. "ESC in the level leaves" does not cancel "ESC skips the intro" unless he says so.
+- A test that guards an earlier owner rule is never edited, loosened or deleted to fit a new change. If it fails, the new change conflicts with that rule: narrow the change so both hold, or ask him one yes/no question. Only his words retire an old rule, and the reply says which old test was retired and why.
+- A failing old test after a change is the most useful thing a test can do: treat it as a found bug, not as a test to update.
+
 What to run
 - Every run is reproducible: the same inputs give the same result. Never run the same test twice to "see if it varies". If two runs with the same inputs differ, find what leaks in (the clock, unseeded random numbers, leftover state, something measured that changes with time) and fix it; where chance is part of what is tested, fix the seed.
 - Before running anything, decide from the code what the change can affect, and run only those tests. Example: a change to the hand acts only while a piece is held; the level runs never hold pieces, so they are not needed.
