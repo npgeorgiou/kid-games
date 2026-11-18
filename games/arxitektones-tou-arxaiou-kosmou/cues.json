@@ -246,6 +246,7 @@
    "sessionName": "the name its session memory goes by; cues with the same name share it (a first-time line counts as this session's too)",
    "teaching": "true: a teaching cue, one that shows the child a thing of the game (a button, the plan's dots, an opening, the shovel, the test's parts, the red); silent, with its glows and hand, when ΔΙΔΑΣΚΑΛΙΑ is unticked",
    "kind": "teach: always plays, waits its turn; queued (default): waits its turn; bg: only if nothing is playing or waiting",
+   "repeat": "a waiting step says its line again this many seconds after it ends; none: 5 s",
    "volume": "how much louder its line plays (1.2: a fifth louder); none: as loud as the others",
    "say": "a line number; or byPlace (one per place, in the order of the table's places: here the sites); or a group (random, never one of the last half played)",
    "attention": "none (default): only what it points at glows; point: the screen darkens except what it points at, only that can be touched, while it waits; freeze: the screen darkens and the game freezes while its line plays",
@@ -799,9 +800,8 @@
    "kind": "teach",
    "if": ["part:wind"],
    "during": "test",
-   "attention": "freeze",
    "once": "ever",
-   "note": "Owner 15 Nov night: at the first time this part of the test is reached, whichever test that is (a test that failed earlier does not use it up)."
+   "note": "Owner 15 Nov night: at the first time this part of the test is reached, whichever test that is (a test that failed earlier does not use it up). Owner 18 Nov: it plays while the test goes on, no darkening, no pause."
   },
   {
    "id": "explain-load",
@@ -812,9 +812,8 @@
    "kind": "teach",
    "if": ["part:load"],
    "during": "test",
-   "attention": "freeze",
    "once": "ever",
-   "note": "Owner 15 Nov night: at the first time this part of the test is reached, whichever test that is (a test that failed earlier does not use it up)."
+   "note": "Owner 15 Nov night: at the first time this part of the test is reached, whichever test that is (a test that failed earlier does not use it up). Owner 18 Nov: it plays while the test goes on, no darkening, no pause."
   },
   {
    "id": "explain-quake",
@@ -825,9 +824,8 @@
    "kind": "teach",
    "if": ["part:quake"],
    "during": "test",
-   "attention": "freeze",
    "once": "ever",
-   "note": "Owner 15 Nov night: at the first time this part of the test is reached, whichever test that is (a test that failed earlier does not use it up)."
+   "note": "Owner 15 Nov night: at the first time this part of the test is reached, whichever test that is (a test that failed earlier does not use it up). Owner 18 Nov: it plays while the test goes on, no darkening, no pause."
   },
   {
    "id": "fail-wind-first",
@@ -942,7 +940,8 @@
    "points": ["button:home"],
    "show": "tap button:home",
    "wait": "go-map",
-   "note": "The first site's step 11."
+   "repeat": 10,
+   "note": "The first site's step 11. Owner 18 Nov: it says itself again 10 s after it ends (twice the usual wait)."
   },
   {
    "id": "idle",

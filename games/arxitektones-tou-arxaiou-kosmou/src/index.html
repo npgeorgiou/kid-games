@@ -1482,7 +1482,7 @@
     "map-tap-green": [["sounds/map-tap-green.mp3", 0.512]],
     "map-tap-rock": [["sounds/map-tap-rock.mp3", 0.2]],
     "map-stone-boat": [["sounds/hit-stone-wood.mp3", 0.512]], // owner 18 Nov: a stone on a boat, as loud as the ground taps
-    "map-sand-draw": [["sounds/map-sand-draw.mp3", 0.512]], // a finger drawing in the sand (a made sound, until the owner gives one), as loud as the ground taps, by the finger's speed
+    "map-sand-draw": [["sounds/map-sand-draw.mp3", 0.41]], // a finger drawing in the sand (a made sound, until the owner gives one), 20% under the ground taps (owner 18 Nov), by the finger's speed
     "boat-left-on-land": [["sounds/boat-left-on-land.mp3", 0.512]], // owner 17 Nov: a disappointed crowd when a boat is left on land (his file, trimmed, peak-normalised); as loud as the map taps
     // collapse.mp3 is in src/sounds but not used yet
   };
@@ -2293,7 +2293,7 @@
   function goMap() { // leaving a level for the map: a finished site is kept as it is now
     const testing = !!test; // leaving mid-test: a pass is saved by the test itself, anything else is undone
     const leftTest = testing && test.phase !== "pass";
-    cancelAuto(); releaseAllPointers(); abortTest(); if (!testing) syncSite(true);
+    cancelAuto(); releaseAllPointers(); abortTest(); stopDemo(); if (!testing) syncSite(true);
     mode = "map"; mapEnteredAt = gameNow();
     onGoMap(currentLevel, leftTest);
   }
@@ -3077,7 +3077,8 @@
         b.x = b.held.gx; b.y = b.held.gy + (b.lift || 0) * BOAT_LIFT_H;
       }
       if (b.drop) { // part 2: it falls as things fall (faster and faster) and the splash comes the moment it reaches its shadow
-        b.drop.t += dt; const T = DROP_TIME * Math.sqrt(b.drop.h0);
+        b.drop.t += dt; const T = DROP_TIME * Math.sqrt(b.drop.h0), air = Math.exp(-STONE_AIR * dt); // thrown: on with its speed, the air slowing it as it slows a stone
+        b.drop.vx *= air; b.drop.vy *= air; b.x += b.drop.vx * dt; b.y += b.drop.vy * dt;
         b.lift = b.drop.h0 * Math.max(0, 1 - (b.drop.t / T) ** 2);
         if (b.drop.t >= T - 1e-6) landBoat(b); // (a frame's time adds up to T only within rounding)
         b.ox = b.oy = b.ovx = b.ovy = 0; continue; // it moves on from the next frame
@@ -3454,7 +3455,7 @@
       if (b.back && b.back.then) b.back = null, b.stuck = true; // coming to its travellers on the shore: still empty
       if (b.drop) b.y -= b.lift * BOAT_LIFT_H; // caught while falling: held where it is seen
       b.back = null; b.drop = null; b.rise = b.lift = 0; b.held = { dx: b.x - mx, dy: b.y - my, gx: b.x, gy: b.y, up: false }; b.ox = b.oy = 0; // picked up while carried: the carriers are back in it
-      mapHolds.set(e.pointerId, { boat: b, x0: e.clientX, y0: e.clientY, moved: false, off });
+      mapHolds.set(e.pointerId, { boat: b, track: [[e.timeStamp, mx, my]], x0: e.clientX, y0: e.clientY, moved: false, off });
     } else if (groundAt(mx, my) === "rock") { mapTap(e.clientX, e.clientY); mapHolds.set(e.pointerId, { rock: true, stones: null, track: [[e.timeStamp, mx, my]], x0: e.clientX, y0: e.clientY, moved: false }); } // stone chips at once; moved, the finger takes five stones
     else if (sandArea(mx, my) >= 0) mapHolds.set(e.pointerId, { sand: [[mx, my]], sm: [mx, my], raw: [mx, my], end: [mx, my], x0: e.clientX, y0: e.clientY, moved: false });
     else { mapTap(e.clientX, e.clientY); return; }
@@ -3470,8 +3471,8 @@
       else if (h.rock) {
         if (h.moved && !h.stones) h.stones = grabStones(mx, my);
         if (h.stones) for (const st of h.stones) if (st.held) { st.held.gx = mx; st.held.gy = my; }
-        h.track.push([ev.timeStamp, mx, my]); while (h.track.length > 2 && ev.timeStamp - h.track[0][0] > 100) h.track.shift(); // the last tenth of a second: the finger's speed when it lets go
       }
+      if (h.track) { h.track.push([ev.timeStamp, mx, my]); while (h.track.length > 2 && ev.timeStamp - h.track[0][0] > 100) h.track.shift(); } // the last tenth of a second: the finger's speed when it lets go
       else { h.raw = [mx, my]; if (h.moved) sandFinger(h, [mx, my]); }
     }
   }
@@ -3481,14 +3482,13 @@
     mapHolds.delete(e.pointerId);
     if (h.boat) {
       const b = h.boat;
-      if (h.moved) { b.held = null; b.drop = { t: 0, h0: b.lift }; if (!(b.lift > 0)) landBoat(b); return; } // it falls onto its shadow (landBoat)
+      if (h.moved) { b.held = null; const [vx, vy] = throwSpeed(h, e); b.drop = { t: 0, h0: b.lift, vx, vy }; if (!(b.lift > 0)) landBoat(b); return; } // thrown as stones are (owner 18 Nov): on with the finger's speed while it falls onto its shadow (landBoat), then it stays (no rolling)
       mapTap(h.x0, h.y0); // a tap on a boat: what is under it splashes or flies up
       if (h.off) { b.stuck = false; letGoBoat(b); }
       else { const [x, y] = polyPoint(b.line.legs[b.leg], b.d); b.held = null; b.ox = b.x - x; b.oy = b.y - y; } // a boat tapped on its route: back to it smoothly (the waves' spring), and on
     } else if (h.rock) { // let go: thrown on with the finger's speed (over its last tenth of a second)
       if (!h.stones) return;
-      const [t0, x0, y0] = h.track[0], [t1, x1, y1] = h.track[h.track.length - 1], dt = (t1 - t0) / 1000; // the finger's speed between its moves (owner 18 Nov: not counting the moment before it lets go, which made throws weaker)
-      throwStones(h.stones.filter((st) => st.held), dt > 0.01 && e.timeStamp - t1 < 60 ? (x1 - x0) / dt : 0, dt > 0.01 && e.timeStamp - t1 < 60 ? (y1 - y0) / dt : 0);
+      throwStones(h.stones.filter((st) => st.held), ...throwSpeed(h, e));
     }
     else if (h.moved) sandFinger(h, null);
     else mapTap(h.x0, h.y0);
@@ -3714,7 +3714,13 @@
     while (mapStones.length > 150) mapStones.shift(); // the oldest go first
     return out;
   }
-  function throwStones(list, vx, vy) { vx *= THROW_SHARE; vy *= THROW_SHARE; const s = Math.hypot(vx, vy), k = s > THROW_MAX ? THROW_MAX / s : 1; for (const st of list) { st.held = null; st.vx = vx * k; st.vy = vy * k; } } // owner 18 Nov: slower in the air, so it can be seen
+  function throwSpeed(h, e) { // what the finger throws with: its speed between its moves over the last tenth of a second (owner 18 Nov: not counting the moment before it lets go, which made throws weaker), slower in the air so it can be seen
+    const [t0, x0, y0] = h.track[0], [t1, x1, y1] = h.track[h.track.length - 1], dt = (t1 - t0) / 1000;
+    if (!(dt > 0.01 && e.timeStamp - t1 < 60)) return [0, 0];
+    const vx = ((x1 - x0) / dt) * THROW_SHARE, vy = ((y1 - y0) / dt) * THROW_SHARE, s = Math.hypot(vx, vy), k = s > THROW_MAX ? THROW_MAX / s : 1;
+    return [vx * k, vy * k];
+  }
+  function throwStones(list, vx, vy) { for (const st of list) { st.held = null; st.vx = vx; st.vy = vy; } }
   const boatGroanAt = new Map(), boatKnockAt = new Map();
   function updateStones(dt) {
     const v = mapView();
@@ -3864,8 +3870,8 @@
     lastInput = cueClock;
     if (e.key !== "Escape") return;
     if (auto) cancelAuto(); // owner 16 Nov late: ESC stops the quick build where it is
-    else if (voice.cur) endLine(voice.cur);
-    else if (mode === "build" && !demo) goMap();
+    else if (mode === "build") goMap(); // owner 18 Nov: in a site ESC leaves at once, whatever plays (a line, a demo, the teaching); its sounds fade out
+    else if (voice.cur) cutLine(voice.cur);
   });
   const siteKeyOf = (i) => (i != null && LEVELS[i] ? LEVELS[i].key : null);
   // --- conditions (names used in the table's "if", "needs" and "start")
@@ -4016,7 +4022,12 @@
     test.phase = "cue"; test.t = 0;
     const then = f.then; f.then = () => { if (then) then(); if (test && test.phase === "cue") nextPhase(ph); };
   }
-  function onFail(part, why) { if (part) cueEvent("test-fail", { part, why }); }
+  function onFail(part, why) { stopTestLines(); if (part) cueEvent("test-fail", { part, why }); }
+  function stopTestLines() { // the test's explanations play with its parts (owner 18 Nov); a test that fails stops them with it, unplayed ones keep their first time
+    const of = (q) => q.cue && q.cue.on === "test-part";
+    voice.queue = voice.queue.filter((q) => { if (!of(q)) return true; setMark(q.onceKey, false); return false; });
+    if (voice.cur && of(voice.cur)) cutLine(voice.cur);
+  }
   function onWin(i) { cueEvent("test-pass", { place: i }); }
   const POINT_KINDS = ["button", "site", "pile", "plan", "fail-place", "broken-piece", "form", "side", "building"];
   // --- demos (cues.json "demos"), on every visit until the site is finished: see-through pieces carried in by the ghost hand at a
@@ -4029,13 +4040,18 @@
     for (const p of pieces.slice()) removePiece(p);
     demo = { key, ops: CUE_TABLE.demos[key].steps.map((o) => o.slice()), k: 0, wait: 0.5, then, keep, hand: null };
   }
-  function endDemo() {
+  function endDemo() { const d = stopDemo(); if (d && d.then) d.then(); }
+  function stopDemo() { // the demo stops, and its voice with it (owner 18 Nov: "if they are to stop, they stop together"); the child's pieces come back
     const d = demo;
+    if (!d) return null;
     for (const p of demoPieces()) removePiece(p);
     demo = null;
+    voice.queue = voice.queue.filter((q) => !q.demo);
+    if (voice.cur && voice.cur.demo) cutLine(voice.cur);
     for (const [dk, m, x, y, a, sd] of d.keep) spawnPiece(dk, x, y, a, m).seed = sd;
-    if (d.then) d.then();
+    return d;
   }
+  function cueGameLineCut(c) { if (c.demo) stopDemo(); } // a demo's line cut short stops the demo (the site intro's picture goes with its line by itself)
   function demoCarry(piece, tx, ty, ta, out, via) { // via: a point above the target; the piece comes over everything, then straight down
     piece.body.setKinematic();
     for (let f = piece.body.getFixtureList(); f; f = f.getNext()) f.setSensor(true);

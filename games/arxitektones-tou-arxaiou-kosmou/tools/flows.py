@@ -27,10 +27,12 @@ def click(q, bid):
     if not p: return False
     q.mouse.click(p[0], p[1]); time.sleep(0.05); return True
 
-def quiet(q, secs=3):  # the child skips whatever the voice is saying (ESC), until it is quiet
-    end = time.time() + secs
+def quiet(q, secs=3):  # whatever the voice is saying is skipped, until it is quiet: on the map with ESC as the child does; in a site
+    end = time.time() + secs  # ESC leaves the site (owner 18 Nov), so there the test switches the line off itself
     while time.time() < end and q.evaluate("()=>!!__tb.voice.cur||__tb.voice.queue.length>0"):
-        q.keyboard.press('Escape'); time.sleep(0.15)
+        if q.evaluate("()=>__tb.mode==='map'"): q.keyboard.press('Escape')
+        else: q.evaluate("()=>{const T=__tb; if(T.voice.cur) T.endLine(T.voice.cur);}")
+        time.sleep(0.15)
 
 def untick_all(q):  # the gear, every tick off, close
     click(q, 'settings'); time.sleep(0.1)
@@ -126,7 +128,7 @@ def test_end_sounds(b):
     # from the earthquake's end to the cheer, and to the win line, at normal speed
     q = page(b)
     q.mouse.click(640, 400); quiet(q); later_launch(q)
-    q.evaluate("()=>{__tb.cueMem().seq['first-site']='done'}")
+    q.evaluate("()=>{const m=__tb.cueMem(); m.seq['first-site']='done'; m.ever=m.ever||{}; for (const id of ['explain-wind','explain-load','explain-quake']) m.ever[id]=1;}")  # the test's first-time explanations are not what is timed
     click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
     q.keyboard.down('Control'); time.sleep(0.1); click(q, 'autobuild'); until(q, "()=>!__tb.auto", 30)
     until(q, "()=>__tb.testReady()", 10)  # Ctrl still held: the test runs fast until the earthquake, which runs at normal speed (what is timed)
@@ -138,7 +140,6 @@ def test_end_sounds(b):
     click(q, 'test'); q.keyboard.up('Control')
     end = time.time() + 60
     while time.time() < end and not q.evaluate("()=>!!__tb.progress.done.mastaba||(__tb.test&&__tb.test.phase==='fail')"):
-        if q.evaluate("()=>[101,102,103].includes(__tb.voice.cur&&__tb.voice.cur.n)"): q.keyboard.press('Escape')  # the test's explanations skipped, as a parent would
         time.sleep(0.05)
     time.sleep(7)
     tl = q.evaluate("()=>__tl")
@@ -466,7 +467,94 @@ def two_fingers_on_pile_piece(b):
     r = dict(fingers_down=held, pieces_out=out, after=st)
     return out == 1 and st['ghosts'] == 0, r
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
+def esc_leaves_site(b):
+    # owner 18 Nov: "an esc in the lvel fitst stops the sound playing ... and then exits. it should exit immediatly, with fadeouts
+    # for the sounds": a site entered, its line speaking, one ESC: on the map at once, the line fading out
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    click(q, 'site:mastaba')
+    speaking = until(q, "()=>__tb.mode==='build'&&!!__tb.voice.cur", 4)
+    q.keyboard.press('Escape'); time.sleep(0.1)
+    mode = q.evaluate("()=>__tb.mode")
+    q.close()
+    return speaking and mode == 'map', dict(line_was_speaking=speaking, mode_after_one_esc=mode)
+
+def esc_during_demo(b):
+    # owner 18 Nov: "when demo/tutorial is playing an esc should just exit" and "an esc stops the demo sound, but the demo keeps
+    # playing ... if they are to stop, they stop together": the second site's demo running, one ESC: on the map, no demo, no
+    # demo line; and a demo line cut short stops its demo
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.progress.done.mastaba={pieces:[],loads:[]}; __tb.cueMem().seq['first-site']='done';}")
+    click(q, 'site:djoser'); time.sleep(0.3); quiet(q)  # its intro line skipped
+    demo = until(q, "()=>!!__tb.demo&&!!__tb.voice.cur&&__tb.voice.cur.demo", 8)
+    q.keyboard.press('Escape'); time.sleep(0.1)
+    after = q.evaluate("()=>({mode:__tb.mode, demo:!!__tb.demo, line:!!(__tb.voice.cur&&__tb.voice.cur.demo), demoPieces:__tb.pieces.filter(p=>p.demo).length})")
+    click(q, 'site:djoser'); time.sleep(0.3); quiet(q)
+    again = until(q, "()=>!!__tb.demo&&!!__tb.voice.cur&&__tb.voice.cur.demo", 8)
+    q.evaluate("()=>{if(__tb.voice.cur) __tb.cutLine(__tb.voice.cur)}")  # the demo's line cut short however it happens
+    cut = q.evaluate("()=>({demo:!!__tb.demo, demoPieces:__tb.pieces.filter(p=>p.demo).length})")
+    q.close()
+    r = dict(demo_speaking=demo, after_esc=after, demo_again=again, after_line_cut=cut)
+    return demo and after['mode'] == 'map' and not after['demo'] and not after['line'] and again and not cut['demo'] and not cut['demoPieces'], r
+
+def explanations_do_not_pause_test(b):
+    # owner 18 Nov: "the 1st time test exmplanations (wind, headpiece, earthequake) freeze the screen with the overlay effect, and
+    # pauses. I dont want that. they should play as the tests go": first test with the teaching on, never waiting for a line
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.cueMem().seq['first-site']='done'}")
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    q.evaluate("()=>{window.__ex={said:[],paused:0,dark:0}; const T=__tb; const f=()=>{const c=T.voice.cur; if(c&&[101,102,103].includes(c.n)&&!__ex.said.includes(c.n)) __ex.said.push(c.n); if(T.test&&T.test.phase==='cue') __ex.paused++; if(c&&c.attention==='freeze') __ex.dark++; requestAnimationFrame(f);}; requestAnimationFrame(f);}")
+    quick_build_and_test(q, hold=False)
+    until(q, "()=>!__tb.test||__tb.test.phase==='pass'||__tb.test.phase==='fail'", 40)
+    ex = q.evaluate("()=>__ex")
+    q.close()
+    return len(ex['said']) >= 1 and ex['paused'] == 0 and ex['dark'] == 0, ex
+
+def home_line_repeat(b):
+    # owner 18 Nov: "the press here to go mack to the map cue, plays too often, double its play interval": its wait after it ends
+    q = page(b)
+    w = q.evaluate("()=>{const c=__tb.CUE_TABLE.cues.find(x=>x.id==='first-win-home'); return c.repeat||5;}")
+    q.close()
+    return w == 10, dict(repeat_seconds=w)
+
+def boat_thrown(b):
+    # owner 18 Nov: "boats shouldm also be able to be thrown, like stones do, with the similar throwing logic, just not rolling":
+    # a boat picked up and flicked: it lands well past where the finger let go, and lies still once landed
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.progress.done.mastaba={pieces:[],loads:[]}}"); until(q, "()=>__tb.boats.length>0", 2)  # a finished site: its boat
+    sea = map_point(q, "T.groundAt(mx,my)==='water'&&!T.isLand(mx,my)&&[0,1,2,3,4,5,6,7].every((k)=>T.groundAt(mx+260*Math.cos(k*0.785),my+60*Math.sin(k*0.785))==='water')")
+    if not sea: q.close(); return False, 'no open sea'
+    q.evaluate("(p)=>{const T=__tb, v=T.mapView(), b=T.boats[0]; b.held=b.back=b.drop=null; b.stuck=true; b.ox=b.oy=b.ovx=b.ovy=0; b.x=(p[0]-v.ox)/v.k; b.y=(p[1]-v.oy)/v.k;}", sea)
+    quiet(q); q.evaluate("()=>{__tb.active.length=0}")  # nothing points or holds the screen
+    st = q.evaluate("()=>{const T=__tb, b=T.boats[0], p=T.mapView().pt(b.x,b.y); return {i:0, x:p.x, y:p.y};}")
+    x, y = st['x'], st['y']
+    q.mouse.move(x, y); q.mouse.down()
+    st['held'] = q.evaluate("()=>!!__tb.boats[0].held")
+    for k in range(1, 13): q.mouse.move(x + 8 * k, y); time.sleep(0.016)
+    time.sleep(0.25)  # lifted over its shadow
+    q.evaluate("()=>{window.addEventListener('pointerup',()=>{const T=__tb,b=T.boats[0],p=T.mapView().pt(b.x,b.y); window.__let=[p.x,p.y];},{capture:true,once:true});}")  # set before the flick, so nothing runs between it and letting go
+    for k in range(1, 7): q.mouse.move(x + 96 + 25 * k, y); time.sleep(0.016)
+    q.mouse.up(); time.sleep(0.8)  # let go straight after the flick, as a hand does (where it was is read at the moment of letting go)
+    let = q.evaluate("()=>window.__let")
+    end = q.evaluate("(i)=>{const T=__tb,b=T.boats[i],p=T.mapView().pt(b.x,b.y); return [p.x,p.y,!!b.drop];}", st['i'])
+    time.sleep(0.3)
+    end2 = q.evaluate("(i)=>{const T=__tb,b=T.boats[i],p=T.mapView().pt(b.x,b.y); return [p.x,p.y];}", st['i'])
+    q.close()
+    flew = end[0] - let[0]
+    r = dict(start=st, let_go_at=let, landed_at=end[:2], flew_px=round(flew), still_after=round(abs(end2[0] - end[0]), 1))
+    return st['held'] and flew > 30 and not end[2], r
+
+def sand_draw_quieter(b):
+    # owner 18 Nov: "reduce sand drawing sound 20%" (it was 0.512)
+    q = page(b)
+    v = q.evaluate("()=>__tb.SOUNDS['map-sand-draw'][0][1]")
+    q.close()
+    return abs(v - 0.512 * 0.8) < 0.005, dict(volume=v)
+
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
 
 def run(b, names):
     for n, f in FLOWS.items():

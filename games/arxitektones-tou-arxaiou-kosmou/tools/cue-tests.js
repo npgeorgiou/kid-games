@@ -190,7 +190,7 @@
     // 15 Nov night: each part of the test is explained the first time it is reached, even if an earlier test failed before it
     "test-explained-at-first-reach": () => {
       fresh(); noTeach(); start(0); T.newScene(); T.setTab(true); T.startAutoBuild(); run(14); T.setTab(false);
-      let failedAt = null, part = null; const ph = []; T.setTab(true); T.startTest(); T.setTab(false);
+      let failedAt = null, part = null; const ph = []; T.startTest(); // at the child's speed: the explanations play while the parts go (owner 18 Nov)
       for (let k = 0; k < 400 && T.test && T.test.phase !== "fail" && T.test.phase !== "pass"; k++) {
         if (["wind", "load", "quake"].includes(T.test.phase)) part = T.test.phase; if (ph[ph.length - 1] !== T.test.phase) ph.push(T.test.phase);
         if (T.test.phase === "wind") { const top = T.pieces.filter((p) => !p.demo).sort((u, v) => v.body.getPosition().y - u.body.getPosition().y)[0]; top.body.setLinearVelocity(planck.Vec2(6, 2)); } // a gust throws the top brick off: the wind fails it
@@ -198,7 +198,7 @@
       }
       if (T.test && T.test.phase === "fail") failedAt = part; run(6);
       const s1 = said().slice(), mem = JSON.stringify(T.cueMem()); fresh(); Object.assign(T.cueMem(), JSON.parse(mem)); log = s1.map((n) => [0, n, 0]); start(0); T.newScene(); // a fresh site (the pile whole again), the same cue memory: the child's second try
-      T.setTab(true); T.startAutoBuild(); run(14); const ph2 = ["built " + T.pieces.length + " pile " + T.pileBodies().length + " auto " + !!T.auto]; T.startTest(); T.setTab(false); for (let k = 0; k < 600 && !T.progress.done.mastaba; k++) { if (T.test && ph2[ph2.length - 1] !== T.test.phase) ph2.push(T.test.phase); run(0.1); } run(3); ph.push("|", ...ph2);
+      T.setTab(true); T.startAutoBuild(); run(14); const ph2 = ["built " + T.pieces.length + " pile " + T.pileBodies().length + " auto " + !!T.auto]; T.setTab(false); T.startTest(); for (let k = 0; k < 600 && !T.progress.done.mastaba; k++) { if (T.test && ph2[ph2.length - 1] !== T.test.phase) ph2.push(T.test.phase); run(0.1); } run(3); ph.push("|", ...ph2);
       const s2 = said().slice(s1.length), n = (x, l) => l.filter((q) => q === x).length;
       const all = s1.concat(s2), ok = failedAt === "wind" && !s1.includes(102) && !s1.includes(103) && s2.includes(102) && s2.includes(103) && [101, 102, 103].every((x) => n(x, all) <= 1);
       return [ok, "phases " + ph.join(">") + " first test failed at " + failedAt + ", lines " + s1.join(",") + "; second " + s2.join(",")];
@@ -334,16 +334,13 @@
       const ys = out.map((x) => +x.split("@")[1]), ok = ys.length >= 5 && ys.every((y, j) => !j || y <= ys[j - 1] + 0.05);
       return [ok, "taken out in this order: " + out.join(", ") + (out.length ? "" : "; before the demo: " + seen.join(" "))];
     },
-    // owner 16 Nov night, 3 and 11: ESC ends the line playing (the intro and its picture); with none, it leaves a site or free play
+    // owner 18 Nov (replacing 16 Nov night, 3 and 11): in a site or free play ESC leaves at once, whatever plays (a line, the intro); on the map it ends the line playing
     "esc": () => {
       const bad = [], esc = () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
       fresh(); noTeach(); const i = lvl("djoser"); start(i); T.onEnterSite(i); run(0.3);
       if (cur() !== 2) bad.push("no intro line at the Step Pyramid (" + cur() + ")");
-      esc(); run(0.1); if (cur() === 2) bad.push("ESC did not end the intro"); if (T.mode !== "build") bad.push("ESC on the intro left the site");
-      for (let k = 0; k < 100 && (cur() || T.voice.queue.length || T.demo); k++) { if (T.demo) { T.voice.queue.length = 0; } run(0.1); if (T.demo) break; }
-      if (T.demo) { for (let k = 0; k < 400 && T.demo; k++) run(0.1); } for (let k = 0; k < 60 && (cur() || T.voice.queue.length); k++) { esc(); run(0.1); }
-      esc(); run(0.1); if (T.mode !== "map") bad.push("ESC with no line did not leave the site (mode " + T.mode + ", line " + cur() + ")");
-      T.startFree(); run(0.5); for (let k = 0; k < 30 && cur(); k++) { esc(); run(0.1); } esc(); run(0.1); if (T.mode !== "map") bad.push("ESC did not leave free play");
+      esc(); run(0.1); if (T.mode !== "map") bad.push("ESC on the intro did not leave the site (mode " + T.mode + ")"); if (cur() === 2) bad.push("the intro line went on after leaving");
+      T.startFree(); run(0.5); esc(); run(0.1); if (T.mode !== "map") bad.push("ESC did not leave free play");
       return [!bad.length, bad.join("; ") || "ok"];
     },
     // owner 16 Nov night, 6: the intro line and its picture only at a site never won, not when a won site is damaged and fixed

@@ -3,7 +3,9 @@
   // The game provides (its vocabulary, see README.md): CUE_CONDITIONS (condition name -> function(x)), pointTargets(name, x)
   // (what a point names, as shapes on screen), cueEvent calls at its moments, POINT_KINDS, placeKey(i) (a place's key, for
   // "once": "place"; a place is what the game calls a level, a room, a site), cueContext() (what every moment carries, e.g. { place }), progress and SAVE_KEY (the saved record), playSound/startAudio, the drawing helpers (SKIN.highlight,
-  // SKIN.dim, SKIN.ghostHand), worldToScreen and the game's own hooks used below (demo, mode, test, auto).
+  // SKIN.dim, SKIN.ghostHand), worldToScreen and the game's own hooks used below (demo, mode, test, auto), and
+  // cueGameLineCut(c) (a line cut short: whatever plays with it, a demo or a picture, stops with it; owner 18 Nov: "if they are
+  // to stop, they stop together"; the game stops a line's companion through cutLine too).
   // ---------------------------------------------------------------------
   // The cue model, three parts (the table's "rules" say the same in the owner's words; tools/cues/README.md is the pattern):
   // 1. Voice: one line at a time, in the order fired; a line lasts its recording, or LINE_TIME as a text box whose blue bar runs
@@ -201,7 +203,12 @@
   function endLine(c) {
     if (voice.cur !== c) return;
     voice.cur = null; c.ended = true; c.endT = cueClock; cueBox.style.display = "none";
-    if (cueAudio) { cueAudio.onended = null; cueAudio.pause(); cueAudio = null; }
+    if (cueAudio) { fadeAway(cueAudio); cueAudio = null; } // a line cut short fades out (owner 18 Nov)
+  }
+  function cutLine(c) { if (voice.cur !== c) return; endLine(c); cueGameLineCut(c); } // cut short, with what plays with it
+  function fadeAway(a, secs = 0.3) { // a recording fades out over secs, then stops
+    a.onended = null; const v0 = a.volume, t0 = performance.now();
+    const k = setInterval(() => { const u = (performance.now() - t0) / 1000 / secs; if (u >= 1) { clearInterval(k); a.pause(); } else a.volume = v0 * (1 - u); }, 30);
   }
   function finish(c) { if (c.fin) return; c.fin = true; if (c.then) c.then(); }
   const waiting = (c) => !!((c.waitEvent || c.waitUntil) && !c.fin && !c.done && !(c.waitUntil && cond(c.waitUntil)));
@@ -217,7 +224,7 @@
     }
     // a step in a sequence that needs something gone missing goes back to the step that makes it
     for (const s of active) if (s.seq && s.needs && waiting(s) && !cond(s.needs)) {
-      const back = s.cue.back; s.fin = true; endLine(s); voice.queue = voice.queue.filter((q) => q !== s);
+      const back = s.cue.back; s.fin = true; cutLine(s); voice.queue = voice.queue.filter((q) => q !== s);
       if (back) runStep(s.seq, back);
     }
     active = active.filter((s) => {
@@ -229,7 +236,7 @@
     whens = whens.filter((w) => { if (w.cond()) { w.fire(); return false; } return true; });
     voice.queue = voice.queue.filter((q) => { if ((q.waitEvent || q.waitUntil) && !waiting(q)) { finish(q); return false; } return true; }); // done before its turn
     // a step still waiting says its line again, its hand with it, REPEAT_GAP s after its line ended
-    for (const s of active) if (s.n != null && s.ended && waiting(s) && now - s.endT >= REPEAT_GAP && !voice.cur && !voice.queue.length) voice.queue.push(Object.assign(s, { at: now, frame: cueFrame }));
+    for (const s of active) if (s.n != null && s.ended && waiting(s) && now - s.endT >= ((s.cue && s.cue.repeat) || REPEAT_GAP) && !voice.cur && !voice.queue.length) voice.queue.push(Object.assign(s, { at: now, frame: cueFrame }));
     if (!voice.cur) { // the next one in order; lines held back only by a test or a demo let later ones marked for it go first
       for (const q of voice.queue) {
         if (now < q.at) break;

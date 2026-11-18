@@ -1097,6 +1097,28 @@ Owner, 18 Nov: "there is an error where somehow both the block and the block's o
 - Repeated as: two fingers on one piece in the sidebar, both dragged out into the building: two pieces came out. Cause: a piece in the sidebar could be taken by a second finger while the first held it.
 - Now a piece in the sidebar is held by one finger only; a second finger joins it once it is out in the building. Flow `two-fingers-on-pile-piece`.
 
+## Current state, update 92 (18 Nov 2026): ESC leaves at once, demo and its voice stop together, thrown boats, test explanations without pausing
+
+Owner, 18 Nov, verbatim: "an esc in the lvel fitst stops the sound playing, (the lvl falvour que, in the build site) and then exits. it should exit immediatly, with fadeouts for the sounds. also when demo/tutorial is playing an esc should just exit. boats shouldm also be able to be thrown, like stones do, with the similar throwing logic, just not rolling. reduce sand drawing sound 20%. an esc stops the demo sound, but the demo keeps playing. these 2 should be connected, this shows me you ahvent connected them, if they are to stop, they stop together. fix that, connect them, generally. and as said before an esc in the lvl exits level. also, now, not like before, the 1st time test exmplanations (wind, headpiece, earthequake) freeze the screen with the overlay effect, and pauses. I dont want that. they should play as the tests go, not interrupting them. also, the press here to go mack to the map cue, plays too often, double its play interval.."
+
+Checklist:
+1. ESC in a site leaves for the map at once (not first stopping the line), sounds fading out.
+2. ESC while a demo or the teaching plays leaves at once.
+3. Boats can be thrown like stones, the same throwing, without rolling.
+4. Sand-drawing sound 20% quieter.
+5. A demo and its voice are one thing: when one stops, both stop (generally).
+6. (repeat of 1) ESC in a site leaves the site.
+7. The first-time test explanations (wind, headpiece, earthquake) play while the test goes on: no darkening, no pause.
+8. "Press here to go back to the map" repeats half as often (its wait doubled).
+
+Done (each with its flow in tools/flows.py, or cue test):
+1, 2, 6. ESC in a site or free play goes to the map at once, whatever plays (a line, the intro, a demo, the teaching); the voice fades out over 0.3 s. ESC during the quick build still stops the quick build (owner 16 Nov late); on the map ESC still ends the line playing. Flows `esc-leaves-site`, `esc-during-demo`; cue test `esc` rewritten to the new rule.
+3. A boat let go while moving flies on with the finger's speed, as stones do (same speed reading, same share, same top speed, same air), while it falls onto its shadow, then stays where it lands. Flow `boat-thrown`.
+4. Sand drawing 0.41 (was 0.512). Flow `sand-draw-quieter`.
+5. A demo and its voice stop together: stopping the demo stops its lines; a demo line cut short stops the demo (shared engine: `cutLine` and the game's `cueGameLineCut`). Leaving a site stops the demo and gives the child's pieces back. Flow `esc-during-demo`.
+7. The three explanations no longer darken or pause; they play while their part runs. A test that fails stops its explanation, so the fail line plays (otherwise it was dropped). At normal speed each plays inside its part; in the fast Ctrl test they fall behind. Flow `explanations-do-not-pause-test`; cue tests `test-explained-at-first-reach` and `headpiece-line` now run the test at normal speed.
+8. The table's new "repeat" field: "press here to go back to the map" says itself again 10 s after it ends (others 5 s). Flow `home-line-repeat`.
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).
