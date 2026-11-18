@@ -3854,7 +3854,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     allOpen = false; cornerHold = null;
     if (currentLevel != null) { releaseAllPointers(); clearAllPieces(); fillPile([]); freshWorld(); currentLevel = null; grid = null; check = null; failShow = null; }
     ALL_BOATS.forEach((b, i) => { b.leg = i % b.line.legs.length; b.dir = 1; b.d = b.lens[b.leg] * ((i * 0.37) % 1); b.wait = 0; b.held = b.back = null; b.stuck = b.parked = false; b.drop = null; b.rise = b.lift = 0; b.hd = null; });
-    mapHolds.clear(); mapStones.length = 0; for (const A of SAND_AREAS) { A.c = null; A.t0 = null; A.wind = null; }
+    mapHolds.clear(); mapStones.length = 0; for (const A of SAND_AREAS) { A.c = null; A.comp = null; A.dirty = null; A.t0 = null; A.wind = null; }
     ALL_GROUPS.forEach((g, i) => { for (const k of Object.keys(g)) delete g[k]; Object.assign(g, { state: "boat", boat: ALL_BOATS[i], home: ALL_BOATS[i], onFoot: 0, stops: 0, recent: [], plan: null }); });
     boats.length = groups.length = 0;
   }
@@ -3889,9 +3889,9 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
   }
   function renderMap(dt) {
     syncFleet();
-    ctx.fillStyle = "#4f9ad0"; ctx.fillRect(0, 0, cssWidth, cssHeight);
     const v = mapView();
     const land = mapLandCanvas(v);
+    if (!(land && waterImg.naturalWidth)) { ctx.fillStyle = "#4f9ad0"; ctx.fillRect(0, 0, cssWidth, cssHeight); } // the moving water covers the whole screen; without it, plain sea
     if (land && waterImg.naturalWidth) { SKIN.mapWater(ctx, waterImg, v, performance.now() / 1000); ctx.drawImage(land, v.ox, v.oy, v.w, v.h); }
     else SKIN.mapImage(ctx, mapImg, v.ox, v.oy, v.w, v.h);
     drawSandWriting(dt, v); drawSandTails(v);
@@ -4100,18 +4100,35 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
         const o = cv.getContext("2d"); o.lineCap = o.lineJoin = "round"; o.strokeStyle = SAND_LAYERS[li].col; o.lineWidth = SAND_LINE * SAND_LAYERS[li].w; o.beginPath();
         pts.forEach(([x, y], i) => (i ? o.lineTo : o.moveTo).call(o, x - A.x0, y - A.y0)); if (pts.length === 1) o.lineTo(pts[0][0] - A.x0 + 0.1, pts[0][1] - A.y0); o.stroke();
       });
+      for (const [x, y] of pts) sandDirty(A, x - A.x0 - SAND_LINE, y - A.y0 - SAND_LINE, x - A.x0 + SAND_LINE, y - A.y0 + SAND_LINE);
     }
+  }
+  // The sand writing is drawn as one finished picture per area (its three layers put together), redrawn only where the
+  // writing or the wind changed it: the screen gets one picture per area each frame, not three (owner 18 Nov: the map was
+  // slow on another PC). The standard technique: cache what changes rarely, redraw only its changed part (a dirty rectangle).
+  const SAND_PAD = SAND_LINE; // map px around the area: the layers sit up to a third of a line off it
+  function sandDirty(A, x0, y0, x1, y1) { const d = A.dirty; A.dirty = d ? [Math.min(d[0], x0), Math.min(d[1], y0), Math.max(d[2], x1), Math.max(d[3], y1)] : [x0, y0, x1, y1]; }
+  function sandPicture(A) {
+    const w = A.c[0].width, h = A.c[0].height, P = SAND_PAD;
+    if (!A.comp) { A.comp = Object.assign(document.createElement("canvas"), { width: w + 2 * P, height: h + 2 * P }); A.dirty = [-P, -P, w + P, h + P]; }
+    if (!A.dirty) return A.comp;
+    const [x0, y0, x1, y1] = A.dirty.map(Math.round), o = A.comp.getContext("2d");
+    o.save(); o.beginPath(); o.rect(x0 - 2 + P, y0 - 2 + P, x1 - x0 + 4, y1 - y0 + 4); o.clip(); o.clearRect(0, 0, A.comp.width, A.comp.height);
+    SAND_LAYERS.forEach((L, li) => { o.globalAlpha = L.a; o.drawImage(A.c[li], P + L.dx * SAND_LINE, P + L.dy * SAND_LINE); });
+    o.restore(); A.dirty = null;
+    return A.comp;
   }
   function drawSandWriting(dt, v) {
     const now = performance.now() / 1000;
     for (let ai = 0; ai < SAND_AREAS.length; ai++) {
       const A = SAND_AREAS[ai];
       if (A.t0 !== null && !A.wind && now - A.t0 >= WIND_AFTER) A.wind = { front: A.y0, bits: [] };
-      if (A.c) { const q = v.pt(A.x0, A.y0), w = A.c[0].width * v.k, h = A.c[0].height * v.k, e = SAND_LINE * v.k; ctx.save(); SAND_LAYERS.forEach((L, li) => { ctx.globalAlpha = L.a; ctx.drawImage(A.c[li], q.x + L.dx * e, q.y + L.dy * e, w, h); }); ctx.restore(); }
+      if (A.c) { const q = v.pt(A.x0 - SAND_PAD, A.y0 - SAND_PAD), c = sandPicture(A); ctx.drawImage(c, q.x, q.y, c.width * v.k, c.height * v.k); }
       const W = A.wind;
       if (!W) continue;
       W.front += ((A.y1 - A.y0) / WIND_SWEEP) * dt; // the front moves south; behind it the grooves fill in
       if (A.c) for (const cv of A.c) { const o = cv.getContext("2d"); o.save(); o.globalCompositeOperation = "destination-out"; o.fillStyle = `rgba(0,0,0,${1 - Math.exp(-3 * dt)})`; o.fillRect(0, 0, cv.width, Math.min(cv.height, W.front - A.y0)); o.restore(); }
+      if (A.c) sandDirty(A, -SAND_PAD, -SAND_PAD, A.c[0].width + SAND_PAD, Math.min(A.c[0].height, W.front - A.y0) + SAND_PAD); // the wind fills grooves in behind its front
       if (W.front < A.y1) for (let k = 0; k < 40; k++) { // blown sand over this area's flat sand, near the front
         const x = A.x0 + Math.random() * (A.x1 - A.x0), y = W.front - Math.random() * 120;
         if (Math.random() < 0.25 && sandArea(x, y) === ai) W.bits.push({ x, y, life: 0.7 });
@@ -4123,7 +4140,7 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
         ctx.strokeStyle = `rgba(246, 226, 180, ${Math.min(1, b.life * 2) * 0.8})`; ctx.lineWidth = Math.max(1.5, 2.5 * v.k); ctx.lineCap = "round";
         ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(q.x - 4 * v.k, q.y - 26 * v.k); ctx.stroke();
       }
-      if (W.front >= A.y1 + (A.y1 - A.y0) * 0.4 && !W.bits.length) { A.c = null; A.t0 = null; A.wind = null; } // wiped clean
+      if (W.front >= A.y1 + (A.y1 - A.y0) * 0.4 && !W.bits.length) { A.c = null; A.comp = null; A.dirty = null; A.t0 = null; A.wind = null; } // wiped clean
     }
   }
   const tapBits = [], WAVE_FRONT = 30; // screen px: how wide the first ring's pushing front is
@@ -4532,14 +4549,18 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
       const back = s.cue.back; s.fin = true; cutLine(s); voice.queue = voice.queue.filter((q) => q !== s);
       if (back) runStep(s.seq, back);
     }
-    active = active.filter((s) => {
-      if (s.until != null) return now < s.until;
-      if (s.fin) return false;
-      if (s.ended && !waiting(s)) { finish(s); return false; }
-      return true;
-    });
-    whens = whens.filter((w) => { if (w.cond()) { w.fire(); return false; } return true; });
-    voice.queue = voice.queue.filter((q) => { if ((q.waitEvent || q.waitUntil) && !waiting(q)) { finish(q); return false; } return true; }); // done before its turn
+    // each list is rebuilt first and what finished runs after: a finished cue starts the next one, and what that adds to a
+    // list must not be lost in the rebuild (owner 18 Nov: a step done before its line was said started the next step, whose
+    // line was thrown away, and the tutorial stopped)
+    const ended = active.filter((s) => s.until == null && !s.fin && s.ended && !waiting(s));
+    active = active.filter((s) => (s.until != null ? now < s.until : !s.fin && !ended.includes(s)));
+    for (const s of ended) finish(s);
+    const due = whens.filter((w) => w.cond());
+    whens = whens.filter((w) => !due.includes(w));
+    for (const w of due) w.fire();
+    const early = voice.queue.filter((q) => (q.waitEvent || q.waitUntil) && !waiting(q)); // done before its turn
+    voice.queue = voice.queue.filter((q) => !early.includes(q));
+    for (const q of early) finish(q);
     // a step still waiting says its line again, its hand with it, REPEAT_GAP s after its line ended
     for (const s of active) if (s.n != null && s.ended && waiting(s) && now - s.endT >= ((s.cue && s.cue.repeat) || REPEAT_GAP) && !voice.cur && !voice.queue.length) voice.queue.push(Object.assign(s, { at: now, frame: cueFrame }));
     if (!voice.cur) { // the next one in order; lines held back only by a test or a demo let later ones marked for it go first

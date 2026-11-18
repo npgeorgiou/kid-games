@@ -227,14 +227,18 @@
       const back = s.cue.back; s.fin = true; cutLine(s); voice.queue = voice.queue.filter((q) => q !== s);
       if (back) runStep(s.seq, back);
     }
-    active = active.filter((s) => {
-      if (s.until != null) return now < s.until;
-      if (s.fin) return false;
-      if (s.ended && !waiting(s)) { finish(s); return false; }
-      return true;
-    });
-    whens = whens.filter((w) => { if (w.cond()) { w.fire(); return false; } return true; });
-    voice.queue = voice.queue.filter((q) => { if ((q.waitEvent || q.waitUntil) && !waiting(q)) { finish(q); return false; } return true; }); // done before its turn
+    // each list is rebuilt first and what finished runs after: a finished cue starts the next one, and what that adds to a
+    // list must not be lost in the rebuild (owner 18 Nov: a step done before its line was said started the next step, whose
+    // line was thrown away, and the tutorial stopped)
+    const ended = active.filter((s) => s.until == null && !s.fin && s.ended && !waiting(s));
+    active = active.filter((s) => (s.until != null ? now < s.until : !s.fin && !ended.includes(s)));
+    for (const s of ended) finish(s);
+    const due = whens.filter((w) => w.cond());
+    whens = whens.filter((w) => !due.includes(w));
+    for (const w of due) w.fire();
+    const early = voice.queue.filter((q) => (q.waitEvent || q.waitUntil) && !waiting(q)); // done before its turn
+    voice.queue = voice.queue.filter((q) => !early.includes(q));
+    for (const q of early) finish(q);
     // a step still waiting says its line again, its hand with it, REPEAT_GAP s after its line ended
     for (const s of active) if (s.n != null && s.ended && waiting(s) && now - s.endT >= ((s.cue && s.cue.repeat) || REPEAT_GAP) && !voice.cur && !voice.queue.length) voice.queue.push(Object.assign(s, { at: now, frame: cueFrame }));
     if (!voice.cur) { // the next one in order; lines held back only by a test or a demo let later ones marked for it go first

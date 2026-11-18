@@ -600,7 +600,53 @@ def test_result_line_before_site_line(b):
     k = lambda n: said.index(n) if n in said else None
     return k(104) is not None and k(14) is not None and k(106) is not None and k(104) < k(14) < k(106), dict(lines_said=said)
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
+
+def tutorial_early_brick(b):
+    # owner 18 Nov: "at some point, I managed to go out of the tuturial in the 1st lvl, the shovel, the undo, the "button is green
+    # now" vue didnt fire, I took some brick before the test said it": the first site, teaching on; at every step the child first
+    # takes a mudbrick into the building, then does what the step asks; every step's line must still come
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    record(q)
+    click(q, 'site:mastaba')
+    until(q, "()=>__tb.voice.cur&&__tb.voice.cur.cue&&__tb.voice.cur.cue.id==='site-intro'", 2); time.sleep(0.5)
+    q.keyboard.press('Escape'); time.sleep(0.05)
+    W = q.evaluate("()=>__tb.buildingWidthPx")
+    gy = q.evaluate("()=>__tb.worldToScreen(0,0).y")
+    last = "()=>{const T=__tb, p=T.pieces.filter((x)=>!x.demo&&x.heldBy==null).pop(); if(!p) return null; const s=T.worldToScreen(p.body.getPosition().x,p.body.getPosition().y); return [s.x,s.y];}"
+    n, seen, end = 0, [], time.time() + 95
+    def brick():
+        nonlocal n
+        p = pile_piece(q, 'mudbrick')
+        if p: drag(q, p, [W * (0.3 + 0.06 * (n % 6)), gy - 25 - 22 * (n // 6)], hold=0.4); n += 1
+    while time.time() < end:
+        st = q.evaluate("()=>__tb.cueMem().seq['first-site']")
+        if st == 'done': break
+        if not seen or seen[-1] != st:
+            seen.append(st); q.evaluate("(s)=>__rec.said.push('step '+s)", st); brick()  # a brick taken before the step's line says what to do
+        if st == 't-tap3':
+            p = q.evaluate(last)
+            if p:
+                for _ in range(3): q.mouse.click(p[0], p[1]); time.sleep(0.12)
+        elif st == 't-dragback':
+            p = q.evaluate(last)
+            if p: drag(q, p, [W + 60, gy - 120], hold=0.3)
+        elif st == 't-shovel': click(q, 'broom')
+        elif st == 't-red':  # the test button once the step has said to press it
+            if 99 in q.evaluate("()=>__rec.said"): click(q, 'test')
+            else: brick()
+        elif st == 't-green':  # the building finished with the quick build; the button once the step has said it is green
+            if 100 in q.evaluate("()=>__rec.said"): click(q, 'test')
+            elif not q.evaluate("()=>__tb.testReady()"):
+                q.keyboard.down('Control'); time.sleep(0.1); click(q, 'autobuild'); until(q, "()=>!__tb.auto", 20); q.keyboard.up('Control')
+        else: brick()
+        time.sleep(0.6)
+    r = dict(steps=seen, said=q.evaluate("()=>__rec.said"), step=q.evaluate("()=>__tb.cueMem().seq['first-site']"), pieces=n,
+             cues=q.evaluate("()=>({cur:__tb.voice.cur&&__tb.voice.cur.n, queue:__tb.voice.queue.map((x)=>[x.n,x.cue&&x.cue.id,x.fin,x.done]), active:__tb.active.map((x)=>[x.n,x.cue&&x.cue.id,x.seq,x.ended,x.fin,x.done,x.waitEvent]), whens:__tb.whens.length})"))
+    q.close()
+    return r['step'] == 'done' and all(x in r['said'] for x in (95, 135, 100)), r
+
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
 
 def run(b, names):
     for n, f in FLOWS.items():

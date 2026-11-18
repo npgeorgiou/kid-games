@@ -9,6 +9,7 @@ Traps found while working on this game, as instructions. Add a line whenever a n
 - Flows that run a whole test take 15-35 s each; run only the ones the change touches, a few per call, in the foreground.
 
 ## Cues
+- Never let a cue finish (and start the next one) while a list of cues is being rebuilt: what it adds is lost. Rebuild the list, then finish (18 Nov: the tutorial stopped when a step was done before its line).
 - A recording's length is the line's length: a quiet tail after the words delays whatever waits for the line. Check where the words end (ffmpeg volumedetect in short windows) when a wait after a line feels long.
 - A cue is done when its voice and its visuals are done. Anything that must come after a cue (a part of the test, another line, a sound) waits for that cue to be done, declared in `cues.json`. Never wait on "is the voice playing".
 - The test's lines: the green-button line, then each part (wind, load, earthquake) together with its own first-time explanation; after the test, its success or failure line comes before the site's finish line.
@@ -21,3 +22,6 @@ Traps found while working on this game, as instructions. Add a line whenever a n
 - The hand: the standard planck drag (mouse joint, strength a multiple of the weight held) is the base. It was once patched for days with special cases (touching, near, loaded, "too heavy"); every fix broke another. Change the model, never add a case. Real cases to check before shipping a hand change: a small stone pushed into a big block, a block grabbed at one end, two stacked blocks lifted, a block dragged along a wall, a fast swing.
 - A rule naming several things ("breaks under four mudbricks and three stones") means separate cases unless the owner says combined; state the reading in one line.
 - Every place in a level that matters gets a tempting wrong piece from the pile that fails the test.
+
+## Speed
+- The map's time goes into filling screen pixels, not into calculations: measure with a flush after each part of the frame before changing anything. The two water layers are the biggest cost.

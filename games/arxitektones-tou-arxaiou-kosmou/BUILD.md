@@ -17,6 +17,7 @@ You are an architect of the ancient world. On a picture map of the Mediterranean
 ## Open
 
 - Owner's answer needed: the Halicarnassus pile's wood (two posts in the gap under the beams); the steadier middle grab against the lever rule (flow `middle-grab-bump` is held back).
+- Owner's answer needed: the map's moving water is about half of each map frame; drawing it at half resolution would make it much cheaper, slightly softer.
 - Flow `map-stones`: its watcher once counted tips and distance wrongly; check it still passes.
 
 ## Task list
