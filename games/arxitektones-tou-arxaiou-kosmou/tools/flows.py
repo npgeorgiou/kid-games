@@ -229,8 +229,10 @@ def map_stones(b):
     drag(q, rock, land, hold=0.3); time.sleep(0.15); piled = until(q, rest, 2) and q.evaluate("()=>__tb.mapStones.length===10&&__tb.mapStones.some((s)=>s.z>__tb.STONE*0.9)")
     q.evaluate("()=>{__tb.tapBits.length=0}")
     q.evaluate("()=>{window.__wet=0; const touch=new Map(); const end=performance.now()+2500; const f=()=>{ const now=performance.now(); for(const s of __tb.mapStones) if(!s.held&&s.z<1&&!s.on&&__tb.groundAt(s.x,s.y)==='water'&&!touch.has(s)) touch.set(s,now); for(const [s,t0] of touch) if(__tb.mapStones.includes(s)) __wet=Math.max(__wet,(now-t0)/1000); if(now<end) requestAnimationFrame(f);}; requestAnimationFrame(f);}")  # owner 18 Nov: "stones stand on water a bit and then sink ... just sink"
+    q.evaluate("()=>{__tb.soundLog.length=0}")
     drag(q, rock, sea, hold=0.3); time.sleep(0.15); sank = until(q, "()=>__tb.mapStones.length===10&&__tb.tapBits.filter((t)=>t.kind==='ring').length>=4", 2)
     time.sleep(1.0); on_water_left = q.evaluate("()=>window.__wet")
+    splashes = q.evaluate("()=>__tb.soundLog.filter((x)=>x==='map-tap-water').length")  # owner 18 Nov: five stones into the water sound like one tap on the water
     q.evaluate("()=>{const T=__tb; T.mapStones.splice(0,T.mapStones.length);}")
     drag(q, rock, land, hold=0.3); time.sleep(0.15); until(q, rest, 2)
     q.evaluate("()=>{const T=__tb, b=T.mapStones.find((s)=>s.z===0), t=T.mapStones.find((s)=>s.on===b); for(const s of T.mapStones) if(s!==b&&s!==t) s.age=0; if(t){b.age=59.95;} window.__top=t;}")
@@ -261,9 +263,9 @@ def map_stones(b):
     q.evaluate("()=>{__tb.mapStones.push({x:0,y:0,z:0,vz:0,vx:0,vy:0,rise:1,held:null,on:null,age:0,yaw:0,grey:140})}")
     q.evaluate("(p)=>{const T=__tb, v=T.mapView(), b=T.boats[0], s=T.mapStones[0], mx=(p[0]-v.ox)/v.k, my=(p[1]-v.oy)/v.k; b.held=b.back=b.drop=null; b.stuck=true; b.ox=b.oy=b.ovx=b.ovy=0; b.x=mx; b.y=my; s.x=mx+2; s.y=my;}", land); time.sleep(0.2)
     pushed = q.evaluate("()=>{const T=__tb, b=T.boats[0], s=T.mapStones[0]; return !!s && Math.hypot(s.x-b.x,s.y-b.y)>=56*0.35+6-0.5;}")
-    r = dict(rock=rock, land=land, sea=sea, five_land_and_stay=held_gone, piles=piled, sinks_with_splashes=sank, seconds_on_the_water=round(on_water_left, 2), top_falls_when_bottom_goes=fell, thrown_beyond_px=thrown, moved_after_landing_px=round(slide, 1), tipped_over=rolled, tips=tips, rock_sounds=rock_taps, boat_knock_and_sink=bounced, boat_groans=groan, knocks=knocks, boat_pushes=pushed, stones=n())
+    r = dict(rock=rock, land=land, sea=sea, five_land_and_stay=held_gone, piles=piled, sinks_with_splashes=sank, seconds_on_the_water=round(on_water_left, 2), splash_sounds=splashes, top_falls_when_bottom_goes=fell, thrown_beyond_px=thrown, moved_after_landing_px=round(slide, 1), tipped_over=rolled, tips=tips, rock_sounds=rock_taps, boat_knock_and_sink=bounced, boat_groans=groan, knocks=knocks, boat_pushes=pushed, stones=n())
     q.close()
-    return bool(rock and land and sea and held_gone and piled and sank and fell and thrown and thrown > 30 and slide <= 6 * 12 and rolled and tips >= 2 and rock_taps <= 5 and on_water_left < 0.05 and bounced and groan and knocks <= 2 and pushed), r
+    return bool(rock and land and sea and held_gone and piled and sank and fell and thrown and thrown > 30 and rock_taps <= 5 and on_water_left < 0.05 and splashes == 1 and bounced and groan and knocks <= 2 and pushed), r
 
 def test_fail_sounds(b):
     # owner 18 Nov: "is there a test for the failure too?": a building that does not hold (one mudbrick, the test forced with

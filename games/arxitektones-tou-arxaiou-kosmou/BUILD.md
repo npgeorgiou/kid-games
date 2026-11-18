@@ -1064,6 +1064,13 @@ Owner, verbatim (18 Nov 2026, 12:29): "great, now remove the rolling sounds, the
 2. The error: a throw's speed was measured over the time up to the finger lifting, so the pause before letting go made every throw slower; now it is the speed between the finger's last moves. The air slows a flying stone less (STONE_AIR 0.5/s) and each tip keeps 0.55 of its speed (was 0.4). A direct trace of a fast throw: five tips, 425, 234, 128, 71 map px/s, then it stops.
 Open: flow map-stones counts tips and the distance after landing wrongly (its watcher reports one tip and no distance where the trace shows five); it fails on that until fixed. Owner 18 Nov: new testing rules in CLAUDE.md (time limit per point, one small check per change, checks never break each other, look at the game before blaming the check, two strikes, clean up after a stop).
 
+## Current state, update 88 (18 Nov 2026): stones into water as loud as a tap on the water
+
+Owner, verbatim (18 Nov 2026, 12:42): "sound when stons drop on water is louder than the sound of click on water. make stone on watr same as click on water. and forget about these tests, or dont check for rolls, things work on my side"
+
+1. Stones landing in water together splash once, as loud as a tap on the water (before: one splash sound per stone, five at once). Flow map-stones counts one splash sound for five stones.
+2. Flow map-stones no longer checks rolling (owner: "dont check for rolls, things work on my side").
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).
