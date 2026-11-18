@@ -1039,6 +1039,15 @@ Owner, verbatim (18 Nov 2026, 11:25): "1. the thrown stones slide too much on la
 6. Question answered: two fingers would hold the piece at two points, like two hands; it can then turn only if a hit beats the arm at both points, so a hit would not tilt it. Still open from update 83: middle grab vs the lever.
 7. Wave rings: the part on the water is one unbroken line again; only the parts at the shore are drawn piece by piece, with square ends. Picture `owner-shots/2026-11-18-wave-rings.png`.
 
+## Current state, update 85 (18 Nov 2026): stones land smoothly, Ishtar's form on planks, quieter knock, a sand-drawing sound
+
+Owner, verbatim (18 Nov 2026, 11:50): "1. i wouldnt say that stones slide less, also they do a sudden drop-and-slide motion, its not smooth. about point 5, no I meant Istar. give istar 4 wooden planks instead of 4 std blocks. 3. ia sked to amke the stone-hits-boat sound as loud as the otther terrain sounds. 4 give sand drawing an appropriate sound, again, same koudless as all terrain soudns"
+
+1. Stones: the air slows a flying stone a little all the way (STONE_AIR 1.5/s); landing faster than STONE_HOP_MIN it hops back up by STONE_BOUNCE (0.3) keeping its way; on the ground it slows evenly (STONE_FRICTION 3000 map px/s^2, about 7 px from a usual throw) instead of losing most of its speed in a frame. Flow map-stones: speed lost in one frame under 80 map px/s (was 350 and more), slide after the last landing at most 1.2 stone sides. Picture `owner-shots/2026-11-18-thrown-stones.png`.
+2. Ishtar: the arch form stands on four wooden planks like Mycenae's (3.2 m x 0.5 m), lying one on another, instead of four wooden blocks (`arch(..., planks=True)` in tools/make-levels.py, Ishtar only); the quick build (the demo) uses them. `spec ishtar` passes. Flow ishtar-planks.
+3. A stone on a boat: as loud as the ground taps (0.512, the +20% removed), and stones landing on one boat together knock once (0.12 s apart at least). Flow map-stones counts the knocks.
+4. Drawing in the sand: a looping sand sound, as loud as the ground taps at a quick stroke, quieter when slow, silent when the finger stops or leaves the map. The sound `src/sounds/map-sand-draw.mp3` is made from filtered noise (normalised like the others) until the owner gives one. Flow sand-draw-sound.
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).

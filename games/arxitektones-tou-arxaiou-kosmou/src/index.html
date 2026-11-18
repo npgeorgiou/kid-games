@@ -1641,7 +1641,8 @@
     "map-tap-sand": [["sounds/map-tap-sand.mp3", 0.512]],
     "map-tap-green": [["sounds/map-tap-green.mp3", 0.512]],
     "map-tap-rock": [["sounds/map-tap-rock.mp3", 0.2]],
-    "map-stone-boat": [["sounds/hit-stone-wood.mp3", 0.512 * 1.2]], // owner 18 Nov: a stone on a boat, as loud as the ground taps and 20% more
+    "map-stone-boat": [["sounds/hit-stone-wood.mp3", 0.512]], // owner 18 Nov: a stone on a boat, as loud as the ground taps
+    "map-sand-draw": [["sounds/map-sand-draw.mp3", 0.512]], // a finger drawing in the sand (a made sound, until the owner gives one), as loud as the ground taps, by the finger's speed
     "boat-left-on-land": [["sounds/boat-left-on-land.mp3", 0.512]], // owner 17 Nov: a disappointed crowd when a boat is left on land (his file, trimmed, peak-normalised); as loud as the map taps
     // collapse.mp3 is in src/sounds but not used yet
   };
@@ -1709,6 +1710,7 @@
   const dragLoops = {};
   function updateDragSounds() {
     if (!actx) return;
+    if (mode !== "map" && sandLoop) sandLoop.setVolume(0); // the sand is on the map only
     const speed = { "drag-stone": 0, "drag-wood": 0 };
     if (mode === "build") for (const p of [...pieces, ...loads.map((l) => ({ body: l.body, material: "stone" }))]) { // the headpiece slides as stone (owner 18 Nov)
       if (p.ghost) continue;
@@ -3795,6 +3797,7 @@
     drawSandWriting(dt, v); drawSandTails(v);
     updateBoats(dt);
     updateStones(dt);
+    updateSandSound(dt);
     updateTravellers(dt, v);
     drawStones(v, false);
     drawBoats(v);
@@ -3946,6 +3949,15 @@
     return pts;
   }
   const sandTail = (h) => quadPts(h.end, h.sand[h.sand.length - 1], h.raw); // from the end of what is pressed to the finger
+  // The finger drawing in the sand sounds as long as it moves: as loud as the ground taps at a quick stroke, quieter when slow.
+  let sandLoop = null;
+  function updateSandSound(dt) {
+    let v = 0;
+    for (const h of mapHolds.values()) if (h.sand && h.moved && h.raw) { const p = h.prevRaw || h.raw; v = Math.max(v, Math.hypot(h.raw[0] - p[0], h.raw[1] - p[1]) / Math.max(dt, 1e-3)); h.prevRaw = h.raw; }
+    const loud = Math.min(1, v / 300);
+    if (!sandLoop && loud > 0) sandLoop = playSound("map-sand-draw", 0, true);
+    if (sandLoop) sandLoop.setVolume(loud, 0.08);
+  }
   function sandFinger(h, p) { // p: the finger's map point, or null when it is lifted
     const k = h.sand;
     if (!p) { sandGroove(sandTail(h)); return; }
@@ -4050,7 +4062,8 @@
   // collide with the boats"; "each grab should grab 5 stones ... they should be thrown ... it should bong on the boat and
   // bounce on the water, and the boat should play the same sound it plays when I let them on land"). Four parts:
   // 1. A finger pressed on a mountain and moved takes five stones (small cubes) out of it; they stay at the finger, lifted
-  //    over their shadows, as a held boat does. Let go, they fly on with the finger's speed and fall, faster and faster.
+  //    over their shadows, as a held boat does. Let go, they fly on with the finger's speed, the air slowing them a little,
+  //    and fall, faster and faster; landing, they hop a little and slide on, slowing evenly, to a stop.
   // 2. A stone falls until it rests on the ground, or on a stone whose top its middle is over; reaching water it sinks with
   //    small splashes and is gone; falling onto a boat it knocks on it and bounces off (the boat's people groan, as when it
   //    is left on land). On the ground it slides to a stop.
@@ -4058,7 +4071,7 @@
   //    ground out of its way, and what lies on a stone moves with it.
   // 4. A stone stays one minute after it lands; then it is gone, and what lay on it falls.
   const STONE = 12, STONE_LIFT = 30, STONE_G = 441, STONE_LIFE = 60, STONE_CE = 0.866, STONES_PER_GRAB = 5; // map px: a stone's side, how high held ones are lifted; fall speed-up (map px/s^2); seconds; the camera's view of heights (as the boats)
-  const BOAT_DECK = BOAT_SIZE * 0.15, BOAT_REACH = BOAT_SIZE * 0.35, STONE_SLIDE = 60, THROW_MAX = 1050, THROW_SHARE = 0.7; // map px: a boat's height and reach for stones; how fast a stone on the ground stops (1/s; owner 18 Nov: it slid too far, now about its own size); the fastest throw (map px/s)
+  const BOAT_DECK = BOAT_SIZE * 0.15, BOAT_REACH = BOAT_SIZE * 0.35, STONE_FRICTION = 3000, STONE_AIR = 1.5, STONE_BOUNCE = 0.3, STONE_HOP_MIN = 120, THROW_MAX = 1050, THROW_SHARE = 0.7; // map px: a boat's height and reach for stones; a stone on the ground slows evenly (map px/s^2; owner 18 Nov: it slid too far, and stopped with a jerk), the air slows a flying one a little (1/s), a landing faster than STONE_HOP_MIN (map px/s) hops back up by STONE_BOUNCE of its speed; the fastest throw (map px/s)
   const GRAB_AT = [[0, 0], [1.05, 0], [-1.05, 0], [0.53, -0.95], [-0.53, -0.95]]; // where the five sit round the finger, in stone sides
   const mapStones = [];
   function stoneSupport(st) { // the top it rests on (part 2): the highest stone below it whose top its middle is over, or the ground (0)
@@ -4087,7 +4100,7 @@
     return out;
   }
   function throwStones(list, vx, vy) { vx *= THROW_SHARE; vy *= THROW_SHARE; const s = Math.hypot(vx, vy), k = s > THROW_MAX ? THROW_MAX / s : 1; for (const st of list) { st.held = null; st.vx = vx * k; st.vy = vy * k; } } // owner 18 Nov: slower in the air, so it can be seen
-  const boatGroanAt = new Map();
+  const boatGroanAt = new Map(), boatKnockAt = new Map();
   function updateStones(dt) {
     const v = mapView();
     for (const st of mapStones.slice()) {
@@ -4097,6 +4110,7 @@
       }
       const sup = stoneSupport(st);
       if (st.z > sup.top + 0.01) { // in the air: on with its speed, falling
+        const air = Math.exp(-STONE_AIR * dt); st.vx *= air; st.vy *= air; // the air slows it a little, all the way
         st.x += st.vx * dt; st.y += st.vy * dt; st.vz += STONE_G * dt; st.z = Math.max(sup.top, st.z - st.vz * dt); st.on = null;
         if (st.vz > 0) for (const b of boats) { // part 2: onto a boat: a knock, and off it it bounces
           if (b.lift > 0 || st.z > BOAT_DECK) continue;
@@ -4104,16 +4118,18 @@
           if (d >= BOAT_REACH) continue;
           const ux = d > 1e-6 ? dx / d : 1, uy = d > 1e-6 ? dy / d : 0, sp = Math.max(120, Math.hypot(st.vx, st.vy) * 0.6);
           st.vx = ux * sp; st.vy = uy * sp; st.vz = -Math.max(120, st.vz * 0.45); st.z = BOAT_DECK + 0.5;
-          playSound("map-stone-boat", 1);
+          if (!(cueClock - (boatKnockAt.get(b) ?? -99) < 0.12)) { boatKnockAt.set(b, cueClock); playSound("map-stone-boat", 1); } // stones landing together knock once
           if (crewOf(b) && !(cueClock - (boatGroanAt.get(b) ?? -99) < soundSeconds(LEFT_ON_LAND))) { boatGroanAt.set(b, cueClock); playSound(LEFT_ON_LAND, 1); }
           break;
         }
         if (st.z > sup.top) continue;
       }
-      const hit = st.vz; st.vz = 0; st.on = sup.on;
+      const hit = st.vz;
+      if (hit > STONE_HOP_MIN) { st.vz = -hit * STONE_BOUNCE; st.z = sup.top + 0.02; continue; } // it lands with a small hop, keeping its way
+      st.vz = 0; st.on = sup.on;
       if (!sup.on && groundAt(st.x, st.y) === "water") { const q = v.pt(st.x, st.y); removeStone(st); stoneSplash(q.x, q.y); continue; }
       if (hit > 150) playSound("map-tap-rock", Math.min(1, hit / 600) * 0.6); // it lands
-      if (st.vx || st.vy) { const f = Math.exp(-STONE_SLIDE * dt); moveStone(st, st.vx * dt, st.vy * dt); st.vx *= f; st.vy *= f; if (Math.hypot(st.vx, st.vy) < 5) st.vx = st.vy = 0; } // it slides to a stop
+      if (st.vx || st.vy) { const sp = Math.hypot(st.vx, st.vy), f = Math.max(0, sp - STONE_FRICTION * dt) / sp; moveStone(st, st.vx * dt, st.vy * dt); st.vx *= f; st.vy *= f; } // it slides, slowing evenly, to a stop
       if (st.age == null) st.age = 0;
       if ((st.age += dt) >= STONE_LIFE) removeStone(st); // part 4: what lay on it falls next frame
     }

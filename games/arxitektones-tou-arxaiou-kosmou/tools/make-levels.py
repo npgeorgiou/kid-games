@@ -67,9 +67,11 @@ def staggered(mat, x0, n, y):  # square, n-1 blocks, square: joints offset from 
     return row(mat, x0, 1, y, "square") + row(mat, x0 + 1, n - 1, y) + row(mat, x0 + 1 + 2 * (n - 1), 1, y, "square")
 def mirror(lst):
     return lst + [[d, m, -x, y, -a] for d, m, x, y, a in lst]
-def arch(cx, sy, support_rows, single=False):
+def arch(cx, sy, support_rows, single=False, planks=False):
     out = []
     if single: out.append(["block", "wood", cx, sy - 0.5, 0])
+    elif planks:  # owner 18 Nov (Ishtar): the form stands on wooden planks like the Mycenae ones, lying one on another
+        out += [["beam", "wood", cx, round(sy - support_rows + 0.25 + 0.5 * k, 4), 0] for k in range(2 * support_rows)]
     else:
         for r in range(support_rows):
             out += [["block", "wood", cx - 1, sy - support_rows + r + 0.5, 0], ["block", "wood", cx + 1, sy - support_rows + r + 0.5, 0]]
@@ -174,7 +176,7 @@ level("karnak", "Υπόστυλη αίθουσα του Καρνάκ", "c. 1290-
 # 6 Ishtar Gate
 s = ([p for y in (0.5, 1.5) for p in row("stone", -6, 2, y) + row("stone", 2, 2, y)] +
      [p for y in (2.5, 3.5, 4.5, 5.5, 6.5) for p in (["block", "stone" if y < 4 else "mudbrick", -(ARCH_X + 2), y, 0], ["block", "stone" if y < 4 else "mudbrick", ARCH_X + 2, y, 0])] +
-     arch(0, 2, 2) + [p for y in (2.5, 3.5, 4.5) for p in (["square", "stone", -(ARCH_X + 0.5), y, 0], ["square", "stone", ARCH_X + 0.5, y, 0])] +
+     arch(0, 2, 2, planks=True) + [p for y in (2.5, 3.5, 4.5) for p in (["square", "stone", -(ARCH_X + 0.5), y, 0], ["square", "stone", ARCH_X + 0.5, y, 0])] +
      [tri_at(-ARCH_X, 5, 1, kind="trib"), tri_at(ARCH_X, 5, -1, kind="trib")])
 ish = s
 level("ishtar", "Πύλη της Ιστάρ", "c. 575 BC", "a stone arch on a wooden form",
