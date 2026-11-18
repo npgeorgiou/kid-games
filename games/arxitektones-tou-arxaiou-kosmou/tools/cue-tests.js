@@ -163,9 +163,9 @@
 
     // 15 Nov evening, 5: every line is said by some cue, demo or group; every moment the table listens for is one the game's code makes
     "voice-hooks": () => {
-      const D = T.CUE_TABLE, used = new Set(), bad = [], add = (v) => { if (typeof v === "number") used.add(v); else if (Array.isArray(v)) v.forEach(add); else if (v && typeof v === "object") { if (Array.isArray(v.bySite)) add(v.bySite); if (v.group) add(D.groups[v.group].lines || D.groups[v.group].bySite); } };
+      const D = T.CUE_TABLE, used = new Set(), bad = [], add = (v) => { if (typeof v === "number") used.add(v); else if (Array.isArray(v)) v.forEach(add); else if (v && typeof v === "object") { if (Array.isArray(v.byPlace)) add(v.byPlace); if (v.group) add(D.groups[v.group].lines || D.groups[v.group].byPlace); } };
       for (const c of D.cues) { add(c.say); add(c.after); }
-      for (const g of Object.values(D.groups)) { add(g.lines); add(g.bySite); }
+      for (const g of Object.values(D.groups)) { add(g.lines); add(g.byPlace); }
       const ownRecording = new Set(Object.values(D.groups).flatMap((g) => Object.entries(g.lineIf || {}).filter(([, c]) => c === "recorded").map(([n]) => +n))); // the owner's own voice, no text by design
       for (const dm of Object.values(D.demos)) for (const st of dm.steps) if (st[0] === "tell" || st[0] === "say") add(st[1]);
       const lines = Object.keys(D.lines).map(Number), unused = lines.filter((n) => !used.has(n)), missing = [...used].filter((n) => !ownRecording.has(n) && (!D.lines[n] || !D.lines[n].trim()));

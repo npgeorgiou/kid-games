@@ -1,7 +1,7 @@
 # Headless check of every level: quick build, then the full test (Tab override). One line per level.
 # Usage: python3 tools/harness.py [level indexes]. Exposes internals via window.__tb (hook injected, rAF disabled, stepped manually).
 # Extend this file in place for new checks; do not make new scratch harnesses.
-import sys, json
+import re, sys, json
 from playwright.sync_api import sync_playwright
 import os, re
 HERE=os.path.dirname(os.path.abspath(__file__))
@@ -316,7 +316,7 @@ with sync_playwright() as p:
             print('%-4s %-24s %s'%('PASS' if ok else 'FAIL','map %dx%d'%(vw,vh),json.dumps(r)),flush=True)
         levels=[]
     if 'cuetest' in sys.argv:  # owner 15 Nov: the cue rules as pass/fail tests (what plays first, on time, periodically, never together, once); one line each
-        pg.evaluate('(s)=>{window.__SRC=s}',open(os.path.join(HERE,'..','src','index.html')).read())  # the game's code, for the hook checks
+        pg.evaluate('(s)=>{window.__SRC=s}',re.sub(r'^[ \t]*// @include (\S+)[ \t]*$',lambda m:open(os.path.normpath(os.path.join(HERE,'..','src',m.group(1)))).read(),open(os.path.join(HERE,'..','src','index.html')).read(),flags=re.M))  # the game's code, for the hook checks
         pg.evaluate(open(os.path.join(HERE,'cue-tests.js')).read())
         names=[a for a in sys.argv[2:] if not a.isdigit() and a!='cuetest']
         res=pg.evaluate('(n)=>__cueTests(n)',names)

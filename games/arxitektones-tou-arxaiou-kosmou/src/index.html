@@ -591,7 +591,7 @@
   const MATERIALS = {
     wood:  { label: "WOOD",  density: 1.1,  friction: 0.6,  restitution: 0.015 },
     // mudbrick: between wood and stone in weight; crumbles under heavy weight (SECTION BREAKING)
-    mudbrick: { label: "MUDBRICK", density: 3.2, friction: 0.84, restitution: 0.0 },
+    mudbrick: { label: "MUDBRICK", density: 3.2, friction: 0.84, restitution: 0.0, crumbles: true },
     stone: { label: "STONE", density: 5.0,  friction: 0.72, restitution: 0.0 }, // frictions 20% higher (owner 15 Nov)
   };
   let selectedMaterial = "wood";
@@ -647,7 +647,8 @@
     // radius just under the arch's inner radius of 2 m; origin at its centre of mass
     centering: { shape: "poly", verts: Array.from({ length: 11 }, (_, i) => { const t = (Math.PI * i) / 10, R = 2.0; return [R * Math.cos(t), R * Math.sin(t) - (4 * R) / (3 * Math.PI)]; }),
                  hx: 2.0, hy: 1.0, densityScale: 1.0, skin: "centering" },
-  };
+  };  const REGULAR_BLOCK = PIECE_DEFS.block; // a material's regular block: a piece weighs its size counted in these (tools/physics/contact.js)
+
   // Planck keeps touching shapes apart by its polygon skin; each piece's physical shape is this much
   // smaller on every side than drawn, so pieces sit on each other where they are drawn (measured: 1.4 cm per course)
   const SKIN_GAP = 0.005;
@@ -942,7 +943,7 @@
       circ("restart", rb.x, rb.y, rb.size / 2, restartPress);
       for (const s of SITES) {
         const m = siteMarker(v, s), i = LEVELS.findIndex((L) => L.key === s.key);
-        circ("site:" + s.key, m.x, m.y, m.r * 1.15, levelOpen(i) || progress.done[s.key] ? () => { startLevel(i); onEnterSite(i); } : lockedTap);
+        circ("site:" + s.key, m.x, m.y, m.r * 1.15, levelOpen(i) || progress.done[s.key] ? () => { startLevel(i); onEnterSite(i); } : lockedTap); out[out.length - 1].glowR = m.r; // its glow follows the marker, not the larger touch circle
       }
       return out;
     }
@@ -1221,185 +1222,10 @@
   // ---------------------------------------------------------------------
   // SECTION: PHYSICS STEP -- fixed step accumulator, held-piece tracking
   // ---------------------------------------------------------------------
-  const STEP = 1 / 60;
-  const MAX_STEPS = 5;
-  let accumulator = 0;
-  let lastTime = null;
-
-  // Run once per physics tick, not per input event: a fast flick, or several
-  // pointermove events the browser coalesces into one animation frame, can
-  // report the pointer far from where it was a moment ago -- possibly
-  // several times before a single tick runs. Reacting to each event directly
-  // would let the piece be yanked through whatever is in its path within one
-  // step, which the solver would resolve as a sudden deep overlap, launching
-  // the obstacle at an unrealistic speed. Computing the drive fresh from the
-  // piece's actual current position, once per tick, bounds that regardless
-  // of how bursty the input was.
-  //
-  const GRAVITY = 10;
-  // THE HAND (owner 14 Nov 2026: real, consistent, one model, nothing made up). Two parts, everything else is the
-  // physics engine:
-  // - The arm: a steady arm, not a spring (no rubber band). Each step it wants the grab point to head for the finger
-  //   and pushes with the force that gets that speed within ARM_REACT, plus holding up the weight carried (the piece
-  //   plus the share of weight resting on it, from what rests on what). The arm has ARM_STRENGTH in all; what is left
-  //   after holding up the weight moves the load, but the brain never uses more than HAND_GRIP x the weight for moving
-  //   it (owner 12-14 Nov: strength the job needs, so a small stone cannot shove a big block; heavier lags; above two
-  //   stone blocks it cannot lift). It speeds a load up over at most one sweep of the arm, ARM_RUN (owner 14 Nov: a
-  //   mudbrick block dragged sideways at full speed and let go at mid-screen height flies 9 m, then 'a bit less'; every other piece by
-  //   its weight), and never harder than what rests on it can follow without sliding (its friction). Heading for the
-  //   finger it never goes faster than it can still stop at the finger (the standard time-optimal approach), so a
-  //   piece runs on as its speed and the arm's strength make it and comes back without springing past the finger.
-  //   What it moves is the piece, what rests on it, and the pieces it pushes on its way (owner 15 Nov: a row pushed
-  //   like a train is one heavier load; each touching piece counted as much as it lies in the way, with what rests on
-  //   it), so a row starts slower and one too heavy for the strength left does not move, wherever the piece is held.
-  //   Pulling by a point beyond the middle helps only the piece itself, less and less the more it pushes.
-  // - The fingers hold the piece where it was grabbed (a pin, never slipping). The wrist resists turning like
-  //   friction with a static and a sliding level (the standard Stribeck friction curve, with its viscous part): while
-  //   still it holds up to the weight and the pull the arm feels, each times the distance from the piece's middle to the
-  //   edge of its middle third (towards the grab point; the grab point's own distance if that is less); against the pull
-  //   only the share that moves the piece itself (M / Mt): the share pressing into what it pushes turns nothing in a
-  //   free piece, so the wrist does not hold against it (owner 16 Nov: a plank across a log pulled down anywhere tips), once turning only WRIST_SLIP of that, less and less once the piece has
-  //   turned in the fingers (WRIST_TURNED, so it hangs straight rather than stopping part way), and it damps swinging (WRIST_DAMP of
-  //   critical). A pull through the grab point turns the piece by at most the grab
-  //   point's distance from the middle, so a piece grabbed in its middle third never turns however the hand moves
-  //   (owner 14 Nov, every piece by its own size; a stack lifted by its bottom piece too); grabbed in an outer third,
-  //   the weight wins, the wrist gives way and it falls round, settling hanging without bouncing.
-  const ARM_STRENGTH = 210; // N: a stone block weighs 100 N, so two blocks lift slowly and a bit more does not
-  const ARM_SPEED = 11, ARM_EASE = 0.08, ARM_REACT = 0.05, ARM_RUN = 1.4, ARM_CARE = 0.8; // m/s, s, s, m, share of the friction
-  const HAND_GRIP = 3.8; // most strength the brain uses for moving, as a multiple of the weight carried
-  const WRIST_SLIP = 0.1, WRIST_GIVE = 0.3, WRIST_DAMP = 0.35, WRIST_TURNED = 0.3, WRIST_SEEN = 4, ARM_PULL = 5; // share, rad/s (holding to slipping), share of critical, rad (turned in the fingers)
-  const HAND_MASS = 0.2; // kg: the hand, moved along with the piece
-  const dIn = new planck.DistanceInput(), dOut = new planck.DistanceOutput(), dCache = new planck.SimplexCache();
-  // distance from a body down to the nearest piece under it, if closer than `reach`
-  function gapBelow(body, reach) {
-    let best = null;
-    for (let f = body.getFixtureList(); f; f = f.getNext()) {
-      const bb = f.getAABB(0);
-      world.queryAABB(planck.AABB(planck.Vec2(bb.lowerBound.x, bb.lowerBound.y - reach), planck.Vec2(bb.upperBound.x, bb.upperBound.y)), (fx) => {
-        const b = fx.getBody();
-        if (b === body || !b.piece || b.piece.ghost || b.piece.auto) return true;
-        dIn.proxyA.set(f.getShape(), 0); dIn.proxyB.set(fx.getShape(), 0);
-        dIn.transformA.set(body.getTransform()); dIn.transformB.set(b.getTransform());
-        dIn.useRadii = true; dCache.count = 0; planck.Distance(dOut, dCache, dIn);
-        if (dOut.distance < reach && dOut.pointB.y < dOut.pointA.y + 0.01 && (best == null || dOut.distance < best)) best = dOut.distance;
-        return true;
-      });
-    }
-    return best;
-  }
-  function touchesOtherPiece(body) {
-    if (body.piece && body.piece.ghost) return false;
-    for (let ce = body.getContactList(); ce; ce = ce.next) {
-      if (ce.contact.isTouching() && ce.other.piece) return true;
-    }
-    return false;
-  }
-  // the pieces the held one pushes heading (dx, dy): every touching piece, as much as it lies in that direction, then
-  // the pieces those push, each with the weight resting on it (from what rests on what); not what rests on the held one
-  function pushedMass(body, dx, dy, d, traced) {
-    if (d < 1e-6) return 0;
-    const ux = dx / d, uy = dy / d, seen = new Set([body]), wm = new planck.WorldManifold();
-    for (const [b, it] of traced) if (it.sup.some((q) => q.low === body)) seen.add(b);
-    let m = 0, front = [[body, 1]];
-    while (front.length) {
-      const next = [];
-      for (const [a, share] of front) for (let ce = a.getContactList(); ce; ce = ce.next) {
-        const o = ce.other, c = ce.contact;
-        if (seen.has(o) || !c.isTouching() || !o.piece || o.piece.ghost || o.piece.auto || o.piece.heldBy != null) continue;
-        c.getWorldManifold(wm); const sg = c.getFixtureA().getBody() === a ? 1 : -1, k = share * Math.max(0, sg * (wm.normal.x * ux + wm.normal.y * uy));
-        if (k <= 0) continue;
-        seen.add(o); const t = traced.get(o); m += k * (o.getMass() + (t ? t.recv : 0) / GRAVITY); next.push([o, k]);
-      }
-      front = next;
-    }
-    return m;
-  }
-  // how hard the arm can speed up a load of weight W (N), and the top speed it gives it in one sweep (ARM_RUN)
-  function armAccel(W) {
-    const M = W / GRAVITY, most = Math.min(W, ARM_STRENGTH) + Math.min(HAND_GRIP * W, Math.max(0, ARM_STRENGTH - W));
-    return Math.min((most - Math.min(W, most)) / M, HAND_GRIP * GRAVITY * Math.max(0, 1 - W / ARM_STRENGTH));
-  }
-  function armTopSpeed(W) { return Math.min(ARM_SPEED, Math.sqrt(2 * armAccel(W) * ARM_RUN)); }
-  function advanceHeldTargets() {
-    let traced = null;
-    for (const hand of pointers.values()) {
-      const piece = hand.piece;
-      if (!piece || !piece.desired || !piece.grip) continue;
-      if (!traced) traced = traceLoads(true);
-      const body = piece.body, t = traced.get(body), W = body.getMass() * GRAVITY + (t ? t.recv : 0), M = W / GRAVITY;
-      const most = Math.min(W, ARM_STRENGTH) + Math.min(HAND_GRIP * W, Math.max(0, ARM_STRENGTH - W));
-      // what rests on it, and how hard it can be moved without that sliding
-      let A = armAccel(W); // lighter is always quicker
-      for (const [b, it] of traced) if (it.sup.some((q) => q.low === body)) A = Math.min(A, ARM_CARE * GRAVITY * Math.sqrt(b.getFixtureList().getFriction() * body.getFixtureList().getFriction()));
-      const p = body.getWorldPoint(piece.grabLocal), v = body.getLinearVelocityFromWorldPoint(p), f = piece.desired;
-      const dx = f.x - p.x, dy = f.y - p.y, d = Math.hypot(dx, dy), Mt = M + pushedMass(body, dx, dy, d, traced), vmax = Math.min(ARM_SPEED, Math.sqrt(2 * A * ARM_RUN));
-      const s = d > 1e-6 ? Math.min(vmax, d / ARM_EASE, Math.sqrt(2 * A * d)) / d : 0;
-      // pulling a piece by a point away from its middle (like a rope) the arm is much stronger than pushing or lifting
-      const c = body.getWorldCenter(), def = piece.def || PIECE_DEFS[piece.defKey], hx = def.hx || def.r, hy = def.hy || def.r || hx, lc = body.getLocalCenter();
-      const lx = piece.grabLocal.x - lc.x, ly = piece.grabLocal.y - lc.y, r = Math.hypot(lx, ly);
-      let ax = (dx * s - v.x) / ARM_REACT, ay = (dy * s - v.y) / ARM_REACT; const al = Math.hypot(ax, ay);
-      const pull = (r > 1e-6 && al > 1e-6 ? Math.max(0, (ax * (p.x - c.x) + ay * (p.y - c.y)) / (al * r)) * r / (r + 0.3) : 0) * (M / Mt) ** 2;
-      const Ap = A + pull * ARM_PULL * GRAVITY;
-      if (al > Ap) { ax *= Ap / al; ay *= Ap / al; }
-      // the arm holds up the weight first; what is left of its strength moves the load, never more than HAND_GRIP x the
-      // weight held (the moving part is shortened until both hold)
-      const cap = most + pull * ARM_PULL * W, hw = Math.min(W, cap), mm = Mt * Mt * (ax * ax + ay * ay), mh = Mt * ay * hw;
-      const sh = mm > 1e-9 ? Math.min(1, (HAND_GRIP + pull * ARM_PULL) * W / Math.sqrt(mm), (-mh + Math.sqrt(Math.max(0, mh * mh + mm * (cap * cap - hw * hw)))) / mm) : 0;
-      let Fx = sh * Mt * ax, Fy = sh * Mt * ay + hw;
-      body.applyForce(planck.Vec2(Fx, Fy), p, true);
-      // the wrist: against the weight, and against the hand's own speeding up and slowing down (the brain keeps what it
-      // moves steady), it holds as far as the middle third reaches towards the grab point (the piece's own size); held in
-      // an outer third, a push that turns the piece about something it rests on turns it in the fingers (owner 16 Nov:
-      // a plank lying across a log, pulled down by its raised end, tips like a lever)
-      const reach = r < 1e-6 ? 1e3 : r * Math.min(Math.abs(lx) > 1e-6 ? hx / 3 / Math.abs(lx) : 1e3, Math.abs(ly) > 1e-6 ? hy / 3 / Math.abs(ly) : 1e3);
-      const w = body.getAngularVelocity(), hold = reach * W + Math.min(r, reach) * Math.hypot(Fx, Fy - W) * (M / Mt);
-      // the fingers hold firmly only in the position they closed on; once the piece has turned in them, loosely
-      const turned = Math.exp(-Math.abs(piece.grip.getJointAngle()) / WRIST_TURNED);
-      piece.grip.setMaxMotorTorque(hold * turned * (WRIST_SLIP + (1 - WRIST_SLIP) * Math.exp(-Math.abs(w) / WRIST_GIVE)));
-      // its damping, against swinging relative to the finger's own turning (a person whirling turns the wrist with the
-      // circles; held still it calms the swing): the finger's turning from its last WRIST_SEEN steps, counted only as
-      // much as the finger is really moving; never more than the weight's own turning pull at the grab point
-      const hist = piece.fingerHist || (piece.fingerHist = []); hist.push({ x: f.x, y: f.y }); if (hist.length > 2 * WRIST_SEEN + 1) hist.shift();
-      let wf = 0;
-      if (hist.length === 2 * WRIST_SEEN + 1) { const h0 = hist[0], h1 = hist[WRIST_SEEN], h2 = hist[2 * WRIST_SEEN], ux = h1.x - h0.x, uy = h1.y - h0.y, vx2 = h2.x - h1.x, vy2 = h2.y - h1.y;
-        const sp = Math.min(Math.hypot(ux, uy), Math.hypot(vx2, vy2)) / (WRIST_SEEN * STEP);
-        wf = Math.atan2(ux * vy2 - uy * vx2, ux * vx2 + uy * vy2) / (WRIST_SEEN * STEP) * sp * sp / (sp * sp + 0.09); }
-      const Ip = body.getInertia() + body.getMass() * r * r, tq = -WRIST_DAMP * 2 * Math.sqrt(Ip * W * Math.max(r, 0.05)) * (w - wf);
-      body.applyTorque(Math.max(-r * W, Math.min(r * W, tq)), true);
-    }
-  }
-  function dropHand(piece) { // let go: the fingers open and the arm goes away
-    if (piece.handBody) { try { world.destroyBody(piece.handBody); } catch (err) { /* world already gone */ } }
-    piece.handBody = null; piece.grip = null;
-  }
-
-  function stepPhysics(dtSeconds, maxSteps = MAX_STEPS) {
-    accumulator += dtSeconds;
-    let steps = 0;
-    while (accumulator >= STEP && steps < maxSteps) {
-      advanceHeldTargets();
-      autoTick(STEP);
-      demoTick(STEP);
-      testTick(STEP);
-      world.step(STEP, 10, 5);
-      settleResting();
-      updateStrain();
-      solidifyGhosts();
-      if (hasPile()) { drivePileHands(); pileWorld.step(STEP, 10, 6); for (const h of pointers.values()) if (h.pileBody) capPileHand(h.pileBody, h.pileGrab); settlePile(); rescuePile(); }
-      accumulator -= STEP;
-      steps++;
-    }
-    if (steps === maxSteps) accumulator = 0;
-  }
-  // Pieces that are nearly still lose the last of their speed quickly, so contact noise
-  // cannot keep them trembling or knocking each other in a loop, and they fall asleep.
-  // Faster motion (falling, tipping, sliding) is untouched. Written into the velocity
-  // directly: planck's setters would wake the body and stop it ever sleeping.
-  function damp(b, vLin, vAng, k) {
-    if (!b.isAwake() || !b.isDynamic()) return;
-    const v = b.m_linearVelocity;
-    if (Math.hypot(v.x, v.y) < vLin && Math.abs(b.m_angularVelocity) < vAng) { v.x *= k; v.y *= k; b.m_angularVelocity *= k; }
-  }
+  // @include ../../../tools/physics/step.js
+  // @include ../../../tools/physics/hand.js
+  physicsBefore.push(advanceHeldTargets, autoTick, demoTick, testTick); // this game's work for each step, in order
+  physicsAfter.push(settleResting, updateStrain, solidifyGhosts, () => { if (hasPile()) { drivePileHands(); pileWorld.step(STEP, 10, 6); for (const h of pointers.values()) if (h.pileBody) capPileHand(h.pileBody, h.pileGrab); settlePile(); rescuePile(); } });
   function settleResting() {
     if (test && (test.phase === "wind" || test.phase === "quake")) return; // the test's own shaking is real
     for (const p of pieces) if (p.heldBy == null && !p.ghost && !p.auto) damp(p.body, 0.05, 0.08, 0.85);
@@ -1746,22 +1572,7 @@
   const MUD_SHATTER_SPEED = 8.3; // m/s lost in one step that crumbles a mudbrick at once; owner: survives a fall one block side (1 m) higher than before (2.75 -> 3.75 m)
   // Also used by the sidebar pile (pile = true): same dust, chips and sounds, no shake, no breaking.
   onWorld("post-solve", (contact, impulse) => feelContact(contact, impulse, false));
-  // How fast the two bodies were closing at the contact before the solver ran (m/s).
-  // A resting stack has ~0 here even though its contact impulse carries the weight of
-  // everything above; reading impulse/mass alone mistook that weight for a hit every step.
-  function approachSpeed(contact) {
-    const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
-    const wm = new planck.WorldManifold(); contact.getWorldManifold(wm);
-    let vn = 0;
-    for (let i = 0; i < contact.getManifold().pointCount; i++) {
-      const p = wm.points[i], va = bA.getLinearVelocityFromWorldPoint(p), vb = bB.getLinearVelocityFromWorldPoint(p);
-      vn = Math.max(vn, -((vb.x - va.x) * wm.normal.x + (vb.y - va.y) * wm.normal.y));
-    }
-    return vn;
-  }
-  onWorld("pre-solve", (contact) => { contact.tbVn = approachSpeed(contact);  });
-  // a body's weight counted in 2 m blocks of its material (a block weighs 1)
-  function inBlocks(b, mat) { return b.getMass() / (MATERIALS[mat].density * 4 * (PIECE_DEFS.block.hx - SKIN_GAP) * (PIECE_DEFS.block.hy - SKIN_GAP)); }
+  // @include ../../../tools/physics/contact.js
   const HEAD_ITEM = { material: "stone" };
   function feelContact(contact, impulse, pile) {
     const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
@@ -1842,222 +1653,8 @@
   // Owner (13 Nov): a mudbrick block crumbles under four mudbrick blocks (about 252 N), and, separately, under three stone blocks
   // (about 296 N); three mudbricks (189 N) or two stones (197 N) it holds. The limit sits between those.
   // A wooden beam over a gap holds one stone block, not two (placeholder).
-  const CRUSH_FORCE = 238; // N pressing down on one mudbrick block lying flat (2 m wide)
-  // owner: a narrow mudbrick (a column standing up) holds less: what it holds goes with the width it stands on
-  function crushLimit(p) {
-    let x0 = Infinity, x1 = -Infinity;
-    for (let f = p.body.getFixtureList(); f; f = f.getNext()) { // the drawn shape's width as it lies (not the physics' padded box)
-      const sh = f.getShape();
-      if (sh.getType() === "circle") { const c = p.body.getPosition(); x0 = Math.min(x0, c.x - sh.getRadius()); x1 = Math.max(x1, c.x + sh.getRadius()); }
-      else for (const v of sh.m_vertices) { const q = p.body.getWorldPoint(v); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); }
-    }
-    return CRUSH_FORCE * (x1 - x0 + 2 * SKIN_GAP) / 2;
-  }
-  const MUD_SPAN_MIN = 0.3; // m
-  const MUD_SNAP_MOMENT = 10; // N*m: mudbrick across a gap breaks under far less than wood (a stone block over a 1 m gap breaks it)
-  const SNAP_MOMENT = 150;  // N*m bending a wood piece between (or beyond) its supports
-  const STRAIN_TIME = { crumble: 0.5, snap: 0.25 }; // seconds of overload before it gives
-
-  // Collect, per physics step, what presses on each mudbrick and where wood is held up and pushed down.
-  onWorld("post-solve", (contact, impulse) => {
-    const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
-    const watch = (b) => b.piece && (b.piece.material === "mudbrick" || b.piece.canSnap);
-    if (!watch(bA) && !watch(bB)) return;
-    const wm = new planck.WorldManifold(); contact.getWorldManifold(wm);
-    const n = wm.normal, cnt = contact.getManifold().pointCount;
-    for (const [body, sign] of [[bA, -1], [bB, 1]]) {
-      if (!watch(body)) continue;
-      const piece = body.piece;
-      const pts = [];
-      for (let i = 0; i < cnt; i++) {
-        const j = impulse.normalImpulses[i] / STEP; // N
-        if (j > 0) pts.push([wm.points[i].x, wm.points[i].y, sign * n.x * j, sign * n.y * j]);
-      }
-      if (!pts.length) continue;
-      if (piece.material === "mudbrick" && Math.abs(n.y) > 0.7) // weight pressing from above: contacts facing up or down only, not side pushes
-        for (const p of pts) if (p[3] < 0) piece.crush -= p[3];
-      // wood and mudbrick (owner: mudbrick laid across a gap like a lintel breaks easily) bend over gaps
-      // wood: positions along the long axis, forces across it (towards up = holds it up)
-      const a = body.getAngle(), along = piece.hx >= piece.hy;
-      const ux = along ? Math.cos(a) : -Math.sin(a), uy = along ? Math.sin(a) : Math.cos(a);
-      let px = -uy, py = ux;
-      if (py < 0) { px = -px; py = -py; }
-      if (py < 0.5) continue; // standing too upright to bend
-      const c = body.getPosition();
-      let s0 = Infinity, s1 = -Infinity, sl = 0, nl = 0;
-      const down = [];
-      for (const [x, y, fx, fy] of pts) {
-        const s = (x - c.x) * ux + (y - c.y) * uy, f = fx * px + fy * py;
-        if (f > 0) { s0 = Math.min(s0, s); s1 = Math.max(s1, s); }
-        else { down.push([s, -f]); sl += s; nl++; }
-      }
-      // a piece lying flat on it presses along the whole face they share (the physics reports only its two ends),
-      // so the part of its weight over a gap bends the wood
-      if (down.length === 2) {
-        const [[sa, pa], [sb, pb]] = down, N = 8;
-        for (let k = 0; k < N; k++) piece.loads.push([sa + ((sb - sa) * (k + 0.5)) / N, (pa + pb) / N]);
-      } else for (const d of down) piece.loads.push(d);
-      // what hit it: kinetic energy it brought in = J^2 / 2m (J = the impulse that stopped it this step)
-      const other = body === bA ? bB : bA, mo = other.isDynamic() ? other.getMass() : 0;
-      if (nl && mo > 0 && piece.canSnap) {
-        let J = 0;
-        for (let i = 0; i < cnt; i++) J += impulse.normalImpulses[i];
-        const hv = Math.min(J / mo, contact.tbVn || 0); // closing speed: resting weight is not a hit
-        if (hv > 1.5) piece.impacts.push([sl / nl, 0.5 * mo * hv * hv, mo * GRAVITY]); // a real hit, not settling (over 1.5 m/s)
-      }
-      if (s1 >= s0) { // one support contact holds up the whole stretch it touches: all its manifold points count,
-        // also those carrying no force this step (a slightly tilted piece rests on one corner at a time)
-        for (let i = 0; i < cnt; i++) { const q = wm.points[i], sq = (q.x - c.x) * ux + (q.y - c.y) * uy; s0 = Math.min(s0, sq); s1 = Math.max(s1, sq); }
-        // ... and the whole stretch where the piece lies over what holds it up (a piece tilted a little rests on corners)
-        const of = body === bA ? contact.getFixtureB() : contact.getFixtureA(), ob = of.getBody(), sh = of.getShape(), ext = along ? piece.hx : piece.hy;
-        let a = Infinity, b = -Infinity;
-        if (sh.getType() === "circle") { const q = ob.getPosition(), sq = (q.x - c.x) * ux + (q.y - c.y) * uy; a = sq - sh.getRadius(); b = sq + sh.getRadius(); }
-        else for (const v of sh.m_vertices) { const q = ob.getWorldPoint(v), sq = (q.x - c.x) * ux + (q.y - c.y) * uy; a = Math.min(a, sq); b = Math.max(b, sq); }
-        a = Math.max(a, -ext); b = Math.min(b, ext);
-        piece.sup.push(b > a ? [Math.min(a, s0), Math.max(b, s1)] : [s0, s1]);
-      }
-    }
-  });
-
-  // Bending: a load over a gap counts as if spread over that gap (P x gap / 4, so a
-  // stiff block sitting near the supports still loads the beam); a load beyond the
-  // last support bends by its distance from it. Loads right over a support count nothing.
-  // minSpan (mudbrick): only a real lintel counts, a load over a gap at least that wide between two supports, not a
-  // brick sticking out a little or the hair gaps of rough placing
-  function bendMoment(p, minSpan = 0) {
-    if (!p.sup.length || !p.loads.length) return 0;
-    let M = 0;
-    for (const [x, P] of p.loads) {
-      let l = -Infinity, r = Infinity, held = false;
-      for (const [a, b] of p.sup) {
-        if (x >= a - 0.05 && x <= b + 0.05) { held = true; break; }
-        if (b < x) l = Math.max(l, b);
-        if (a > x) r = Math.min(r, a);
-      }
-      if (held) continue;
-      if (Number.isFinite(l) && Number.isFinite(r)) { if (r - l >= minSpan) M += (P * (r - l)) / 4; }
-      else if (!minSpan) M += P * Math.min(Math.abs(x - l), Math.abs(r - x));
-    }
-    return M;
-  }
-
-  // Impact on a beam (energy method): an object bringing kinetic energy KE onto a span L
-  // between supports raises the bending moment by sqrt(6 * KE * EI / L) wherever it lands,
-  // on top of its weight's own moment W*a*b/L; past the last support the arm a replaces L
-  // and the weight's moment is W*a. Stiffer or shorter spans take more of the blow.
-  const WOOD_EI = 1;       // bending stiffness of the wooden pieces, N*m^2 (placeholder, tune by play)
-  const IMPACT_MIN_SPAN = 0.5; // m: spans shorter than this count as this
-  function impactMoment(p) {
-    if (!p.sup.length || !p.impacts.length) return 0;
-    let M = 0;
-    for (const [x, ke, W] of p.impacts) {
-      let l = -Infinity, r = Infinity, held = false;
-      for (const [a, b] of p.sup) {
-        if (x >= a - 0.05 && x <= b + 0.05) { held = true; break; }
-        if (b < x) l = Math.max(l, b);
-        if (a > x) r = Math.min(r, a);
-      }
-      if (held) continue;
-      let m;
-      if (Number.isFinite(l) && Number.isFinite(r)) {
-        const L = r - l;
-        m = (W * (x - l) * (r - x)) / L + Math.sqrt((6 * ke * WOOD_EI) / Math.max(IMPACT_MIN_SPAN, L));
-      } else {
-        const a = Math.min(Math.abs(x - l), Math.abs(r - x));
-        m = W * a + Math.sqrt((6 * ke * WOOD_EI) / Math.max(IMPACT_MIN_SPAN, a));
-      }
-      M = Math.max(M, m);
-    }
-    return M;
-  }
-
-  // Owner (13 Nov): weight is shared fairly. The physics engine works through the contacts one after another, so a
-  // piece resting on several supports gave most of its weight to one of them: in a symmetric ziggurat the left middle
-  // brick carried twice the right one. The weight on each piece is traced instead, from the top down: every piece
-  // passes its own weight plus what rests on it to the pieces under it, as a stiff piece on equal springy supports
-  // would: by how much of it lies on each, shifted towards the side its weight leans to.
-  const SUPPORT_NY = 0.3; // a contact facing up at least this much carries weight (arch stones included)
-  function shareWeight(W, xbar, sup) { // sup: [{c, w}] -> forces, summing to W, balanced about xbar
-    let act = sup.map((s, i) => i), f = sup.map(() => 0);
-    for (let it = 0; it <= sup.length; it++) {
-      let S0 = 0, S1 = 0, S2 = 0;
-      for (const i of act) { const { c, w } = sup[i]; S0 += w; S1 += w * c; S2 += w * (c * c + (w * w) / 12); } // a wide support also resists turning (its own width), so a corner touching beside it takes no share it cannot have
-      const det = S0 * S2 - S1 * S1;
-      let al, be;
-      if (det < 1e-9 * S0 * S0) { al = W / S0; be = 0; } else { al = (W * S2 - W * xbar * S1) / det; be = (W * xbar * S0 - W * S1) / det; }
-      f = sup.map(() => 0); for (const i of act) f[i] = sup[i].w * (al + be * sup[i].c);
-      const neg = act.filter((i) => f[i] < 0);
-      if (!neg.length) return f;
-      if (act.length - neg.length < 1) break;
-      act = act.filter((i) => f[i] >= 0); // a support it would have to pull on: the piece lifts off it
-    }
-    // weight beyond every support's edge: all of it on the support nearest the side it leans to
-    let k = 0; for (let i = 1; i < sup.length; i++) if (Math.abs(sup[i].c - xbar) < Math.abs(sup[k].c - xbar)) k = i;
-    f = sup.map(() => 0); f[k] = W; return f;
-  }
-  function traceLoads(withHeld = false) {
-    const info = new Map();
-    const add = (b) => info.set(b, { W: b.getMass() * GRAVITY, M: b.getMass() * GRAVITY * b.getWorldCenter().x, recv: 0, sup: [], y: b.getWorldCenter().y });
-    for (const p of pieces) if (!p.ghost && !p.auto && (withHeld || p.heldBy == null)) add(p.body);
-    for (const l of loads) if (l.released) add(l.body);
-    const wm = new planck.WorldManifold();
-    for (let c = world.getContactList(); c; c = c.getNext()) {
-      if (!c.isTouching()) continue;
-      const A = c.getFixtureA().getBody(), B = c.getFixtureB().getBody();
-      if (!info.has(A) && !info.has(B)) continue;
-      c.getWorldManifold(wm); const n = wm.normal; // from A to B
-      if (Math.abs(n.y) < SUPPORT_NY) continue;
-      const up = n.y > 0 ? B : A, low = up === A ? B : A, iu = info.get(up);
-      if (!iu) continue;
-      // where it rests: the width the two pieces share (a tiny tilt leaves the physics only one corner touching,
-      // which must not move the weight); the touching points when they share no width (a corner on a face)
-      const ba = c.getFixtureA().getAABB(0), bb = c.getFixtureB().getAABB(0);
-      let x0 = Math.max(ba.lowerBound.x, bb.lowerBound.x), x1 = Math.min(ba.upperBound.x, bb.upperBound.x);
-      if (x1 - x0 < 0.05) { x0 = Infinity; x1 = -Infinity; for (let i = 0; i < c.getManifold().pointCount; i++) { x0 = Math.min(x0, wm.points[i].x); x1 = Math.max(x1, wm.points[i].x); } }
-      if (x0 > x1) continue;
-      iu.sup.push({ low, c: (x0 + x1) / 2, w: Math.max(0.05, x1 - x0) });
-    }
-    for (const [, it] of [...info].sort((a, b) => b[1].y - a[1].y)) {
-      if (!it.sup.length) continue;
-      const W = it.W + it.recv, f = shareWeight(W, it.M / W, it.sup);
-      it.sup.forEach((s, i) => { const il = info.get(s.low); if (il) { il.recv += f[i]; il.M += f[i] * s.c; } });
-    }
-    return info;
-  }
-
-  function updateStrain() {
-    const traced = traceLoads();
-    for (const p of pieces.slice()) {
-      if (p.material !== "mudbrick" && !p.canSnap) continue;
-      // hard landing: a mudbrick whose speed changed by more than MUD_SHATTER_SPEED in one step crumbles at once
-      if (p.material === "mudbrick") {
-        const v = p.body.getLinearVelocity(), pv = p.prevV;
-        p.prevV = { x: v.x, y: v.y };
-        if (pv && p.heldBy == null && !p.auto && Math.hypot(v.x - pv.x, v.y - pv.y) > MUD_SHATTER_SPEED) { crumble(p); continue; }
-      }
-      // hit: wood snaps at once when an impact bends it past its strength
-      if (p.canSnap && p.heldBy == null && impactMoment(p) > SNAP_MOMENT) { p.impacts.length = 0; snapWood(p); continue; }
-      p.impacts.length = 0;
-      let over = false, time = 1;
-      if (p.heldBy == null) {
-        if (p.material === "mudbrick") { // the weight resting on it (read from its contacts, also while the stack sleeps), smoothed
-          // over a few steps: the contacts jitter by more than the gap between holding and crumbling (seven mudbricks against four and two stones)
-          const w = traced.has(p.body) ? traced.get(p.body).recv : 0;
-          p.crushAvg = p.crushAvg == null ? w : p.crushAvg + (w - p.crushAvg) * 0.15;
-          const bend = p.body.isAwake() ? bendMoment(p, MUD_SPAN_MIN) > MUD_SNAP_MOMENT : !!p.wasBent; p.wasBent = bend;
-          over = p.crushAvg > crushLimit(p) || bend; time = STRAIN_TIME.crumble; }
-        // a resting stack falls asleep and its contacts stop reporting: keep the last verdict until it wakes
-        else if (!p.body.isAwake()) { over = !!p.wasOver; time = STRAIN_TIME.snap; }
-        else { over = bendMoment(p) > SNAP_MOMENT; time = STRAIN_TIME.snap; }
-      }
-      p.wasOver = over;
-      p.strain = over ? p.strain + STEP / time : Math.max(0, p.strain - STEP);
-      p.crush = 0; p.sup.length = 0; p.loads.length = 0;
-      if (p.strain >= 1) { if (p.material === "mudbrick") crumble(p); else snapWood(p); }
-    }
-  }
-
-  // Anything that breaks during the test fails it; its place is shown red.
+  // @include ../../../tools/physics/breaking.js
+  // @include ../../../tools/physics/loads.js
   function noteBroken(p) {
     if (!test || !grid) return;
     const v = planck.Vec2(0, 0);
@@ -4203,390 +3800,31 @@
   // ---------------------------------------------------------------------
   // SECTION: CUES -- the cue engine; what it says and when is the cue table games/arxitektones-tou-arxaiou-kosmou/cues.json (version A), cues.md is written from it (version B)
   // ---------------------------------------------------------------------
-  // The cue model, three parts (cues.json "rules" says the same in the owner's words; docs/patterns/cues.md is the pattern):
-  // 1. Voice: one line at a time, in the order fired; a line lasts its recording, or LINE_TIME as a text box whose blue bar runs
-  //    out (ESC ends it early). Lines belong to the screen they were fired on; leaving drops what is left. bg lines play only if
-  //    nothing is playing or waiting; a flavour line fired with a teaching line at the same moment is dropped; during a test only
-  //    lines marked for it start; while a step waits for the child, every other line is dropped (a dropped first time stays unused).
-  // 2. Attention, per cue: none (what it points at glows), point (while the step waits, the rest darkens and only its points or its
-  //    touch list can be touched), freeze (while its line plays, the rest darkens and the game freezes). A demo darkens all but the
-  //    building and takes no touch. Ctrl held (parent) is never held back.
-  // 3. Steps: a cue that waits for an action (an event, or until a condition) keeps its glows and ghost hand until it is done, says
-  //    its line again REPEAT_GAP s after it ends, and an action that ends a step fires nothing else. A step in a sequence that needs
-  //    something gone missing goes back to the step that makes it. Sequences and the saved record (first times, recent lines of
-  //    groups, where each sequence stands) live in progress.cues, cleared by the restart.
-  // The table only names events, conditions and points; their meanings are the vocabularies here (CUE_CONDITIONS, pointTargets,
-  // the cueEvent calls), and cueCheckTable() lists any name the code does not know.
-  const CUE_TABLE = null; // build.py puts cues.json here
-  const CUES_OFF = false; // the harness turns the cues off for tests of other things
-  const VOICE_FILES = {}; // line number -> recording; build.py fills it from src/sounds/voice/NN.mp3
-  const VOICE_SECONDS = {}; // line number -> how long its recording lasts (build.py)
-  let useVoices = true; // the cue tests switch the recordings off: they test the rules with the text box's fixed time
-  // The recordings are made as loud as the other sounds (tools/normalize-sounds.php: -16 LUFS); a site's intro line
-  // plays 20% louder (owner 17 Nov). A recording the browser will not start before the first touch (sound is only
-  // allowed after one) waits, silent and with no text box, and starts at the child's first touch.
-  const VOICE_VOLUME = 0.9, INTRO_VOICE = 1.2; // owner 17 Nov late: the voice 10% lower everywhere
-  let voiceBlocked = null;
-  const LINE_TIME = 2, REPEAT_GAP = 5, HL_PERIOD = 1.8, HL_RING = 40, MAP_IDLE = 30, SITE_EVERY = 10, NEXT_GAP = 2, DEMO_SPEED = 12, DEMO_PAUSE = 0.35, CONFIRM_TIME = 6;
-  // s, s (after a waiting step's line ends), s, px, s (no line on the map), s (the open site glows), s (win line to new-site line), s, m/s (about a second across the screen), s, s (a second restart press within it erases)
-  // The map's alerts beat (owner 18 Nov): "dumdum dum dumdumdum dumdumdum", then a rest; seconds into the bar.
-  const PULSE_BEATS = [0, 0.16, 0.5, 0.86, 1.02, 1.18, 1.52, 1.68, 1.84], PULSE_BAR = 2.5;
-  const PULSE_LIFE = 0.7; // s a beat's ring spreads and fades
-  function pulseAges(t) { // the ages (0..1) of the beats whose rings are still spreading, t seconds into the rhythm
-    const out = [];
-    for (let bar = Math.floor(t / PULSE_BAR) - 1; bar <= Math.floor(t / PULSE_BAR); bar++) for (const x of PULSE_BEATS) { const a = (t - bar * PULSE_BAR - x) / PULSE_LIFE; if (bar >= 0 && a >= 0 && a < 1) out.push(a); }
-    return out;
-  }
-  const HL_DAMAGED = "#e03c2d";
-  const HL_COLOR = { yellow: "#ffd23f", green: "#3fd16b", red: "#e8463a" };
-  const voice = { cur: null, queue: [] };
-  let scene = 0, active = [], whens = [], flashes = [], visit = {}, cueFrame = 0, cueClock = 0, lastInput = 0, damageT = 0, nextT = 0, mapIdleT = 0, buildCheckT = 0, cueAudio = null, confirmUntil = -1;
-  // the text box stands in for the recordings; the blue bar on top runs out, emptying from the left
-  const cueBox = document.createElement("div"), cueText = document.createElement("div"), cueBar = document.createElement("div");
-  cueBox.style.cssText = "position:fixed;left:50%;bottom:6%;transform:translateX(-50%);max-width:70%;background:#fff;color:#222;font:22px/1.35 sans-serif;padding:20px 20px 14px;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;display:none;z-index:10;overflow:hidden";
-  cueBar.style.cssText = "position:absolute;top:0;right:0;left:0;height:7px;background:#2f7fd8";
-  cueBox.append(cueBar, cueText);
-  document.body.appendChild(cueBox);
-  window.addEventListener("keydown", (e) => { // ESC: stops the quick build; ends the line playing (an intro with its picture too); with none playing, leaves a site or free play for the map (owner 16 Nov night)
-    lastInput = cueClock;
-    if (e.key !== "Escape") return;
-    if (auto) cancelAuto(); // owner 16 Nov late: ESC stops the quick build where it is
-    else if (voice.cur) endLine(voice.cur);
-    else if (mode === "build" && !demo) goMap();
-  });
-  const cueById = (id) => CUE_TABLE.cues.find((c) => c.id === id);
-  const siteKeyOf = (i) => (i != null && LEVELS[i] ? LEVELS[i].key : null);
-
-  // --- the saved record
-  function cueMem() {
-    const m = progress.cues || (progress.cues = {});
-    for (const k of ["ever", "site", "recent", "seq"]) m[k] = m[k] || {};
-    return m;
-  }
-  function cueSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (err) { /* ignore */ } }
-  // Memory of what was said, by how long it lasts: ever and site (saved: they survive a refresh), session (since the game
-  // was opened: a refresh or the restart is the child coming back, and these lines may come again; per site), visit.
-  let sessionMem = {};
-  const sessionKey = (name, x) => "session:" + name + "@" + siteKeyOf(x.site);
-  function onceKey(c, x) { return !c.once ? null : c.once === "ever" ? "ever:" + c.id : c.once === "site" ? "site:" + c.id + "@" + siteKeyOf(x.site) : c.once === "session" ? sessionKey(c.sessionName || c.id, x) : "visit:" + c.id; }
-  const memBox = (w) => (w === "visit" ? visit : w === "session" ? sessionMem : cueMem()[w]);
-  function isMarked(k) { if (!k) return false; const [w, r] = [k.slice(0, k.indexOf(":")), k.slice(k.indexOf(":") + 1)]; return !!memBox(w)[r]; }
-  function setMark(k, on) {
-    if (!k) return;
-    const w = k.slice(0, k.indexOf(":")), r = k.slice(k.indexOf(":") + 1), box = memBox(w);
-    if (on) box[r] = 1; else delete box[r];
-    if (w !== "visit" && w !== "session") cueSave();
-  }
-  // a group: random, never one of the last n played, n = half the group rounded down (`allowed`: the ones that fit now)
-  function pickFrom(name, lines, allowed = lines) {
-    const m = cueMem(), rec = m.recent[name] || (m.recent[name] = []), n = Math.floor(lines.length / 2);
-    const last = n ? rec.slice(-n) : [], ok = allowed.filter((l) => !last.includes(l)), pool = ok.length ? ok : allowed;
-    if (!pool.length) return null;
-    const l = pool[Math.floor(Math.random() * pool.length)];
-    rec.push(l); if (rec.length > lines.length) rec.shift(); cueSave();
-    return l;
-  }
-  function newScene() { // the map, a visit to a site, free play: what is left of the old one goes, unplayed first times stay unused
-    scene++;
-    for (const q of voice.queue) setMark(q.onceKey, false);
-    voice.queue.length = 0; if (voice.cur) endLine(voice.cur);
-    active = []; whens = []; flashes = []; visit = {}; confirmUntil = -1; nextT = 0; mapIdleT = 0;
-  }
-  function cueReset() { progress.cues = null; sessionMem = {}; newScene(); }
-
-  // --- conditions (names used in the table's "if", "needs" and "start")
-  const touching = (b) => { for (let e = b.getContactList(); e; e = e.next) if (e.contact.isTouching()) return true; return false; }; // lying on something
-  const childPieces = () => pieces.filter((p) => !p.demo && !p.auto && !p.ghost);
-  const CUE_CONDITIONS = {
-    "first-launch": () => !Object.keys(progress.done).length && !isMarked("ever:welcome-first"),
-    "site-won-before": (x) => !!progress.done[siteKeyOf(x.site)], // finished once, standing or damaged since
-    "site-finished": (x) => { const d = progress.done[siteKeyOf(x.site)]; return !!(d && !d.broken); },
-    "teaching-pending": (x) => { const s = sequenceOf(x.site); return !!s && cueMem().seq[s] !== "done"; },
-    "demo-pending": (x) => { const k = siteKeyOf(x.site), d = CUE_TABLE.demos[k]; return !!(d && d.steps.length && !progress.done[k]); },
-    "has-openings": () => !!(grid && grid.holes.length),
-    "first-openings-site": () => currentLevel != null && currentLevel === LEVELS.findIndex((L) => L.holes && L.holes.length),
-    "has-damaged": () => SITES.some((s) => progress.done[s.key] && progress.done[s.key].broken),
-    "all-done": () => LEVELS.every((l) => progress.done[l.key]),
-    "opened-next": (x) => x.next != null,
-    "has-next": () => !!nextSite(),
-    "on-map": () => mode === "map",
-    "testing": () => !!test,
-    "piece-resting": () => childPieces().some((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx && touching(p.body) && Math.hypot(p.body.getLinearVelocity().x, p.body.getLinearVelocity().y) < 0.05 && Math.abs(p.body.getAngularVelocity()) < 0.05),
-    "load-covered": () => !!grid && runCheck().load > 0,
-    "plan-has-piece": () => pieces.some((p) => !p.demo && !p.auto && (!p.ghost || p.heldBy != null)), // a piece in the child's hand is still his, even while it passes over others or the pile
-    "test-ready": () => testReady(),
-    "no-form": () => !supportPieces().length,
-    "visitors-walking": () => mode === "map" && groups.some((g) => g.state === "walk"),
-    "recorded": (x) => !!VOICE_FILES[x.line],
-  };
-  function cond(name, x = {}) {
-    if (name.startsWith("not ")) return !cond(name.slice(4), x);
-    const [k, v] = name.split(":");
-    if (k === "material") return x.material === v;
-    if (k === "part") return x.part === v;
-    if (k === "why") return x.why === v;
-    if (k === "placed") return childPieces().filter((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx).length >= +v; // N of the child's pieces stand in the building
-    if (k === "done") return isMarked("ever:" + v);
-    return !!CUE_CONDITIONS[name](x);
-  }
-
-  // --- events: the game calls cueEvent at each moment the table can name (its "on")
-  // An action that ends a waiting step fires nothing else; otherwise every cue on that event whose conditions hold fires, in table order.
-  function cueEvent(name, ctx = {}) {
-    const out = { ended: false, fired: [] };
-    if (CUES_OFF) return out;
-    for (const s of active) if (s.waitEvent === name && waiting(s)) { s.done = true; out.ended = true; }
-    if (out.ended) return out;
-    const x = Object.assign({ site: currentLevel }, ctx);
-    const hits = CUE_TABLE.cues.filter((c) => c.on === name && !isMarked(onceKey(c, x)) && (c.if || []).every((k) => cond(k, x)));
-    // what the child does wins (cues.json rules): a cue fired by the child's own action stops the cue playing, line and visuals together
-    if (hits.length && (CUE_TABLE.words.events[name] || {}).byChild) interruptCues();
-    for (const c of hits) { const f = fire(c, x); if (f) out.fired.push(f); }
-    return out;
-  }
-  function interruptCues() { // the line playing and what it shows stop; lines waiting their turn are dropped (first times stay unused)
-    if (teachingBusy() || stepWaiting() || demo) return; // the first site's teaching and a demo are never cut
-    const c = voice.cur;
-    if (c) { c.fin = true; endLine(c); }
-    for (const q of voice.queue) setMark(q.onceKey, false);
-    voice.queue = [];
-    active = active.filter((a) => a.seq && waiting(a)); // glows, pointing and the ghost hand of what was playing go with it
-  }
-  function stepWaiting() { return active.some((s) => s.seq && waiting(s)); } // a teaching step (the first site's) waiting for the child
-  function teachingBusy() { return (voice.cur && voice.cur.kind === "teach") || voice.queue.some((q) => q.kind === "teach"); }
-  // fire one cue: its line (with what it points at, its hand, its wait), or its glow, or what it does
-  function fire(c, x, seq) {
-    const key = onceKey(c, x);
-    const then = () => { if (c.after != null && (useTeach || !c.teaching)) say(c.after, { kind: "teach" }); if (seq) nextStep(seq, c.id); else if (c.then) cueEvent(c.then, x); };
-    if (c.do === "teaching") { if (!useTeach) return c; setMark(key, true); runSequence(sequenceOf(x.site)); return c; } // ΔΙΔΑΣΚΑΛΙΑ off: no steps (they wait, unmarked, for when it is ticked again)
-    if (!useTeach && c.teaching) { then(); return null; } // ΔΙΔΑΣΚΑΛΙΑ off: a teaching line is not said (and stays unused); what follows it goes on, and nothing waits for it (it did not fire: owner 17 Nov, the test waited for an unsaid explanation and never ran)
-    if (c.do === "demo") { setMark(key, true); if (useDemos) startDemo(siteKeyOf(x.site), then); else then(); return c; } // ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ off: no demo, the rest goes on
-    const memo = {}, pts = (names) => (names || []).flatMap((n) => pointTargets(n, x, memo));
-    if (c.glow) { setMark(key, true); glowFor(pts(c.points), c.glow); then(); return c; }
-    if (c.say == null) { setMark(key, true); then(); return c; }
-    if (!seq && (teachingBusy() || stepWaiting())) return null; // while a teaching line plays or waits, or a step waits for the child, other lines are dropped (their first time stays unused)
-    const n = lineOf(c, x);
-    const line = say(n, {
-      cue: c, kind: c.kind || "queued", attention: c.attention || "none", targets: pts(c.points), touch: c.touch ? pts(c.touch) : null,
-      act: showOf(c.show, x, memo), waitEvent: c.wait && !c.wait.startsWith("until:") ? c.wait : null,
-      waitUntil: c.wait && c.wait.startsWith("until:") ? c.wait.slice(6) : null, needs: c.needs, seq,
-      duringTest: c.during === "test", after: typeof c.delay === "number" ? c.delay : c.delay ? soundLength(c.delay.slice(6)) : 0, onceKey: key, then,
-    });
-    if (line) { setMark(key, true); if (c.sessionName) setMark(sessionKey(c.sessionName, x), true); } // a first-time line also counts as this session's
-    return line;
-  }
-  function lineOf(c, x) {
-    const s = c.say;
-    if (typeof s === "number") return s;
-    if (s.bySite && !s.group) return s.bySite[x.site];
-    const g = CUE_TABLE.groups[s.group], all = g.bySite ? g.bySite[x.site] : g.lines;
-    const ok = all.filter((n) => !g.lineIf || !g.lineIf[n] || cond(g.lineIf[n], Object.assign({}, x, { line: n })));
-    return pickFrom(s.group + (g.bySite ? ":" + siteKeyOf(x.site) : ""), all, ok);
-  }
-
-  // --- sequences: steps in order, resumed where the child left them; a step that needs something missing goes back
-  function sequenceOf(site) { const k = siteKeyOf(site); return Object.keys(CUE_TABLE.sequences).find((n) => CUE_TABLE.sequences[n].site === k) || null; }
-  function runSequence(name) { if (name) runStep(name, cueMem().seq[name] || CUE_TABLE.sequences[name].steps[0]); }
-  function runStep(name, id, depth = 0) {
-    const c = cueById(id), m = cueMem(); m.seq[name] = id; cueSave();
-    const go = () => {
-      if (c.needs && !cond(c.needs) && c.back !== id && depth < 8) { runStep(name, c.back, depth + 1); return; }
-      fire(c, { site: currentLevel }, name);
-    };
-    if (c.start) cueWhen(() => cond(c.start), go); else go();
-  }
-  function nextStep(name, id) {
-    const sq = CUE_TABLE.sequences[name], i = sq.steps.indexOf(id);
-    if (i + 1 < sq.steps.length) { runStep(name, sq.steps[i + 1]); return; }
-    cueMem().seq[name] = "done"; cueSave();
-    if (sq.then) cueEvent(sq.then);
-  }
-
-  // --- part 1: the voice
-  function say(n, o = {}) {
-    const c = Object.assign({ n, kind: "queued", attention: "none", frame: cueFrame, scene, at: cueClock + (o.after || 0) }, o);
-    const teachNow = voice.queue.some((q) => q.frame === cueFrame && q.kind === "teach");
-    if (n == null || !(VOICE_FILES[n] || CUE_TABLE.lines[n]) || (n === 86 && !VOICE_FILES[n]) || (c.kind === "bg" && (voice.cur || voice.queue.length)) || (c.kind !== "teach" && teachNow)) return null;
-    if (c.kind === "teach") voice.queue = voice.queue.filter((q) => { const drop = q.frame === cueFrame && q.kind !== "teach"; if (drop) setMark(q.onceKey, false); return !drop; });
-    voice.queue.push(c);
-    return c;
-  }
-  function glowFor(targets, seconds) { if (targets.length) active.push({ n: null, ended: true, scene, t0: cueClock, until: cueClock + seconds, targets, attention: "none" }); }
-  function cueWhen(cond, fire) { whens.push({ cond, fire }); }
-  function startLine(c) {
-    voice.cur = c; c.t0 = cueClock; c.ended = false; if (!active.includes(c)) active.push(c);
-    const box = () => { if (voice.cur !== c) return; cueAudio = null; c.t0 = cueClock; cueText.textContent = CUE_TABLE.lines[c.n] || ""; cueBar.style.left = "0"; cueBox.style.display = "block"; };
-    if (useVoices && VOICE_FILES[c.n]) {
-      const a = (cueAudio = new Audio(VOICE_FILES[c.n]));
-      a.volume = Math.min(1, MASTER_VOLUME * VOICE_VOLUME * (c.cue && c.cue.id === "site-intro" ? INTRO_VOICE : 1));
-      a.onended = () => endLine(c); // the recording's real end; the game clock ends it too, at its length (cueTick)
-      const go = () => a.play().then(() => { c.t0 = cueClock; c.blocked = false; }).catch((err) => {
-        if (voice.cur !== c || cueAudio !== a) return;
-        if (err && err.name === "NotAllowedError") { c.blocked = true; voiceBlocked = go; } // waits for the first touch
-        else box();
-      });
-      go();
-    } else box();
-  }
-  function endLine(c) {
-    if (voice.cur !== c) return;
-    voice.cur = null; c.ended = true; c.endT = cueClock; cueBox.style.display = "none";
-    if (cueAudio) { cueAudio.onended = null; cueAudio.pause(); cueAudio = null; }
-  }
-  function finish(c) { if (c.fin) return; c.fin = true; if (c.then) c.then(); }
-  const waiting = (c) => !!((c.waitEvent || c.waitUntil) && !c.fin && !c.done && !(c.waitUntil && cond(c.waitUntil)));
-  function gameNow() { return cueClock * 1000; } // game time in ms (the frame clock): input, the pile and the button go by it, so a test run repeats exactly
-  function cueTick(dt) {
-    cueFrame++; cueClock += dt;
-    const now = cueClock, c = voice.cur;
-    if (c) { // the line playing: its action done, or its time up (text box), ends it
-      const u = (now - c.t0) / LINE_TIME;
-      if ((c.waitEvent || c.waitUntil) && !waiting(c)) endLine(c);
-      else if (cueAudio) { if (!c.blocked && now - c.t0 >= (VOICE_SECONDS[c.n] || 0)) endLine(c); } // a recording ends at its real end (onended) or by the game clock at its length, whichever comes first
-      else { if (u >= 1) endLine(c); else cueBar.style.left = (u * 100).toFixed(1) + "%"; }
-    }
-    // a step in a sequence that needs something gone missing goes back to the step that makes it
-    for (const s of active) if (s.seq && s.needs && waiting(s) && !cond(s.needs)) {
-      const back = s.cue.back; s.fin = true; endLine(s); voice.queue = voice.queue.filter((q) => q !== s);
-      if (back) runStep(s.seq, back);
-    }
-    active = active.filter((s) => {
-      if (s.until != null) return now < s.until;
-      if (s.fin) return false;
-      if (s.ended && !waiting(s)) { finish(s); return false; }
-      return true;
-    });
-    whens = whens.filter((w) => { if (w.cond()) { w.fire(); return false; } return true; });
-    voice.queue = voice.queue.filter((q) => { if ((q.waitEvent || q.waitUntil) && !waiting(q)) { finish(q); return false; } return true; }); // done before its turn
-    // a step still waiting says its line again, its hand with it, REPEAT_GAP s after its line ended
-    for (const s of active) if (s.n != null && s.ended && waiting(s) && now - s.endT >= REPEAT_GAP && !voice.cur && !voice.queue.length) voice.queue.push(Object.assign(s, { at: now, frame: cueFrame }));
-    if (!voice.cur) { // the next one in order; lines held back only by a test or a demo let later ones marked for it go first
-      for (const q of voice.queue) {
-        if (now < q.at) break;
-        if ((test && !q.duringTest) || (demo && demo.go && !q.demo)) continue;
-        voice.queue.splice(voice.queue.indexOf(q), 1); startLine(q); break;
-      }
-    }
-    flashes = flashes.filter((f) => now - f.t0 < PULSE_BAR + PULSE_LIFE);
+  // @include ../../../tools/cues/engine.js
+  // This game's side of the cue engine (tools/cues/engine.js): where a cue happens, its own moments and drawings.
+  const cueContext = () => ({ place: currentLevel }); // what every moment carries: the place it happens at (a site, or none on the map and in free play)
+  const placeKey = (i) => siteKeyOf(i); // a place's key: the site's
+  let flashes = []; // damaged sites' red alerts on the map
+  function cueGameNewScene() { flashes = []; confirmUntil = -1; nextT = 0; mapIdleT = 0; }
+  function cueGameTick(dt) {
+    flashes = flashes.filter((f) => cueClock - f.t0 < PULSE_BAR + PULSE_LIFE);
     if (mode === "map") mapTick(dt);
     else if (currentLevel != null && grid && !test && !auto && !demo) buildTick(dt);
   }
-  // Map alerts (owner 18 Nov): the next site glows and each damaged site flashes every SITE_EVERY s, each site on its own
-  // count (started at a different moment for each site, so no two go together); a flavour line after MAP_IDLE s of quiet.
-  const siteT = {};
-  function mapTick(dt) {
-    const nx = nextSite();
-    SITES.forEach((s, i) => {
-      const d = progress.done[s.key], kind = d && d.broken ? "damaged" : nx === s ? "next" : null;
-      if (!kind) { delete siteT[s.key]; return; }
-      if (siteT[s.key] == null) siteT[s.key] = SITE_EVERY - 1 - ((i * 3.7) % (SITE_EVERY - 2)); // the first one 1 to 9 s after it is seen
-      if ((siteT[s.key] += dt) < SITE_EVERY) return;
-      siteT[s.key] = 0;
-      if (kind === "next") cueEvent("next-flash", { site: i });
-      else { flashes.push({ key: s.key, t0: cueClock }); cueEvent("damage-flash", { site: i }); }
-    });
-    if (voice.cur || voice.queue.length) mapIdleT = 0; else if ((mapIdleT += dt) >= MAP_IDLE) { mapIdleT = 0; cueEvent("idle"); }
+  const cueRhythm = () => mode === "map"; // the map's alerts beat the owner's rhythm (18 Nov)
+  function buttonGlowColor(id) { // a button's glow shows its state: the test button green or red, the restart red, a finished site green, a damaged one red
+    const done = id.startsWith("site:") && progress.done[id.slice(5)];
+    return id === "test" ? (testReady() || tabHeldNow() ? HL_COLOR.green : HL_COLOR.red) : id === "restart" ? HL_COLOR.red : done ? (done.broken ? HL_COLOR.red : HL_COLOR.green) : null;
   }
-  function buildTick(dt) { // moments the game notices by looking (twice a second)
-    if ((buildCheckT += dt) < 0.5) return;
-    buildCheckT = 0;
-    if (pileBodies().length === 0 && pointers.size === 0 && check && !checkPasses(check)) cueEvent("pile-empty-red");
-    if (grid.L.woodRole === "support" && !isMarked("ever:form-out")) {
-      const sup = supportPieces();
-      if (sup.length && pointers.size === 0 && piecesAtRest() && checkPasses(runCheck(sup))) cueEvent("form-only-left");
-      check = runCheck();
+  function cueGameDraw() {
+    if (mode === "map" && flashes.length) {
+      const v = mapView();
+      for (const f of flashes) { const m = siteMarker(v, SITES.find((s) => s.key === f.key)), ages = pulseAges(cueClock - f.t0); if (ages.length) SKIN.highlight(ctx, (d) => { const p = new Path2D(); p.arc(m.x, m.y, m.r + d, 0, Math.PI * 2); return p; }, false, HL_DAMAGED, ages, HL_RING); } // the same alert as the others, in red
     }
+    if (demo && demo.hand && mode === "build") SKIN.ghostHand(ctx, demo.hand.x, demo.hand.y, !!demo.hand.pressed, 0.9);
   }
-
-  // --- part 2: attention
-  // Shapes on screen: { kind: "circle", x, y, r } | { kind: "poly", pts } | { kind: "rect", x, y, w, h } | { kind: "region", rings (world) }
-  function shapePath(s, d = 0) { // its outline grown by d px
-    const p = new Path2D();
-    if (s.kind === "circle") p.arc(s.x, s.y, s.r + d, 0, Math.PI * 2);
-    else if (s.kind === "rect") p.rect(s.x - d, s.y - d, s.w + 2 * d, s.h + 2 * d);
-    else if (s.kind === "region") p.addPath(screenPath(s.rings));
-    else { const q = d ? growPoly(s.pts, d) : s.pts; q.forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y))); p.closePath(); }
-    return p;
-  }
-  function growPoly(P, d) { // each side moved out by d (mitred corners): a plank's ring is a long box, a triangle's a triangle
-    const n = P.length, cx = P.reduce((s, p) => s + p[0], 0) / n, cy = P.reduce((s, p) => s + p[1], 0) / n;
-    const N = P.map((p, i) => {
-      const q = P[(i + 1) % n]; let nx = q[1] - p[1], ny = p[0] - q[0]; const L = Math.hypot(nx, ny) || 1; nx /= L; ny /= L;
-      if (nx * ((p[0] + q[0]) / 2 - cx) + ny * ((p[1] + q[1]) / 2 - cy) < 0) { nx = -nx; ny = -ny; }
-      return [nx, ny];
-    });
-    return P.map((p, i) => { const a = N[(i + n - 1) % n], b = N[i], k = d / Math.max(0.3, 1 + a[0] * b[0] + a[1] * b[1]); return [p[0] + (a[0] + b[0]) * k, p[1] + (a[1] + b[1]) * k]; });
-  }
-  function shapeHit(s, px, py) {
-    if (s.kind === "circle") return Math.hypot(px - s.x, py - s.y) <= s.r;
-    if (s.kind === "rect") return px >= s.x && px <= s.x + s.w && py >= s.y && py <= s.y + s.h;
-    if (s.kind === "region") { if (px >= buildingWidthPx) return false; const w = screenToWorld(px, py); return s.rings.some((r) => inRing(w.x, w.y, r)); }
-    let inside = false; const P = s.pts;
-    for (let i = 0, j = P.length - 1; i < P.length; j = i++) if ((P[i][1] > py) !== (P[j][1] > py) && px < ((P[j][0] - P[i][0]) * (py - P[i][1])) / (P[j][1] - P[i][1]) + P[i][0]) inside = !inside;
-    return inside;
-  }
-  function shapeCentre(s) {
-    if (s.kind === "circle") return { x: s.x, y: s.y };
-    if (s.kind === "rect") return { x: s.x + s.w / 2, y: s.y + s.h / 2 };
-    const P = s.kind === "region" ? s.rings.flat().map(([x, y]) => { const q = worldToScreen(x, y); return [q.x, q.y]; }) : s.pts;
-    return { x: P.reduce((a, p) => a + p[0], 0) / P.length, y: P.reduce((a, p) => a + p[1], 0) / P.length };
-  }
-  function pieceShape(defKey, toS, x, y, a) { // a piece's outline on screen, from its own shape
-    const d = PIECE_DEFS[defKey];
-    if (d.shape === "circle") { const c = toS(x, y), e = toS(x + d.r, y); return { kind: "circle", x: c.x, y: c.y, r: Math.hypot(e.x - c.x, e.y - c.y) }; }
-    const loc = d.verts || [[-d.hx, -d.hy], [d.hx, -d.hy], [d.hx, d.hy], [-d.hx, d.hy]], ca = Math.cos(a), sa = Math.sin(a);
-    return { kind: "poly", pts: loc.map(([lx, ly]) => { const s = toS(x + lx * ca - ly * sa, y + lx * sa + ly * ca); return [s.x, s.y]; }) };
-  }
-  const pileToS = (x, y) => ({ x: pileBinRect.x + x * pileScale, y: pileBinRect.y + pileBinRect.h - y * pileScale });
-  const pieceTarget = (p) => { const q = p.body.getPosition(); return { shape: pieceShape(p.defKey, worldToScreen, q.x, q.y, p.body.getAngle()), color: HL_COLOR.yellow, item: p, sc: scale, a: p.body.getAngle() }; };
-  // The table's points become targets when a cue fires (one mudbrick is chosen then, and stays the same for that cue);
-  // a target gives its shapes on screen every frame, with their colour.
-  function pointTargets(name, x, memo) {
-    const i = name.indexOf(":"), k = i < 0 ? name : name.slice(0, i), v = i < 0 ? "" : name.slice(i + 1);
-    if (k === "button") return [{ btn: v }];
-    if (k === "site") {
-      const broken = (q) => progress.done[q.key] && progress.done[q.key].broken, own = SITES.find((q) => q.key === siteKeyOf(x.site));
-      const s = v === "next" ? nextSite() : v === "won" ? own : own && broken(own) ? own : SITES.find(broken);
-      return s ? [{ btn: "site:" + s.key }] : [];
-    }
-    if (k === "pile") {
-      if (v === "all") return [{ pileArea: true }];
-      if (v === "one-mudbrick") { if (!memo.one) memo.one = pileBodies().find((b) => b.pileItem.material === "mudbrick") || pileBodies()[0]; return memo.one ? [{ pile: memo.one }] : []; }
-    }
-    if (k === "plan") {
-      if (!v) return [{ plan: true }];
-      if (v === "pieces") return [{ planPieces: true }];
-      if (v === "last-piece") return [{ lastPiece: true }];
-      if (v === "openings") return [{ rings: grid.holes }];
-      if (v === "load") return [{ rings: grid.load }];
-      if (v === "first-place") {
-        const one = memo.one && memo.one.pileItem, sol = SOLUTIONS[siteKeyOf(x.site)] || [];
-        const sp = sol.find((q) => one && q[0] === one.defKey && q[1] === one.material) || sol.find((q) => q[0] !== "pull") || [0, 0, 0, 0.5];
-        return [{ point: { x: sp[2] + LEVEL_X0, y: sp[3] } }];
-      }
-    }
-    if (k === "fail-place") return [{ fail: true }];
-    if (k === "broken-piece") { const p = x.piece, q = p.body.getPosition(); return [{ worldShape: [p.defKey, q.x, q.y, p.body.getAngle()] }]; }
-    if (k === "form") return [{ form: true }];
-    if (k === "side") return [{ side: true }];
-    if (k === "building") return [{ area: "build" }];
-    return [];
-  }
-  function showOf(show, x, memo) { // "tap A", "tap3 A", "drag A > B": what the ghost hand acts out
-    if (!show) return null;
-    const [verb, rest] = [show.slice(0, show.indexOf(" ")), show.slice(show.indexOf(" ") + 1)];
-    if (verb === "drag") { const [a, b] = rest.split(" > "); return { drag: pointTargets(a, x, memo)[0], to: pointTargets(b, x, memo)[0] }; }
-    return { tap: pointTargets(rest, x, memo)[0], count: verb === "tap3" ? 3 : 1 };
-  }
-  function targetShapes(t) {
-    const Y = HL_COLOR.yellow;
-    if (!t) return [];
-    if (t.btn) {
-      const b = screenButtons().find((q) => q.id === t.btn); if (!b) return [];
-      const done = t.btn.startsWith("site:") && progress.done[t.btn.slice(5)];
-      const color = t.btn === "test" ? (testReady() || tabHeldNow() ? HL_COLOR.green : HL_COLOR.red) : t.btn === "restart" ? HL_COLOR.red : done ? (done.broken ? HL_COLOR.red : HL_COLOR.green) : Y;
-      return [{ shape: b.rect ? Object.assign({ kind: "rect" }, b.rect) : { kind: "circle", x: b.x, y: b.y, r: b.id.startsWith("site:") ? b.r / 1.15 : b.r }, color }];
-    }
+  // The points this game's cue table names, other than buttons (the engine's targetShapes asks here): as shapes on screen.
+  function gameTargetShapes(t, Y) {
     if (mode !== "build") return [];
     if (t.area) return [{ shape: { kind: "rect", x: 0, y: 0, w: buildingWidthPx, h: cssHeight }, color: Y }];
     if (t.pileArea) return pileBinRect ? [{ shape: { kind: "rect", x: pileBinRect.x, y: pileBinRect.y, w: pileBinRect.w, h: pileBinRect.h }, color: Y }] : [];
@@ -4609,45 +3847,109 @@
     if (t.side) return [{ shape: { kind: "circle", x: buildingWidthPx + sidebarWidthPx / 2, y: cssHeight * 0.6, r: 30 }, color: Y, sc: pileScale }];
     return [];
   }
-  const shapesOf = (targets) => (targets || []).flatMap(targetShapes);
-  // what holds attention now: { holes (bright), touch (can be touched) } or null
-  function attention() {
-    if (demo) return { holes: [{ area: "build" }], touch: [] };
-    const hold = active.filter((s) => (s.attention === "freeze" && s === voice.cur) || (s.attention === "point" && (s === voice.cur || waiting(s))));
-    if (!hold.length) return null;
-    const touch = hold.filter((s) => s.attention === "point").flatMap((s) => s.touch || s.targets || []);
-    return { holes: hold.flatMap((s) => s.targets || []).concat(touch), touch };
-  }
-  function cueFrozen() { const c = voice.cur; return !!(c && c.attention === "freeze"); }
-  function cueBlocks(px, py) {
+  const MAP_IDLE = 30, SITE_EVERY = 10, NEXT_GAP = 2, DEMO_SPEED = 12, DEMO_PAUSE = 0.35, CONFIRM_TIME = 6; // s (no line on the map), s (the open site glows), s (win line to new-site line), m/s (about a second across the screen), s, s (a second restart press within it erases)
+  let damageT = 0, nextT = 0, mapIdleT = 0, buildCheckT = 0, confirmUntil = -1;
+  window.addEventListener("keydown", (e) => { // ESC: stops the quick build; ends the line playing (an intro with its picture too); with none playing, leaves a site or free play for the map (owner 16 Nov night)
     lastInput = cueClock;
-    if (tabHeldNow()) return false;
-    if (mode === "map") { const g = settingsButton(); if (settingsOpen || Math.hypot(px - g.x, py - g.y) <= g.size / 2) return false; } // the parent's gear and its box are never darkened away
-    const at = attention();
-    return !!at && !shapesOf(at.touch).some((t) => shapeHit(t.shape, px, py));
+    if (e.key !== "Escape") return;
+    if (auto) cancelAuto(); // owner 16 Nov late: ESC stops the quick build where it is
+    else if (voice.cur) endLine(voice.cur);
+    else if (mode === "build" && !demo) goMap();
+  });
+  const siteKeyOf = (i) => (i != null && LEVELS[i] ? LEVELS[i].key : null);
+  // --- conditions (names used in the table's "if", "needs" and "start")
+  const touching = (b) => { for (let e = b.getContactList(); e; e = e.next) if (e.contact.isTouching()) return true; return false; }; // lying on something
+  const childPieces = () => pieces.filter((p) => !p.demo && !p.auto && !p.ghost);
+  const CUE_CONDITIONS = {
+    "first-launch": () => !Object.keys(progress.done).length && !isMarked("ever:welcome-first"),
+    "site-won-before": (x) => !!progress.done[siteKeyOf(x.place)], // finished once, standing or damaged since
+    "site-finished": (x) => { const d = progress.done[siteKeyOf(x.place)]; return !!(d && !d.broken); },
+    "teaching-pending": (x) => { const s = sequenceOf(x.place); return !!s && cueMem().seq[s] !== "done"; },
+    "demo-pending": (x) => { const k = siteKeyOf(x.place), d = CUE_TABLE.demos[k]; return !!(d && d.steps.length && !progress.done[k]); },
+    "has-openings": () => !!(grid && grid.holes.length),
+    "first-openings-site": () => currentLevel != null && currentLevel === LEVELS.findIndex((L) => L.holes && L.holes.length),
+    "has-damaged": () => SITES.some((s) => progress.done[s.key] && progress.done[s.key].broken),
+    "all-done": () => LEVELS.every((l) => progress.done[l.key]),
+    "opened-next": (x) => x.next != null,
+    "has-next": () => !!nextSite(),
+    "on-map": () => mode === "map",
+    "testing": () => !!test,
+    "piece-resting": () => childPieces().some((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx && touching(p.body) && Math.hypot(p.body.getLinearVelocity().x, p.body.getLinearVelocity().y) < 0.05 && Math.abs(p.body.getAngularVelocity()) < 0.05),
+    "load-covered": () => !!grid && runCheck().load > 0,
+    "plan-has-piece": () => pieces.some((p) => !p.demo && !p.auto && (!p.ghost || p.heldBy != null)), // a piece in the child's hand is still his, even while it passes over others or the pile
+    "test-ready": () => testReady(),
+    "no-form": () => !supportPieces().length,
+    "visitors-walking": () => mode === "map" && groups.some((g) => g.state === "walk"),
+    "recorded": (x) => !!VOICE_FILES[x.line],
+  };
+  const siteT = {};
+  function mapTick(dt) {
+    const nx = nextSite();
+    SITES.forEach((s, i) => {
+      const d = progress.done[s.key], kind = d && d.broken ? "damaged" : nx === s ? "next" : null;
+      if (!kind) { delete siteT[s.key]; return; }
+      if (siteT[s.key] == null) siteT[s.key] = SITE_EVERY - 1 - ((i * 3.7) % (SITE_EVERY - 2)); // the first one 1 to 9 s after it is seen
+      if ((siteT[s.key] += dt) < SITE_EVERY) return;
+      siteT[s.key] = 0;
+      if (kind === "next") cueEvent("next-flash", { place: i });
+      else { flashes.push({ key: s.key, t0: cueClock }); cueEvent("damage-flash", { place: i }); }
+    });
+    if (voice.cur || voice.queue.length) mapIdleT = 0; else if ((mapIdleT += dt) >= MAP_IDLE) { mapIdleT = 0; cueEvent("idle"); }
   }
-  // the ghost hand acting out { tap: target, count } or { drag: target, to: target }, t s into it (all slow enough for a small child)
-  function drawGhost(g, t) {
-    if (g.tap) {
-      const [q] = targetShapes(g.tap); if (!q) return;
-      const c = shapeCentre(q.shape), n = g.count || 1, end = 0.8 + n * 0.5 + 1.2;
-      if (t > end) return;
-      const k = Math.max(0, 0.8 - t) / 0.8, press = t >= 0.8 && t < 0.8 + n * 0.5 && (t - 0.8) % 0.5 < 0.25;
-      SKIN.ghostHand(ctx, c.x + k * 70, c.y + k * 70, press, Math.min(1, t / 0.4, (end - t) / 0.4) * 0.9);
-      return;
-    }
-    if (g.drag) {
-      const [a] = targetShapes(g.drag), [b] = targetShapes(g.to); if (!a || !b || t > 3.6) return;
-      const A = shapeCentre(a.shape), B = shapeCentre(b.shape), u = Math.max(0, Math.min(1, (t - 1) / 2)), e = u * u * (3 - 2 * u);
-      const x = A.x + (B.x - A.x) * e, y = A.y + (B.y - A.y) * e, held = t >= 0.6 && t < 3.1;
-      if (held && a.item) { ctx.save(); ctx.globalAlpha = 0.45; drawPieceShape(a.item.defKey, a.item.material, x, y, a.a || 0, a.sc + ((b.sc || a.sc) - a.sc) * e, 0, 7); ctx.restore(); }
-      SKIN.ghostHand(ctx, x, y, held, Math.min(1, t / 0.4, (3.6 - t) / 0.5) * 0.9);
+  function buildTick(dt) { // moments the game notices by looking (twice a second)
+    if ((buildCheckT += dt) < 0.5) return;
+    buildCheckT = 0;
+    if (pileBodies().length === 0 && pointers.size === 0 && check && !checkPasses(check)) cueEvent("pile-empty-red");
+    if (grid.L.woodRole === "support" && !isMarked("ever:form-out")) {
+      const sup = supportPieces();
+      if (sup.length && pointers.size === 0 && piecesAtRest() && checkPasses(runCheck(sup))) cueEvent("form-only-left");
+      check = runCheck();
     }
   }
-  // Intro pictures (owner 16 Nov): full screen while the site's welcome line plays, zooming in very slowly; they fade in,
-  // and fade out when the line ends (owner's pictures, src/art/intro/<site>.jpg). Each picture has a focus point (where the
-  // owner put a red mark on a copy, as a share of width and height): the zoom grows around it and slowly brings it towards
-  // the middle of the screen, never letting a picture edge come inside the screen.
+
+  // --- part 2: attention
+  // Shapes on screen: { kind: "circle", x, y, r } | { kind: "poly", pts } | { kind: "rect", x, y, w, h } | { kind: "region", rings (world) }
+  function pieceShape(defKey, toS, x, y, a) { // a piece's outline on screen, from its own shape
+    const d = PIECE_DEFS[defKey];
+    if (d.shape === "circle") { const c = toS(x, y), e = toS(x + d.r, y); return { kind: "circle", x: c.x, y: c.y, r: Math.hypot(e.x - c.x, e.y - c.y) }; }
+    const loc = d.verts || [[-d.hx, -d.hy], [d.hx, -d.hy], [d.hx, d.hy], [-d.hx, d.hy]], ca = Math.cos(a), sa = Math.sin(a);
+    return { kind: "poly", pts: loc.map(([lx, ly]) => { const s = toS(x + lx * ca - ly * sa, y + lx * sa + ly * ca); return [s.x, s.y]; }) };
+  }
+  const pileToS = (x, y) => ({ x: pileBinRect.x + x * pileScale, y: pileBinRect.y + pileBinRect.h - y * pileScale });
+  const pieceTarget = (p) => { const q = p.body.getPosition(); return { shape: pieceShape(p.defKey, worldToScreen, q.x, q.y, p.body.getAngle()), color: HL_COLOR.yellow, item: p, sc: scale, a: p.body.getAngle() }; };
+  // The table's points become targets when a cue fires (one mudbrick is chosen then, and stays the same for that cue);
+  // a target gives its shapes on screen every frame, with their colour.
+  function pointTargets(name, x, memo) {
+    const i = name.indexOf(":"), k = i < 0 ? name : name.slice(0, i), v = i < 0 ? "" : name.slice(i + 1);
+    if (k === "button") return [{ btn: v }];
+    if (k === "site") {
+      const broken = (q) => progress.done[q.key] && progress.done[q.key].broken, own = SITES.find((q) => q.key === siteKeyOf(x.place));
+      const s = v === "next" ? nextSite() : v === "won" ? own : own && broken(own) ? own : SITES.find(broken);
+      return s ? [{ btn: "site:" + s.key }] : [];
+    }
+    if (k === "pile") {
+      if (v === "all") return [{ pileArea: true }];
+      if (v === "one-mudbrick") { if (!memo.one) memo.one = pileBodies().find((b) => b.pileItem.material === "mudbrick") || pileBodies()[0]; return memo.one ? [{ pile: memo.one }] : []; }
+    }
+    if (k === "plan") {
+      if (!v) return [{ plan: true }];
+      if (v === "pieces") return [{ planPieces: true }];
+      if (v === "last-piece") return [{ lastPiece: true }];
+      if (v === "openings") return [{ rings: grid.holes }];
+      if (v === "load") return [{ rings: grid.load }];
+      if (v === "first-place") {
+        const one = memo.one && memo.one.pileItem, sol = SOLUTIONS[siteKeyOf(x.place)] || [];
+        const sp = sol.find((q) => one && q[0] === one.defKey && q[1] === one.material) || sol.find((q) => q[0] !== "pull") || [0, 0, 0, 0.5];
+        return [{ point: { x: sp[2] + LEVEL_X0, y: sp[3] } }];
+      }
+    }
+    if (k === "fail-place") return [{ fail: true }];
+    if (k === "broken-piece") { const p = x.piece, q = p.body.getPosition(); return [{ worldShape: [p.defKey, q.x, q.y, p.body.getAngle()] }]; }
+    if (k === "form") return [{ form: true }];
+    if (k === "side") return [{ side: true }];
+    if (k === "building") return [{ area: "build" }];
+    return [];
+  }
   const INTRO_ART = { mastaba: "art/intro/mastaba.jpg", djoser: "art/intro/djoser.jpg", ziggurat: "art/intro/ziggurat.jpg", liongate: "art/intro/liongate.jpg", karnak: "art/intro/karnak.jpg",
     ishtar: "art/intro/ishtar.jpg", parthenon: "art/intro/parthenon.jpg", mausoleum: "art/intro/mausoleum.jpg", pharos: "art/intro/pharos.jpg", valens: "art/intro/valens.jpg" };
   const introImg = {}; for (const k in INTRO_ART) introImg[k] = Object.assign(new Image(), { src: INTRO_ART[k] });
@@ -4670,21 +3972,6 @@
     const x = Math.min(0, Math.max(cssWidth - w, sx - fx * w)), y = Math.min(0, Math.max(cssHeight - h, sy - fy * h)); // grown around the focus, edges kept outside the screen
     ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.drawImage(img, x, y, w, h); ctx.restore();
   }
-  function drawCues() {
-    const at = attention();
-    if (at) SKIN.dim(ctx, cssWidth, cssHeight, shapesOf(at.holes).map((t) => shapePath(t.shape, 6)));
-    const u = mode === "map" ? null : (cueClock % HL_PERIOD) / HL_PERIOD; // map alerts beat the owner's rhythm, from each one's start
-    for (const c of active) for (const t of shapesOf(c.targets)) SKIN.highlight(ctx, (d) => shapePath(t.shape, d), t.shape.kind === "region", t.color, u == null ? pulseAges(cueClock - (c.t0 != null ? c.t0 : 0)) : u, HL_RING);
-    if (mode === "map" && flashes.length) {
-      const v = mapView();
-      for (const f of flashes) { const m = siteMarker(v, SITES.find((s) => s.key === f.key)), ages = pulseAges(cueClock - f.t0); if (ages.length) SKIN.highlight(ctx, (d) => { const p = new Path2D(); p.arc(m.x, m.y, m.r + d, 0, Math.PI * 2); return p; }, false, HL_DAMAGED, ages, HL_RING); } // the same alert as the others, in red
-    }
-    const g = [...active].reverse().find((q) => q.act);
-    if (g) drawGhost(g.act, cueClock - g.t0);
-    if (demo && demo.hand && mode === "build") SKIN.ghostHand(ctx, demo.hand.x, demo.hand.y, !!demo.hand.pressed, 0.9);
-  }
-
-  // --- the moments the game names (thin calls from the rest of the code)
   function nextSite() { return SITES.find((s) => levelOpen(LEVELS.findIndex((L) => L.key === s.key)) && !progress.done[s.key]); }
   function mapStart() { newScene(); cueEvent("map-start"); cueEvent("map-shown"); }
   function lockedTap() { cueEvent("tap-locked-site"); }
@@ -4697,13 +3984,13 @@
     const d = i != null && progress.done[siteKeyOf(i)];
     if (d && !d.broken) {
       const next = LEVELS[i + 1], opened = next && !progress.done[next.key] && levelOpen(i + 1) && !LEVELS.every((l) => progress.done[l.key]);
-      const x = { site: i, next: opened ? i + 1 : null }, said = cueEvent("map-return", x).fired.find((c) => c.n != null);
+      const x = { place: i, next: opened ? i + 1 : null }, said = cueEvent("map-return", x).fired.find((c) => c.n != null);
       if (!said) cueEvent("map-next", x);
       else { const then = said.then; said.then = () => { if (then) then(); const at = cueClock + NEXT_GAP; cueWhen(() => cueClock >= at, () => cueEvent("map-next", x)); }; }
     }
     cueEvent("map-shown");
   }
-  function onEnterSite(i) { pickSky(i); newScene(); cueEvent("enter-site", { site: i }); }
+  function onEnterSite(i) { pickSky(i); newScene(); cueEvent("enter-site", { place: i }); }
   function onPickup(material) { if (!demo) cueEvent("pickup", { material }); }
   function onPlaced(piece) { const q = piece.body.getPosition(); if (!demo && currentLevel != null && !piece.demo && worldToScreen(q.x, q.y).x < buildingWidthPx) cueEvent("placed-in-plan"); }
   function onBreak(kind, p) { if (!p.demo && !demo) cueEvent(kind, { piece: p }); }
@@ -4719,20 +4006,8 @@
     const then = f.then; f.then = () => { if (then) then(); if (test && test.phase === "cue") nextPhase(ph); };
   }
   function onFail(part, why) { if (part) cueEvent("test-fail", { part, why }); }
-  function onWin(i) { cueEvent("test-pass", { site: i }); }
-  // the table names only what the code knows: every event fired, condition, point and line used (the harness prints this)
+  function onWin(i) { cueEvent("test-pass", { place: i }); }
   const POINT_KINDS = ["button", "site", "pile", "plan", "fail-place", "broken-piece", "form", "side", "building"];
-  function cueCheckTable() {
-    const bad = [], conds = (n) => { const b = n.replace(/^not /, ""); if (!/^(material|part|done|why|placed):/.test(b) && !CUE_CONDITIONS[b]) bad.push("condition " + n); };
-    for (const c of CUE_TABLE.cues) {
-      (c.if || []).forEach(conds); if (c.needs) conds(c.needs); if (c.start) conds(c.start); if (c.wait && c.wait.startsWith("until:")) conds(c.wait.slice(6));
-      for (const p of (c.points || []).concat(c.touch || [])) if (!POINT_KINDS.includes(p.split(":")[0])) bad.push("point " + p);
-      const n = typeof c.say === "number" ? [c.say] : c.say && c.say.bySite && !c.say.group ? c.say.bySite : [];
-      for (const k of n.concat(c.after != null ? [c.after] : [])) if (!CUE_TABLE.lines[k]) bad.push("line " + k);
-    }
-    return bad;
-  }
-
   // --- demos (cues.json "demos"), on every visit until the site is finished: see-through pieces carried in by the ghost hand at a
   // hand's speed, in their real places. "tell" lines play while the pieces come; "say" lines wait, the game frozen. The child's own
   // pieces are put aside and come back after.
@@ -4806,7 +4081,7 @@
     }
   }
 
-  // ---------------------------------------------------------------------
+
   // SECTION: MAIN LOOP -- requestAnimationFrame driver
   // ---------------------------------------------------------------------
   function frame(time) {

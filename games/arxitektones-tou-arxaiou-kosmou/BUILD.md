@@ -1071,6 +1071,16 @@ Owner, verbatim (18 Nov 2026, 12:42): "sound when stons drop on water is louder 
 1. Stones landing in water together splash once, as loud as a tap on the water (before: one splash sound per stone, five at once). Flow map-stones counts one splash sound for five stones.
 2. Flow map-stones no longer checks rolling (owner: "dont check for rolls, things work on my side").
 
+## Current state, update 89 (18 Nov 2026): physics and cues shared in tools/
+
+Owner, verbatim (18 Nov 2026, 12:44): "great, now: # extract physics in a tools/ folder in the first level of the repo, to be reused by other games. Make changes if needed, to generalize it. # extract cue framework in that tool/ folder, to be reused by other games. Make changes if needed, to generalize it."
+Owner, verbatim (12:50): "wait. what a site is??? otehr games will not ahve sites. I think the cue system is an event system. no?" (answered: yes; the shared part now says "place", the game says what a place is.)
+
+1. `tools/physics/`: step.js (fixed steps, the game's per-step work in physicsBefore/physicsAfter), hand.js, contact.js (knocks, weight in regular blocks via REGULAR_BLOCK), loads.js (what rests on what), breaking.js (a material marked "crumbles" in MATERIALS, pieces with canSnap; no material names inside), README.md.
+2. `tools/cues/`: engine.js (the event system), cues_doc.py (moved from tools/), README.md (moved from docs/patterns/cues.md). The game's side (SECTION CUES in src/index.html): CUE_CONDITIONS, pointTargets, gameTargetShapes, POINT_KINDS, cueContext ({ place }), placeKey, cueGameTick, cueGameDraw, cueGameNewScene, buttonGlowColor, cueRhythm. Table: "places", "byPlace", "once": "place", sequences by "place", a cue's "volume" (the welcome lines 1.2). Saved memory under "site" moves to "place" by itself.
+3. build.py puts each `// @include ../../../tools/...` line's file in its place; the harness's hook check reads the code the same way.
+All flows, all cue tests and the level checks pass as before (Parthenon and Valens piles over the sidebar, as before).
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).

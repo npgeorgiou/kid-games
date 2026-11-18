@@ -3,6 +3,8 @@
 import re, pathlib, json
 here = pathlib.Path(__file__).resolve().parent
 src = (here / "src" / "index.html").read_text(encoding="utf-8")
+# shared code from the repo's tools/ folder, put in place of its "// @include path" line (path from src/)
+src = re.sub(r'^[ \t]*// @include (\S+)[ \t]*$', lambda m: (here / "src" / m.group(1)).resolve().read_text(encoding="utf-8").rstrip("\n"), src, flags=re.M)
 def inline(m):
     js = (here / "src" / m.group(1)).resolve().read_text(encoding="utf-8")
     return "<script>\n" + js.replace("</script", "<\\/script") + "\n</script>"

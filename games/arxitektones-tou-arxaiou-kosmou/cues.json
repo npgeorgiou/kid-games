@@ -242,11 +242,12 @@
   "fields": {
    "on": "the event that fires it",
    "if": "conditions that must all hold",
-   "once": "ever / site (once at each site) / session (once per site since the game was opened: a page refresh or the restart is the child coming back) / visit (once per visit); none: every time",
+   "once": "ever / place (once at each place: in this game a site) / session (once per place since the game was opened: a page refresh or the restart is the child coming back) / visit (once per visit); none: every time",
    "sessionName": "the name its session memory goes by; cues with the same name share it (a first-time line counts as this session's too)",
    "teaching": "true: a teaching cue, one that shows the child a thing of the game (a button, the plan's dots, an opening, the shovel, the test's parts, the red); silent, with its glows and hand, when ΔΙΔΑΣΚΑΛΙΑ is unticked",
    "kind": "teach: always plays, waits its turn; queued (default): waits its turn; bg: only if nothing is playing or waiting",
-   "say": "a line number; or bySite (one per site, in site order); or a group (random, never one of the last half played)",
+   "volume": "how much louder its line plays (1.2: a fifth louder); none: as loud as the others",
+   "say": "a line number; or byPlace (one per place, in the order of the table's places: here the sites); or a group (random, never one of the last half played)",
    "attention": "none (default): only what it points at glows; point: the screen darkens except what it points at, only that can be touched, while it waits; freeze: the screen darkens and the game freezes while its line plays",
    "points": "what it talks about: each glows from its outline, yellow, or green/red for a green/red thing",
    "touch": "what may be touched meanwhile (default: what it points at)",
@@ -449,10 +450,10 @@
    "lines": [34, 35, 36, 37]
   },
   "facts": {
-   "bySite": [[40, 41, 42], [43, 44, 45], [46, 47, 48], [49, 50, 51], [52, 53, 54], [55, 56, 57], [58, 59, 60], [61, 62, 63], [64, 65, 66], [67, 68, 69]]
+   "byPlace": [[40, 41, 42], [43, 44, 45], [46, 47, 48], [49, 50, 51], [52, 53, 54], [55, 56, 57], [58, 59, 60], [61, 62, 63], [64, 65, 66], [67, 68, 69]]
   }
  },
- "sites": [
+ "places": [
   {
    "key": "mastaba",
    "name": "Mastaba"
@@ -565,10 +566,10 @@
    "id": "map-win",
    "on": "map-return",
    "say": {
-    "bySite": [24, 25, 26, 27, 28, 29, 30, 31, 32, 33]
+    "byPlace": [24, 25, 26, 27, 28, 29, 30, 31, 32, 33]
    },
    "topic": "Map",
-   "once": "site",
+   "once": "place",
    "points": ["site:won"],
    "then": "map-win-said",
    "note": "The first return to the map after a site is won; the won site glows green."
@@ -624,9 +625,10 @@
   },
   {
    "id": "site-intro",
+   "volume": 1.2,
    "on": "enter-site",
    "say": {
-    "bySite": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    "byPlace": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
    },
    "topic": "Entering a site",
    "if": ["not site-won-before"],
@@ -638,7 +640,7 @@
    "on": "enter-site",
    "say": {
     "group": "facts",
-    "bySite": true
+    "byPlace": true
    },
    "topic": "Entering a site",
    "if": ["site-finished"]
@@ -914,7 +916,7 @@
    "id": "win-line",
    "on": "test-pass",
    "say": {
-    "bySite": [14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+    "byPlace": [14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
    },
    "topic": "Test",
    "delay": 1,
@@ -1107,7 +1109,7 @@
  ],
  "sequences": {
   "first-site": {
-   "site": "mastaba",
+   "place": "mastaba",
    "then": "plan-shown",
    "steps": ["t-drag-1", "t-tap3", "t-drag-2", "t-dragback", "t-drag-3", "t-shovel", "t-build", "t-load", "t-red", "t-undo", "t-green"],
    "note": "First site, after its welcome line, until the child has done all the steps. Then the child builds alone; the first test, first win and first fail lines are general cues."
