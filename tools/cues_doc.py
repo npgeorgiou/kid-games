@@ -47,7 +47,7 @@ def main(path):
             nums = [n for part in g["bySite"] for n in part] if g.get("bySite") else g["lines"]
             return "one line from the group *%s* (%s–%s%s)" % (s["group"], min(nums), max(nums), ", the site's own three" if g.get("bySite") else "")
         return "the site's own line (%s–%s)" % (min(s["bySite"]), max(s["bySite"]))
-    ONCE = {"ever": "once ever", "site": "once at each site", "visit": "once per visit"}
+    ONCE = {"ever": "once ever", "site": "once at each site", "visit": "once per visit", "session": "once for each site per session (since the game was opened; a refresh or the restart starts a new one)"}
     def show(s):
         verb, rest = s.split(" ", 1)
         if verb == "drag": a, b = rest.split(" > "); return "drags %s to %s" % (word("points", a), word("points", b))

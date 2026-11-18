@@ -999,11 +999,22 @@ Checklist:
 12. Finished, damaged and next site alerts pulse "dumdum dum dumdumdum dumdumdum".
 14a. One grab takes five stones. 14b. Stones are thrown with the finger's speed. 14c. A stone on a boat knocks on it and bounces into the water; the boat plays its left-on-land sound.
 15. Voice for next site and damaged site: once per site per game session (a page refresh is a new session); the glow every time. A clean model for what a re-entry resets.
+Done:
+1. Flow test-fail-sounds (the fail sound comes with the failure, at normal speed); test-end-sounds runs the test at Ctrl speed until the earthquake, then the earthquake and its end at normal speed (42 s -> 24 s).
+2. Red layer 4 in `drawFailShow`: the pieces clipped to the headpiece's place; the place itself is only outlined red.
+3. quake 3.2 -> 4.16 (limiter).
+4. `hitPiece` returns the headpiece (`headpieceHand`) outside the test; restored headpieces weigh stone of their size, at most two stone blocks (`headDensity`); three taps remove it (the site turns damaged, as with any headpiece out of place).
+7. Cause: his top-row mudbrick stuck out about 54 cm; the old rule allowed 50 cm plus five 10 cm squares, so the button stayed red. Now one rule (`checkPasses`): the plan's empty part plus the pieces outside the plan (not openings, not the headpiece's place) at most 15% of the plan. Flow owner-first-site-build (his build) turns green. All levels' `spec` still pass (Parthenon and Valens piles over the sidebar as before).
+9/15. `mapTick`: each next or damaged site on its own 10 s count; cues.json once "session" with `sessionName` (memory since the page was opened; refresh and restart start a new one); damaged-first now fires at a damaged site's first flash. Cue tests map-next-glow-every-10s, damaged-alerts-own-count-voice-once, map-new-site (silent on a second return); flow damaged-voice-once-per-session (again after a refresh).
+10. Shore white drawn up to 12 px onto the land past where the ring met it.
+11. INTRO_ZOOM 0.0048, INTRO_PAN 0.016; zoom points marked in `owner-shots/intro-focus/`.
+12. Map alerts (highlights and damaged rings) beat PULSE_BEATS, a 2.5 s bar.
+14. Stones: five per grab (`GRAB_AT`), thrown with the finger's speed over its last 0.1 s, slide to a stop, knock on boats (stone-on-wood sound) and bounce off, the boat's people groan (left-on-land sound). Flow map-stones extended.
 
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).
-- The flow suite takes about 130 s; make the slow flows faster (test-end-sounds: start the test at the earthquake with the building already standing).
+- The flow suite takes about 3 minutes (16 flows); make it faster.
 
 
 Done (12 Nov 2026, fourth list): stone swings less, wood lighter in the hand. Done (third list): stronger sidebar hand, pieces no longer lost at the sidebar edge, heavy pieces stay in the grip when swung. Done (second list): sidebar fixed, stronger pile hand, into-sidebar keeps motion, less swing, solid thicker ground. Done (first list): 1 sidebar and pieces 1.5x; 2 bottom pile piece lifts easily, no shooting up; 3 piece leaves the sidebar with the same hold and motion; 4 off-centre hold rebuilt as a joint. Next: owner play-test.

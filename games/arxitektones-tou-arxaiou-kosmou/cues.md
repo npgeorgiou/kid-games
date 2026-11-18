@@ -19,7 +19,7 @@ The child plays without reading. The game talks to them, shows them what to do w
 - A step that waits says its line and shows the ghost hand again 5 s after its line ends, until the child does it.
 - A step that needs something (a piece in the building) goes back to the step that makes it when that thing is gone (it broke, or the game was reloaded).
 - Groups: random, never one of the last n played, n = half the group rounded down (a group of 2 alternates; a site's 3 facts never repeat the last one).
-- Memory: one saved record keeps every first time (ever, per site), each group's recent lines and where each teaching sequence stands. The restart clears it, so all teaching, demos and the first welcome come again.
+- Memory: one saved record keeps every first time (ever, per site), each group's recent lines and where each teaching sequence stands. The restart clears it, so all teaching, demos and the first welcome come again. What the child coming back resets (owner 18 Nov): a page refresh or the restart starts a new session; lines marked once per session (a new site waits, a site is damaged) may then play again, once for each site. Their glows and flashes come every time (every 10 s, each site on its own count).
 - Every button shows pressed while held and acts when let go over it.
 - Wooden supports and forms are taken out by hand (dragged out, or three quick taps send them back). The test does not take them out; one left in shows red. Demos take them out with three taps.
 - The test button is red until the building is ready, then green with a 'go' triangle; open sites are yellow, damaged ones red.
@@ -41,13 +41,13 @@ Each cue: when it fires, what it says, what it shows, what it waits for. Its nam
 - `welcome-back` — **When the map shows at the start of the game, or after the restart (`map-start`) (only if not: no saved progress and the first welcome never said): says line 12 (queued).**<br>«Καλώς ήρθες ξανά, αρχιτέκτονα! Τα έργα σου σε περιμένουν.»
 - `locked-site` — **When the child presses a locked site (`tap-locked-site`): says line 13 (queued). Points at the site to build next.**<br>«Αυτός ο τόπος σε περιμένει. Πρώτα χτίσε τον προηγούμενο!»
 - `restart-ask` — **When the child presses the restart button (`press-restart`): says line 91 (queued). Points at the restart button. *Pressing the restart button again while this line's time lasts (6 s) erases everything; there is no other button. Not a teaching line: it plays with ΔΙΔΑΣΚΑΛΙΑ unticked too (owner 17 Nov), since it is how the button works.***<br>«Αυτό το κουμπί σβήνει όλη σου την πρόοδο, κι αρχίζεις το χτίσιμο από την αρχή. Αν αυτό θέλεις, πάτα το διπλά.»
-- `damaged-first` — **When the map shows (start, or coming back from a site) (`map-shown`) (only if a site on the map is damaged (red)), once ever: says line 39 (queued). Points at a damaged site (red). The ghost hand taps a damaged site (red).**<br>«Το έργο σου χάλασε! Έλα να το φτιάξεις.»
-- `damaged-again` — **When every 60 s on the map while a site is damaged (its red rings flash) (`damage-flash`) (only if cue damaged-first has already played): says line 39 (background, only if nothing else is playing or waiting). *Every 60 s while a site is damaged, its red rings flash on the map.***<br>«Το έργο σου χάλασε! Έλα να το φτιάξεις.»
+- `damaged-first` — **When every 10 s on the map for each damaged site, each on its own count (its red rings beat the alert rhythm) (`damage-flash`) (only if a site on the map is damaged (red)), once ever: says line 39 (queued). Points at a damaged site (red). The ghost hand taps a damaged site (red).**<br>«Το έργο σου χάλασε! Έλα να το φτιάξεις.»
+- `damaged-again` — **When every 10 s on the map for each damaged site, each on its own count (its red rings beat the alert rhythm) (`damage-flash`) (only if cue damaged-first has already played), once for each site per session (since the game was opened; a refresh or the restart starts a new one): says line 39 (background, only if nothing else is playing or waiting). *Every 60 s while a site is damaged, its red rings flash on the map.***<br>«Το έργο σου χάλασε! Έλα να το φτιάξεις.»
 - `map-win` — **When the map shows after leaving a won site (`map-return`), once at each site: says the site's own line (24–33) (queued). Points at the site just won (green). Then → `map-win-said`. *The first return to the map after a site is won; the won site glows green.***
 - `map-all-done` — **When the line about the won site has been said (`map-win-said`) (only if all ten sites are finished): says line 38 (queued).**<br>«Από τον Νείλο ως τον Βόσπορο, ωραΐσες την οικουμένη με τα έργα σου!»
 - `map-new-site-first` — **When coming back to the map from a won site: 2 s after its win line ends, or at once when there is none (`map-next`) (only if a site is open and not built, and the child just left the site before it), once ever: says one line from the group *newsite* (34–37) (queued). Points at the site to build next. The ghost hand taps the site to build next. *The first time ever a site opens.***
-- `map-new-site` — **When coming back to the map from a won site: 2 s after its win line ends, or at once when there is none (`map-next`) (only if a site is open and not built, and the child just left the site before it; cue map-new-site-first has already played): says one line from the group *newsite* (34–37) (queued). Points at the site to build next. *Every time the child comes back to the map from the site just before the open one (2 s after the win line, if there is one).***
-- `next-site-flash` — **When every 60 s on the map while a site is open and not built (`next-flash`) (only if a site is open and not built): Glows for 4 s: the site to build next. *Every 60 s on the map the open site glows, no voice.***
+- `map-new-site` — **When coming back to the map from a won site: 2 s after its win line ends, or at once when there is none (`map-next`) (only if a site is open and not built, and the child just left the site before it; cue map-new-site-first has already played), once for each site per session (since the game was opened; a refresh or the restart starts a new one): says one line from the group *newsite* (34–37) (queued). Points at the site to build next. *Every time the child comes back to the map from the site just before the open one (2 s after the win line, if there is one).***
+- `next-site-flash` — **When every 10 s on the map while a site is open and not built (`next-flash`) (only if a site is open and not built): Glows for 2.5 s: the site to build next. *Every 10 s on the map the open site glows, one bar of the alert rhythm, no voice (owner 18 Nov).***
 - `leave-test` — **When the child goes to the map in the middle of a test, before a pass (`leave-test`): says line 77 (queued).**<br>«Πού πας, αρχιτέκτονα; Κομμάτια και σπαράγματα θα σε περιμένουν!»
 
 ### Entering a site
@@ -275,7 +275,7 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `welcomed-first`: the first welcome line has been said *(cue then)*
 - `tap-locked-site`: the child presses a locked site *(screenButtons (POINTER HANDLING))*
 - `press-restart`: the child presses the restart button *(screenButtons)*
-- `damage-flash`: every 60 s on the map while a site is damaged (its red rings flash) *(CUES mapTick)*
+- `damage-flash`: every 10 s on the map for each damaged site, each on its own count (its red rings beat the alert rhythm) *(CUES mapTick)*
 - `map-return`: the map shows after leaving a won site *(goMap)*
 - `map-win-said`: the line about the won site has been said *(cue then)*
 - `leave-test`: the child goes to the map in the middle of a test, before a pass *(goMap)*
@@ -302,7 +302,7 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `idle`: on the map: 30 s with no line *(CUES mapTick)*
 - `step`: a teaching step's turn comes (sequences only) *(the sequence runner)*
 - `map-next`: coming back to the map from a won site: 2 s after its win line ends, or at once when there is none *(onGoMap)*
-- `next-flash`: every 60 s on the map while a site is open and not built *(CUES mapTick)*
+- `next-flash`: every 10 s on the map while a site is open and not built *(CUES mapTick)*
 - `drag-back`: the child carries a piece from the building into the pile *(worldToPile, onPointerUp)*
 - `placed-in-plan`: the child lets go of a piece over the building *(releaseHold)*
 
@@ -368,7 +368,8 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 
 - `on`: the event that fires it
 - `if`: conditions that must all hold
-- `once`: ever / site (once at each site) / visit (once per visit); none: every time
+- `once`: ever / site (once at each site) / session (once per site since the game was opened: a page refresh or the restart is the child coming back) / visit (once per visit); none: every time
+- `sessionName`: the name its session memory goes by; cues with the same name share it (a first-time line counts as this session's too)
 - `teaching`: true: a teaching cue, one that shows the child a thing of the game (a button, the plan's dots, an opening, the shovel, the test's parts, the red); silent, with its glows and hand, when ΔΙΔΑΣΚΑΛΙΑ is unticked
 - `kind`: teach: always plays, waits its turn; queued (default): waits its turn; bg: only if nothing is playing or waiting
 - `say`: a line number; or bySite (one per site, in site order); or a group (random, never one of the last half played)
