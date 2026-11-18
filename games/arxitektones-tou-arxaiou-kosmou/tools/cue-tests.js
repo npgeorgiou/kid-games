@@ -334,12 +334,13 @@
       const ys = out.map((x) => +x.split("@")[1]), ok = ys.length >= 5 && ys.every((y, j) => !j || y <= ys[j - 1] + 0.05);
       return [ok, "taken out in this order: " + out.join(", ") + (out.length ? "" : "; before the demo: " + seen.join(" "))];
     },
-    // owner 18 Nov (replacing 16 Nov night, 3 and 11): in a site or free play ESC leaves at once, whatever plays (a line, the intro); on the map it ends the line playing
+    // owner 18 Nov (replacing 16 Nov night, 3 and 11): in a site or free play ESC leaves at once, whatever plays, except the site's intro, which ESC skips; on the map it ends the line playing
     "esc": () => {
       const bad = [], esc = () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
       fresh(); noTeach(); const i = lvl("djoser"); start(i); T.onEnterSite(i); run(0.3);
       if (cur() !== 2) bad.push("no intro line at the Step Pyramid (" + cur() + ")");
-      esc(); run(0.1); if (T.mode !== "map") bad.push("ESC on the intro did not leave the site (mode " + T.mode + ")"); if (cur() === 2) bad.push("the intro line went on after leaving");
+      esc(); run(0.1); if (T.mode !== "build") bad.push("ESC on the intro left the site"); if (cur() === 2) bad.push("ESC did not end the intro");
+      esc(); run(0.1); if (T.mode !== "map") bad.push("ESC after the intro did not leave the site (mode " + T.mode + ")");
       T.startFree(); run(0.5); esc(); run(0.1); if (T.mode !== "map") bad.push("ESC did not leave free play");
       return [!bad.length, bad.join("; ") || "ok"];
     },

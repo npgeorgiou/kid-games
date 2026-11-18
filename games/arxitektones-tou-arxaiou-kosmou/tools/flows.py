@@ -468,16 +468,18 @@ def two_fingers_on_pile_piece(b):
     return out == 1 and st['ghosts'] == 0, r
 
 def esc_leaves_site(b):
-    # owner 18 Nov: "an esc in the lvel fitst stops the sound playing ... and then exits. it should exit immediatly, with fadeouts
-    # for the sounds": a site entered, its line speaking, one ESC: on the map at once, the line fading out
+    # owner 18 Nov: "an esc in the lvel ... should exit immediatly", then "if an intro is playing the esc stops the intro": a site
+    # entered, its intro (picture and line) playing: one ESC skips the intro and stays; the next ESC leaves for the map
     q = page(b)
     q.mouse.click(640, 400); quiet(q); later_launch(q)
     click(q, 'site:mastaba')
-    speaking = until(q, "()=>__tb.mode==='build'&&!!__tb.voice.cur", 4)
+    intro = until(q, "()=>__tb.mode==='build'&&!!__tb.voice.cur&&__tb.voice.cur.cue&&__tb.voice.cur.cue.id==='site-intro'", 4)
     q.keyboard.press('Escape'); time.sleep(0.1)
-    mode = q.evaluate("()=>__tb.mode")
+    first = q.evaluate("()=>({mode:__tb.mode, intro:!!(__tb.voice.cur&&__tb.voice.cur.cue&&__tb.voice.cur.cue.id==='site-intro')})")
+    q.keyboard.press('Escape'); time.sleep(0.1)
+    second = q.evaluate("()=>__tb.mode")
     q.close()
-    return speaking and mode == 'map', dict(line_was_speaking=speaking, mode_after_one_esc=mode)
+    return intro and first['mode'] == 'build' and not first['intro'] and second == 'map', dict(intro_playing=intro, after_first_esc=first, after_second_esc=second)
 
 def esc_during_demo(b):
     # owner 18 Nov: "when demo/tutorial is playing an esc should just exit" and "an esc stops the demo sound, but the demo keeps

@@ -1119,6 +1119,12 @@ Done (each with its flow in tools/flows.py, or cue test):
 7. The three explanations no longer darken or pause; they play while their part runs. A test that fails stops its explanation, so the fail line plays (otherwise it was dropped). At normal speed each plays inside its part; in the fast Ctrl test they fall behind. Flow `explanations-do-not-pause-test`; cue tests `test-explained-at-first-reach` and `headpiece-line` now run the test at normal speed.
 8. The table's new "repeat" field: "press here to go back to the map" says itself again 10 s after it ends (others 5 s). Flow `home-line-repeat`.
 
+## Current state, update 93 (18 Nov 2026): ESC skips the site intro
+
+Owner, 18 Nov: "moron, the first esc stops the lvl intro, now an esc stops the lvl intro image and sound, and just leaves, so the  user can just skip the intro anymore, it exits the lvl instead. if an intro is playing the esc stops the intro."
+
+- In a site, ESC while the intro plays (its picture and line) skips the intro and stays; any other time ESC leaves at once (update 92). Flow `esc-leaves-site`, cue test `esc`.
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).

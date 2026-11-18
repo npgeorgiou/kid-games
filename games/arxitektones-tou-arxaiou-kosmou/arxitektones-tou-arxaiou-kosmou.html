@@ -4703,7 +4703,8 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     lastInput = cueClock;
     if (e.key !== "Escape") return;
     if (auto) cancelAuto(); // owner 16 Nov late: ESC stops the quick build where it is
-    else if (mode === "build") goMap(); // owner 18 Nov: in a site ESC leaves at once, whatever plays (a line, a demo, the teaching); its sounds fade out
+    else if (mode === "build" && !(voice.cur && voice.cur.cue && voice.cur.cue.id === "site-intro")) goMap(); // owner 18 Nov: in a site ESC leaves at once, whatever plays (a line, a demo, the teaching); its sounds fade out
+    // owner 18 Nov: "if an intro is playing the esc stops the intro": the site's intro (its picture and line) is skipped, and the next ESC leaves
     else if (voice.cur) cutLine(voice.cur);
   });
   const siteKeyOf = (i) => (i != null && LEVELS[i] ? LEVELS[i].key : null);
