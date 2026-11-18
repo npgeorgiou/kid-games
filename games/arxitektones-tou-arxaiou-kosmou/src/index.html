@@ -69,12 +69,19 @@
       const s = img.naturalWidth, n = Math.max(1, Math.floor(img.naturalHeight / s)), SC = 1.5;
       if (!img._frames) img._frames = Array.from({ length: n }, (_, i) => { const c = document.createElement("canvas"); c.width = c.height = s; c.getContext("2d").drawImage(img, 0, i * s, s, s, 0, 0, s, s); return c; });
       const w = (cssWidth - v.ox) / SC + s, h = (cssHeight - v.oy) / SC + s;
+      // painted on a half-sharp picture, then put on the screen once (owner 18 Nov: "do the water fix too", the map was slow on another PC)
+      const R = 0.5 * (window.devicePixelRatio || 1), out = ctx;
+      if (!img._low) img._low = document.createElement("canvas");
+      const low = img._low, lw = Math.ceil(cssWidth * R), lh = Math.ceil(cssHeight * R);
+      if (low.width !== lw || low.height !== lh) { low.width = lw; low.height = lh; }
+      ctx = low.getContext("2d"); ctx.setTransform(R, 0, 0, R, 0, 0);
       const layer = (fr, dx, dy, alpha) => { // dx, dy: picture pixels per second
         const ox = (((t * dx) % s) + s) % s, oy = (((t * dy) % s) + s) % s;
         ctx.save(); ctx.globalAlpha = alpha; ctx.translate(v.ox, v.oy); ctx.scale(SC, SC); ctx.translate(ox - s, oy - s);
         ctx.fillStyle = ctx.createPattern(img._frames[fr], "repeat"); ctx.fillRect(0, 0, w + s, h + s); ctx.restore();
       };
       layer(0, 5, 5, 1); layer(Math.floor(n / 2), 3.5, 3.5, 0.5);
+      out.drawImage(low, 0, 0, cssWidth, cssHeight);
     },
     // A boat on the map, drawn centred at (x, y), `size` pixels wide, mirrored when sailing left.
     // A map boat drawn in 3D by code, coloured and shaped like the owner's boat picture (art/boat-owner.png: golden
