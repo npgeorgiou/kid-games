@@ -911,6 +911,18 @@
    "points": ["fail-place"]
   },
   {
+   "id": "first-win",
+   "teaching": true,
+   "on": "test-pass",
+   "say": 104,
+   "topic": "Test",
+   "delay": 1,
+   "during": "test",
+   "once": "ever",
+   "then": "first-win-said",
+   "note": "Owner 18 Nov: \"first the success/failure end-tests cue, then the end-level in-level cue\": said before the site's own line, both when the test passes."
+  },
+  {
    "id": "win-line",
    "on": "test-pass",
    "say": {
@@ -920,15 +932,6 @@
    "delay": 1,
    "during": "test",
    "then": "won"
-  },
-  {
-   "id": "first-win",
-   "teaching": true,
-   "on": "won",
-   "say": 104,
-   "topic": "Test",
-   "once": "ever",
-   "then": "first-win-said"
   },
   {
    "id": "first-win-home",

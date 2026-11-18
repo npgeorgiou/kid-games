@@ -2542,8 +2542,10 @@
         if (test.after === "pass") { nextPhase("pass"); celebrate(); playSound("cheer", 1); onWin(lv); }
         else enterPart(test.after);
       }
-    } else if (test.phase === "voice") {
-      if (!voiceBusy()) enterPart(test.after);
+    } else if (test.phase === "wait") {
+      if (cueDone(test.waitCue)) enterPart(test.after);
+    } else if (test.phase === "cue") {
+      if (cueDone(test.waitCue)) { test.waitCue = null; nextPhase(test.after); }
     } else if (test.phase === "wind") {
       // from the left, a one-second lull, then from the right
       const D = PHASE_TIME.wind, GAP = 1, right = T >= D + GAP, t = right ? T - D - GAP : T;
@@ -4017,18 +4019,21 @@
   function onRedPress() { if (!cueEvent("press-test").ended) cueEvent("press-red"); }
   function onTestStart() { // lines still waiting from the building are dropped (first times stay unused): after the test they would be stale
     voice.queue = voice.queue.filter((q) => { if (q.duringTest) return true; setMark(q.onceKey, false); return false; });
-    if (!cueEvent("press-test").ended) cueEvent("test-start");
+    if (!cueEvent("press-test").ended) test.waitCue = cueEvent("test-start").fired.find((c) => c.n != null) || null;
   }
-  // A part of the test begins only when the voice is free (owner 18 Nov: "the 'lets see, will it stand' cue ... should play
-  // first, then the tests start, and for each one of the 3 tests, its voice cue starts with it"): the line before it ends
-  // first, then the part and its own line start together.
-  const voiceBusy = () => !!voice.cur || voice.queue.some((q) => q.duringTest);
-  function enterPart(ph) { // a part may first wait for its freezing line (the first test's explanations)
-    if (voiceBusy()) { test.phase = "voice"; test.t = 0; test.after = ph; return; }
-    const f = cueEvent("test-part", { part: ph }).fired.find((c) => c.attention === "freeze");
-    if (!f) { nextPhase(ph); return; }
-    test.phase = "cue"; test.t = 0;
-    const then = f.then; f.then = () => { if (then) then(); if (test && test.phase === "cue") nextPhase(ph); };
+  // The test's steps follow its cues (owner 18 Nov: "the 'lets see, will it stand' cue ... should play first, then the tests
+  // start, and for each one of the 3 tests, its voice cue starts with it"; "the cue is not done until voice is done, and visual
+  // is done"):
+  // 1. each step of the test (the green button, each part) fires its cue and remembers it;
+  // 2. the next part begins only when that cue is done (its line and what it shows); the part fires its own cue as it begins.
+  // A cue is done when it is finished or gone (said, cut, dropped); a step whose cue did not fire waits for nothing.
+  const cueDone = (c) => c.fin || (voice.cur !== c && !voice.queue.includes(c) && !active.includes(c));
+  function enterPart(ph) {
+    if (test.waitCue && !cueDone(test.waitCue)) { test.phase = "wait"; test.t = 0; test.after = ph; return; }
+    const f = cueEvent("test-part", { part: ph }).fired.find((c) => c.n != null) || null;
+    test.waitCue = f;
+    if (!f || f.attention !== "freeze") { nextPhase(ph); return; }
+    test.phase = "cue"; test.t = 0; test.after = ph; // a freezing line: the part waits for it
   }
   function onFail(part, why) { stopTestLines(); if (part) cueEvent("test-fail", { part, why }); }
   function stopTestLines() { // the test's explanations play with its parts (owner 18 Nov); a test that fails stops them with it, unplayed ones keep their first time

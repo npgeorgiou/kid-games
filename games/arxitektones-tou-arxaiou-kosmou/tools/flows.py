@@ -575,13 +575,28 @@ def test_lines_start_with_parts(b):
     q.close()
     at = lambda kind, v: next((e[0] for e in ev if e[1] == kind and e[2] == v), None)
     r = dict(lets_see_ends=at('end', 71), wind=at('phase', 'wind'), wind_line=at('line', 101), load=at('phase', 'load'), load_line=at('line', 102), quake=at('phase', 'quake'), quake_line=at('line', 103))
-    ok = r['lets_see_ends'] is not None and r['wind'] is not None and r['lets_see_ends'] <= r['wind'] + 0.05
+    ok = r['lets_see_ends'] is not None and r['wind'] is not None and 0 <= r['wind'] - r['lets_see_ends'] <= 0.3  # the wind right after the line, no gap
     for part, line in (('wind', 'wind_line'), ('load', 'load_line'), ('quake', 'quake_line')):
         ok = ok and r[part] is not None and r[line] is not None and abs(r[line] - r[part]) <= 0.25
     if not ok: r['events'] = [e for e in ev if e[1] != 'phase' or e[2] in ('wind', 'load', 'quake', 'voice', 'settle', 'supports')][:30]
     return ok, r
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
+def test_result_line_before_site_line(b):
+    # owner 18 Nov: "the after tests cue playes after the in-level finish-level cue. no, first the sucess/failure end-tests cue,
+    # then the end-level in-level cue": the first site passed for the first time, teaching on
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{const m=__tb.cueMem(); m.seq['first-site']='done'; m.ever=m.ever||{}; for (const id of ['explain-wind','explain-load','explain-quake']) m.ever[id]=1;}")  # the explanations are not what is checked
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    q.evaluate("()=>{window.__said=[]; const T=__tb; let ln=null; const f=()=>{const l=T.voice.cur?T.voice.cur.n:null; if(l!==ln){ if(l!=null) __said.push(l); ln=l;} requestAnimationFrame(f);}; requestAnimationFrame(f);}")
+    quick_build_and_test(q, hold=True)  # Ctrl held: the fast test
+    until(q, "()=>__said.includes(14)&&__said.includes(104)&&__said.includes(106)", 25)
+    said = q.evaluate("()=>__said")
+    q.close()
+    k = lambda n: said.index(n) if n in said else None
+    return k(104) is not None and k(14) is not None and k(106) is not None and k(104) < k(14) < k(106), dict(lines_said=said)
+
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
 
 def run(b, names):
     for n, f in FLOWS.items():

@@ -115,7 +115,7 @@ Shared event system in `tools/cues/` (engine `engine.js`, pattern `README.md`, d
 
 ## Status
 
-- Tower Builder, now Αρχιτέκτονες του αρχαίου κόσμου (`games/arxitektones-tou-arxaiou-kosmou`): playable; ten-site picture map, levels from `levels.md`, test (wind both ways, load, earthquake), cues and voice. Current state and open points: its `BUILD.md` "Now".
+- Αρχιτέκτονες του αρχαίου κόσμου, was Tower Builder (`games/arxitektones-tou-arxaiou-kosmou`): playable; what it is now and what is open: its `BUILD.md`.
 
 ## Decided
 
