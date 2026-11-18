@@ -881,10 +881,9 @@
   function levelSidebar() {
     const pad = 8, defs = BUTTONS.filter((b) => b.kind === "home" || b.kind === "broom" || (b.kind === "test" && currentLevel != null));
     const size = Math.min(64, (sidebarWidthPx - pad * 4) / 3);
-    const total = defs.length * size + (defs.length - 1) * pad;
-    const x0 = buildingWidthPx + (sidebarWidthPx - total) / 2 + size / 2;
+    const x0 = buildingWidthPx + pad + size / 2, step = defs.length > 1 ? (sidebarWidthPx - pad * 2 - size) / (defs.length - 1) : 0; // spread over the sidebar's width (owner 18 Nov)
     return {
-      buttons: defs.map((def, i) => ({ def, x: x0 + i * (size + pad), y: pad + size / 2, size })),
+      buttons: defs.map((def, i) => ({ def, x: defs.length > 1 ? x0 + i * step : buildingWidthPx + sidebarWidthPx / 2, y: pad + size / 2, size })),
       bin: { x: buildingWidthPx + pad, y: size + pad * 2, w: sidebarWidthPx - pad * 2, h: cssHeight - size - pad * 3 },
     };
   }
@@ -1489,6 +1488,7 @@
     "map-tap-green": [["sounds/map-tap-green.mp3", 0.512]],
     "map-tap-rock": [["sounds/map-tap-rock.mp3", 0.2]],
     "map-stone-boat": [["sounds/hit-stone-wood.mp3", 0.512]], // owner 18 Nov: a stone on a boat, as loud as the ground taps
+    "map-boat-boat": [["sounds/hit-wood-wood.mp3", 0.512]], // owner 18 Nov: a boat dropped on a boat sounds as wood on wood, as loud as a stone on a boat
     "map-sand-draw": [["sounds/map-sand-draw.mp3", 0.41]], // a finger drawing in the sand (a made sound, until the owner gives one), 20% under the ground taps (owner 18 Nov), by the finger's speed
     "boat-left-on-land": [["sounds/boat-left-on-land.mp3", 0.512]], // owner 17 Nov: a disappointed crowd when a boat is left on land (his file, trimmed, peak-normalised); as loud as the map taps
     // collapse.mp3 is in src/sounds but not used yet
@@ -3044,6 +3044,7 @@
     b.drop = null; b.rise = b.lift = 0;
     const q = mapView().pt(b.x, b.y), onLand = isLand(b.x, b.y);
     mapTap(q.x, q.y, b); // the splash and its waves, as a tap there (sand or stones on land); they push the other boats, not this one
+    if (boats.some((o) => o !== b && !(o.lift > 0) && Math.hypot(o.x - b.x, o.y - b.y) < 2 * BOAT_REACH)) playSound("map-boat-boat", 1); // onto another boat (their hulls meet: each reaches BOAT_REACH): a knock, as a stone on a boat
     if (onLand && crewOf(b)) playSound(LEFT_ON_LAND, 1); // only travellers left on land are disappointed (owner 17 Nov)
     letGoBoat(b);
     if (onLand && b.back) b.back.delay = soundSeconds(LEFT_ON_LAND) + 0.5; // the travellers get out half a second after the sound (owner 17 Nov: first one second, then half a second earlier)

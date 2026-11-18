@@ -646,7 +646,41 @@ def tutorial_early_brick(b):
     q.close()
     return r['step'] == 'done' and all(x in r['said'] for x in (95, 135, 100)), r
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
+def boat_on_boat(b):
+    # owner 18 Nov: "make so dropping a boat on another boat makes the same sound that the blocks do on wood-on-wood hit. sound
+    # volume should be the same as the stone-on-boat sound": a boat carried over another boat at sea and let go there
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.progress.done.mastaba={pieces:[],loads:[]}; __tb.progress.done.ur={pieces:[],loads:[]}}"); until(q, "()=>__tb.boats.length>1", 2)
+    sea = map_point(q, "T.groundAt(mx,my)==='water'&&!T.isLand(mx,my)&&[0,1,2,3,4,5,6,7].every((k)=>T.groundAt(mx+260*Math.cos(k*0.785),my+60*Math.sin(k*0.785))==='water')")
+    if not sea: q.close(); return False, 'no open sea'
+    q.evaluate("(p)=>{const T=__tb, v=T.mapView(); T.boats.slice(0,2).forEach((b,i)=>{b.held=b.back=b.drop=null; b.stuck=true; b.ox=b.oy=b.ovx=b.ovy=0; b.x=(p[0]-v.ox)/v.k+(i?0:-160/v.k); b.y=(p[1]-v.oy)/v.k;});}", sea)
+    quiet(q); q.evaluate("()=>{__tb.active.length=0}")
+    a = q.evaluate("()=>{const T=__tb, p=T.mapView().pt(T.boats[0].x,T.boats[0].y); return [p.x,p.y];}")
+    t = q.evaluate("()=>{const T=__tb, v=T.mapView(), p=v.pt(T.boats[1].x,T.boats[1].y); return [p.x,p.y-T.BOAT_LIFT_H*v.k];}")  # held up, its shadow over the other boat: it falls straight down onto it
+    q.mouse.move(*a); q.mouse.down()
+    for k in range(1, 21): q.mouse.move(a[0] + (t[0] - a[0]) * k / 20, a[1] + (t[1] - a[1]) * k / 20); time.sleep(0.03)
+    time.sleep(0.4); q.evaluate("()=>{__tb.soundLog.length=0}")
+    q.mouse.up(); time.sleep(0.6)
+    snd = q.evaluate("()=>__tb.soundLog.slice()")
+    pos = q.evaluate("()=>__tb.boats.slice(0,2).map((b)=>[Math.round(b.x),Math.round(b.y),b.lift])")
+    vol = q.evaluate("()=>[__tb.SOUNDS['map-boat-boat'], __tb.SOUNDS['map-stone-boat'], __tb.SOUNDS['hit-wood-wood']]")
+    q.close()
+    ok = 'map-boat-boat' in snd and vol[0] and vol[0][0][0] == vol[2][0][0] and vol[0][0][1] == vol[1][0][1]
+    return bool(ok), dict(sounds=snd, boats=pos, same_file=vol[0][0][0] == vol[2][0][0], gains=[vol[0][0][1], vol[1][0][1]])
+
+def sidebar_icons_spread(b):
+    # owner 18 Nov: "make teh icons at the top of the sidebar spread out, now they are all clustered in teh middle": in a site,
+    # the first icon at the sidebar's left edge and the last at its right edge
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.cueMem().seq['first-site']='done'}")
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    r = q.evaluate("()=>{const T=__tb, L=T.levelSidebar().buttons, x0=T.buildingWidthPx, w=window.innerWidth-x0; return {left_gap:L[0].x-L[0].size/2-x0, right_gap:x0+w-(L[L.length-1].x+L[L.length-1].size/2), n:L.length, size:L[0].size};}")
+    q.close()
+    return r['n'] > 1 and r['left_gap'] <= 12 and r['right_gap'] <= 12, r
+
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick, 'boat-on-boat': boat_on_boat, 'sidebar-icons-spread': sidebar_icons_spread}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
 
 def run(b, names):
     for n, f in FLOWS.items():
