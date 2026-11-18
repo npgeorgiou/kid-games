@@ -439,7 +439,34 @@ def two_finger_turn(b):
     r = dict(pev=pev, seen=seen, st=st, two_fingers_hold=two, turned_deg=round(math.degrees(turned)), one_finger_still_holds=still, let_go=free)
     return two and 70 <= abs(math.degrees(turned)) <= 110 and still and free, r
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
+def two_fingers_on_pile_piece(b):
+    # owner 18 Nov: "both the block and the block's outline came out of the sidebar": two fingers on one piece in the
+    # sidebar, both dragged out into the building: one piece comes out, never two
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); untick_all(q)
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    time.sleep(0.8)
+    a = pile_piece(q, 'mudbrick')
+    s = q.context.new_cdp_session(q)
+    def touch(kind, pts):
+        s.send('Input.dispatchTouchEvent', {'type': kind, 'touchPoints': [{'x': x, 'y': y, 'id': i} for i, (x, y) in pts]})
+    n0 = q.evaluate("()=>__tb.pieces.length")
+    f1, f2 = (a[0] - 4, a[1]), (a[0] + 4, a[1])
+    touch('touchStart', [(1, f1)]); time.sleep(0.03)
+    touch('touchStart', [(1, f1), (2, f2)])
+    held = q.evaluate("()=>__tb.pointers.size")
+    for k in range(1, 31):  # both fingers out to the left, into the building, at a hand's rate
+        dx = -500 * k / 30
+        touch('touchMove', [(1, (f1[0] + dx, f1[1] - 100)), (2, (f2[0] + dx, f2[1] - 100))]); time.sleep(0.016)
+    time.sleep(0.5)
+    out = q.evaluate("()=>__tb.pieces.length") - n0
+    touch('touchEnd', []); time.sleep(1.0)
+    st = q.evaluate("()=>({pieces:__tb.pieces.length, ghosts:__tb.pieces.filter(p=>p.ghost).length, pointers:__tb.pointers.size})")
+    q.close()
+    r = dict(fingers_down=held, pieces_out=out, after=st)
+    return out == 1 and st['ghosts'] == 0, r
+
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
 
 def run(b, names):
     for n, f in FLOWS.items():

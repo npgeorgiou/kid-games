@@ -1090,6 +1090,13 @@ Owner, 18 Nov: "I think we are done. now I want you to add whatever is needed, i
 - Flow `two-finger-turn`: a plank on the ground, a finger near each end, the fingers turned a quarter round while lifting: the plank turns about a quarter; one finger let go, the other still holds it.
 - Not checked on the real touchscreen yet (the PC has a mouse only).
 
+## Current state, update 91 (18 Nov 2026): one piece out of the sidebar, however many fingers
+
+Owner, 18 Nov: "there is an error where somehow both the block and the block's outline came out of the sidebar."
+
+- Repeated as: two fingers on one piece in the sidebar, both dragged out into the building: two pieces came out. Cause: a piece in the sidebar could be taken by a second finger while the first held it.
+- Now a piece in the sidebar is held by one finger only; a second finger joins it once it is out in the building. Flow `two-fingers-on-pile-piece`.
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).

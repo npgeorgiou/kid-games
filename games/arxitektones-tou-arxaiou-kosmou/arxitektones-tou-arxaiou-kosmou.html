@@ -2327,7 +2327,9 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
     const p = planck.Vec2((px - r.x) / pileScale, (r.y + r.h - py) / pileScale);
     const margin = Math.max(0.15, 10 / pileScale); // at least 10 px of slack around each piece
     let best = null, bestD = Infinity;
+    const inHand = new Set(Array.from(pointers.values(), (h) => h.pileBody)); // a piece in the sidebar is one finger's; a second finger joins it out in the building
     for (const b of pileBodies()) {
+      if (inHand.has(b)) continue;
       const d = PIECE_DEFS[b.pileItem.defKey], l = b.getLocalPoint(p);
       const dist = outsidePiece(d, l);
       if (dist <= margin && dist < bestD) { best = b; bestD = dist; }
