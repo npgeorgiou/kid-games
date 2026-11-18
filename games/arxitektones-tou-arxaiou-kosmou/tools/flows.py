@@ -221,7 +221,7 @@ def map_stones(b):
     q.evaluate("()=>{__tb.progress.done.mastaba={pieces:[],loads:[]}}"); until(q, "()=>__tb.boats.length>0", 2)  # a finished site: its boat sails
     rock = map_point(q, "T.groundAt(mx,my)==='rock'")
     land = map_point(q, "['green','sand'].includes(T.groundAt(mx,my))&&T.sandArea(mx,my)<0&&!T.boats.some((b)=>Math.hypot(b.x-mx,b.y-my)<80)&&[0,1,2,3,4,5,6,7].every((k)=>T.groundAt(mx+70*Math.cos(k*0.785),my+70*Math.sin(k*0.785))!=='water')")
-    sea = map_point(q, "T.groundAt(mx,my)==='water'&&!T.isLand(mx,my)&&!T.boats.some((b)=>Math.hypot(b.x-mx,b.y-my)<80)")
+    sea = map_point(q, "T.groundAt(mx,my)==='water'&&!T.isLand(mx,my)&&!T.boats.some((b)=>Math.hypot(b.x-mx,b.y-my)<80)&&[0,1,2,3,4,5,6,7].every((k)=>T.groundAt(mx+90*Math.cos(k*0.785),my+90*Math.sin(k*0.785))==='water')")  # open sea: what bounces off a boat lands in water
     n = lambda: q.evaluate("()=>__tb.mapStones.length")
     rest = "()=>__tb.mapStones.every((s)=>!s.held&&!s.vz&&!s.vx&&!s.vy)"
     drag(q, rock, land, hold=0.3); time.sleep(0.15); five = until(q, "()=>__tb.mapStones.length===5", 1) and until(q, rest, 2)
@@ -243,7 +243,7 @@ def map_stones(b):
     q.evaluate("()=>{__tb.mapStones.splice(0); __tb.soundLog.length=0;}")
     q.evaluate("(p)=>{const T=__tb, v=T.mapView(), b=T.boats[0]; b.held=b.back=b.drop=null; b.stuck=true; b.ox=b.oy=b.ovx=b.ovy=0; b.x=(p[0]-v.ox)/v.k; b.y=(p[1]-v.oy)/v.k+30*0.866;}", sea)
     drag(q, rock, sea, hold=0.3); time.sleep(0.05)  # held still over the boat, then let go
-    bounced = until(q, "()=>__tb.soundLog.includes('hit-stone-wood')", 2) and until(q, "()=>__tb.mapStones.length===0", 3)
+    bounced = until(q, "()=>__tb.soundLog.includes('map-stone-boat')", 3) and until(q, "()=>__tb.mapStones.length===0", 5)
     groan = q.evaluate("()=>__tb.soundLog.includes('boat-left-on-land')")
     q.evaluate("()=>{__tb.mapStones.push({x:0,y:0,z:0,vz:0,vx:0,vy:0,rise:1,held:null,on:null,age:0,yaw:0,grey:140})}")
     q.evaluate("(p)=>{const T=__tb, v=T.mapView(), b=T.boats[0], s=T.mapStones[0], mx=(p[0]-v.ox)/v.k, my=(p[1]-v.oy)/v.k; b.held=b.back=b.drop=null; b.stuck=true; b.ox=b.oy=b.ovx=b.ovy=0; b.x=mx; b.y=my; s.x=mx+2; s.y=my;}", land); time.sleep(0.2)
@@ -318,15 +318,17 @@ def headpiece_in_hand(b):
     until(q, "()=>!__tb.test", 10); quiet(q); click(q, 'home'); until(q, "()=>__tb.mode==='map'", 3); time.sleep(0.3); quiet(q)
     click(q, 'site:mastaba'); until(q, "()=>__tb.mode==='build'&&__tb.loads.length===1", 3); time.sleep(1); quiet(q)
     st = q.evaluate("""()=>{const T=__tb, l=T.loads[0], c=l.body.getPosition(), s=T.worldToScreen(c.x,c.y); return {x:s.x,y:s.y,cy:c.y,blocks:T.inBlocks(l.body,'stone')};}""")
+    q.evaluate("()=>{__tb.soundLog.length=0}")
     drag(q, (st['x'], st['y']), (st['x'] + 10, st['y'] - 120), steps=30)
     time.sleep(0.1); lifted = q.evaluate("()=>__tb.loads[0].body.getPosition().y") - st['cy']
     time.sleep(1.5)
+    knock = q.evaluate("()=>__tb.soundLog.filter((x)=>x.startsWith('hit-')&&x.includes('stone'))")  # owner 18 Nov: it sounds as stone when it lands
     c = q.evaluate("()=>{const T=__tb, l=T.loads[0], c=l.body.getPosition(), s=T.worldToScreen(c.x,c.y); return [s.x,s.y];}")
     for _ in range(3): q.mouse.click(c[0], c[1]); time.sleep(0.08)
     gone = until(q, "()=>__tb.loads.length===0", 1)
-    r = dict(mass_in_blocks=round(st['blocks'], 2), lifted_m=round(lifted, 2), gone_after_three_taps=gone)
+    r = dict(mass_in_blocks=round(st['blocks'], 2), lifted_m=round(lifted, 2), stone_sound_on_landing=knock, gone_after_three_taps=gone)
     q.close()
-    return r['mass_in_blocks'] <= 2.001 and lifted > 0.5 and gone, r
+    return r['mass_in_blocks'] <= 2.001 and lifted > 0.5 and bool(knock) and gone, r
 
 def damaged_voice_once_per_session(b):
     # owner 18 Nov: "the voice cues for next site - damaged site must play sound not every time they trigger (only the visual
@@ -338,13 +340,34 @@ def damaged_voice_once_per_session(b):
     first = until(q, "()=>__rec.said.includes(39)", 12)
     time.sleep(0.2); until(q, "()=>!__tb.voice.cur", 8); q.evaluate("()=>{__rec.said.length=0}")
     t0 = q.evaluate("()=>__tb.flashes.length"); again = until(q, "()=>__rec.said.includes(39)", 21)
-    q.reload(); q.wait_for_function("()=>!!window.__tb"); q.mouse.click(640, 400); time.sleep(0.2); quiet(q); record(q)
+    q.reload(); q.wait_for_function("()=>!!window.__tb"); record(q); q.mouse.click(640, 400)  # listening from before the first touch
     after_refresh = until(q, "()=>__rec.said.includes(39)", 12)
     r = dict(said_first=first, said_again_same_session=again, said_after_refresh=after_refresh)
     q.close()
     return first and not again and after_refresh, r
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session}
+def middle_grab_bump(b):
+    # owner 18 Nov: "when I hold a piece from the middle, then it does not rotate when hitting other pieces. middle grab means
+    # stability": a stone block lying on the ground, grabbed in its middle, lifted and pushed with its lower edge into the top
+    # corner of a stack of three stone blocks
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); untick_all(q)
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    q.evaluate("()=>{const T=__tb; T.clearAllPieces(); for(let k=0;k<3;k++) T.spawnPiece('block',20.5,0.502+k,0,'stone'); window.__mv=T.spawnPiece('block',14,0.502,0,'stone');}")
+    time.sleep(0.6); quiet(q)
+    a, up, tgt = q.evaluate("()=>{const T=__tb, s=(x,y)=>{const p=T.worldToScreen(x,y); return [p.x,p.y];}; return [s(14,0.5), s(14,3.25), s(19.3,3.25)];}")
+    q.mouse.move(*a); q.mouse.down(); time.sleep(0.05)
+    if not q.evaluate("()=>window.__mv.heldBy!=null"): q.close(); return False, dict(probe="the press did not take the block")
+    q.evaluate("()=>{window.__bump={turn:0,touched:false}; const f=()=>{const b=window.__mv.body; __bump.turn=Math.max(__bump.turn,Math.abs(b.getAngle())); for(let c=b.getContactList();c;c=c.next) if(c.contact.isTouching()&&c.other.piece) __bump.touched=true; if(window.__mv.heldBy!=null) requestAnimationFrame(f);}; requestAnimationFrame(f);}")
+    for (x0, y0), (x1, y1), n in ((a, up, 20), (up, tgt, 40)):
+        for k in range(1, n + 1): q.mouse.move(x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n); time.sleep(0.016)
+    time.sleep(1.0)
+    bump = q.evaluate("()=>__bump"); touched, turn = bump['touched'], bump['turn']
+    r = dict(touching_the_stack=touched, most_turn_rad=round(turn, 3), pieces=q.evaluate("()=>__tb.pieces.map(x=>x.body.getPosition().x.toFixed(2)+','+x.body.getPosition().y.toFixed(2)+'@'+x.body.getAngle().toFixed(2)).join(' ')"))
+    q.mouse.up(); q.close()
+    return touched and turn < 0.05, r
+
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
 
 def run(b, names):
     for n, f in FLOWS.items():

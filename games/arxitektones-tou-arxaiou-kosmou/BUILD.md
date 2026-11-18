@@ -1011,6 +1011,24 @@ Done:
 12. Map alerts (highlights and damaged rings) beat PULSE_BEATS, a 2.5 s bar.
 14. Stones: five per grab (`GRAB_AT`), thrown with the finger's speed over its last 0.1 s, slide to a stop, knock on boats (stone-on-wood sound) and bounce off, the boat's people groan (left-on-land sound). Flow map-stones extended.
 
+## Current state, update 83 (18 Nov 2026): three voice clips, one look for every map alert, the headpiece sounds as stone, smooth shore, slower stones, new zoom points
+
+Owner, verbatim (18 Nov 2026, 10:24), with three voice files (71.mp3, 8.mp3, 9.mp3) and five intro pictures with his red squares (`owner-shots/intro-focus/2026-11-18-owner-new-point-*.jpg`):
+"1. replace these 3 files, after passing them through the sound normalizer and then adjustinv valume as for the otehr of my voice clips. 2 the map visual pulses dotn all ahve the same thickness not pulsating rythom. put in claude.md isntructions about "similar things happen in similar ways", something about consistency and generalization. and make the alert rings as thing as the yellow ones, and about the pulses they are somehow juggery and not smooth, they are annoying. 3. headpiece should also make the stone sounds when dragged, dropped, etch. again, consistency. 4. earthquake make 30% louder more. 5. In halicaranssus, gvie me instead of the 4 std wood, 4 wood like the one in mycenai (3m?) and adsust your demo too to use them. 6. make it so when I hold a piece from the middle, then it does not rotate when hitting other pieces. middle grab means stability.7. the waves, when they reach the shore with the outer, weaker rings, are just flickering, that unnatural. 8. make stone throwing /when they fly on the air, a bit slower, now its too fast, i almost cant see it. 9. the stone hit boat sound must be less loud, same loud as the 4 terrain effects, and ok, 20% louder than them. 10. make intro level zoom 20% slower yet. 11: here are some of the site images you gave me, with new red squares: make them the focus point of those 5 iamges:"
+
+Checklist and results:
+1. Voice 71, 8, 9 replaced: silence trimmed, then tools/normalize-sounds.php (-16 LUFS, peaks under -1.5 dBTP), the same as every other voice clip.
+2a. CLAUDE.md: "Similar things happen in similar ways". 2b. Every map alert (next, damaged, finished) drawn by one drawing: a glow plus a ring at each beat of the rhythm, the same thickness (the yellow's), each ring spreading and fading smoothly and overlapping the next, nothing jumping back. Picture `owner-shots/2026-11-18-alert-rhythm.png` (a damaged site over one bar).
+3. The headpiece counts as a stone piece for hit sounds, sliding sounds and dust. Flow headpiece-in-hand checks the stone sound when it lands.
+4. quake 4.16 -> 5.41 (limiter).
+5. NOT BUILT, question to the owner: the Halicarnassus pile has two wooden posts (2.4 m tall, the gap under the beams), not four standard wooden blocks; a 3.2 m Mycenae plank does not fit standing in that gap.
+6. NOT SHIPPED, question to the owner: a steadier middle grab (whole push held by the wrist, no slipping, in the middle third; tried and passing flow middle-grab-bump) breaks the 16 Nov lever rule: a plank across a log, pulled down 2.5 or 3.5 m from its raised end, no longer tips. The old hand stays; flow middle_grab_bump is kept out of the suite until he answers.
+7. Shore white grows smoothly from the ring by how far each part has got past the shore (no jump in brightness or width).
+8. Stones in the air at 0.7 of the speed, the fall's speed-up 0.49 of before (the same path, slower).
+9. A stone on a boat: its own sound entry, 1.2 x the map's ground taps.
+10. INTRO_ZOOM 0.00384, INTRO_PAN 0.0128.
+11. Zoom points: mastaba 0.548, 0.483; ziggurat 0.543, 0.359; parthenon 0.504, 0.370; mausoleum 0.635, 0.384; pharos 0.501, 0.274 (the middle of each red square).
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).

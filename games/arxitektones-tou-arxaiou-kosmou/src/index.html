@@ -501,14 +501,16 @@
       if (q.kind === "ring") {
         if (!q.stop) { ctx.strokeStyle = `rgba(235, 248, 255, ${a * 0.9})`; ctx.lineWidth = (q.w || 2.5); ctx.beginPath(); ctx.ellipse(0, 0, q.r, q.r * 0.6, 0, 0, Math.PI * 2); ctx.stroke(); }
         else { // the ring on the water; where it has reached land it stays at the shore, whiter and wider (breaking)
-          const n = q.stop.length, sea = new Path2D(), shore = new Path2D();
-          for (let i = 0; i < n; i++) {
-            const r = q.r < q.stop[i] ? q.r : q.stop[i] + 2 + Math.min((q.r - q.stop[i]) * 0.45, 12), a0 = (i / n) * Math.PI * 2, a1 = ((i + 1) / n) * Math.PI * 2, p = q.r >= q.stop[i] ? shore : sea;
-            p.moveTo(Math.cos(a0) * r, Math.sin(a0) * r * 0.6); p.lineTo(Math.cos(a1) * r, Math.sin(a1) * r * 0.6);
-          }
+          // owner 18 Nov: no flicker; how far past the shore a part has got decides, smoothly, how far it washes up the
+          // land and how white and wide it is, so the ring turns into the white with no jump
+          const n = q.stop.length, w0 = q.w || 2.5;
           ctx.lineCap = "round";
-          ctx.strokeStyle = `rgba(235, 248, 255, ${a * 0.9})`; ctx.lineWidth = (q.w || 2.5); ctx.stroke(sea);
-          ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(1, a * 1.3)})`; ctx.lineWidth = (q.w || 2.5) * 2.2; ctx.stroke(shore); // on the land: the wave washes up the beach and stops (owner 18 Nov)
+          for (let i = 0; i < n; i++) {
+            const past = Math.max(0, q.r - q.stop[i]), f = Math.min(1, past / 10), e = f * f * (3 - 2 * f);
+            const r = Math.min(q.r, q.stop[i]) + Math.min(past * 0.45, 12), a0 = (i / n) * Math.PI * 2, a1 = ((i + 1) / n) * Math.PI * 2;
+            ctx.strokeStyle = `rgba(${235 + 20 * e}, ${248 + 7 * e}, 255, ${Math.min(1, a * (0.9 + 0.4 * e))})`; ctx.lineWidth = w0 * (1 + 1.2 * e);
+            ctx.beginPath(); ctx.moveTo(Math.cos(a0) * r, Math.sin(a0) * r * 0.6); ctx.lineTo(Math.cos(a1) * r, Math.sin(a1) * r * 0.6); ctx.stroke();
+          }
         }
       }
       else if (q.kind === "drop") { ctx.fillStyle = `rgba(225, 242, 255, ${a})`; ctx.beginPath(); ctx.arc(0, 0, q.r, 0, Math.PI * 2); ctx.fill(); }
@@ -525,6 +527,14 @@
     },
     // cues (SECTION CUES): what a line points at: its outline glowing, and a ring spreading out from it (u 0..1 through one ring)
     highlight(ctx, pathAt, region, color, u, ring) {
+      if (Array.isArray(u)) { // the map's alerts: u holds the ages (0..1) of the beats still spreading
+        const sm = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }, env = (a) => (a < 0.15 ? sm(a / 0.15) : 1 - sm((a - 0.15) / 0.85));
+        ctx.save(); ctx.lineJoin = "round"; ctx.strokeStyle = color;
+        ctx.globalAlpha = 0.6 + 0.4 * Math.max(0, ...u.map(env)); ctx.lineWidth = 8; ctx.shadowColor = color; ctx.shadowBlur = 12; ctx.stroke(pathAt(4));
+        ctx.shadowBlur = 0; ctx.lineWidth = 7;
+        for (const a of u) { ctx.globalAlpha = 0.85 * sm(a / 0.08) * (1 - sm(a)); ctx.stroke(pathAt(5 + ring * a)); }
+        ctx.restore(); return;
+      }
       ctx.save(); ctx.lineJoin = "round"; ctx.strokeStyle = color;
       ctx.globalAlpha = 0.7 + 0.3 * Math.cos(u * 2 * Math.PI); ctx.lineWidth = 8; ctx.shadowColor = color; ctx.shadowBlur = 12; ctx.stroke(pathAt(4));
       ctx.shadowBlur = 0; ctx.globalAlpha = 0.85 * (1 - u);
@@ -555,12 +565,6 @@
       part(() => ctx.roundRect(-12, 42, 54, 42, 16));
       part(() => ctx.ellipse(-14, 62, 8, 18, -0.7, 0, Math.PI * 2));
       part(() => ctx.roundRect(-8, 0, 16, 58, 8));
-      ctx.restore();
-    },
-    // a damaged site on the map: a red ring spreading out at each beat (t: seconds since the flash began; beats: their times)
-    ringFlash(ctx, x, y, r, t, beats) {
-      ctx.save(); ctx.lineWidth = 4;
-      for (const b of beats) { const u = (t - b) / 0.6; if (u < 0 || u > 1) continue; ctx.strokeStyle = `rgba(224, 60, 45, ${1 - u})`; ctx.beginPath(); ctx.arc(x, y, r * (1 + u * 1.2), 0, Math.PI * 2); ctx.stroke(); }
       ctx.restore();
     },
   };
@@ -1617,7 +1621,7 @@
     crumble: [["sounds/crumble.mp3", 0.72]], // owner 17 Nov late: material sounds 10% lower
     snap: [["sounds/snap.mp3", 0.72]],
     wind: [["sounds/wind.mp3", 0.35]],            // loops through the wind test
-    quake: [["sounds/quake.mp3", 4.16]],          // cut off when the shaking ends; owner 17 Nov late: too low beside the others, twice as loud, 18 Nov: 30% louder again (through the limiter, its file already peaks at full scale)
+    quake: [["sounds/quake.mp3", 5.41]],          // cut off when the shaking ends; owner 17 Nov late: too low beside the others, twice as loud, 18 Nov: 30% louder again, and again (through the limiter, its file already peaks at full scale)
     cheer: [["sounds/victory.mp3", 0.8], ["sounds/crowd-cheer.mp3", 0.6]],
     fail: [["sounds/loss.mp3", 0.8], ["sounds/crowd-disappointment.mp3", 0.6]],
     "drag-stone": [["sounds/drag-stone.mp3", 0.72]], // loops; louder the faster stone or mudbrick slides
@@ -1629,6 +1633,7 @@
     "map-tap-sand": [["sounds/map-tap-sand.mp3", 0.512]],
     "map-tap-green": [["sounds/map-tap-green.mp3", 0.512]],
     "map-tap-rock": [["sounds/map-tap-rock.mp3", 0.2]],
+    "map-stone-boat": [["sounds/hit-stone-wood.mp3", 0.512 * 1.2]], // owner 18 Nov: a stone on a boat, as loud as the ground taps and 20% more
     "boat-left-on-land": [["sounds/boat-left-on-land.mp3", 0.512]], // owner 17 Nov: a disappointed crowd when a boat is left on land (his file, trimmed, peak-normalised); as loud as the map taps
     // collapse.mp3 is in src/sounds but not used yet
   };
@@ -1697,7 +1702,7 @@
   function updateDragSounds() {
     if (!actx) return;
     const speed = { "drag-stone": 0, "drag-wood": 0 };
-    if (mode === "build") for (const p of pieces) {
+    if (mode === "build") for (const p of [...pieces, ...loads.map((l) => ({ body: l.body, material: "stone" }))]) { // the headpiece slides as stone (owner 18 Nov)
       if (p.ghost) continue;
       const key = p.material === "wood" ? "drag-wood" : "drag-stone";
       for (let ce = p.body.getContactList(); ce; ce = ce.next) {
@@ -1742,11 +1747,12 @@
   onWorld("pre-solve", (contact) => { contact.tbVn = approachSpeed(contact);  });
   // a body's weight counted in 2 m blocks of its material (a block weighs 1)
   function inBlocks(b, mat) { return b.getMass() / (MATERIALS[mat].density * 4 * (PIECE_DEFS.block.hx - SKIN_GAP) * (PIECE_DEFS.block.hy - SKIN_GAP)); }
+  const HEAD_ITEM = { material: "stone" };
   function feelContact(contact, impulse, pile) {
     const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
     const n = Math.max(...impulse.normalImpulses.slice(0, contact.getManifold().pointCount));
     if (pile && gameNow() < pileQuietUntil) return; // pieces settling into a freshly filled pile
-    const item = (b) => (pile ? b.pileItem : b.piece);
+    const item = (b) => (pile ? b.pileItem : b.piece || (b.isLoad ? HEAD_ITEM : null)); // the headpiece is stone, like any stone piece (owner 18 Nov)
     const isGround = (b) => (pile ? b.isStatic() : b === groundBody);
     let played = false; // one sound per collision, even when both pieces react
     for (const b of [bA, bB]) {
@@ -4043,8 +4049,8 @@
   // 3. Stones at the same height that overlap push each other apart; a boat that is not lifted pushes the stones on the
   //    ground out of its way, and what lies on a stone moves with it.
   // 4. A stone stays one minute after it lands; then it is gone, and what lay on it falls.
-  const STONE = 12, STONE_LIFT = 30, STONE_G = 900, STONE_LIFE = 60, STONE_CE = 0.866, STONES_PER_GRAB = 5; // map px: a stone's side, how high held ones are lifted; fall speed-up (map px/s^2); seconds; the camera's view of heights (as the boats)
-  const BOAT_DECK = BOAT_SIZE * 0.15, BOAT_REACH = BOAT_SIZE * 0.35, STONE_SLIDE = 10, THROW_MAX = 1500; // map px: a boat's height and reach for stones; how fast a stone on the ground stops (1/s); the fastest throw (map px/s)
+  const STONE = 12, STONE_LIFT = 30, STONE_G = 441, STONE_LIFE = 60, STONE_CE = 0.866, STONES_PER_GRAB = 5; // map px: a stone's side, how high held ones are lifted; fall speed-up (map px/s^2); seconds; the camera's view of heights (as the boats)
+  const BOAT_DECK = BOAT_SIZE * 0.15, BOAT_REACH = BOAT_SIZE * 0.35, STONE_SLIDE = 10, THROW_MAX = 1050, THROW_SHARE = 0.7; // map px: a boat's height and reach for stones; how fast a stone on the ground stops (1/s); the fastest throw (map px/s)
   const GRAB_AT = [[0, 0], [1.05, 0], [-1.05, 0], [0.53, -0.95], [-0.53, -0.95]]; // where the five sit round the finger, in stone sides
   const mapStones = [];
   function stoneSupport(st) { // the top it rests on (part 2): the highest stone below it whose top its middle is over, or the ground (0)
@@ -4072,7 +4078,7 @@
     while (mapStones.length > 150) mapStones.shift(); // the oldest go first
     return out;
   }
-  function throwStones(list, vx, vy) { const s = Math.hypot(vx, vy), k = s > THROW_MAX ? THROW_MAX / s : 1; for (const st of list) { st.held = null; st.vx = vx * k; st.vy = vy * k; } }
+  function throwStones(list, vx, vy) { vx *= THROW_SHARE; vy *= THROW_SHARE; const s = Math.hypot(vx, vy), k = s > THROW_MAX ? THROW_MAX / s : 1; for (const st of list) { st.held = null; st.vx = vx * k; st.vy = vy * k; } } // owner 18 Nov: slower in the air, so it can be seen
   const boatGroanAt = new Map();
   function updateStones(dt) {
     const v = mapView();
@@ -4090,7 +4096,7 @@
           if (d >= BOAT_REACH) continue;
           const ux = d > 1e-6 ? dx / d : 1, uy = d > 1e-6 ? dy / d : 0, sp = Math.max(120, Math.hypot(st.vx, st.vy) * 0.6);
           st.vx = ux * sp; st.vy = uy * sp; st.vz = -Math.max(120, st.vz * 0.45); st.z = BOAT_DECK + 0.5;
-          playSound("hit-stone-wood", 1);
+          playSound("map-stone-boat", 1);
           if (crewOf(b) && !(cueClock - (boatGroanAt.get(b) ?? -99) < soundSeconds(LEFT_ON_LAND))) { boatGroanAt.set(b, cueClock); playSound(LEFT_ON_LAND, 1); }
           break;
         }
@@ -4188,8 +4194,14 @@
   const LINE_TIME = 2, REPEAT_GAP = 5, HL_PERIOD = 1.8, HL_RING = 40, MAP_IDLE = 30, SITE_EVERY = 10, NEXT_GAP = 2, DEMO_SPEED = 12, DEMO_PAUSE = 0.35, CONFIRM_TIME = 6;
   // s, s (after a waiting step's line ends), s, px, s (no line on the map), s (the open site glows), s (win line to new-site line), s, m/s (about a second across the screen), s, s (a second restart press within it erases)
   // The map's alerts beat (owner 18 Nov): "dumdum dum dumdumdum dumdumdum", then a rest; seconds into the bar.
-  const PULSE_BEATS = [0, 0.16, 0.5, 0.86, 1.02, 1.18, 1.52, 1.68, 1.84], PULSE_BAR = 2.5, PULSE_BEAT = 0.3;
-  function pulseU(t) { const b = t % PULSE_BAR; let last = -1; for (const x of PULSE_BEATS) if (x <= b) last = x; return last < 0 ? 1 : Math.min(1, (b - last) / PULSE_BEAT); } // 0 at a beat, 1 a beat later
+  const PULSE_BEATS = [0, 0.16, 0.5, 0.86, 1.02, 1.18, 1.52, 1.68, 1.84], PULSE_BAR = 2.5;
+  const PULSE_LIFE = 0.7; // s a beat's ring spreads and fades
+  function pulseAges(t) { // the ages (0..1) of the beats whose rings are still spreading, t seconds into the rhythm
+    const out = [];
+    for (let bar = Math.floor(t / PULSE_BAR) - 1; bar <= Math.floor(t / PULSE_BAR); bar++) for (const x of PULSE_BEATS) { const a = (t - bar * PULSE_BAR - x) / PULSE_LIFE; if (bar >= 0 && a >= 0 && a < 1) out.push(a); }
+    return out;
+  }
+  const HL_DAMAGED = "#e03c2d";
   const HL_COLOR = { yellow: "#ffd23f", green: "#3fd16b", red: "#e8463a" };
   const voice = { cur: null, queue: [] };
   let scene = 0, active = [], whens = [], flashes = [], visit = {}, cueFrame = 0, cueClock = 0, lastInput = 0, damageT = 0, nextT = 0, mapIdleT = 0, buildCheckT = 0, cueAudio = null, confirmUntil = -1;
@@ -4419,7 +4431,7 @@
         voice.queue.splice(voice.queue.indexOf(q), 1); startLine(q); break;
       }
     }
-    flashes = flashes.filter((f) => now - f.t0 < PULSE_BAR);
+    flashes = flashes.filter((f) => now - f.t0 < PULSE_BAR + PULSE_LIFE);
     if (mode === "map") mapTick(dt);
     else if (currentLevel != null && grid && !test && !auto && !demo) buildTick(dt);
   }
@@ -4603,9 +4615,9 @@
   const INTRO_ART = { mastaba: "art/intro/mastaba.jpg", djoser: "art/intro/djoser.jpg", ziggurat: "art/intro/ziggurat.jpg", liongate: "art/intro/liongate.jpg", karnak: "art/intro/karnak.jpg",
     ishtar: "art/intro/ishtar.jpg", parthenon: "art/intro/parthenon.jpg", mausoleum: "art/intro/mausoleum.jpg", pharos: "art/intro/pharos.jpg", valens: "art/intro/valens.jpg" };
   const introImg = {}; for (const k in INTRO_ART) introImg[k] = Object.assign(new Image(), { src: INTRO_ART[k] });
-  const INTRO_FOCUS = { mastaba: [0.620, 0.594], djoser: [0.624, 0.326], ziggurat: [0.633, 0.188], liongate: [0.633, 0.659], karnak: [0.514, 0.776],
-    ishtar: [0.531, 0.652], parthenon: [0.438, 0.072], mausoleum: [0.410, 0.118], pharos: [0.496, 0.109], valens: [0.192, 0.459] };
-  const INTRO_ZOOM = 0.0048, INTRO_PAN = 0.016, INTRO_FADE_IN = 0.5, INTRO_FADE_OUT = 0.8; // zoom: 0.6% bigger each second; the focus moves 2% of the way to the middle each second (owner 17 Nov late: half the speed; 18 Nov: 20% slower again)
+  const INTRO_FOCUS = { mastaba: [0.548, 0.483], djoser: [0.624, 0.326], ziggurat: [0.543, 0.359], liongate: [0.633, 0.659], karnak: [0.514, 0.776],
+    ishtar: [0.531, 0.652], parthenon: [0.504, 0.370], mausoleum: [0.635, 0.384], pharos: [0.501, 0.274], valens: [0.192, 0.459] }; // owner 18 Nov: new points for mastaba, ziggurat, parthenon, mausoleum, pharos
+  const INTRO_ZOOM = 0.00384, INTRO_PAN = 0.0128, INTRO_FADE_IN = 0.5, INTRO_FADE_OUT = 0.8; // zoom: 0.6% bigger each second; the focus moves 2% of the way to the middle each second (owner 17 Nov late: half the speed; 18 Nov: 20% slower again, twice)
   let intro = null;
   function drawIntro() {
     const c = voice.cur, on = mode === "build" && c && c.cue && c.cue.id === "site-intro";
@@ -4625,11 +4637,11 @@
   function drawCues() {
     const at = attention();
     if (at) SKIN.dim(ctx, cssWidth, cssHeight, shapesOf(at.holes).map((t) => shapePath(t.shape, 6)));
-    const u = mode === "map" ? pulseU(cueClock) : (cueClock % HL_PERIOD) / HL_PERIOD; // map alerts beat the owner's rhythm
-    for (const c of active) for (const t of shapesOf(c.targets)) SKIN.highlight(ctx, (d) => shapePath(t.shape, d), t.shape.kind === "region", t.color, u, HL_RING);
+    const u = mode === "map" ? null : (cueClock % HL_PERIOD) / HL_PERIOD; // map alerts beat the owner's rhythm, from each one's start
+    for (const c of active) for (const t of shapesOf(c.targets)) SKIN.highlight(ctx, (d) => shapePath(t.shape, d), t.shape.kind === "region", t.color, u == null ? pulseAges(cueClock - (c.t0 != null ? c.t0 : 0)) : u, HL_RING);
     if (mode === "map" && flashes.length) {
       const v = mapView();
-      for (const f of flashes) { const m = siteMarker(v, SITES.find((s) => s.key === f.key)); SKIN.ringFlash(ctx, m.x, m.y, m.r, cueClock - f.t0, PULSE_BEATS); }
+      for (const f of flashes) { const m = siteMarker(v, SITES.find((s) => s.key === f.key)), ages = pulseAges(cueClock - f.t0); if (ages.length) SKIN.highlight(ctx, (d) => { const p = new Path2D(); p.arc(m.x, m.y, m.r + d, 0, Math.PI * 2); return p; }, false, HL_DAMAGED, ages, HL_RING); } // the same alert as the others, in red
     }
     const g = [...active].reverse().find((q) => q.act);
     if (g) drawGhost(g.act, cueClock - g.t0);
