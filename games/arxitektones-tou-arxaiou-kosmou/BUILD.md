@@ -981,6 +981,25 @@ Done:
 Flows added (each failed on the old build, passes now): ticks-off-first-win, red-outside, map-water, map-stones. Cue test teaching-off now reads the `teaching` field.
 Open question to the owner: should any part of a piece outside the plan keep the button red (now only parts more than 50 cm out do)?
 
+## Current state, update 82 (18 Nov 2026): headpiece in hand, one wrong-area rule, rhythm alerts, voice once per site per session, thrown stones
+
+Owner, verbatim (18 Nov 2026, 00:52), with his screenshot `owner-shots/2026-11-18-first-site-too-strict.png` (first site: the top row has a narrow gap and its last mudbrick sticks out past the plan on the right; the button stays red):
+"1. is there a test for the failure too? and can the tests run at fast speed? 2. if a piece is on the headpiece place, all of it turns red, but it should count like the rest, like only its part that is inside the headpiece outline should be red. 3. earthqueke should be 30% louder. 4 when you go to a binished site, make it possible to grab and move headpiece as any other block, make it have the weight of stone (according to each pieces size of course) max the weight of 2x std stone blocks, so it can always be lifted, albeit with difficulty. triple clicking it makes it disappear. 7.  this does not look right, it is too strict, and maybe your explanation about pieces outside the plan was wrong... if 1st lvl doesnt allow this in the iamge, then other levels must be impossible... especially those with weird pieces, liek the valens... what is happening?  9. make next site glow every 10 secs, a damaged site too, but of course not in sync, every sit flash ahs its own counter. 10. make wave reaching the beach particles go more on land, and less on water. like they flow on the land, you know. 11. make intro zoom 20% slower still. also, give me the images that show where the focal point for the zoom is, I want to readjust some a bit. 12. a bit more, like dumdum dum dumdumdum dumdumdum. so, finished site, danaged site, enxt site, get this dumdumdum dumdumdum dumdumdum pulse. 14. each grab should grab 5 stones. also, they should be thrown, not let go, now when I release hold they just drop, not continue the momentum of motion. also i cant drop it ona  boat, it should bong on the boat and bounce on the water, and the boat should play the smae sound it plays when i let them on land."
+Owner, verbatim (18 Nov 2026, 00:57): "I forgot to say that the voice cues for next site - damaged site, must play sound not every time they trigger (onyl the visual plays every time), the sound must play the first time they happen per site, and of course refreshing the page counts for that too, its like a player re-entry. if you dont ahve the cocnept of what refreshes things, reenterign the game refreshes some things liek the one I just mentioned. fidn a clean way to model these thigns in your cue framework"
+
+Checklist:
+1a. Question: is there a test for the failure sounds. 1b. Question: can the tests run fast (the slow one).
+2. A piece in the headpiece's place: only its part inside the dotted outline is red.
+3. Earthquake 30% louder.
+4a. At a finished site the headpiece can be grabbed and moved like a block. 4b. It weighs stone by its size, at most two stone blocks. 4c. Three quick taps make it disappear.
+7. Too strict: his first-site build (top row with a narrow gap, last mudbrick sticking out) keeps the button red; explain what happens.
+9. Next site and each damaged site glow every 10 s, each on its own count, not together.
+10. The white of a wave at the shore runs onto the land.
+11a. Intro zoom 20% slower. 11b. Pictures showing each intro's zoom point.
+12. Finished, damaged and next site alerts pulse "dumdum dum dumdumdum dumdumdum".
+14a. One grab takes five stones. 14b. Stones are thrown with the finger's speed. 14c. A stone on a boat knocks on it and bounces into the water; the boat plays its left-on-land sound.
+15. Voice for next site and damaged site: once per site per game session (a page refresh is a new session); the glow every time. A clean model for what a re-entry resets.
+
 ## Task list
 
 - Flow tests still to write for the other happy paths (map, each kind of site, free play, hand building, test failing, settings in the middle).

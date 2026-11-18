@@ -251,17 +251,29 @@
       const w = log.find((q) => q[1] === 26), n = log.find((q) => [34, 35, 36, 37].includes(q[1]));
       if (!w || !n) bad.push("lines " + said().join(","));
       else if (n[0] - w[2] < 1.95 || n[0] - w[2] > 2.3) bad.push("gap " + (n[0] - w[2]).toFixed(2) + " s");
-      log = []; start(lvl("ziggurat")); T.goMap(); run(0.5, false); const again = [34, 35, 36, 37].includes(cur()), glow = glowsOn("site:liongate");
-      if (!again || !glow) bad.push("return from Ur: line " + cur() + ", Lion Gate glows " + glow);
+      // owner 18 Nov: the new-site voice only the first time per site in a session; coming back again it is silent
+      log = []; start(lvl("ziggurat")); T.goMap(); run(3, false); const again = said().some((x) => [34, 35, 36, 37].includes(x));
+      if (again) bad.push("return from Ur again: the new-site line played again in the same session");
       run(6, false); log = []; start(lvl("djoser")); T.goMap(); run(6, false);
       if (said().some((x) => [34, 35, 36, 37].includes(x))) bad.push("new-site line after leaving Djoser");
       return [!bad.length, bad.join("; ")];
     },
-    "map-next-glow-every-60s": () => {
+    "map-next-glow-every-10s": () => { // owner 18 Nov: "make next site glow every 10 secs"
       fresh(); noTeach(); T.progress.done.mastaba = { pieces: [] }; T.mapStart(); run(5, false); log = [];
-      const at = []; let was = false; for (let k = 0; k < 125 * 4; k++) { run(0.25, false); const g = T.active.some((s) => s.n == null && (s.targets || []).some((t) => t.btn === "site:djoser")); if (g && !was) at.push(+clock.toFixed(1)); was = g; }
+      const at = []; let was = false; for (let k = 0; k < 40 * 4; k++) { run(0.25, false); const g = T.active.some((s) => s.n == null && (s.targets || []).some((t) => t.btn === "site:djoser")); if (g && !was) at.push(+clock.toFixed(1)); was = g; }
       const gaps = at.slice(1).map((t, i) => t - at[i]), voiced = said().some((x) => [34, 35, 36, 37].includes(x));
-      return [at.length >= 2 && gaps.every((g) => Math.abs(g - 60) < 0.5) && !voiced, `glows at ${at.join(", ")}; new-site voice ${voiced}`];
+      return [at.length >= 3 && gaps.every((g) => Math.abs(g - 10) < 0.5) && !voiced, `glows at ${at.join(", ")}; new-site voice ${voiced}`];
+    },
+    // owner 18 Nov: "a damaged site too, but of course not in sync, every site flash has its own counter"; "the voice cues for
+    // next site - damaged site must play sound not every time they trigger (only the visual plays every time), the sound
+    // must play the first time they happen per site"
+    "damaged-alerts-own-count-voice-once": () => {
+      fresh(); noTeach(); T.progress.done.mastaba = { pieces: [], broken: true }; T.progress.done.djoser = { pieces: [], broken: true }; T.mapStart(); log = [];
+      const at = { mastaba: [], djoser: [] }, seen = new Set();
+      for (let k = 0; k < 45 * 4; k++) { run(0.25, false); for (const f of T.flashes) if (!seen.has(f)) { seen.add(f); at[f.key].push(+clock.toFixed(1)); } }
+      const g = (a) => a.slice(1).map((t, i) => t - a[i]), lines = said().filter((x) => x === 39).length;
+      const ok = at.mastaba.length >= 3 && at.djoser.length >= 3 && [...g(at.mastaba), ...g(at.djoser)].every((d) => Math.abs(d - 10) < 0.5) && Math.abs(at.mastaba[0] - at.djoser[0]) > 1 && lines === 2;
+      return [ok, `mastaba ${at.mastaba.join(",")}; djoser ${at.djoser.join(",")}; damaged line said ${lines} times`];
     },
 
     // list 15 Nov, 14a: a flavour line on the map after every 30 s of quiet

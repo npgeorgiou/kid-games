@@ -73,9 +73,10 @@ def first_site_ticks_on(b):
     q.close()
     return r['test_running'], r
 
-def drag(q, a, b, steps=20):  # a real mouse drag, at about the rate a hand moves
+def drag(q, a, b, steps=20, hold=0):  # a real mouse drag, at about the rate a hand moves; hold: seconds kept still at the end (the piece catches up)
     q.mouse.move(a[0], a[1]); q.mouse.down(); time.sleep(0.05)
     for k in range(1, steps + 1): q.mouse.move(a[0] + (b[0] - a[0]) * k / steps, a[1] + (b[1] - a[1]) * k / steps); time.sleep(0.015)
+    if hold: time.sleep(hold)
     q.mouse.up(); time.sleep(0.05)
 
 def pile_piece(q, material):  # the screen point of a resting pile piece of that material
@@ -127,13 +128,14 @@ def test_end_sounds(b):
     q.mouse.click(640, 400); quiet(q); later_launch(q)
     q.evaluate("()=>{__tb.cueMem().seq['first-site']='done'}")
     click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
-    q.keyboard.down('Control'); time.sleep(0.1); click(q, 'autobuild'); until(q, "()=>!__tb.auto", 30); q.keyboard.up('Control')
-    until(q, "()=>__tb.testReady()", 10); time.sleep(3.3)  # Ctrl let go more than its 3 s latch before: the test at normal speed
+    q.keyboard.down('Control'); time.sleep(0.1); click(q, 'autobuild'); until(q, "()=>!__tb.auto", 30)
+    until(q, "()=>__tb.testReady()", 10)  # Ctrl still held: the test runs fast until the earthquake, which runs at normal speed (what is timed)
+    q.evaluate("()=>{const f=()=>{const t=__tb.test; if(t&&t.phase==='quake') t.fast=false; requestAnimationFrame(f);}; requestAnimationFrame(f);}")
     q.evaluate("""()=>{const T=__tb; window.__tl=[]; let ph=null, n=T.soundLog.length, ln=null; const t0=performance.now();
       const f=()=>{const t=((performance.now()-t0)/1000).toFixed(2); const p=T.test?T.test.phase:'none'; if(p!==ph){__tl.push(t+' phase '+p); ph=p;}
         if(T.soundLog.length){for(const x of T.soundLog) if(!x.startsWith('music')) __tl.push(t+' sound '+x); T.soundLog.length=0;} const l=T.voice.cur&&T.voice.cur.n; if(l!==ln){__tl.push(t+' line '+l); ln=l;}
         if(performance.now()-t0<70000) requestAnimationFrame(f);}; requestAnimationFrame(f);}""")
-    click(q, 'test')
+    click(q, 'test'); q.keyboard.up('Control')
     end = time.time() + 60
     while time.time() < end and not q.evaluate("()=>!!__tb.progress.done.mastaba||(__tb.test&&__tb.test.phase==='fail')"):
         if q.evaluate("()=>[101,102,103].includes(__tb.voice.cur&&__tb.voice.cur.n)"): q.keyboard.press('Escape')  # the test's explanations skipped, as a parent would
@@ -218,22 +220,131 @@ def map_stones(b):
     q.mouse.click(640, 400); quiet(q); later_launch(q)
     q.evaluate("()=>{__tb.progress.done.mastaba={pieces:[],loads:[]}}"); until(q, "()=>__tb.boats.length>0", 2)  # a finished site: its boat sails
     rock = map_point(q, "T.groundAt(mx,my)==='rock'")
-    land = map_point(q, "['green','sand'].includes(T.groundAt(mx,my))&&T.sandArea(mx,my)<0&&!T.boats.some((b)=>Math.hypot(b.x-mx,b.y-my)<80)")
+    land = map_point(q, "['green','sand'].includes(T.groundAt(mx,my))&&T.sandArea(mx,my)<0&&!T.boats.some((b)=>Math.hypot(b.x-mx,b.y-my)<80)&&[0,1,2,3,4,5,6,7].every((k)=>T.groundAt(mx+70*Math.cos(k*0.785),my+70*Math.sin(k*0.785))!=='water')")
     sea = map_point(q, "T.groundAt(mx,my)==='water'&&!T.isLand(mx,my)&&!T.boats.some((b)=>Math.hypot(b.x-mx,b.y-my)<80)")
     n = lambda: q.evaluate("()=>__tb.mapStones.length")
-    drag(q, rock, land); held_gone = until(q, "()=>__tb.mapStones.length===1&&__tb.mapStones[0].z===0&&!__tb.mapStones[0].vz", 2)
-    drag(q, rock, land); piled = until(q, "()=>__tb.mapStones.length===2&&__tb.mapStones.some((s)=>s.z>__tb.STONE*0.9&&!s.vz)", 2)
+    rest = "()=>__tb.mapStones.every((s)=>!s.held&&!s.vz&&!s.vx&&!s.vy)"
+    drag(q, rock, land, hold=0.3); time.sleep(0.15); five = until(q, "()=>__tb.mapStones.length===5", 1) and until(q, rest, 2)
+    held_gone = five and q.evaluate("()=>__tb.mapStones.filter((s)=>s.z===0).length>=4")
+    drag(q, rock, land, hold=0.3); time.sleep(0.15); piled = until(q, rest, 2) and q.evaluate("()=>__tb.mapStones.length===10&&__tb.mapStones.some((s)=>s.z>__tb.STONE*0.9)")
     q.evaluate("()=>{__tb.tapBits.length=0}")
-    drag(q, rock, sea); sank = until(q, "()=>__tb.mapStones.length===2&&__tb.tapBits.filter((t)=>t.kind==='ring').length>=4", 2)
-    q.evaluate("()=>{const s=__tb.mapStones.find((s)=>s.z===0); s.age=59.95;}")
-    fell = until(q, "()=>__tb.mapStones.length===1&&__tb.mapStones[0].z===0", 2)
+    drag(q, rock, sea, hold=0.3); time.sleep(0.15); sank = until(q, "()=>__tb.mapStones.length===10&&__tb.tapBits.filter((t)=>t.kind==='ring').length>=4", 2)
+    q.evaluate("()=>{const T=__tb; T.mapStones.splice(0,T.mapStones.length);}")
+    drag(q, rock, land, hold=0.3); time.sleep(0.15); until(q, rest, 2)
+    q.evaluate("()=>{const T=__tb, b=T.mapStones.find((s)=>s.z===0), t=T.mapStones.find((s)=>s.on===b); for(const s of T.mapStones) if(s!==b&&s!==t) s.age=0; if(t){b.age=59.95;} window.__top=t;}")
+    fell = until(q, "()=>!window.__top||(__tb.mapStones.includes(window.__top)&&window.__top.z===0)", 2)
+    # thrown: a quick drag let go while moving: the stones land on beyond where the finger let go
+    q.evaluate("()=>{__tb.mapStones.splice(0)}")
+    far_end = (land[0] + 60, land[1]); q.mouse.move(*rock); q.mouse.down(); time.sleep(0.05)
+    for k in range(1, 9): q.mouse.move(rock[0] + (far_end[0] - rock[0]) * k / 8, rock[1] + (far_end[1] - rock[1]) * k / 8); time.sleep(0.016)
+    q.mouse.up(); until(q, rest, 3)
+    thrown = q.evaluate("([p,r])=>{const T=__tb, v=T.mapView(), mx=(p[0]-v.ox)/v.k, my=(p[1]-v.oy)/v.k, dx=p[0]-r[0], dy=p[1]-r[1], n=Math.hypot(dx,dy); if(!T.mapStones.length) return null; const cx=T.mapStones.reduce((a,s)=>a+s.x,0)/T.mapStones.length, cy=T.mapStones.reduce((a,s)=>a+s.y,0)/T.mapStones.length-30*0.866; return ((cx-mx)*dx+(cy-my)*dy)/n;}", [far_end, rock])
+    # onto a boat on the water: a knock, they bounce off and sink, and the boat's people groan
+    q.evaluate("()=>{__tb.mapStones.splice(0); __tb.soundLog.length=0;}")
+    q.evaluate("(p)=>{const T=__tb, v=T.mapView(), b=T.boats[0]; b.held=b.back=b.drop=null; b.stuck=true; b.ox=b.oy=b.ovx=b.ovy=0; b.x=(p[0]-v.ox)/v.k; b.y=(p[1]-v.oy)/v.k+30*0.866;}", sea)
+    drag(q, rock, sea, hold=0.3); time.sleep(0.05)  # held still over the boat, then let go
+    bounced = until(q, "()=>__tb.soundLog.includes('hit-stone-wood')", 2) and until(q, "()=>__tb.mapStones.length===0", 3)
+    groan = q.evaluate("()=>__tb.soundLog.includes('boat-left-on-land')")
+    q.evaluate("()=>{__tb.mapStones.push({x:0,y:0,z:0,vz:0,vx:0,vy:0,rise:1,held:null,on:null,age:0,yaw:0,grey:140})}")
     q.evaluate("(p)=>{const T=__tb, v=T.mapView(), b=T.boats[0], s=T.mapStones[0], mx=(p[0]-v.ox)/v.k, my=(p[1]-v.oy)/v.k; b.held=b.back=b.drop=null; b.stuck=true; b.ox=b.oy=b.ovx=b.ovy=0; b.x=mx; b.y=my; s.x=mx+2; s.y=my;}", land); time.sleep(0.2)
     pushed = q.evaluate("()=>{const T=__tb, b=T.boats[0], s=T.mapStones[0]; return !!s && Math.hypot(s.x-b.x,s.y-b.y)>=56*0.35+6-0.5;}")
-    r = dict(rock=rock, land=land, sea=sea, lands_and_stays=held_gone, piles=piled, sinks_with_splashes=sank, top_falls_when_bottom_goes=fell, boat_pushes=pushed, stones=n())
+    r = dict(rock=rock, land=land, sea=sea, five_land_and_stay=held_gone, piles=piled, sinks_with_splashes=sank, top_falls_when_bottom_goes=fell, thrown_beyond_px=thrown, boat_knock_and_sink=bounced, boat_groans=groan, boat_pushes=pushed, stones=n())
     q.close()
-    return bool(rock and land and sea and held_gone and piled and sank and fell and pushed), r
+    return bool(rock and land and sea and held_gone and piled and sank and fell and thrown and thrown > 15 and bounced and groan and pushed), r
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones}
+def test_fail_sounds(b):
+    # owner 18 Nov: "is there a test for the failure too?": a building that does not hold (one mudbrick, the test forced with
+    # Ctrl); the failure's sound at the moment it fails, at normal speed
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); untick_all(q)
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    drag(q, pile_piece(q, 'mudbrick'), (400, 500)); time.sleep(0.8)
+    q.evaluate("""()=>{const T=__tb; window.__tl=[]; let ph=null; const t0=performance.now(); T.soundLog.length=0;
+      const f=()=>{const t=(performance.now()-t0)/1000; if(T.test) T.test.fast=false; const p=T.test?T.test.phase:'none'; if(p!==ph){__tl.push([t,'phase',p]); ph=p;}
+        for(const x of T.soundLog) if(!x.startsWith('music')&&!x.startsWith('hit-')&&!x.startsWith('drag-')) __tl.push([t,'sound',x]); T.soundLog.length=0; if(t<30) requestAnimationFrame(f);}; requestAnimationFrame(f);}""")
+    q.keyboard.down('Control'); time.sleep(0.1); click(q, 'test'); q.keyboard.up('Control')
+    until(q, "()=>__tb.test&&__tb.test.phase==='fail'", 20); time.sleep(0.5)
+    tl = q.evaluate("()=>__tl"); q.close()
+    f = next((e[0] for e in tl if e[1] == 'phase' and e[2] == 'fail'), None); snd = next((e[0] for e in tl if e[1] == 'sound' and e[2] == 'fail'), None)
+    r = dict(timeline=[(round(e[0], 2), e[1], e[2]) for e in tl][-8:], sound_after_fail=round(snd - f, 3) if f is not None and snd is not None else None)
+    return f is not None and snd is not None and abs(snd - f) <= 0.1, r
+
+def red_headpiece_place(b):
+    # owner 18 Nov: "if a piece is on the headpiece place, all of it turns red, but ... only its part that is inside the
+    # headpiece outline should be red": the first site quick-built, a wooden block put on top across the dots, the red button
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); untick_all(q)
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    q.keyboard.down('Control'); time.sleep(0.1); click(q, 'autobuild'); until(q, "()=>!__tb.auto", 30); q.keyboard.up('Control'); time.sleep(3.3)
+    tgt = q.evaluate("()=>{const s=__tb.worldToScreen(18.6,3.6); return [s.x,s.y];}")
+    a0 = pile_piece(q, 'wood'); up = (a0[0], tgt[1] - 60)  # lifted up first, then over the building, as a hand does
+    q.mouse.move(*a0); q.mouse.down(); time.sleep(0.05)
+    for (x0, y0), (x1, y1) in ((a0, up), (up, tgt)):
+        for k in range(1, 31): q.mouse.move(x0 + (x1 - x0) * k / 30, y0 + (y1 - y0) * k / 30); time.sleep(0.015)
+        time.sleep(0.6)
+    q.mouse.up(); time.sleep(1.5)
+    pts = q.evaluate("""()=>{const T=__tb; const p=T.pieces[T.pieces.length-1]; let x0=1e9,x1=-1e9; for(let f=p.body.getFixtureList();f;f=f.getNext()){const bb=f.getAABB(0); x0=Math.min(x0,bb.lowerBound.x); x1=Math.max(x1,bb.upperBound.x);}
+      const on=T.worldToScreen((Math.max(x0,18.4)+Math.min(x1,21.6))/2,3.25), off=x1<21.2?T.worldToScreen((x1+21.6)/2,3.25):T.worldToScreen((18.4+x0)/2,3.25); return {on:[on.x,on.y], off:[off.x,off.y], x0, x1};}""")
+    px = lambda pt: q.evaluate("(p)=>{const c=document.querySelector('canvas'), d=window.devicePixelRatio||1, v=c.getContext('2d').getImageData(Math.round(p[0]*d),Math.round(p[1]*d),1,1).data; return v[0]-v[2];}", pt)
+    b_on, b_off = px(pts['on']), px(pts['off'])
+    click(q, 'test'); time.sleep(0.05); until(q, "()=>Math.sin(performance.now()/120)>0.9", 1, 0.005)
+    a_on, a_off = px(pts['on']), px(pts['off'])
+    r = dict(piece_x=(round(pts['x0'], 2), round(pts['x1'], 2)), on_piece=(b_on, a_on), dots_beside_piece=(b_off, a_off), zone=q.evaluate("()=>!!(__tb.failShow&&__tb.failShow.loadZone)"))
+    q.close()
+    return r['zone'] and a_on - b_on > 12 and abs(a_off - b_off) < 8, r
+
+def owner_first_site_build(b):
+    # owner 18 Nov, his screenshot (2026-11-18-first-site-too-strict.png): first site, bottom row four mudbricks, middle row a
+    # small square, three mudbricks, a small square, top row three mudbricks, a narrow gap, and the last mudbrick sticking out
+    # past the plan's right edge by about a quarter of its length: the button must turn green
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); untick_all(q)
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    q.evaluate("""()=>{const T=__tb; const put=(d,x,y)=>T.spawnPiece(d,x,y+0.002,0,'mudbrick');
+      for(const x of [17,19,21,23]) put('block',x,0.5); put('square',16.5,1.5); for(const x of [18,20,22]) put('block',x,1.5); put('square',23.5,1.5);
+      for(const x of [17,19,21]) put('block',x,2.5); put('block',23.53,2.5);}""")
+    green = until(q, "()=>__tb.testReady()", 6)
+    r = dict(green=green, check=q.evaluate("()=>{const c=__tb.runCheck(); return {fill:+c.fill.toFixed(3), out:+c.out.toFixed(3), far:c.far};}"))
+    q.close()
+    return green, r
+
+def headpiece_in_hand(b):
+    # owner 18 Nov: "when you go to a finished site, make it possible to grab and move headpiece as any other block ... the
+    # weight of stone ... max the weight of 2x std stone blocks ... triple clicking it makes it disappear"
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); untick_all(q)
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    r = quick_build_and_test(q, hold=True)
+    until(q, "()=>!__tb.test", 10); quiet(q); click(q, 'home'); until(q, "()=>__tb.mode==='map'", 3); time.sleep(0.3); quiet(q)
+    click(q, 'site:mastaba'); until(q, "()=>__tb.mode==='build'&&__tb.loads.length===1", 3); time.sleep(1); quiet(q)
+    st = q.evaluate("""()=>{const T=__tb, l=T.loads[0], c=l.body.getPosition(), s=T.worldToScreen(c.x,c.y); return {x:s.x,y:s.y,cy:c.y,blocks:T.inBlocks(l.body,'stone')};}""")
+    drag(q, (st['x'], st['y']), (st['x'] + 10, st['y'] - 120), steps=30)
+    time.sleep(0.1); lifted = q.evaluate("()=>__tb.loads[0].body.getPosition().y") - st['cy']
+    time.sleep(1.5)
+    c = q.evaluate("()=>{const T=__tb, l=T.loads[0], c=l.body.getPosition(), s=T.worldToScreen(c.x,c.y); return [s.x,s.y];}")
+    for _ in range(3): q.mouse.click(c[0], c[1]); time.sleep(0.08)
+    gone = until(q, "()=>__tb.loads.length===0", 1)
+    r = dict(mass_in_blocks=round(st['blocks'], 2), lifted_m=round(lifted, 2), gone_after_three_taps=gone)
+    q.close()
+    return r['mass_in_blocks'] <= 2.001 and lifted > 0.5 and gone, r
+
+def damaged_voice_once_per_session(b):
+    # owner 18 Nov: "the voice cues for next site - damaged site must play sound not every time they trigger (only the visual
+    # plays every time), the sound must play the first time they happen per site, and of course refreshing the page counts"
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.progress.done.mastaba={pieces:[],loads:[],broken:true}; localStorage.setItem('tower-builder-progress-v1', JSON.stringify(__tb.progress));}")
+    record(q)
+    first = until(q, "()=>__rec.said.includes(39)", 12)
+    time.sleep(0.2); until(q, "()=>!__tb.voice.cur", 8); q.evaluate("()=>{__rec.said.length=0}")
+    t0 = q.evaluate("()=>__tb.flashes.length"); again = until(q, "()=>__rec.said.includes(39)", 21)
+    q.reload(); q.wait_for_function("()=>!!window.__tb"); q.mouse.click(640, 400); time.sleep(0.2); quiet(q); record(q)
+    after_refresh = until(q, "()=>__rec.said.includes(39)", 12)
+    r = dict(said_first=first, said_again_same_session=again, said_after_refresh=after_refresh)
+    q.close()
+    return first and not again and after_refresh, r
+
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session}
 
 def run(b, names):
     for n, f in FLOWS.items():
