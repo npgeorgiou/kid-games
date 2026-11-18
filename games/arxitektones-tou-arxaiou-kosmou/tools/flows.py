@@ -141,7 +141,7 @@ def test_end_sounds(b):
     end = time.time() + 60
     while time.time() < end and not q.evaluate("()=>!!__tb.progress.done.mastaba||(__tb.test&&__tb.test.phase==='fail')"):
         time.sleep(0.05)
-    time.sleep(7)
+    time.sleep(11)
     tl = q.evaluate("()=>__tl")
     q.close()
     def at(word):
@@ -152,8 +152,12 @@ def test_end_sounds(b):
     tl = [e for e in tl if 'hit-' not in e and 'drag-' not in e and 'map-tap' not in e]
     r = dict(timeline=tl[-14:], cheer_after_quake=(ch - quake_end) if ch and quake_end else None)
     wl = next((float(e.split()[0]) for e in tl if e.endswith(' line 14')), None)
-    r['win_line_after_quake'] = (wl - quake_end) if wl and quake_end else None
-    return bool(ch and quake_end and wl and ch - quake_end <= 0.7 and wl - ch <= 1.3), r
+    # owner 18 Nov: "change the test to that the withstood comes first, and the end-level cue follows 1 sec after" (this was: the site's line within 1.3 s of the cheer)
+    w = next((k for k, e in enumerate(tl) if e.endswith(' line 104')), None)
+    wst = float(tl[w].split()[0]) if w is not None else None
+    wend = next((float(e.split()[0]) for e in tl[w + 1:] if ' line ' in e), None) if w is not None else None
+    r.update(withstood_after_cheer=(wst - ch) if wst and ch else None, site_line_after_withstood=(wl - wend) if wl and wend else None)
+    return bool(ch and quake_end and wl and wst and wend and ch - quake_end <= 0.7 and wst - ch <= 1.3 and 0.8 <= wl - wend <= 1.3), r
 
 def record(q):  # from now on: every line said, the music's share while a test runs, and the headpiece's dotted outline drawn while a headpiece is on
     q.evaluate("""()=>{const T=__tb; window.__rec={said:[],duckInTest:[],ghostWithLoad:0}; let ln=null; const g=T.SKIN.loadGhost;

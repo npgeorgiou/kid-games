@@ -147,8 +147,12 @@
     "desc": "the win line has been said",
     "where": "cue then"
    },
+   "first-win-told": {
+    "desc": "the \"withstood\" line (first win) is done, or skipped with the teaching off",
+    "where": "cue then"
+   },
    "first-win-said": {
-    "desc": "the first-win line has been said",
+    "desc": "the site's line after the first-win line has been said",
     "where": "cue then"
    },
    "go-map": {
@@ -919,8 +923,20 @@
    "delay": 1,
    "during": "test",
    "once": "ever",
-   "then": "first-win-said",
+   "then": "first-win-told",
    "note": "Owner 18 Nov: \"first the success/failure end-tests cue, then the end-level in-level cue\": said before the site's own line, both when the test passes."
+  },
+  {
+   "id": "win-line-after-first",
+   "on": "first-win-told",
+   "say": {
+    "byPlace": [14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+   },
+   "topic": "Test",
+   "delay": 1,
+   "during": "test",
+   "then": "first-win-said",
+   "note": "Owner 18 Nov: \"withstood comes first, and the end-level cue follows 1 sec after\": the site's line 1 s after the withstood line is done."
   },
   {
    "id": "win-line",
@@ -929,9 +945,11 @@
     "byPlace": [14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
    },
    "topic": "Test",
+   "if": ["done:first-win"],
    "delay": 1,
    "during": "test",
-   "then": "won"
+   "then": "won",
+   "note": "After the first win (the first win says it through win-line-after-first)."
   },
   {
    "id": "first-win-home",

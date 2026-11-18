@@ -11,13 +11,11 @@ You are an architect of the ancient world. On a picture map of the Mediterranean
 - Hand: one model (planck drag, strength by the weight held); two fingers carry and turn a piece.
 - Physics and breaking: shared `tools/physics/`; mudbrick crumbles, wood snaps over gaps.
 - Cues: voice, glows, the ghost hand and the first-site teaching from `cues.json` through `tools/cues/`; settings gear with teaching and helper videos on or off.
-- The test's voice order (18 Nov): the green-button line, then each part (wind, load, earthquake) starts when the line before it is done, together with its own first-time explanation; at the first win the "withstood" line, then the site's own line, then "press here for the map".
+- The test's voice order (18 Nov): the green-button line, then each part (wind, load, earthquake) starts when the line before it is done, together with its own first-time explanation; at the first win the "withstood" line, then 1 s after it the site's own line, then "press here for the map".
 - Quick build and 10x test: Ctrl.
 
 ## Open
 
-- Owner's answer needed: trim the end of recording 71 ("let's see if it will stand"); its words end at about 2 s of 4.4 s, and the test waits for the recording's end.
-- Owner's answer needed: at the very first win the site's own line now comes about 8 s after the cheer, after the "withstood" line; the old check "the win line soon after the earthquake" (flow `test-end-sounds`) fails on that.
 - Owner's answer needed: the Halicarnassus pile's wood (two posts in the gap under the beams); the steadier middle grab against the lever rule (flow `middle-grab-bump` is held back).
 - Flow `map-stones`: its watcher once counted tips and distance wrongly; check it still passes.
 

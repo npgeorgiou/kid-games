@@ -87,9 +87,10 @@ Each cue: when it fires, what it says, what it shows, what it waits for. Its nam
 - `fail-quake-first` — **When the test fails in a part (`test-fail`) (only if the part is the earthquake), once ever: says line 76 (queued, may play during a test, after the fail sound). Points at the red place of a failed test. Then → `fail-explain`.**<br>«Ο σεισμός το γκρέμισε. Ξαναδοκίμασε!»
 - `fail-quake` — **When the test fails in a part (`test-fail`) (only if the part is the earthquake; cue fail-quake-first has already played): says line 76 (queued, may play during a test, after the fail sound).**<br>«Ο σεισμός το γκρέμισε. Ξαναδοκίμασε!»
 - `fail-explain` — **When the first fail line of a part has been said (`fail-explain`): Teaching: silent when ΔΙΔΑΣΚΑΛΙΑ is unticked. Says line 105 (queued, may play during a test). Points at the red place of a failed test.**<br>«Το κόκκινο δείχνει πού χάλασε. Φτιάξ' το εκεί και ξαναδοκίμασε!»
-- `first-win` — **When the test passes: the site is won (`test-pass`), once ever: Teaching: silent when ΔΙΔΑΣΚΑΛΙΑ is unticked. Says line 104 (queued, may play during a test, 1 s after it fires). Then → `first-win-said`. *Owner 18 Nov: "first the success/failure end-tests cue, then the end-level in-level cue": said before the site's own line, both when the test passes.***<br>«Άντεξε τον άνεμο, το βάρος και τον σεισμό. Το έργο σου στέκει!»
-- `win-line` — **When the test passes: the site is won (`test-pass`): says the place's own line (14–23) (queued, may play during a test, 1 s after it fires). Then → `won`.**
-- `first-win-home` — **When the first-win line has been said (`first-win-said`): Teaching: silent when ΔΙΔΑΣΚΑΛΙΑ is unticked. Says line 106 (queued). Points at the map button. The rest of the screen darkens while it waits; only the map button can be touched. Waits until the child goes back to the map; its line comes again 5 s after it ends. The ghost hand taps the map button. *The first site's step 11. Owner 18 Nov: it says itself again 10 s after it ends (twice the usual wait).***<br>«Πάτα εδώ για να γυρίσεις στον χάρτη.»
+- `first-win` — **When the test passes: the site is won (`test-pass`), once ever: Teaching: silent when ΔΙΔΑΣΚΑΛΙΑ is unticked. Says line 104 (queued, may play during a test, 1 s after it fires). Then → `first-win-told`. *Owner 18 Nov: "first the success/failure end-tests cue, then the end-level in-level cue": said before the site's own line, both when the test passes.***<br>«Άντεξε τον άνεμο, το βάρος και τον σεισμό. Το έργο σου στέκει!»
+- `win-line-after-first` — **When the "withstood" line (first win) is done, or skipped with the teaching off (`first-win-told`): says the place's own line (14–23) (queued, may play during a test, 1 s after it fires). Then → `first-win-said`. *Owner 18 Nov: "withstood comes first, and the end-level cue follows 1 sec after": the site's line 1 s after the withstood line is done.***
+- `win-line` — **When the test passes: the site is won (`test-pass`) (only if cue first-win has already played): says the place's own line (14–23) (queued, may play during a test, 1 s after it fires). Then → `won`. *After the first win (the first win says it through win-line-after-first).***
+- `first-win-home` — **When the site's line after the first-win line has been said (`first-win-said`): Teaching: silent when ΔΙΔΑΣΚΑΛΙΑ is unticked. Says line 106 (queued). Points at the map button. The rest of the screen darkens while it waits; only the map button can be touched. Waits until the child goes back to the map; its line comes again 5 s after it ends. The ghost hand taps the map button. *The first site's step 11. Owner 18 Nov: it says itself again 10 s after it ends (twice the usual wait).***<br>«Πάτα εδώ για να γυρίσεις στον χάρτη.»
 
 ### Idle
 
@@ -147,16 +148,16 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 11. **welcome-first**<br>«Καλώς ήρθες στον αρχαίο κόσμο, αρχιτέκτονα! Φαραώ, βασιλιάδες και αυτοκράτορες περιμένουν να τους χτίσεις θαύματα. Πάμε!»
 12. **welcome-back**<br>«Καλώς ήρθες ξανά, αρχιτέκτονα! Τα έργα σου σε περιμένουν.»
 13. **locked-site**<br>«Αυτός ο τόπος σε περιμένει. Πρώτα χτίσε τον προηγούμενο!»
-14. **win-line (Mastaba)**<br>«Ο άρχοντας θα αναπαυθεί σε τάφο αντάξιό του. Μπράβο, αρχιτέκτονα!»
-15. **win-line (Djoser)**<br>«Ο Ζοζέρ θα ανεβαίνει στον ουρανό από τα σκαλιά σου!»
-16. **win-line (Ur)**<br>«Ο Νάννα θα κατεβαίνει από τη Σελήνη στη σκάλα σου!»
-17. **win-line (Lion Gate)**<br>«Τα λιοντάρια φυλάνε πια τις Μυκήνες. Μπράβο, αρχιτέκτονα!»
-18. **win-line (Karnak)**<br>«Το πέτρινο δάσος του Άμμωνα στέκει περήφανο!»
-19. **win-line (Ishtar)**<br>«Η Ιστάρ έχει την πύλη της, κι η Βαβυλώνα λάμπει!»
-20. **win-line (Parthenon)**<br>«Η Αθηνά έχει τον ωραιότερο ναό του κόσμου. Μπράβο, αρχιτέκτονα!»
-21. **win-line (Mausoleum)**<br>«Το όνομα του Μαύσωλου θα ζει για πάντα!»
-22. **win-line (Pharos)**<br>«Η φωτιά του Φάρου θα οδηγεί τα καράβια μέσα στη νύχτα!»
-23. **win-line (Valens)**<br>«Το νερό τρέχει στην Κωνσταντινούπολη! Η πόλη δεν διψά πια.»
+14. **win-line-after-first (Mastaba), win-line (Mastaba)**<br>«Ο άρχοντας θα αναπαυθεί σε τάφο αντάξιό του. Μπράβο, αρχιτέκτονα!»
+15. **win-line-after-first (Djoser), win-line (Djoser)**<br>«Ο Ζοζέρ θα ανεβαίνει στον ουρανό από τα σκαλιά σου!»
+16. **win-line-after-first (Ur), win-line (Ur)**<br>«Ο Νάννα θα κατεβαίνει από τη Σελήνη στη σκάλα σου!»
+17. **win-line-after-first (Lion Gate), win-line (Lion Gate)**<br>«Τα λιοντάρια φυλάνε πια τις Μυκήνες. Μπράβο, αρχιτέκτονα!»
+18. **win-line-after-first (Karnak), win-line (Karnak)**<br>«Το πέτρινο δάσος του Άμμωνα στέκει περήφανο!»
+19. **win-line-after-first (Ishtar), win-line (Ishtar)**<br>«Η Ιστάρ έχει την πύλη της, κι η Βαβυλώνα λάμπει!»
+20. **win-line-after-first (Parthenon), win-line (Parthenon)**<br>«Η Αθηνά έχει τον ωραιότερο ναό του κόσμου. Μπράβο, αρχιτέκτονα!»
+21. **win-line-after-first (Mausoleum), win-line (Mausoleum)**<br>«Το όνομα του Μαύσωλου θα ζει για πάντα!»
+22. **win-line-after-first (Pharos), win-line (Pharos)**<br>«Η φωτιά του Φάρου θα οδηγεί τα καράβια μέσα στη νύχτα!»
+23. **win-line-after-first (Valens), win-line (Valens)**<br>«Το νερό τρέχει στην Κωνσταντινούπολη! Η πόλη δεν διψά πια.»
 24. **map-win (Mastaba)**<br>«Η μαστάμπα σου στέκει δίπλα στον Νείλο. Ο πρώτος σου τάφος!»
 25. **map-win (Djoser)**<br>«Η πυραμίδα σου υψώνεται πάνω από τη Σακκάρα. Τη βλέπουν από μακριά.»
 26. **map-win (Ur)**<br>«Στην κορυφή της ζιγκουράτ σου οι ιερείς ανάβουν φωτιές για τον Νάννα.»
@@ -297,7 +298,8 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `fail-explain`: the first fail line of a part has been said *(cue then)*
 - `test-pass`: the test passes: the site is won *(testTick (LEVELS))*
 - `won`: the win line has been said *(cue then)*
-- `first-win-said`: the first-win line has been said *(cue then)*
+- `first-win-told`: the "withstood" line (first win) is done, or skipped with the teaching off *(cue then)*
+- `first-win-said`: the site's line after the first-win line has been said *(cue then)*
 - `go-map`: the child goes back to the map *(goMap)*
 - `idle`: on the map: 30 s with no line *(CUES mapTick)*
 - `step`: a teaching step's turn comes (sequences only) *(the sequence runner)*

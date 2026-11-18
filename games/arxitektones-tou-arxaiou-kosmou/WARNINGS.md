@@ -9,6 +9,7 @@ Traps found while working on this game, as instructions. Add a line whenever a n
 - Flows that run a whole test take 15-35 s each; run only the ones the change touches, a few per call, in the foreground.
 
 ## Cues
+- A recording's length is the line's length: a quiet tail after the words delays whatever waits for the line. Check where the words end (ffmpeg volumedetect in short windows) when a wait after a line feels long.
 - A cue is done when its voice and its visuals are done. Anything that must come after a cue (a part of the test, another line, a sound) waits for that cue to be done, declared in `cues.json`. Never wait on "is the voice playing".
 - The test's lines: the green-button line, then each part (wind, load, earthquake) together with its own first-time explanation; after the test, its success or failure line comes before the site's finish line.
 - Lines dropped while a teaching line plays or a step waits for the child, not merely between steps (owner 15 Nov).
