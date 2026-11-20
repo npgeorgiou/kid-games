@@ -129,6 +129,14 @@ Columns: **Theme** (from brief) · **System** (standard game type it is) · **Br
 - System: flow puzzle (Where's My Water, pipe games).
 - Mechanics: dig or place channels; gates open/close; water flows by gravity in real time; flooding is visible. Real sites: Eupalinos tunnel (Samos), Byzantine cisterns.
 - Swaps: ♀ watering a garden; filling a fountain; a duck pond.
+- Ideas from another chat (proposals, not decided):
+  1. Toy: drag a finger through the earth to dig a trench; the spring's water follows it downhill in real time. A stone dams it. Fun with no goal, like digging at the beach.
+  2. Crops: a field goes green and grows when water reaches it. Too little: stays dry. Too much: floods and the plants are lost. Both wrong choices are visible.
+  3. Plan, button, watch: dig, then open the sluice at the spring. A season runs fast, and the harvest piles up in the field.
+  4. Tools added level by level: hoe trench, stone-lined channel, clay pipe, sluice gate, then a water lift for uphill (the Archimedes screw, Hellenistic).
+  5. Levels from real works: draining Lake Kopais into farmland (Mycenaean), the Eupalinos tunnel (Samos), Athens aqueducts, Byzantine cisterns. Each needs a research check.
+  6. Crops needing different amounts of water: adds a decision, but which crops need how much is unresearched.
+  7. Shared world: could share its fields with Farm Manager (#15).
 
 ### 20. Siege Engineer
 - Theme: catapult practice in a training ground.
@@ -255,6 +263,39 @@ Columns: **Theme** (from brief) · **System** (standard game type it is) · **Br
 - System: creative tool.
 - Mechanics: stamps of meander, palmettes; fill a vase outline; mirror symmetry; save to a gallery.
 - Swaps: ♀ fits as is.
+
+### 41. Coloring Book
+- Theme: open (outline pictures could be Greek things: vases, boats, animals, monuments).
+- System: coloring app. **Overlaps #40.**
+- Mechanics (proposal): two modes. Free painting: brushes, colors, stickers, stamps, eraser, on a blank page. Color-in: tap or paint inside outlined pictures; color stays inside the lines. Save to a gallery.
+- Swaps: ♀ fits as is.
+
+### 42. Mycenaean Scribe
+- Theme: Bronze Age palace archive (Pylos, Knossos), Linear B clay tablets.
+- System: handwriting recognition + record-keeping.
+- Researched facts: Linear B is syllabic (about 87 sound signs, each a vowel or consonant+vowel), plus over 100 picture signs for goods (sheep, wine, bronze…) that stand before a number. Numbers are decimal signs repeated up to nine times. Tablets were records and inventories, written on dried, unbaked clay; they survive because the palace fires baked them. Words are spelled by syllables, e.g. a-mi-ni-so for Amnisos.
+- Mechanics (proposal): trace or write a sign in the wet clay; the game checks it matches the right sign. Around that: the storeroom is the game. Count what arrives (sheep, jars) and write the goods sign plus the number; the palace then sends out what the tablet says, so a wrong tablet visibly sends the wrong amount. Spell a person's or town's name by syllables. Toy mode: scribble freely in clay and smooth it over. End show: the palace fire bakes the tablets, and they come out as finds. Exact sign shapes and which goods signs to use need a research check.
+- Swaps: ♀ a woman scribe is unattested in the record; check before using.
+
+## Real-game mechanics matched to our list
+
+Proposals only. Each line: mechanic (real games that use it) → where it could fit.
+
+- Tile placement with matching edges (Dragomino, Kingdomino, Carcassonne) → #9 Village Builder; #26 Treasure Island (island built from tiles).
+- Drafting: pick one from a few face-up choices (Kingdomino, Sushi Go) → #9, #15 Farm Manager (pick the season's seeds).
+- Random reveal / push your luck: keep going or stop before you lose it (Can't Stop, Dragomino egg flip) → #27 Lost Mine (dig one more tunnel or leave); new: Sponge Diver (Kalymnos), dive deeper for more sponges but come up before the air runs out.
+- Worker placement: send workers to spots, each spot does one job (Agricola, Stone Age) → #15 Farm Manager, #9 Village Builder.
+- Pick-up and deliver (Merchants & Marauders) → #2 Donkey Caravan, #12 Merchant Shipping, #21 Port Manager.
+- Network / route building (Ticket to Ride) → #10 Cargo Train, #24 Road Network.
+- Path-tile laying where a line continues across tiles (Tsuro) → #19 Waterworks (channel tiles), #24.
+- Polyomino fitting: fit shaped pieces into a space (Patchwork, Ubongo, Blokus) → new: Mosaic Floor (fill a floor with pebble pieces; real pebble mosaics at Pella, needs a research check); #40.
+- Programmed movement: plan moves, then run them (Robo Rally, Robot Turtles) → #36 Robot Programming; #14 Phalanx.
+- Cooperative play against the game (Pandemic; kids: Outfoxed!, HABA Orchard) → #22 Rescue Helicopter, #23 Fire Department.
+- Deduction from clues (Guess Who, Outfoxed!, Scotland Yard) → #39 Treasure Hunt.
+- Area control (Small World) → #3 Castle Conquest, #13 Island Conquest.
+- Engine building: things you build make more things (Splendor, Wingspan) → #5 Factory Automation, #18.
+- Dexterity stacking (Jenga, HABA Animal upon Animal) → already in Tower Builder (#1).
+- Memory: remember hidden pairs (Memory/Concentration) → #42 (match a sign to its sound); #39.
 
 ## Shared engines (build once, use several times)
 
