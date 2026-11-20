@@ -275,7 +275,7 @@ Columns: **Theme** (from brief) · **System** (standard game type it is) · **Br
 - System: handwriting recognition + record-keeping.
 - Researched facts: Linear B is syllabic (about 87 sound signs, each a vowel or consonant+vowel), plus over 100 picture signs for goods (sheep, wine, bronze…) that stand before a number. Numbers are decimal signs repeated up to nine times. Tablets were records and inventories, written on dried, unbaked clay; they survive because the palace fires baked them. Words are spelled by syllables, e.g. a-mi-ni-so for Amnisos.
 - Mechanics (proposal): trace or write a sign in the wet clay; the game checks it matches the right sign. Around that: the storeroom is the game. Count what arrives (sheep, jars) and write the goods sign plus the number; the palace then sends out what the tablet says, so a wrong tablet visibly sends the wrong amount. Spell a person's or town's name by syllables. Toy mode: scribble freely in clay and smooth it over. End show: the palace fire bakes the tablets, and they come out as finds. Exact sign shapes and which goods signs to use need a research check.
-- Swaps: ♀ a woman scribe is unattested in the record; check before using.
+- Swaps: open.
 
 ## Real-game mechanics matched to our list
 
