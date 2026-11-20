@@ -1,6 +1,6 @@
 # Coloring Book: design sheet
 
-Draft for the owner to mark keep / change / cut per row. Not approved. Not in the brief, so every row is "new". First version: sandbox canvas only; outline pictures come later.
+Approved by the owner 2026-11-20 ("yes, go"). Not in the brief, so every row is "new". First version: sandbox canvas only; outline pictures come later.
 
 | Row | Content |
 |---|---|

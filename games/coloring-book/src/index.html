@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="el"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Ζωγραφική</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas.pic{position:absolute;touch-action:none}
+#paper{box-shadow:0 0.6vh 2.5vh rgba(0,0,0,.45)}
+#stick{pointer-events:none}
+.bar{position:absolute;display:flex;align-items:center;justify-content:center;gap:var(--g)}
+#left,#right{flex-direction:column;top:0;bottom:0}
+.btn{width:var(--b);height:var(--b);border-radius:20%;background:#eadfcb;border:0;padding:0;position:relative;touch-action:none;flex:none;box-shadow:0 0.3vh 0.6vh rgba(0,0,0,.35)}
+.btn canvas{width:100%;height:100%;display:block;pointer-events:none}
+.btn.on{background:#fff8ea;outline:calc(var(--b)*0.07) solid #f4b43a}
+.pot{border-radius:50%}
+.pot.on{outline-color:#fff}
+.hide{display:none!important}
+#gal{position:fixed;inset:0;background:rgba(40,30,22,.94);overflow:auto;padding:calc(var(--b)*0.4);box-sizing:border-box;display:flex;flex-wrap:wrap;gap:calc(var(--b)*0.4);align-content:flex-start;touch-action:pan-y}
+#gal .card{width:calc(var(--b)*3.2);height:calc(var(--b)*2);border-radius:calc(var(--b)*0.15);overflow:hidden;background:#f4efe4;position:relative;flex:none;box-shadow:0 0.4vh 1vh rgba(0,0,0,.5)}
+#gal .card img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+#gal .card canvas{width:100%;height:100%;display:block;pointer-events:none}
+#gal .cur{outline:calc(var(--b)*0.07) solid #f4b43a}
+</style></head><body>
+<canvas id="paper" class="pic"></canvas>
+<canvas id="stick" class="pic"></canvas>
+<div id="left" class="bar"></div>
+<div id="right" class="bar"></div>
+<div id="bottom" class="bar"></div>
+<div id="gal" class="hide"></div>
+<script>
+'use strict';
+// SECTION: MODEL -- the paint model in plain words
+/* The paint model (one part per material):
+ 1. The picture is a grid of pixels. Each pixel holds how much light its paint swallows, per red/green/blue
+    (absorbance, A = -ln(reflectance)), and how thick the paint is (H). Mixing two paints averages their absorbance
+    by amount, a subtractive mix, so blue and yellow make green (standard technique: Beer-Lambert pigment mixing).
+ 2. Oil brush (standard technique: two-way paint transfer, as ArtRage and Rebelle do it): the brush tip is a small grid
+    of paint that travels with the finger. At every dab each tip pixel gives some of its paint to the picture and takes
+    some of the picture's paint back, so the brush carries and mixes colour along the stroke and runs dry. Only the
+    paint on the outside of the bristles mixes; the paint deep in them just feeds the amount. Across the
+    stroke the tip is split into bristles of uneven strength (streaks), and the stroke's edges get a ridge of paint.
+ 3. Watercolour (standard technique: Curtis et al. 1997, simplified): a stroke wets a see-through layer of pigment that
+    spreads a little while wet, then dries into the picture (absorbance adds, so layers darken), darker at its rim.
+ 4. Crayon: wax lands only on the raised grain of the paper, a fixed paper texture, so specks of paper stay.
+ 5. Simple brush: a round dab with a size and a softness; one stroke is one even coat (standard technique: a stroke
+    mask that keeps the strongest dab per pixel).
+ Light: paint thickness is lit from the top left (bump shading from the slope of H). */
+
+// SECTION: SETUP -- picture size, buffers, paper grain, colours
+const CW = 1600, CH = 1000, N = CW * CH, TS = 64, TX = Math.ceil(CW / TS), TY = Math.ceil(CH / TS);
+const A = new Float32Array(N * 3), Ht = new Float32Array(N);
+const B0A = new Float32Array(N * 3), B0H = new Float32Array(N), S = new Float32Array(N);
+let Wv = new Float32Array(N), Wt = new Float32Array(N);
+const grain = new Float32Array(N);
+const tileStamp = new Int32Array(TX * TY).fill(-1);
+const ab = (c) => -Math.log(Math.max(0.02, c));
+const PAPER = [0.96, 0.945, 0.9], PAPER_A = PAPER.map(ab);
+const COLORS = [ // reflectance, sRGB 0..1
+  [0.97, 0.97, 0.95], [0.04, 0.04, 0.05], [0.86, 0.06, 0.07], [0.98, 0.45, 0.05], [1.0, 0.88, 0.06], [0.1, 0.55, 0.15],
+  [0.35, 0.7, 0.95], [0.05, 0.2, 0.75], [0.45, 0.12, 0.6], [0.98, 0.55, 0.7], [0.45, 0.25, 0.1]];
+const SIZES = { oil: [8, 18, 36], water: [10, 22, 44], crayon: [4, 8, 14], simple: [6, 16, 40] };
+const SOFT = [0.95, 0.6, 0.05]; // sharp, medium, fuzzy: how far out the dab stays full strength
+// tuning (the prototype answers these with the child)
+const OIL_LOAD = 10, OIL_GIVE = 1 / 700, OIL_TAKE = 0.02, OIL_SURF = 0.3, OIL_RIDGE = 1, OIL_PAPER = 0.05, LIGHT = 2.5, GLOSS = 600;
+const WATER_ADD = 0.35, WATER_DENSITY = 0.45, WATER_EDGE = 0.9, WATER_D = 0.22, WET_SECS = 0.8;
+const CRAY_T = 0.3, CRAY_RAMP = 0.3, CRAY_FLOW = 0.35;
+
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+(function makeGrain() { // fine noise blurred once, plus a coarse wave, then spread evenly over 0..1
+  const r = rng(7), f = new Float32Array(N);
+  for (let i = 0; i < N; i++) f[i] = r();
+  const t = new Float32Array(N);
+  for (let y = 0; y < CH; y++) for (let x = 1; x < CW - 1; x++) { const k = y * CW + x; t[k] = (f[k - 1] + f[k] + f[k + 1]) / 3; }
+  for (let y = 1; y < CH - 1; y++) for (let x = 0; x < CW; x++) { const k = y * CW + x; f[k] = (t[k - CW] + t[k] + t[k + CW]) / 3; }
+  const G = 7, gw = Math.ceil(CW / G) + 2, gh = Math.ceil(CH / G) + 2, c = new Float32Array(gw * gh);
+  for (let i = 0; i < c.length; i++) c[i] = r();
+  const hist = new Uint32Array(1024);
+  for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {
+    const gx = x / G, gy = y / G, ix = gx | 0, iy = gy | 0, fx = gx - ix, fy = gy - iy;
+    const v = c[iy * gw + ix] * (1 - fx) * (1 - fy) + c[iy * gw + ix + 1] * fx * (1 - fy) + c[(iy + 1) * gw + ix] * (1 - fx) * fy + c[(iy + 1) * gw + ix + 1] * fx * fy;
+    const k = y * CW + x, g = 0.65 * f[k] + 0.35 * v; grain[k] = g; hist[Math.min(1023, (g * 1024) | 0)]++;
+  }
+  const cdf = new Float32Array(1024); let s = 0; for (let i = 0; i < 1024; i++) { s += hist[i]; cdf[i] = s / N; }
+  for (let k = 0; k < N; k++) grain[k] = cdf[Math.min(1023, (grain[k] * 1024) | 0)];
+})();
+function blank() { for (let k = 0; k < N; k++) { A[k * 3] = PAPER_A[0]; A[k * 3 + 1] = PAPER_A[1]; A[k * 3 + 2] = PAPER_A[2]; Ht[k] = 0; } }
+
+// SECTION: RENDER -- picture buffers to the screen
+const view = document.getElementById('paper'), vctx = view.getContext('2d');
+view.width = CW; view.height = CH;
+const img = vctx.createImageData(CW, CH), px = img.data;
+let dirty = null;
+function markDirty(x0, y0, x1, y1) {
+  x0 = Math.max(0, Math.floor(x0) - 1); y0 = Math.max(0, Math.floor(y0) - 1); x1 = Math.min(CW - 1, Math.ceil(x1) + 1); y1 = Math.min(CH - 1, Math.ceil(y1) + 1);
+  if (!dirty) dirty = [x0, y0, x1, y1]; else { dirty[0] = Math.min(dirty[0], x0); dirty[1] = Math.min(dirty[1], y0); dirty[2] = Math.max(dirty[2], x1); dirty[3] = Math.max(dirty[3], y1); }
+}
+function renderRect(x0, y0, x1, y1) {
+  const wet = water.active, pg = water.pig;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const k = y * CW + x; let a0 = A[k * 3], a1 = A[k * 3 + 1], a2 = A[k * 3 + 2];
+    if (wet) { const w = Wv[k]; if (w > 0.002) { const amt = w * (1 + WATER_EDGE * 4 * w * (1 - w)) * WATER_DENSITY; a0 += amt * pg[0]; a1 += amt * pg[1]; a2 += amt * pg[2]; } }
+    const h = Ht[k];
+    const hx = (x > 0 ? Ht[k - 1] : h) - (x < CW - 1 ? Ht[k + 1] : h), hy = (y > 0 ? Ht[k - CW] : h) - (y < CH - 1 ? Ht[k + CW] : h);
+    const sl = hx + hy, sh = (1 + LIGHT * sl) * (0.965 + 0.035 * grain[k]);
+    const sp = sl > 0 && h > 0.03 ? Math.min(70, GLOSS * sl * sl) : 0;
+    const o = k * 4;
+    px[o] = Math.exp(-a0) * sh * 255 + sp; px[o + 1] = Math.exp(-a1) * sh * 255 + sp; px[o + 2] = Math.exp(-a2) * sh * 255 + sp; px[o + 3] = 255;
+  }
+  vctx.putImageData(img, 0, 0, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+}
+function renderAll() { renderRect(0, 0, CW - 1, CH - 1); dirty = null; }
+
+// SECTION: UNDO -- tiles copied the first time a stroke touches them (standard technique: tile-based undo)
+let strokeNo = 0, entry = null;
+const undoStack = []; let undoBytes = 0;
+const UNDO_MAX = 12, UNDO_BYTES = 140e6;
+function captureRect(x0, y0, x1, y1) {
+  const tx0 = Math.max(0, (x0 / TS) | 0), ty0 = Math.max(0, (y0 / TS) | 0), tx1 = Math.min(TX - 1, (x1 / TS) | 0), ty1 = Math.min(TY - 1, (y1 / TS) | 0);
+  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+    const ti = ty * TX + tx; if (tileStamp[ti] === strokeNo) continue; tileStamp[ti] = strokeNo;
+    const bx = tx * TS, by = ty * TS, w = Math.min(TS, CW - bx), h = Math.min(TS, CH - by);
+    const ta = new Float32Array(w * h * 3), th = new Float32Array(w * h);
+    for (let j = 0; j < h; j++) {
+      const k = (by + j) * CW + bx;
+      ta.set(A.subarray(k * 3, (k + w) * 3), j * w * 3); th.set(Ht.subarray(k, k + w), j * w);
+      B0A.set(A.subarray(k * 3, (k + w) * 3), k * 3); B0H.set(Ht.subarray(k, k + w), k); S.fill(0, k, k + w);
+    }
+    entry.tiles.push({ bx, by, w, h, a: ta, h2: th }); entry.bytes += (w * h * 16);
+  }
+}
+function newEntry() { strokeNo++; entry = { kind: 'paint', tiles: [], bytes: 0 }; }
+function pushEntry(e) {
+  if (e.kind === 'paint' && !e.tiles.length) return;
+  undoStack.push(e); undoBytes += e.bytes || 0;
+  while (undoStack.length > UNDO_MAX || undoBytes > UNDO_BYTES) undoBytes -= undoStack.shift().bytes || 0;
+}
+function undo() {
+  if (stroke) return;
+  bakeWater();
+  const e = undoStack.pop(); if (!e) return;
+  undoBytes -= e.bytes || 0;
+  if (e.kind === 'paint') for (const t of e.tiles) {
+    for (let j = 0; j < t.h; j++) { const k = (t.by + j) * CW + t.bx; A.set(t.a.subarray(j * t.w * 3, (j + 1) * t.w * 3), k * 3); Ht.set(t.h2.subarray(j * t.w, (j + 1) * t.w), k); }
+    markDirty(t.bx, t.by, t.bx + t.w - 1, t.by + t.h - 1);
+  } else { stickers = JSON.parse(e.before); stickDirty = true; }
+  changed();
+}
+
+// SECTION: TOOLS -- one dab of each material (the model's parts 2-5)
+const st = { tool: 'oil', color: 4, size: 1, soft: 0 };
+let stroke = null;
+const water = { active: false, pig: [0, 0, 0], rect: null, last: 0, stroking: false };
+const smooth = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+function oilStart(s) {
+  const R = s.r, n = 2 * R + 1, ca = COLORS[st.color].map(ab);
+  s.n = n; s.tipA = new Float32Array(n * n * 3); s.tipL = new Float32Array(n * n).fill(OIL_LOAD);
+  for (let t = 0; t < n * n; t++) { s.tipA[t * 3] = ca[0]; s.tipA[t * 3 + 1] = ca[1]; s.tipA[t * 3 + 2] = ca[2]; }
+  const NB = Math.max(6, R >> 1), r = rng((Math.random() * 1e9) | 0), b = new Float32Array(NB);
+  for (let i = 0; i < NB; i++) b[i] = 0.35 + 0.65 * r();
+  s.bristle = b.map((v, i) => (v + b[Math.max(0, i - 1)] + b[Math.min(NB - 1, i + 1)]) / 3); s.rnd = r;
+}
+function oilDab(s, cx, cy) {
+  const R = s.r, n = s.n, dx = s.dir[0], dy = s.dir[1], NB = s.bristle.length, tipA = s.tipA, tipL = s.tipL;
+  const X = Math.round(cx), Y = Math.round(cy);
+  for (let i = 0; i < NB; i++) s.bristle[i] = Math.min(1, Math.max(0.2, s.bristle[i] + (s.rnd() - 0.5) * 0.12)); // each bristle wanders
+  captureRect(X - R, Y - R, X + R, Y + R);
+  for (let j = -R; j <= R; j++) {
+    const y = Y + j; if (y < 0 || y >= CH) continue;
+    for (let i = -R; i <= R; i++) {
+      const x = X + i, d2 = i * i + j * j; if (x < 0 || x >= CW || d2 > R * R) continue;
+      const sp = (-i * dy + j * dx) / R, bi = Math.min(NB - 1, Math.max(0, ((sp + 1) * 0.5 * NB) | 0));
+      const m = (1 - smooth(0.75, 1, Math.sqrt(d2) / R)) * s.bristle[bi];
+      if (m <= 0) continue;
+      const k = y * CW + x, t = (j + R) * n + (i + R), h = Ht[k], L = tipL[t];
+      const give = m * L * OIL_GIVE * s.sp * (1 + OIL_RIDGE * smooth(0.65, 0.95, Math.abs(sp)));
+      const take = m * OIL_TAKE * s.sp * h;
+      const hc = h - take + give, wc = give / (hc + OIL_PAPER);
+      const L2 = L - give + take, wt = take / (Math.min(L2, OIL_SURF) + take + 1e-6);
+      for (let c = 0; c < 3; c++) { const a = A[k * 3 + c], b = tipA[t * 3 + c]; A[k * 3 + c] = a + (b - a) * wc; tipA[t * 3 + c] = b + (a - b) * wt; }
+      Ht[k] = hc; tipL[t] = L2;
+    }
+  }
+  markDirty(X - R, Y - R, X + R, Y + R);
+}
+function waterDab(s, cx, cy) {
+  const R = s.r, X = Math.round(cx), Y = Math.round(cy);
+  for (let j = -R; j <= R; j++) { const y = Y + j; if (y < 0 || y >= CH) continue;
+    for (let i = -R; i <= R; i++) { const x = X + i, d2 = i * i + j * j; if (x < 0 || x >= CW || d2 > R * R) continue;
+      const k = y * CW + x, m = 1 - smooth(0.5, 1, Math.sqrt(d2) / R); Wv[k] = Math.min(1, Wv[k] + m * WATER_ADD); } }
+  growWet(X - R, Y - R, X + R, Y + R); water.last = performance.now();
+  markDirty(X - R, Y - R, X + R, Y + R);
+}
+function growWet(x0, y0, x1, y1) {
+  x0 = Math.max(1, x0); y0 = Math.max(1, y0); x1 = Math.min(CW - 2, x1); y1 = Math.min(CH - 2, y1);
+  const r = water.rect; if (!r) water.rect = [x0, y0, x1, y1]; else { r[0] = Math.min(r[0], x0); r[1] = Math.min(r[1], y0); r[2] = Math.max(r[2], x1); r[3] = Math.max(r[3], y1); }
+}
+function spreadWater() { // one step of the wet pigment spreading (diffusion), the wet area grows by a pixel
+  const r = water.rect; growWet(r[0] - 1, r[1] - 1, r[2] + 1, r[3] + 1);
+  for (let y = r[1]; y <= r[3]; y++) for (let x = r[0]; x <= r[2]; x++) { const k = y * CW + x, w = Wv[k];
+    Wt[k] = w + WATER_D * (Wv[k - 1] + Wv[k + 1] + Wv[k - CW] + Wv[k + CW] - 4 * w); }
+  const t = Wv; Wv = Wt; Wt = t;
+  markDirty(r[0], r[1], r[2], r[3]);
+}
+function bakeWater() {
+  if (!water.active) return;
+  const r = water.rect, pg = water.pig;
+  newEntry(); captureRect(r[0], r[1], r[2], r[3]);
+  for (let y = r[1]; y <= r[3]; y++) for (let x = r[0]; x <= r[2]; x++) { const k = y * CW + x, w = Wv[k];
+    if (w > 0.002) { const amt = w * (1 + WATER_EDGE * 4 * w * (1 - w)) * WATER_DENSITY; A[k * 3] += amt * pg[0]; A[k * 3 + 1] += amt * pg[1]; A[k * 3 + 2] += amt * pg[2]; }
+    Wv[k] = 0; Wt[k] = 0; }
+  pushEntry(entry); entry = null;
+  water.active = false; water.rect = null; markDirty(r[0], r[1], r[2], r[3]); changed();
+}
+function crayonDab(s, cx, cy) {
+  const R = s.r, X = Math.round(cx), Y = Math.round(cy), ca = s.ca;
+  captureRect(X - R, Y - R, X + R, Y + R);
+  for (let j = -R; j <= R; j++) { const y = Y + j; if (y < 0 || y >= CH) continue;
+    for (let i = -R; i <= R; i++) { const x = X + i, d2 = i * i + j * j; if (x < 0 || x >= CW || d2 > R * R) continue;
+      const k = y * CW + x, cover = Math.min(1, Math.max(0, (grain[k] - CRAY_T) / CRAY_RAMP));
+      const a = (1 - smooth(0.7, 1, Math.sqrt(d2) / R)) * cover * CRAY_FLOW; if (a <= 0) continue;
+      for (let c = 0; c < 3; c++) A[k * 3 + c] += (ca[c] - A[k * 3 + c]) * a; } }
+  markDirty(X - R, Y - R, X + R, Y + R);
+}
+function simpleDab(s, cx, cy) {
+  const R = s.r, X = Math.round(cx), Y = Math.round(cy), ca = s.ca, hd = SOFT[st.soft];
+  captureRect(X - R, Y - R, X + R, Y + R);
+  for (let j = -R; j <= R; j++) { const y = Y + j; if (y < 0 || y >= CH) continue;
+    for (let i = -R; i <= R; i++) { const x = X + i, d2 = i * i + j * j; if (x < 0 || x >= CW || d2 > R * R) continue;
+      const k = y * CW + x, rr = Math.sqrt(d2) / R, m = rr <= hd ? 1 : 1 - smooth(hd, 1, rr);
+      if (m <= S[k]) continue; S[k] = m;
+      for (let c = 0; c < 3; c++) A[k * 3 + c] = B0A[k * 3 + c] + (ca[c] - B0A[k * 3 + c]) * m; } }
+  markDirty(X - R, Y - R, X + R, Y + R);
+}
+const DAB = { oil: oilDab, water: waterDab, crayon: crayonDab, simple: simpleDab };
+const SPACING = { oil: 0.1, water: 0.2, crayon: 0.25, simple: 0.1 };
+
+// SECTION: STROKE -- finger on the paper: one finger paints, others are ignored
+function startStroke(p) {
+  if (st.tool === 'water') { if (water.active && water.pig.join() !== COLORS[st.color].map(ab).join()) bakeWater(); }
+  else bakeWater();
+  const r = SIZES[st.tool][st.size];
+  stroke = { tool: st.tool, r, sp: Math.max(1, r * SPACING[st.tool]), last: p, carry: 0, dir: [1, 0], ca: COLORS[st.color].map(ab) };
+  if (st.tool === 'water') { water.active = true; water.pig = stroke.ca; water.stroking = true; }
+  else { newEntry(); if (st.tool === 'oil') oilStart(stroke); }
+  DAB[st.tool](stroke, p.x, p.y);
+}
+function moveStroke(p) {
+  const s = stroke, dx = p.x - s.last.x, dy = p.y - s.last.y, d = Math.hypot(dx, dy); if (d < 0.01) return;
+  const ux = dx / d, uy = dy / d;
+  let vx = s.dir[0] * 0.7 + ux * 0.3, vy = s.dir[1] * 0.7 + uy * 0.3; const vl = Math.hypot(vx, vy) || 1; s.dir = [vx / vl, vy / vl];
+  const sp = s.sp;
+  let t = sp - s.carry;
+  while (t <= d) { DAB[s.tool](s, s.last.x + ux * t, s.last.y + uy * t); t += sp; }
+  s.carry = d - (t - sp); s.last = p;
+}
+function endStroke() {
+  if (!stroke) return;
+  if (stroke.tool === 'water') water.stroking = false; else { pushEntry(entry); entry = null; }
+  stroke = null; changed();
+}
+let painter = null; // the one pointer that paints
+function toPaper(e) { const r = view.getBoundingClientRect(); return { x: (e.clientX - r.left) * CW / r.width, y: (e.clientY - r.top) * CH / r.height }; }
+view.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (painter !== null || dragging) return;
+  const p = toPaper(e);
+  if (st.tool === 'sticker') { const i = hitSticker(p); if (i >= 0) startStickerDrag(e, i, p); return; }
+  painter = e.pointerId; view.setPointerCapture(e.pointerId); startStroke(p);
+});
+view.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== painter || !stroke) return;
+  const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+  for (const q of (list.length ? list : [e])) moveStroke(toPaper(q));
+});
+function painterUp(e) { if (e.pointerId !== painter) return; painter = null; endStroke(); }
+view.addEventListener('pointerup', painterUp); view.addEventListener('pointercancel', painterUp);
+
+// SECTION: STICKERS -- code-drawn stickers, dragged from the tray, they sit on top of the paint
+const sctx = document.getElementById('stick').getContext('2d');
+document.getElementById('stick').width = CW; document.getElementById('stick').height = CH;
+let stickers = [], stickDirty = true, dragging = null;
+const STICKER_R = 75;
+const SKIN = { // every sticker drawn round 0,0 within radius 1
+  sun(c) { c.fillStyle = '#f7b500'; for (let i = 0; i < 12; i++) { c.save(); c.rotate(i * Math.PI / 6); c.beginPath(); c.moveTo(-0.12, 0.6); c.lineTo(0, 1); c.lineTo(0.12, 0.6); c.fill(); c.restore(); } c.fillStyle = '#ffd23a'; c.beginPath(); c.arc(0, 0, 0.6, 0, 7); c.fill(); },
+  star(c) { c.fillStyle = '#ffcc1a'; c.strokeStyle = '#e08a00'; c.lineWidth = 0.08; c.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 0.42 : 1, a = -Math.PI / 2 + i * Math.PI / 5; c.lineTo(r * Math.cos(a), r * Math.sin(a)); } c.closePath(); c.fill(); c.stroke(); },
+  flower(c) { c.fillStyle = '#f25c94'; for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; c.beginPath(); c.arc(0.55 * Math.cos(a), 0.55 * Math.sin(a), 0.38, 0, 7); c.fill(); } c.fillStyle = '#ffd23a'; c.beginPath(); c.arc(0, 0, 0.34, 0, 7); c.fill(); },
+  fish(c) { c.fillStyle = '#2f8fd8'; c.beginPath(); c.moveTo(0.45, 0); c.lineTo(1, -0.45); c.lineTo(1, 0.45); c.fill(); c.beginPath(); c.ellipse(-0.15, 0, 0.7, 0.45, 0, 0, 7); c.fill(); c.fillStyle = '#fff'; c.beginPath(); c.arc(-0.5, -0.1, 0.12, 0, 7); c.fill(); c.fillStyle = '#123'; c.beginPath(); c.arc(-0.52, -0.1, 0.06, 0, 7); c.fill(); },
+  boat(c) { c.fillStyle = '#8a4b1f'; c.beginPath(); c.moveTo(-0.95, 0.3); c.lineTo(0.95, 0.3); c.lineTo(0.6, 0.75); c.lineTo(-0.6, 0.75); c.fill(); c.fillStyle = '#5a3414'; c.fillRect(-0.04, -0.9, 0.08, 1.2); c.fillStyle = '#fff'; c.strokeStyle = '#bbb'; c.lineWidth = 0.04; c.beginPath(); c.moveTo(0.06, -0.85); c.lineTo(0.75, 0.2); c.lineTo(0.06, 0.2); c.closePath(); c.fill(); c.stroke(); },
+  heart(c) { c.fillStyle = '#e8243c'; c.beginPath(); c.moveTo(0, 0.85); c.bezierCurveTo(-1.2, 0, -0.6, -0.95, 0, -0.35); c.bezierCurveTo(0.6, -0.95, 1.2, 0, 0, 0.85); c.fill(); },
+};
+const STICKER_KINDS = Object.keys(SKIN);
+function drawStickers() {
+  sctx.clearRect(0, 0, CW, CH);
+  for (const s of stickers) { sctx.save(); sctx.translate(s.x, s.y); sctx.scale(STICKER_R, STICKER_R); sctx.shadowColor = 'rgba(0,0,0,.35)'; sctx.shadowBlur = 6; SKIN[s.kind](sctx); sctx.restore(); }
+  stickDirty = false;
+}
+function hitSticker(p) { for (let i = stickers.length - 1; i >= 0; i--) if (Math.hypot(stickers[i].x - p.x, stickers[i].y - p.y) < STICKER_R) return i; return -1; }
+function onPaper(p) { return p.x >= 0 && p.y >= 0 && p.x <= CW && p.y <= CH; }
+function startStickerDrag(e, i, p) {
+  dragging = { id: e.pointerId, i, before: JSON.stringify(stickers), dx: stickers[i].x - p.x, dy: stickers[i].y - p.y };
+  const top = stickers.splice(i, 1)[0]; stickers.push(top); dragging.i = stickers.length - 1; stickDirty = true;
+}
+function newStickerDrag(e, kind) {
+  const p = toPaper(e), before = JSON.stringify(stickers);
+  stickers.push({ kind, x: p.x, y: p.y }); dragging = { id: e.pointerId, i: stickers.length - 1, before, dx: 0, dy: 0 }; stickDirty = true;
+}
+window.addEventListener('pointermove', (e) => { if (!dragging || e.pointerId !== dragging.id) return; const p = toPaper(e), s = stickers[dragging.i]; s.x = p.x + dragging.dx; s.y = p.y + dragging.dy; stickDirty = true; });
+function dragUp(e) {
+  if (!dragging || e.pointerId !== dragging.id) return;
+  const s = stickers[dragging.i]; if (!onPaper(s)) stickers.splice(dragging.i, 1);
+  if (JSON.stringify(stickers) !== dragging.before) { pushEntry({ kind: 'stickers', before: dragging.before, bytes: dragging.before.length }); changed(); }
+  dragging = null; stickDirty = true;
+}
+window.addEventListener('pointerup', dragUp); window.addEventListener('pointercancel', dragUp);
+
+// SECTION: UI -- tool tray, paint pots, size and softness, undo, new, gallery (code-drawn icons)
+const left = document.getElementById('left'), right = document.getElementById('right'), bottom = document.getElementById('bottom');
+const buttons = [];
+function makeBtn(parent, id, draw, onDown, cls) {
+  const b = document.createElement('button'); b.className = 'btn' + (cls ? ' ' + cls : ''); b.dataset.id = id;
+  const c = document.createElement('canvas'); b.appendChild(c); parent.appendChild(b);
+  b.addEventListener('pointerdown', (e) => { e.preventDefault(); onDown(e); });
+  buttons.push({ b, c, draw }); return b;
+}
+function drawIcon(o) { const r = o.b.getBoundingClientRect(), d = devicePixelRatio || 1; o.c.width = Math.max(1, r.width * d); o.c.height = Math.max(1, r.height * d); const c = o.c.getContext('2d'); c.scale(o.c.width / 100, o.c.height / 100); o.draw(c); }
+const rgb = (i) => 'rgb(' + COLORS[i].map((v) => Math.round(v * 255)).join(',') + ')';
+const ICON = {
+  oil(c) { c.fillStyle = rgb(st.color); c.beginPath(); c.moveTo(14, 86); c.quadraticCurveTo(30, 60, 52, 66); c.lineTo(60, 76); c.quadraticCurveTo(40, 80, 14, 86); c.fill();
+    c.save(); c.translate(56, 46); c.rotate(-0.8); c.fillStyle = '#7a4a22'; c.fillRect(-6, -40, 12, 36); c.fillStyle = '#b8b8b8'; c.fillRect(-10, -6, 20, 14); c.fillStyle = rgb(st.color); c.fillRect(-10, 8, 20, 16); c.restore(); },
+  water(c) { c.fillStyle = rgb(st.color); c.globalAlpha = 0.45; c.beginPath(); c.arc(32, 70, 20, 0, 7); c.fill(); c.beginPath(); c.arc(48, 76, 14, 0, 7); c.fill(); c.globalAlpha = 1;
+    c.save(); c.translate(58, 44); c.rotate(-0.8); c.fillStyle = '#3a2a1a'; c.fillRect(-4, -40, 8, 34); c.fillStyle = '#c9a23a'; c.fillRect(-6, -8, 12, 12); c.fillStyle = rgb(st.color); c.beginPath(); c.moveTo(-6, 4); c.quadraticCurveTo(0, 34, 6, 4); c.fill(); c.restore(); },
+  crayon(c) { c.save(); c.translate(50, 50); c.rotate(-0.8); c.fillStyle = rgb(st.color); c.fillRect(-11, -30, 22, 50); c.beginPath(); c.moveTo(-11, 20); c.lineTo(0, 40); c.lineTo(11, 20); c.fill(); c.fillStyle = 'rgba(255,255,255,.5)'; c.fillRect(-11, -14, 22, 6); c.fillRect(-11, 4, 22, 6); c.restore(); },
+  simple(c) { c.fillStyle = rgb(st.color); c.beginPath(); c.arc(38, 64, 18, 0, 7); c.fill();
+    c.save(); c.translate(60, 40); c.rotate(-0.8); c.fillStyle = '#e0e0e0'; c.fillRect(-5, -36, 10, 30); c.strokeStyle = '#888'; c.lineWidth = 2; c.strokeRect(-5, -36, 10, 30); c.fillStyle = rgb(st.color); c.beginPath(); c.ellipse(0, 4, 7, 12, 0, 0, 7); c.fill(); c.restore(); },
+  sticker(c) { c.save(); c.translate(50, 50); c.scale(34, 34); SKIN.star(c); c.restore(); },
+  undo(c) { c.strokeStyle = '#4a3a2a'; c.lineWidth = 9; c.lineCap = 'round'; c.beginPath(); c.arc(52, 56, 24, Math.PI * 1.1, Math.PI * 2.4); c.stroke(); c.fillStyle = '#4a3a2a'; c.beginPath(); c.moveTo(14, 46); c.lineTo(36, 30); c.lineTo(38, 56); c.fill(); },
+  newpage(c) { c.fillStyle = '#fff'; c.strokeStyle = '#8a7a6a'; c.lineWidth = 3; c.fillRect(24, 16, 52, 68); c.strokeRect(24, 16, 52, 68); c.strokeStyle = '#3c9a3c'; c.lineWidth = 9; c.lineCap = 'round'; c.beginPath(); c.moveTo(50, 36); c.lineTo(50, 64); c.moveTo(36, 50); c.lineTo(64, 50); c.stroke(); },
+  gallery(c) { for (const [x, y, col] of [[18, 22, '#e8a33a'], [52, 22, '#3a8ad8'], [18, 54, '#d84a5a'], [52, 54, '#4aa84a']]) { c.fillStyle = '#7a5a3a'; c.fillRect(x, y, 30, 26); c.fillStyle = col; c.fillRect(x + 4, y + 4, 22, 18); } },
+  close(c) { c.strokeStyle = '#4a3a2a'; c.lineWidth = 10; c.lineCap = 'round'; c.beginPath(); c.moveTo(30, 30); c.lineTo(70, 70); c.moveTo(70, 30); c.lineTo(30, 70); c.stroke(); },
+};
+for (const t of ['oil', 'water', 'crayon', 'simple', 'sticker']) makeBtn(left, 'tool-' + t, ICON[t], () => { st.tool = t; refresh(); });
+const sizeBtns = [0, 1, 2].map((i) => makeBtn(right, 'size-' + i, (c) => { c.fillStyle = '#3a2a1a'; c.beginPath(); c.arc(50, 50, [9, 18, 32][i], 0, 7); c.fill(); }, () => { st.size = i; refresh(); }));
+const softBtns = [0, 1, 2].map((i) => makeBtn(right, 'soft-' + i, (c) => { const g = c.createRadialGradient(50, 50, 0, 50, 50, 34); g.addColorStop(0, '#3a2a1a'); g.addColorStop(SOFT[i], '#3a2a1a'); g.addColorStop(1, 'rgba(58,42,26,0)'); c.fillStyle = g; c.beginPath(); c.arc(50, 50, 34, 0, 7); c.fill(); }, () => { st.soft = i; refresh(); }));
+makeBtn(right, 'undo', ICON.undo, () => undo());
+makeBtn(right, 'new', ICON.newpage, () => newPicture());
+makeBtn(right, 'gallery', ICON.gallery, () => openGallery());
+const pots = COLORS.map((col, i) => makeBtn(bottom, 'color-' + i, (c) => { c.fillStyle = rgb(i); c.beginPath(); c.arc(50, 50, 40, 0, 7); c.fill(); c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 3; c.stroke(); }, () => { st.color = i; refresh(); }, 'pot'));
+const trayBtns = STICKER_KINDS.map((k) => makeBtn(bottom, 'sticker-' + k, (c) => { c.save(); c.translate(50, 50); c.scale(38, 38); SKIN[k](c); c.restore(); }, (e) => newStickerDrag(e, k)));
+function refresh() {
+  for (const o of buttons) { const id = o.b.dataset.id;
+    o.b.classList.toggle('on', id === 'tool-' + st.tool || id === 'color-' + st.color || id === 'size-' + st.size || (id === 'soft-' + st.soft && st.tool === 'simple')); }
+  const sticker = st.tool === 'sticker';
+  for (const b of pots) b.classList.toggle('hide', sticker);
+  for (const b of trayBtns) b.classList.toggle('hide', !sticker);
+  for (const b of sizeBtns) b.classList.toggle('hide', sticker);
+  for (const b of softBtns) b.classList.toggle('hide', st.tool !== 'simple');
+  for (const o of buttons) if (!o.b.classList.contains('hide')) drawIcon(o);
+}
+function layout() {
+  const vw = innerWidth, vh = innerHeight, b = Math.round(Math.min(vh * 0.085, vw * 0.06)), g = Math.round(b * 0.22);
+  const root = document.documentElement.style; root.setProperty('--b', b + 'px'); root.setProperty('--g', g + 'px');
+  left.style.left = g + 'px'; right.style.right = g + 'px';
+  Object.assign(bottom.style, { left: (2 * g + b) + 'px', right: (2 * g + b) + 'px', bottom: g + 'px', height: b + 'px' });
+  const x0 = 2 * g + b, x1 = vw - 2 * g - b, y0 = g, y1 = vh - 2 * g - b, s = Math.min((x1 - x0) / CW, (y1 - y0) / CH);
+  const w = CW * s, h = CH * s, L = x0 + (x1 - x0 - w) / 2, T = y0 + (y1 - y0 - h) / 2;
+  for (const el of [view, document.getElementById('stick')]) Object.assign(el.style, { left: L + 'px', top: T + 'px', width: w + 'px', height: h + 'px' });
+  refresh();
+}
+addEventListener('resize', layout);
+document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// SECTION: GALLERY -- every picture kept on this PC (IndexedDB), the newest opens at start
+let cur = { id: Date.now() }, isChanged = false, saveTimer = 0;
+function changed() { isChanged = true; clearTimeout(saveTimer); saveTimer = setTimeout(() => save(), 2000); }
+let dbp = null;
+function db() { if (!dbp) dbp = new Promise((res, rej) => { const r = indexedDB.open('coloring-book', 1); r.onupgradeneeded = () => r.result.createObjectStore('pictures', { keyPath: 'id' }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); return dbp; }
+function req(mode, fn) { return db().then((d) => new Promise((res, rej) => { const t = d.transaction('pictures', mode), q = fn(t.objectStore('pictures')); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); })); }
+async function gz(u8) { return await new Response(new Blob([u8]).stream().pipeThrough(new CompressionStream('gzip'))).blob(); }
+async function gunz(b) { return new Uint8Array(await new Response(b.stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()); }
+function thumb() { if (dirty) { renderRect(...dirty); dirty = null; } if (stickDirty) drawStickers(); const c = document.createElement('canvas'); c.width = 320; c.height = 200; const x = c.getContext('2d'); x.drawImage(view, 0, 0, 320, 200); x.drawImage(document.getElementById('stick'), 0, 0, 320, 200); return c.toDataURL('image/jpeg', 0.8); }
+let saving = Promise.resolve();
+function save() {
+  saving = saving.then(async () => {
+    if (!isChanged || stroke) return; clearTimeout(saveTimer); bakeWater(); isChanged = false;
+    const qa = new Uint8Array(N * 3), qh = new Uint8Array(N);
+    for (let i = 0; i < N * 3; i++) qa[i] = Math.min(255, Math.round(A[i] * 64));
+    for (let i = 0; i < N; i++) qh[i] = Math.min(255, Math.round(Ht[i] * 127.5));
+    const rec = { id: cur.id, time: Date.now(), thumb: thumb(), a: await gz(qa), h: await gz(qh), st: JSON.stringify(stickers) };
+    await req('readwrite', (s) => s.put(rec));
+  }).catch((e) => console.error(e));
+  return saving;
+}
+async function load(id) {
+  const rec = await req('readonly', (s) => s.get(id)); if (!rec) return false;
+  const qa = await gunz(rec.a), qh = await gunz(rec.h);
+  for (let i = 0; i < N * 3; i++) A[i] = qa[i] / 64;
+  for (let i = 0; i < N; i++) Ht[i] = qh[i] / 127.5;
+  stickers = JSON.parse(rec.st); stickDirty = true; cur = { id }; isChanged = false;
+  undoStack.length = 0; undoBytes = 0; renderAll(); return true;
+}
+async function newPicture() {
+  if (stroke) return; await save();
+  blank(); stickers = []; stickDirty = true; cur = { id: Date.now() }; isChanged = false; undoStack.length = 0; undoBytes = 0; renderAll();
+}
+const gal = document.getElementById('gal');
+async function openGallery() {
+  if (stroke) return; await save();
+  const all = (await req('readonly', (s) => s.getAll())) || [];
+  all.sort((a, b) => b.time - a.time);
+  gal.innerHTML = '';
+  const close = document.createElement('button'); close.className = 'btn'; gal.appendChild(close);
+  const cc = document.createElement('canvas'); close.appendChild(cc); close.dataset.id = 'gallery-close';
+  close.addEventListener('pointerdown', (e) => { e.preventDefault(); gal.classList.add('hide'); });
+  gal.classList.remove('hide'); drawIcon({ b: close, c: cc, draw: ICON.close });
+  for (const r of all) {
+    const card = document.createElement('button'); card.className = 'card' + (r.id === cur.id ? ' cur' : ''); card.dataset.id = 'pic-' + r.id;
+    const im = document.createElement('img'); im.src = r.thumb; card.appendChild(im); gal.appendChild(card);
+    card.addEventListener('click', async () => { gal.classList.add('hide'); if (r.id !== cur.id) await load(r.id); });
+  }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
+
+// SECTION: LOOP -- wet watercolour spreads then dries, dirty parts drawn once per frame
+function frame() {
+  if (water.active) {
+    const age = (performance.now() - water.last) / 1000;
+    if (water.stroking || age < WET_SECS) spreadWater(); else bakeWater();
+  }
+  if (dirty) { const d = dirty; dirty = null; renderRect(d[0], d[1], d[2], d[3]); }
+  if (stickDirty) drawStickers();
+  requestAnimationFrame(frame);
+}
+(async () => {
+  blank(); layout(); renderAll();
+  try { const all = (await req('readonly', (s) => s.getAll())) || []; if (all.length) { all.sort((a, b) => b.time - a.time); await load(all[0].id); } } catch (e) { console.error(e); }
+  window.__cb.ready = true;
+})();
+requestAnimationFrame(frame);
+
+// SECTION: TEST HOOKS -- read-only views for the flow tests
+window.__cb = { CW, CH, st, A, Ht, grain, undoStack, water, get stickers() { return stickers; }, get cur() { return cur; }, ready: false,
+  screenOf(x, y) { const r = view.getBoundingClientRect(); return [r.left + x * r.width / CW, r.top + y * r.height / CH]; },
+  btn(id) { const b = document.querySelector('[data-id="' + id + '"]'); if (!b || b.classList.contains('hide')) return null; const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; },
+  shown(x, y) { const d = vctx.getImageData(Math.round(x), Math.round(y), 1, 1).data; return [d[0], d[1], d[2]]; },
+  save: () => save(), count: async () => ((await req('readonly', (s) => s.getAll())) || []).length };
+</script>
+</body></html>
