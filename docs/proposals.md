@@ -270,11 +270,10 @@ Columns: **Theme** (from brief) · **System** (standard game type it is) · **Br
 - Mechanics (proposal): two modes. Free painting: brushes, colors, stickers, stamps, eraser, on a blank page. Color-in: tap or paint inside outlined pictures; color stays inside the lines. Save to a gallery.
 - Swaps: ♀ fits as is.
 
-### 42. Mycenaean Scribe
-- Theme: Bronze Age palace archive (Pylos, Knossos), Linear B clay tablets.
-- System: handwriting recognition + record-keeping.
-- Researched facts: Linear B is syllabic (about 87 sound signs, each a vowel or consonant+vowel), plus over 100 picture signs for goods (sheep, wine, bronze…) that stand before a number. Numbers are decimal signs repeated up to nine times. Tablets were records and inventories, written on dried, unbaked clay; they survive because the palace fires baked them. Words are spelled by syllables, e.g. a-mi-ni-so for Amnisos.
-- Mechanics (proposal): trace or write a sign in the wet clay; the game checks it matches the right sign. Around that: the storeroom is the game. Count what arrives (sheep, jars) and write the goods sign plus the number; the palace then sends out what the tablet says, so a wrong tablet visibly sends the wrong amount. Spell a person's or town's name by syllables. Toy mode: scribble freely in clay and smooth it over. End show: the palace fire bakes the tablets, and they come out as finds. Exact sign shapes and which goods signs to use need a research check.
+### 42. Word Magic (writing game)
+- Theme: open; normal Greek letters (capitals). Possible setting: an ancient Greek school with wax tablet and stylus (needs a research check).
+- System: write-a-word-and-it-appears puzzle (Scribblenauts).
+- Mechanics (proposal): what you write comes to life. Write ΓΑΤΑ and a cat walks into the scene; write ΒΑΡΚΑ and a boat appears on the river. Each level is a small problem in a living scene (a goat stuck across a river, a dark cave, a hungry bird), and you solve it by writing the thing that helps. Things act on each other: the cat chases the mouse, the boat carries the goat. A word the game can't read just stays as letters in the clay/wax. Toy mode: write anything known and watch the scene fill up. Ramp: first levels give the letters as faint outlines to trace; later only a picture hint; later nothing. The word list is the game's own (what it can draw and animate).
 - Swaps: open.
 
 ## Real-game mechanics matched to our list
@@ -295,7 +294,7 @@ Proposals only. Each line: mechanic (real games that use it) → where it could 
 - Area control (Small World) → #3 Castle Conquest, #13 Island Conquest.
 - Engine building: things you build make more things (Splendor, Wingspan) → #5 Factory Automation, #18.
 - Dexterity stacking (Jenga, HABA Animal upon Animal) → already in Tower Builder (#1).
-- Memory: remember hidden pairs (Memory/Concentration) → #42 (match a sign to its sound); #39.
+- Memory: remember hidden pairs (Memory/Concentration) → #42 (match a letter to its sound); #39.
 
 ## Shared engines (build once, use several times)
 
