@@ -116,6 +116,7 @@ Shared event system in `tools/cues/` (engine `engine.js`, pattern `README.md`, d
 ## Status
 
 - Αρχιτέκτονες του αρχαίου κόσμου, was Tower Builder (`games/arxitektones-tou-arxaiou-kosmou`): done (owner, 18 Nov 2026); what it is: its `BUILD.md`.
+- Coloring Book (`games/coloring-book`): design sheet drafted, waiting for owner.
 
 ## Decided
 

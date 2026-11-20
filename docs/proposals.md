@@ -270,10 +270,9 @@ Columns: **Theme** (from brief) · **System** (standard game type it is) · **Br
 - Mechanics (proposal): two modes. Free painting: brushes, colors, stickers, stamps, eraser, on a blank page. Color-in: tap or paint inside outlined pictures; color stays inside the lines. Save to a gallery.
 - Swaps: ♀ fits as is.
 
-### 42. Word Magic (writing game)
-- Theme: open; normal Greek letters (capitals). Possible setting: an ancient Greek school with wax tablet and stylus (needs a research check).
-- System: write-a-word-and-it-appears puzzle (Scribblenauts).
-- Mechanics (proposal): what you write comes to life. Write ΓΑΤΑ and a cat walks into the scene; write ΒΑΡΚΑ and a boat appears on the river. Each level is a small problem in a living scene (a goat stuck across a river, a dark cave, a hungry bird), and you solve it by writing the thing that helps. Things act on each other: the cat chases the mouse, the boat carries the goat. A word the game can't read just stays as letters in the clay/wax. Toy mode: write anything known and watch the scene fill up. Ramp: first levels give the letters as faint outlines to trace; later only a picture hint; later nothing. The word list is the game's own (what it can draw and animate).
+### 42. Writing game (direction from owner, mechanics open)
+- Owner 2026-11-20: rejected Mycenaean Scribe ("a wrong tablet sends the wrong amount": no game in it) and Word Magic (not persuaded). Wants normal Greek writing, a more living world with interactions, and a storyline. Writing must not be the only thing in the game.
+- Proposal: a living village the child walks through. People and animals go about their day on their own (the baker bakes, goats wander off, the fishing boat goes out and comes back, day turns to night). The story is told in chapters, by pictures and voice, and writing is one of the ways the child acts in it: a sign on the bakery, a letter carried to the grandmother on the next island, a name painted on the new boat. Each written thing changes what the villagers do, and they answer back. Unresearched, not decided.
 - Swaps: open.
 
 ## Real-game mechanics matched to our list
