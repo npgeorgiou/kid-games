@@ -37,7 +37,8 @@ canvas.pic{position:absolute;touch-action:none}
  2. Oil brush (standard technique: two-way paint transfer, as ArtRage and Rebelle do it): the brush tip is a small grid
     of paint that travels with the finger. At every dab each tip pixel gives some of its paint to the picture and takes
     some of the picture's paint back, so the brush carries and mixes colour along the stroke and runs dry. Only the
-    paint on the outside of the bristles mixes; the paint deep in them just feeds the amount. Across the
+    paint on the outside of the bristles mixes; the paint deep in them refills it with the brush's own colour,
+    and neighbouring bristles share a little paint. Across the
     stroke the tip is split into bristles of uneven strength (streaks), and the stroke's edges get a ridge of paint.
  3. Watercolour (standard technique: Curtis et al. 1997, simplified): a stroke wets a see-through layer of pigment that
     spreads a little while wet, then dries into the picture (absorbance adds, so layers darken), darker at its rim.
@@ -58,10 +59,11 @@ const PAPER = [0.96, 0.945, 0.9], PAPER_A = PAPER.map(ab);
 const COLORS = [ // reflectance, sRGB 0..1
   [0.97, 0.97, 0.95], [0.04, 0.04, 0.05], [0.86, 0.06, 0.07], [0.98, 0.45, 0.05], [1.0, 0.88, 0.06], [0.1, 0.55, 0.15],
   [0.35, 0.7, 0.95], [0.05, 0.2, 0.75], [0.45, 0.12, 0.6], [0.98, 0.55, 0.7], [0.45, 0.25, 0.1]];
-const SIZES = { oil: [8, 18, 36], water: [10, 22, 44], crayon: [4, 8, 14], simple: [6, 16, 40] };
+const SIZES = [8, 18, 36]; // brush radius for each size dot, the same for every tool (owner 20 Nov)
 const SOFT = [0.95, 0.6, 0.05]; // sharp, medium, fuzzy: how far out the dab stays full strength
 // tuning (the prototype answers these with the child)
-const OIL_LOAD = 10, OIL_GIVE = 1 / 700, OIL_TAKE = 0.02, OIL_SURF = 0.3, OIL_RIDGE = 1, OIL_PAPER = 0.05, LIGHT = 2.5, GLOSS = 600;
+const OIL_LOAD = 10, OIL_GIVE = 1 / 700, OIL_TAKE = 0.02, OIL_SURF = 0.3, OIL_RIDGE = 1, OIL_PAPER = 0.05, BUMP = 3, GLOSS = 70;
+const LX = -0.45, LY = -0.55, LZ = 0.70, HX = LX / 1.843, HY = LY / 1.843, HZ = (LZ + 1) / 1.843; // light from the top left; half-way vector between light and eye
 const WATER_ADD = 0.35, WATER_DENSITY = 0.45, WATER_EDGE = 0.9, WATER_D = 0.22, WET_SECS = 0.8;
 const CRAY_T = 0.3, CRAY_RAMP = 0.3, CRAY_FLOW = 0.35;
 
@@ -99,10 +101,13 @@ function renderRect(x0, y0, x1, y1) {
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     const k = y * CW + x; let a0 = A[k * 3], a1 = A[k * 3 + 1], a2 = A[k * 3 + 2];
     if (wet) { const w = Wv[k]; if (w > 0.002) { const amt = w * (1 + WATER_EDGE * 4 * w * (1 - w)) * WATER_DENSITY; a0 += amt * pg[0]; a1 += amt * pg[1]; a2 += amt * pg[2]; } }
-    const h = Ht[k];
-    const hx = (x > 0 ? Ht[k - 1] : h) - (x < CW - 1 ? Ht[k + 1] : h), hy = (y > 0 ? Ht[k - CW] : h) - (y < CH - 1 ? Ht[k + CW] : h);
-    const sl = hx + hy, sh = (1 + LIGHT * sl) * (0.965 + 0.035 * grain[k]);
-    const sp = sl > 0 && h > 0.03 ? Math.min(70, GLOSS * sl * sl) : 0;
+    const h = Ht[k], xl = x > 0 ? -1 : 0, xr = x < CW - 1 ? 1 : 0, yu = y > 0 ? -CW : 0, yd = y < CH - 1 ? CW : 0;
+    const gx = (Ht[k + yu + xr] + 2 * Ht[k + xr] + Ht[k + yd + xr]) - (Ht[k + yu + xl] + 2 * Ht[k + xl] + Ht[k + yd + xl]);
+    const gy = (Ht[k + yd + xl] + 2 * Ht[k + yd] + Ht[k + yd + xr]) - (Ht[k + yu + xl] + 2 * Ht[k + yu] + Ht[k + yu + xr]);
+    const nx = -gx * BUMP, ny = -gy * BUMP, nl = 1 / Math.sqrt(nx * nx + ny * ny + 1);
+    const dif = (nx * LX + ny * LY + LZ) * nl / LZ;
+    const sh = (0.8 + 0.2 * dif) * (0.965 + 0.035 * grain[k]);
+    const hd = (nx * HX + ny * HY + HZ) * nl, sp = h > 0.02 ? GLOSS * Math.min(1, h * 3) * Math.pow(Math.max(0, hd), 30) : 0;
     const o = k * 4;
     px[o] = Math.exp(-a0) * sh * 255 + sp; px[o + 1] = Math.exp(-a1) * sh * 255 + sp; px[o + 2] = Math.exp(-a2) * sh * 255 + sp; px[o + 3] = 255;
   }
@@ -153,16 +158,18 @@ const water = { active: false, pig: [0, 0, 0], rect: null, last: 0, stroking: fa
 const smooth = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 function oilStart(s) {
   const R = s.r, n = 2 * R + 1, ca = COLORS[st.color].map(ab);
-  s.n = n; s.tipA = new Float32Array(n * n * 3); s.tipL = new Float32Array(n * n).fill(OIL_LOAD);
+  s.n = n; s.res = ca; s.tipA = new Float32Array(n * n * 3); s.tipL = new Float32Array(n * n).fill(OIL_LOAD);
   for (let t = 0; t < n * n; t++) { s.tipA[t * 3] = ca[0]; s.tipA[t * 3 + 1] = ca[1]; s.tipA[t * 3 + 2] = ca[2]; }
-  const NB = Math.max(6, R >> 1), r = rng((Math.random() * 1e9) | 0), b = new Float32Array(NB);
-  for (let i = 0; i < NB; i++) b[i] = 0.35 + 0.65 * r();
-  s.bristle = b.map((v, i) => (v + b[Math.max(0, i - 1)] + b[Math.min(NB - 1, i + 1)]) / 3); s.rnd = r;
+  const NB = 2 * R + 1, r = rng((Math.random() * 1e9) | 0), b = new Float32Array(NB); // one bristle per pixel across
+  for (let i = 0; i < NB; i++) b[i] = r() * r();
+  let sm = b; for (let pass = 0; pass < 3; pass++) { const t = sm; sm = t.map((v, i) => (t[Math.max(0, i - 2)] + 4 * t[Math.max(0, i - 1)] + 6 * v + 4 * t[Math.min(NB - 1, i + 1)] + t[Math.min(NB - 1, i + 2)]) / 16); } // bristles blend into soft grooves
+  let lo = 1, hi = 0; for (const v of sm) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  s.bristle = sm.map((v) => 0.45 + 0.55 * (v - lo) / (hi - lo + 1e-6)); s.rnd = r; // strong but soft streaks
 }
 function oilDab(s, cx, cy) {
   const R = s.r, n = s.n, dx = s.dir[0], dy = s.dir[1], NB = s.bristle.length, tipA = s.tipA, tipL = s.tipL;
   const X = Math.round(cx), Y = Math.round(cy);
-  for (let i = 0; i < NB; i++) s.bristle[i] = Math.min(1, Math.max(0.2, s.bristle[i] + (s.rnd() - 0.5) * 0.12)); // each bristle wanders
+  for (let i = 0; i < NB; i++) s.bristle[i] = Math.min(1, Math.max(0.2, s.bristle[i] + (s.rnd() - 0.5) * 0.02)); // each bristle wanders
   captureRect(X - R, Y - R, X + R, Y + R);
   for (let j = -R; j <= R; j++) {
     const y = Y + j; if (y < 0 || y >= CH) continue;
@@ -178,9 +185,17 @@ function oilDab(s, cx, cy) {
       const L2 = L - give + take, wt = take / (Math.min(L2, OIL_SURF) + take + 1e-6);
       for (let c = 0; c < 3; c++) { const a = A[k * 3 + c], b = tipA[t * 3 + c]; A[k * 3 + c] = a + (b - a) * wc; tipA[t * 3 + c] = b + (a - b) * wt; }
       Ht[k] = hc; tipL[t] = L2;
+      if (L2 > OIL_SURF) { const f = Math.min(1, give / (4 * OIL_SURF)); for (let c = 0; c < 3; c++) tipA[t * 3 + c] += (s.res[c] - tipA[t * 3 + c]) * f; } // paint from deep in the bristles refills the outside
     }
   }
+  tipBlend(s);
   markDirty(X - R, Y - R, X + R, Y + R);
+}
+function tipBlend(s) { // neighbouring bristles touch and share a little paint
+  const n = s.n, a = s.tipA, t = s.tmp || (s.tmp = new Float32Array(a.length));
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x, l = x > 0 ? i - 1 : i, r = x < n - 1 ? i + 1 : i, u = y > 0 ? i - n : i, d = y < n - 1 ? i + n : i;
+    for (let c = 0; c < 3; c++) t[i * 3 + c] = 0.6 * a[i * 3 + c] + 0.1 * (a[l * 3 + c] + a[r * 3 + c] + a[u * 3 + c] + a[d * 3 + c]); }
+  a.set(t);
 }
 function waterDab(s, cx, cy) {
   const R = s.r, X = Math.round(cx), Y = Math.round(cy);
@@ -238,7 +253,7 @@ const SPACING = { oil: 0.1, water: 0.2, crayon: 0.25, simple: 0.1 };
 function startStroke(p) {
   if (st.tool === 'water') { if (water.active && water.pig.join() !== COLORS[st.color].map(ab).join()) bakeWater(); }
   else bakeWater();
-  const r = SIZES[st.tool][st.size];
+  const r = SIZES[st.size];
   stroke = { tool: st.tool, r, sp: Math.max(1, r * SPACING[st.tool]), last: p, carry: 0, dir: [1, 0], ca: COLORS[st.color].map(ab) };
   if (st.tool === 'water') { water.active = true; water.pig = stroke.ca; water.stroking = true; }
   else { newEntry(); if (st.tool === 'oil') oilStart(stroke); }

@@ -272,6 +272,7 @@ Columns: **Theme** (from brief) · **System** (standard game type it is) · **Br
 
 ### 42. Writing game (direction from owner, mechanics open)
 - Owner 2026-11-20: rejected Mycenaean Scribe ("a wrong tablet sends the wrong amount": no game in it) and Word Magic (not persuaded). Wants normal Greek writing, a more living world with interactions, and a storyline. Writing must not be the only thing in the game.
+- Owner 2026-11-20: the writing is done on clay (letters written into clay).
 - Proposal (one concrete story): "After the storm". A storm hits a small island at night. In the morning the village wakes up broken: the fishing boat's name is washed off, so it may not sail; the bakery sign blew into the sea, so nobody finds the bread; a bottle with a letter washed up on the beach. The child walks around the village, which lives on its own (boats, cats, goats, villagers going about their day, day and night). Each person has one trouble, and some are fixed by writing: paint the boat's name on its hull, and it sails out and comes back with fish that the taverna cooks; write the bakery sign, and people walk to the bakery again; read the bottle letter (a girl on the next island lost her dog), write an answer, and the dog is found. Other troubles are fixed with hands: carry, feed, ring the bell. When all are fixed, the ferry comes back and the village has a feast. Further chapters: new troubles on the same island. Unresearched, not decided.
 - Swaps: open.
 
