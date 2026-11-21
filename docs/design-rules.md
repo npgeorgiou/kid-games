@@ -115,7 +115,7 @@ Shared event system in `tools/cues/` (engine `engine.js`, pattern `README.md`, d
 
 ## Status
 
-- Αρχιτέκτονες του αρχαίου κόσμου, was Tower Builder (`games/arxitektones-tou-arxaiou-kosmou`): done (owner, 18 Nov 2026); what it is: its `BUILD.md`.
+- Αρχιτέκτονες του αρχαίου κόσμου, was Tower Builder (`games/arxitektones-tou-arxaiou-kosmou`): done (owner, 18 Nov 2026; cue and tutorial fixes, framework separation, 21 Nov 2026); what it is: its `BUILD.md`.
 - Coloring Book (`games/coloring-book`): sheet approved 20 Nov 2026; sandbox prototype on the graphics card for a Rebelle-like look: 6 tools with their brushes, canvases, Coolors palettes, guide picture (21 Nov), to try with the child.
 
 ## Decided

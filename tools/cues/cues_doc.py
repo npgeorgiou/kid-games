@@ -66,7 +66,7 @@ def main(path):
         parts.insert(0, "Level %s." % c.get("level", "?").upper())
         s = says(c.get("say"))
         if s:
-            kind = {"teach": "teaching", "bg": "background, only if nothing else is playing or waiting"}.get(c.get("kind"), "queued")
+            kind = {"teach": "teaching", "bg": "background, only if nothing else is playing or waiting (how flavour plays)"}.get(c.get("kind"), "queued")
             parts.append("says %s (%s%s%s)." % (s, kind, ", may play during a test" if c.get("during") == "test" else "", (", %s s after it fires" % c["delay"] if isinstance(c.get("delay"), (int, float)) else ", after the %s sound" % c["delay"][6:]) if c.get("delay") else ""))
         if c.get("points"): parts.append(("Glows for %s s: " % c["glow"] if c.get("glow") else "Points at ") + ", ".join(word("points", x) for x in c["points"]) + ".")
         if c.get("attention") == "point": parts.append("The rest of the screen darkens while it waits; only %s can be touched." % ", ".join(word("points", x) for x in c.get("touch", c.get("points", []))))

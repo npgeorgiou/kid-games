@@ -1,17 +1,22 @@
   // tools/cues/engine.js -- the cue engine: one table (the game's cues.json, its format in tools/cues/README.md) says what is
   // said, shown and taught, and when; this engine plays it. Shared by every game (included inside the game's script by its build).
-  // The game provides (its vocabulary, see README.md): CUE_CONDITIONS (condition name -> function(x)), pointTargets(name, x)
-  // (what a point names, as shapes on screen), cueEvent calls at its moments, POINT_KINDS, placeKey(i) (a place's key, for
-  // "once": "place"; a place is what the game calls a level, a room, a site), cueContext() (what every moment carries, e.g. { place }), progress and SAVE_KEY (the saved record), playSound/startAudio, the drawing helpers (SKIN.highlight,
-  // SKIN.dim, SKIN.ghostHand), worldToScreen and the game's own hooks used below (demo, mode, test, auto), and
-  // cueGameLineCut(c) (a line cut short: whatever plays with it, a demo or a picture, stops with it; owner 18 Nov: "if they are
-  // to stop, they stop together"; the game stops a line's companion through cutLine too).
+  // The engine knows no game. The game provides, and the engine knows it only through these (README.md, "The game's hooks"):
+  //   vocabulary: CUE_CONDITIONS (name -> function(x), or function(x, value) for "name:value"), CUE_FIELDS (fields a moment
+  //     carries, named as "field:value"), POINT_KINDS, pointTargets(name, x) and gameTargetShapes(t, yellow) (what a point names,
+  //     as shapes on screen: circle, rect, poly, or path { path(d), hit(px, py), centre, filled }), screenButtons(),
+  //     buttonGlowColor(id), placeKey(i), cueContext(), and its cueEvent(name, ctx) calls;
+  //   memory and settings: progress and SAVE_KEY (the saved record), useTeach (the teaching setting);
+  //   sound and drawing: soundLength(name), MASTER_VOLUME, ctx, cssWidth, cssHeight, SKIN.highlight/dim/ghostHand;
+  //   its moments: cueGameHeld(line) (a waiting line the game holds back now), cueGameNeverCut() (nothing may be cut now),
+  //     cueGameDemo(key, then), cueGameAttention() (its own darkening, or null), cueGameAlwaysTouchable(px, py),
+  //     cueGameDrawCarried(item, x, y, angle, scale), cueGameLineCut(c) (a line cut short: what plays with it stops with it;
+  //     owner 18 Nov), cueGameNewScene(), cueGameTick(dt), cueGameDraw(), cueRhythm().
   // ---------------------------------------------------------------------
   // The cue model, three parts (the table's "rules" say the same in the owner's words; tools/cues/README.md is the pattern):
   // 1. Voice: one line at a time, in the order fired; a line lasts its recording, or LINE_TIME as a text box whose blue bar runs
-  //    out (ESC ends it early). Lines belong to the screen they were fired on; leaving drops what is left. bg and flavour lines play
-  //    only if nothing is playing or waiting; a flavour line fired with a teaching line at the same moment is dropped; during a test only
-  //    lines marked for it start; while a step waits for the child, every other line is dropped (a dropped first time stays unused).
+  //    out (ESC ends it early). Lines belong to the screen they were fired on; leaving drops what is left. Flavour lines play
+  //    only if nothing is playing or waiting; a line fired with a teaching line at the same moment is dropped; lines the game holds
+  //    back (cueGameHeld) wait; while a step waits for the child, every other line is dropped (a dropped first time stays unused).
   // 2. Attention, per cue: none (what it points at glows), point (while the step waits, the rest darkens and only its points or its
   //    touch list can be touched), freeze (while its line plays, the rest darkens and the game freezes). A demo darkens all but the
   //    building and takes no touch. Ctrl held (parent) is never held back.
@@ -98,13 +103,11 @@
   function cond(name, x = {}) {
     if (name.startsWith("not ")) return !cond(name.slice(4), x);
     const [k, v] = name.split(":");
-    if (k === "material") return x.material === v;
-    if (k === "part") return x.part === v;
-    if (k === "why") return x.why === v;
-    if (k === "placed") return childPieces().filter((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx).length >= +v; // N of the child's pieces stand in the building
-    if (k === "done") return isMarked("ever:" + v);
+    if (k === "done") return isMarked("ever:" + v); // the engine's own: that cue has played
     if (name === "tutorial-pending") { const t = tutorialOf(x.place); return !!t && tutorialAt(t) !== "done"; } // this place has a tutorial not finished
-    return !!CUE_CONDITIONS[name](x);
+    if (CUE_CONDITIONS[name]) return !!CUE_CONDITIONS[name](x);
+    if (v != null && CUE_CONDITIONS[k]) return !!CUE_CONDITIONS[k](x, v); // a game condition with a value ("placed:3")
+    return v != null && CUE_FIELDS.includes(k) && x[k] === v; // a field the moment carries ("material:wood")
   }
 
   // --- events: the game calls cueEvent at each moment the table can name (its "on")
@@ -124,7 +127,7 @@
     return out;
   }
   function interruptCues() { // the line playing and what it shows stop; lines waiting their turn are dropped (first times stay unused)
-    if (teachingBusy() || stepWaiting() || demo) return; // a teaching sequence and a demo are never cut
+    if (teachingBusy() || stepWaiting() || cueGameNeverCut()) return; // a tutorial, and whatever the game says may not be cut (Tower Builder: a demo), are never cut
     const c = voice.cur;
     if (c) { c.fin = true; endLine(c); }
     dropQueued();
@@ -139,7 +142,7 @@
   // test went away while "the red shows where it broke" was still to come); one dropped or never fired is done
   function cueDone(c) { return !c || ((c.fin || (voice.cur !== c && !voice.queue.includes(c) && !active.includes(c))) && cueDone(c.next)); }
   function stepWaiting() { return active.some((s) => s.seq && waiting(s)); } // a teaching step waiting for the child
-  function teachingBusy() { return (voice.cur && voice.cur.kind === "teach") || voice.queue.some((q) => q.kind === "teach" && !(test && !q.duringTest)); } // a teaching line held back by a test (it waits for after) does not silence the test's own lines
+  function teachingBusy() { return (voice.cur && voice.cur.kind === "teach") || voice.queue.some((q) => q.kind === "teach" && !cueGameHeld(q)); } // a teaching line the game holds back (Tower Builder: until a test ends) does not silence the lines that may play meanwhile
   // fire one cue: its line (with what it points at, its hand, its wait), or its glow, or what it does
   function fire(c, x, seq) {
     const key = onceKey(c, x);
@@ -147,7 +150,7 @@
     const then = () => { if (c.after != null && (useTeach || !c.teaching)) say(c.after, { kind: "teach" }); if (seq) nextStep(seq, c.id); else if (c.then) { const f = cueEvent(c.then, x).fired.find((l) => l && l.n != null) || null; if (line) line.next = f; } }; // the line its "then" starts is part of it (cueDone)
     if (c.do === "teaching") { if (!useTeach) return c; setMark(key, true); runTutorial(tutorialOf(x.place)); return c; } // ΔΙΔΑΣΚΑΛΙΑ off: no steps (they wait, unmarked, for when it is ticked again)
     if (!useTeach && c.teaching) { then(); return null; } // ΔΙΔΑΣΚΑΛΙΑ off: a teaching line is not said (and stays unused); what follows it goes on, and nothing waits for it (it did not fire: owner 17 Nov, the test waited for an unsaid explanation and never ran)
-    if (c.do === "demo") { setMark(key, true); if (useDemos) startDemo(placeKey(x.place), then); else then(); return c; } // ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ off: no demo, the rest goes on
+    if (c.do === "demo") { setMark(key, true); cueGameDemo(placeKey(x.place), then); return c; } // the game plays the place's demo (or not, if its setting is off) and calls then when it is over
     const memo = {}, pts = (names) => (names || []).flatMap((n) => pointTargets(n, x, memo));
     if (c.glow) { setMark(key, true); glowFor(pts(c.points), c.glow); then(); return c; }
     if (c.say == null) { setMark(key, true); then(); return c; }
@@ -161,7 +164,7 @@
       cue: c, kind: c.kind || "queued", attention: c.attention || "none", targets: pts(c.points), touch: c.touch ? pts(c.touch) : null,
       act: showOf(c.show, x, memo), waitEvent: c.wait && !c.wait.startsWith("until:") ? c.wait : null,
       waitUntil: c.wait && c.wait.startsWith("until:") ? c.wait.slice(6) : null, needs: c.needs, seq,
-      duringTest: c.during === "test", after: typeof c.delay === "number" ? c.delay : c.delay ? soundLength(c.delay.slice(6)) : 0, onceKey: key, then,
+      during: c.during || null, after: typeof c.delay === "number" ? c.delay : c.delay ? soundLength(c.delay.slice(6)) : 0, onceKey: key, then,
     });
     if (line) { setMark(key, true); if (c.sessionName) setMark(sessionKey(c.sessionName, x), true); } // a first-time line also counts as this session's
     return line;
@@ -208,7 +211,7 @@
   function say(n, o = {}) {
     const c = Object.assign({ n, kind: "queued", attention: "none", frame: cueFrame, scene, at: cueClock + (o.after || 0) }, o);
     const teachNow = voice.queue.some((q) => q.frame === cueFrame && q.kind === "teach");
-    if (n == null || !(VOICE_FILES[n] || CUE_TABLE.lines[n]) || (n === 86 && !VOICE_FILES[n]) || ((c.kind === "bg" || (c.cue && c.cue.level === "flavour")) && (voice.cur || voice.queue.length)) || (c.kind !== "teach" && teachNow)) return null;
+    if (n == null || !(VOICE_FILES[n] || CUE_TABLE.lines[n]) || ((c.kind === "bg" || (c.cue && c.cue.level === "flavour")) && (voice.cur || voice.queue.length)) || (c.kind !== "teach" && teachNow)) return null;
     if (c.kind === "teach") voice.queue = voice.queue.filter((q) => { const drop = q.frame === cueFrame && q.kind !== "teach"; if (drop) setMark(q.onceKey, false); return !drop; });
     voice.queue.push(c);
     return c;
@@ -242,7 +245,7 @@
   }
   function finish(c) { if (c.fin) return; c.fin = true; if (c.then) c.then(); }
   const waiting = (c) => !!((c.waitEvent || c.waitUntil) && !c.fin && !c.done && !(c.waitUntil && cond(c.waitUntil)));
-  function gameNow() { return cueClock * 1000; } // game time in ms (the frame clock): input, the pile and the button go by it, so a test run repeats exactly
+  function gameNow() { return cueClock * 1000; } // game time in ms (the frame clock): a game can time its own things by it, so a run repeats exactly
   function cueTick(dt) {
     cueFrame++; cueClock += dt;
     const now = cueClock, c = voice.cur;
@@ -252,7 +255,7 @@
       else if (cueAudio) { if (!c.blocked && now - c.t0 >= (VOICE_SECONDS[c.n] || 0)) endLine(c); } // a recording ends at its real end (onended) or by the game clock at its length, whichever comes first
       else { if (u >= 1) endLine(c); else cueBar.style.left = (u * 100).toFixed(1) + "%"; }
     }
-    // a step in a sequence that needs something gone missing goes back to the step that makes it
+    // a step in a tutorial that needs something gone missing goes back to the step that makes it
     for (const s of active) if (s.seq && s.needs && waiting(s) && !cond(s.needs)) {
       const back = s.cue.back; s.fin = true; cutLine(s); voice.queue = voice.queue.filter((q) => q !== s);
       if (back) runStep(s.seq, back);
@@ -271,10 +274,10 @@
     for (const q of early) finish(q);
     // a step still waiting says its line again, its hand with it, REPEAT_GAP s after its line ended
     for (const s of active) if (s.n != null && s.ended && waiting(s) && now - s.endT >= ((s.cue && s.cue.repeat) || REPEAT_GAP) && !voice.cur && !voice.queue.length) voice.queue.push(Object.assign(s, { at: now, frame: cueFrame }));
-    if (!voice.cur) { // the next one in order; lines held back only by a test or a demo let later ones marked for it go first
+    if (!voice.cur) { // the next one in order; lines the game holds back now (cueGameHeld) let later ones go first
       for (const q of voice.queue) {
         if (now < q.at) break;
-        if ((test && !q.duringTest) || (demo && demo.go && !q.demo)) continue;
+        if (cueGameHeld(q)) continue;
         voice.queue.splice(voice.queue.indexOf(q), 1); startLine(q); break;
       }
     }
@@ -284,7 +287,7 @@
     const p = new Path2D();
     if (s.kind === "circle") p.arc(s.x, s.y, s.r + d, 0, Math.PI * 2);
     else if (s.kind === "rect") p.rect(s.x - d, s.y - d, s.w + 2 * d, s.h + 2 * d);
-    else if (s.kind === "region") p.addPath(screenPath(s.rings));
+    else if (s.kind === "path") p.addPath(s.path(d));
     else { const q = d ? growPoly(s.pts, d) : s.pts; q.forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y))); p.closePath(); }
     return p;
   }
@@ -300,7 +303,7 @@
   function shapeHit(s, px, py) {
     if (s.kind === "circle") return Math.hypot(px - s.x, py - s.y) <= s.r;
     if (s.kind === "rect") return px >= s.x && px <= s.x + s.w && py >= s.y && py <= s.y + s.h;
-    if (s.kind === "region") { if (px >= buildingWidthPx) return false; const w = screenToWorld(px, py); return s.rings.some((r) => inRing(w.x, w.y, r)); }
+    if (s.kind === "path") return s.hit(px, py);
     let inside = false; const P = s.pts;
     for (let i = 0, j = P.length - 1; i < P.length; j = i++) if ((P[i][1] > py) !== (P[j][1] > py) && px < ((P[j][0] - P[i][0]) * (py - P[i][1])) / (P[j][1] - P[i][1]) + P[i][0]) inside = !inside;
     return inside;
@@ -308,7 +311,8 @@
   function shapeCentre(s) {
     if (s.kind === "circle") return { x: s.x, y: s.y };
     if (s.kind === "rect") return { x: s.x + s.w / 2, y: s.y + s.h / 2 };
-    const P = s.kind === "region" ? s.rings.flat().map(([x, y]) => { const q = worldToScreen(x, y); return [q.x, q.y]; }) : s.pts;
+    if (s.kind === "path") return s.centre;
+    const P = s.pts;
     return { x: P.reduce((a, p) => a + p[0], 0) / P.length, y: P.reduce((a, p) => a + p[1], 0) / P.length };
   }
   function showOf(show, x, memo) { // "tap A", "tap3 A", "drag A > B": what the ghost hand acts out
@@ -330,7 +334,7 @@
   const shapesOf = (targets) => (targets || []).flatMap(targetShapes);
   // what holds attention now: { holes (bright), touch (can be touched) } or null
   function attention() {
-    if (demo) return { holes: [{ area: "build" }], touch: [] };
+    const own = cueGameAttention(); if (own) return own; // the game's own (Tower Builder: a demo darkens all but the building)
     const hold = active.filter((s) => (s.attention === "freeze" && s === voice.cur) || (s.attention === "point" && (s === voice.cur || waiting(s))));
     if (!hold.length) return null;
     const touch = hold.filter((s) => s.attention === "point").flatMap((s) => s.touch || s.targets || []);
@@ -339,8 +343,7 @@
   function cueFrozen() { const c = voice.cur; return !!(c && c.attention === "freeze"); }
   function cueBlocks(px, py) {
     lastInput = cueClock;
-    if (tabHeldNow()) return false;
-    if (mode === "map") { const g = settingsButton(); if (settingsOpen || Math.hypot(px - g.x, py - g.y) <= g.size / 2) return false; } // the parent's gear and its box are never darkened away
+    if (cueGameAlwaysTouchable(px, py)) return false; // what the game never holds back (Tower Builder: the parent's Ctrl, the settings gear and box)
     const at = attention();
     return !!at && !shapesOf(at.touch).some((t) => shapeHit(t.shape, px, py));
   }
@@ -358,7 +361,7 @@
       const [a] = targetShapes(g.drag), [b] = targetShapes(g.to); if (!a || !b || t > 3.6) return;
       const A = shapeCentre(a.shape), B = shapeCentre(b.shape), u = Math.max(0, Math.min(1, (t - 1) / 2)), e = u * u * (3 - 2 * u);
       const x = A.x + (B.x - A.x) * e, y = A.y + (B.y - A.y) * e, held = t >= 0.6 && t < 3.1;
-      if (held && a.item) { ctx.save(); ctx.globalAlpha = 0.45; drawPieceShape(a.item.defKey, a.item.material, x, y, a.a || 0, a.sc + ((b.sc || a.sc) - a.sc) * e, 0, 7); ctx.restore(); }
+      if (held && a.item) cueGameDrawCarried(a.item, x, y, a.a || 0, a.sc + ((b.sc || a.sc) - a.sc) * e); // the game draws what the hand carries, see-through
       SKIN.ghostHand(ctx, x, y, held, Math.min(1, t / 0.4, (3.6 - t) / 0.5) * 0.9);
     }
   }
@@ -366,7 +369,7 @@
     const at = attention();
     if (at) SKIN.dim(ctx, cssWidth, cssHeight, shapesOf(at.holes).map((t) => shapePath(t.shape, 6)));
     const u = cueRhythm() ? null : (cueClock % HL_PERIOD) / HL_PERIOD; // a screen whose alerts beat the rhythm (PULSE_BEATS), each from its own start
-    for (const c of active) for (const t of shapesOf(c.targets)) SKIN.highlight(ctx, (d) => shapePath(t.shape, d), t.shape.kind === "region", t.color, u == null ? pulseAges(cueClock - (c.t0 != null ? c.t0 : 0)) : u, HL_RING);
+    for (const c of active) for (const t of shapesOf(c.targets)) SKIN.highlight(ctx, (d) => shapePath(t.shape, d), !!t.shape.filled, t.color, u == null ? pulseAges(cueClock - (c.t0 != null ? c.t0 : 0)) : u, HL_RING);
     const g = [...active].reverse().find((q) => q.act);
     if (g) drawGhost(g.act, cueClock - g.t0);
     cueGameDraw(); // what the game draws with the cues (its own alerts, its demo's hand)
@@ -376,7 +379,7 @@
   // the table names only what the code knows: every event fired, condition, point and line used (the harness prints this)
   const CUE_LEVELS = ["tutorial", "intro", "explanation", "flavour"];
   function cueCheckTable() {
-    const bad = [], conds = (n) => { const b = n.replace(/^not /, ""); if (!/^(material|part|done|why|placed):/.test(b) && b !== "tutorial-pending" && !CUE_CONDITIONS[b]) bad.push("condition " + n); };
+    const bad = [], conds = (n) => { const b = n.replace(/^not /, ""), [k, v] = b.split(":"); if (!(k === "done" || b === "tutorial-pending" || CUE_CONDITIONS[b] || (v != null && (CUE_CONDITIONS[k] || CUE_FIELDS.includes(k))))) bad.push("condition " + n); };
     const steps = Object.values(CUE_TABLE.tutorials).flatMap((t) => t.steps);
     for (const c of CUE_TABLE.cues) {
       if (!CUE_LEVELS.includes(c.level)) bad.push("level of " + c.id); // every cue has one of the four levels

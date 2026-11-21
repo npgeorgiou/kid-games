@@ -1752,10 +1752,6 @@
     return out;
   }
   function pileItems() { return pileBodies().map((b) => b.pileItem); }
-  function pieceArea(defKey) {
-    const d = PIECE_DEFS[defKey];
-    return d.shape === "circle" ? Math.PI * d.r * d.r : d.shape === "poly" ? 4 * d.hx * d.hy * 0.83 : 4 * d.hx * d.hy;
-  }
   function createPileBody(item, x, y) {
     const def = PIECE_DEFS[item.defKey], mat = MATERIALS[item.material];
     const body = pileWorld.createBody({ type: "dynamic", position: planck.Vec2(x, y), angularDamping: PILE_ANG_DAMP, linearDamping: 0.3 });
@@ -2785,13 +2781,6 @@
     }
   }
   // The player's finished building, small, on its map site.
-  // Where the drawn building sits in its circle of radius r: half width and half height, in screen pixels.
-  function monumentBox(done, r) {
-    const b = monumentBounds(done);
-    if (!b) return null;
-    const sc = (1.5 * r) / Math.max(b.x1 - b.x0, b.y1 - b.y0, 1);
-    return { hw: ((b.x1 - b.x0) / 2) * sc, hh: ((b.y1 - b.y0) / 2) * sc };
-  }
   function monumentBounds(done) {
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (const [d, , x, y] of done.pieces) {
@@ -2954,7 +2943,6 @@
     return { line, lens, leg, dir: 1, d: lens[leg] * ((i * 0.37) % 1), wait: 0, x: 0, y: 0, vx: 1, vy: 0, ox: 0, oy: 0, ovx: 0, ovy: 0, hd: null, rise: 0 };
   });
   // Seconds a boat of this line needs to sail from stop a to stop b (indexes), and for a whole round.
-  const sailTime = (b, i, j) => { let L = 0; for (let k = Math.min(i, j); k < Math.max(i, j); k++) L += b.lens[k]; return L / BOAT_SPEED + Math.abs(i - j) * BOAT_REST; };
   // A boat the child moves (owner 17 Nov), in four parts.
   // 1. Held, it is lifted off its shadow and follows the finger without turning; its travellers stay in it.
   // 2. Let go, it falls onto its shadow with the splash (and waves) of a tap there, then goes back to the nearest
@@ -3893,15 +3881,15 @@
     if (t.lastPiece) { const p = childPieces().slice(-1)[0]; return p ? [pieceTarget(p)] : []; }
     if (t.form) return supportPieces().filter((p) => !p.demo).map(pieceTarget);
     if (t.worldShape) { const [k, x, y, a] = t.worldShape; return [{ shape: pieceShape(k, worldToScreen, x, y, a), color: Y }]; }
-    if (t.rings) return t.rings.length ? [{ shape: { kind: "region", rings: t.rings }, color: Y }] : [];
-    if (t.plan) return grid ? [{ shape: { kind: "region", rings: grid.solid }, color: Y }] : [];
+    if (t.rings) return t.rings.length ? [{ shape: regionShape(t.rings), color: Y }] : [];
+    if (t.plan) return grid ? [{ shape: regionShape(grid.solid), color: Y }] : [];
     if (t.fail) { // the red place of a failed test
       if (!failShow) return [];
       if (failShow.loads.length) { const l = failShow.loads[0], q = l.body.getPosition(); return [{ shape: { kind: "poly", pts: l.verts.map(([x, y]) => { const s = worldToScreen(q.x + x, q.y + y); return [s.x, s.y]; }) }, color: HL_COLOR.red }]; }
       if (!failShow.cells.length) return [];
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for (const k of failShow.cells) { const x = (k % GX) * CELL, y = Math.floor(k / GX) * CELL; x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + CELL); y1 = Math.max(y1, y + CELL); }
-      return [{ shape: { kind: "region", rings: [[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]] }, color: HL_COLOR.red }];
+      return [{ shape: regionShape([[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]]), color: HL_COLOR.red }];
     }
     if (t.point) { const s = worldToScreen(t.point.x, t.point.y); return [{ shape: { kind: "circle", x: s.x, y: s.y, r: 8 }, color: Y, sc: scale }]; }
     if (t.side) return [{ shape: { kind: "circle", x: buildingWidthPx + sidebarWidthPx / 2, y: cssHeight * 0.6, r: 30 }, color: Y, sc: pileScale }];
@@ -3936,6 +3924,7 @@
     "testing": () => !!test,
     "piece-resting": () => childPieces().some((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx && touching(p.body) && Math.hypot(p.body.getLinearVelocity().x, p.body.getLinearVelocity().y) < 0.05 && Math.abs(p.body.getAngularVelocity()) < 0.05),
     "load-covered": () => !!grid && runCheck().load > 0,
+    "placed": (x, n) => childPieces().filter((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx).length >= +n, // n of the child's pieces stand in the building ("placed:3")
     "plan-has-piece": () => pieces.some((p) => !p.demo && !p.auto && (!p.ghost || p.heldBy != null)), // a piece in the child's hand is still his, even while it passes over others or the pile
     "test-ready": () => testReady(),
     "no-form": () => !supportPieces().length,
@@ -3968,7 +3957,7 @@
   }
 
   // --- part 2: attention
-  // Shapes on screen: { kind: "circle", x, y, r } | { kind: "poly", pts } | { kind: "rect", x, y, w, h } | { kind: "region", rings (world) }
+  // Shapes on screen: { kind: "circle", x, y, r } | { kind: "poly", pts } | { kind: "rect", x, y, w, h } | { kind: "path", path, hit, centre, filled } (a region of the world, made by regionShape)
   function pieceShape(defKey, toS, x, y, a) { // a piece's outline on screen, from its own shape
     const d = PIECE_DEFS[defKey];
     if (d.shape === "circle") { const c = toS(x, y), e = toS(x + d.r, y); return { kind: "circle", x: c.x, y: c.y, r: Math.hypot(e.x - c.x, e.y - c.y) }; }
@@ -4056,7 +4045,7 @@
   function onBreak(kind, p) { if (!p.demo && !demo) cueEvent(kind, { piece: p }); }
   function onRedPress() { if (!cueEvent("press-test").ended) cueEvent("press-red"); }
   function onTestStart() { // lines still waiting from the building are dropped (first times stay unused): after the test they would be stale
-    dropQueued((q) => q.duringTest);
+    dropQueued((q) => q.during === "test");
     if (!cueEvent("press-test").ended) test.waitCue = cueEvent("test-start").fired.find((c) => c.n != null) || null;
   }
   // The test's steps follow its cues (owner 18 Nov: "the 'lets see, will it stand' cue ... should play first, then the tests
@@ -4101,6 +4090,23 @@
     for (const [dk, m, x, y, a, sd] of d.keep) spawnPiece(dk, x, y, a, m).seed = sd;
     return d;
   }
+  // The engine's hooks this game fills (tools/cues/README.md): what it knows of the game only through these.
+  const CUE_FIELDS = ["material", "part", "why"]; // what a moment carries, named in the table as "material:wood"
+  function regionShape(rings) { // a region of the world (rings in metres) as a shape on screen: its outline, what touches it, its middle
+    const P = rings.flat().map(([x, y]) => worldToScreen(x, y));
+    return { kind: "path", filled: true, path: () => screenPath(rings), centre: { x: P.reduce((a, q) => a + q.x, 0) / P.length, y: P.reduce((a, q) => a + q.y, 0) / P.length },
+      hit: (px, py) => { if (px >= buildingWidthPx) return false; const w = screenToWorld(px, py); return rings.some((r) => inRing(w.x, w.y, r)); } };
+  }
+  const cueGameHeld = (q) => (!!test && q.during !== "test") || (!!demo && demo.go && !q.demo); // while a test runs only its lines start; while a demo plays only its own
+  const cueGameNeverCut = () => !!demo; // a demo is never cut by the child's action
+  function cueGameDemo(key, then) { if (useDemos) startDemo(key, then); else then(); } // ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ off: no demo, the rest goes on
+  const cueGameAttention = () => (demo ? { holes: [{ area: "build" }], touch: [] } : null); // a demo darkens all but the building and takes no touch
+  function cueGameAlwaysTouchable(px, py) { // the parent's Ctrl, and on the map the settings gear and its box, are never held back
+    if (tabHeldNow()) return true;
+    if (mode !== "map") return false;
+    const g = settingsButton(); return settingsOpen || Math.hypot(px - g.x, py - g.y) <= g.size / 2;
+  }
+  function cueGameDrawCarried(item, x, y, a, sc) { ctx.save(); ctx.globalAlpha = 0.45; drawPieceShape(item.defKey, item.material, x, y, a, sc, 0, 7); ctx.restore(); } // the ghost hand's piece
   function cueGameLineCut(c) { if (c.demo) stopDemo(); } // a demo's line cut short stops the demo (the site intro's picture goes with its line by itself)
   function demoCarry(piece, tx, ty, ta, out, via) { // via: a point above the target; the piece comes over everything, then straight down
     piece.body.setKinematic();

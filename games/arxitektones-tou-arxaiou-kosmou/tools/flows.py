@@ -638,7 +638,7 @@ def tutorial_early_brick(b):
         elif st == 't-green':  # the building finished with the quick build; the button once the step has said it is green
             if 100 in q.evaluate("()=>__rec.said"): click(q, 'test')
             elif not q.evaluate("()=>__tb.testReady()"):
-                q.keyboard.down('Control'); time.sleep(0.1); click(q, 'autobuild'); until(q, "()=>!__tb.auto", 20); q.keyboard.up('Control')
+                q.keyboard.down('Control'); time.sleep(0.1); click(q, 'autobuild'); until(q, "()=>!__tb.auto", 20); q.keyboard.up('Control'); time.sleep(3.2)  # the child's press, not the parent's (WARNINGS: Ctrl latch)
         else: brick()
         time.sleep(0.6)
     r = dict(steps=seen, said=q.evaluate("()=>__rec.said"), step=q.evaluate("()=>__tb.cueMem().seq['first-site']"), pieces=n,
@@ -817,9 +817,9 @@ def pile_piece_not_in_wall(b):
         time.sleep(2)
         out = q.evaluate("""()=>{const T=__tb,r=T.pileBinRect,Wm=r.w/T.pileScale; return T.pileBodies().map((b)=>{let lo=1e9,hi=-1e9; for(let f=b.getFixtureList();f;f=f.getNext()){const bb=f.getAABB(0); lo=Math.min(lo,bb.lowerBound.x); hi=Math.max(hi,bb.upperBound.x);} return [+lo.toFixed(2), +(hi-Wm).toFixed(2)];}).filter(([lo,hi])=>lo<-0.05||hi>0.05);}""")
         if out: stuck.append([k, out])
-    time.sleep(1); still = q.evaluate("()=>Math.max(...__tb.pileBodies().map((b)=>b.getLinearVelocity().length()))")  # and the pile comes to rest
+    until(q, "()=>Math.max(...__tb.pileBodies().map((b)=>b.getLinearVelocity().length()))<0.05", 5); still = q.evaluate("()=>Math.max(...__tb.pileBodies().map((b)=>b.getLinearVelocity().length()))"); moving = q.evaluate("()=>__tb.pileBodies().filter((b)=>b.getLinearVelocity().length()>0.05).map((b)=>{const p=b.getPosition(); return [+p.x.toFixed(2), +p.y.toFixed(2), +b.getLinearVelocity().x.toFixed(3), +b.getLinearVelocity().y.toFixed(3)]})")  # and the pile comes to rest
     q.close()
-    return not stuck and still < 0.05, dict(stuck=stuck, pile_speed=still)
+    return not stuck and still < 0.05, dict(stuck=stuck, pile_speed=still, moving=moving)
 
 def boat_on_boat(b):
     # owner 18 Nov: "make so dropping a boat on another boat makes the same sound that the blocks do on wood-on-wood hit. sound
