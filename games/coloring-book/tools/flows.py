@@ -206,10 +206,10 @@ def f_shapes(q):  # owner 21 Nov: brush shapes; a flat brush is a bar, held at o
     report(abs(rnd[0] - rnd[1]) <= 2 and bar > 2 * across, 'brush shapes: round dab is round, flat dab is a diagonal bar',
            'round %dx%d, flat along the diagonal %d, across it %d (2 px steps)' % (rnd[0], rnd[1], bar, across))
 
-def f_canvas(q):  # owner 21 Nov: other canvases; linen shows a woven surface
-    tap(q, 'canvas'); tap(q, 'canvas-linen'); time.sleep(0.5)
+def f_canvas(q):  # owner 21 Nov: other canvases; the cotton canvas shows a woven surface (owner 21 Nov 17:26: linen removed)
+    tap(q, 'canvas'); tap(q, 'canvas-cotton'); time.sleep(0.5)
     r = [lum(shown(q, 400 + x, 400)) for x in range(0, 40)]
-    report(q.evaluate("()=>__cb.st.canvas") == 'linen' and max(r) - min(r) > 6, 'canvas: picking linen gives a new page on linen', 'canvas %s, light across 40 px %d..%d' % (q.evaluate("()=>__cb.st.canvas"), min(r), max(r)))
+    report(q.evaluate("()=>__cb.st.canvas") == 'cotton' and max(r) - min(r) > 6, 'canvas: picking cotton gives a new page on cotton', 'canvas %s, light across 40 px %d..%d' % (q.evaluate("()=>__cb.st.canvas"), min(r), max(r)))
 
 def f_oil_dry(q):  # owner 21 Nov (plan): wet paint mixes, dry paint stays put; new paint sits on top of dry paint
     tap(q, 'tool-acrylic'); tap(q, 'size-2'); hold(q, 'color-4', 1.6); drag(q, [(200, 300), (700, 300)])
@@ -263,3 +263,36 @@ def f_water_speed(q):  # owner 21 Nov: watercolour laggy, more so with more pain
     drag(q, [(1200, 850), (1450, 850)], step=30); two = q.evaluate(ft)
     report(two < one * 2.6, 'watercolour: two far wet spots cost about twice one', 'frame %.0f ms with one, %.0f ms with two (this machine)' % (one, two))
 FLOWS['water_speed'] = f_water_speed
+
+def f_crayon_back_forth(q):  # owner 21 Nov 17:26: going back and forth over the same line keeps adding colour all along it, not only at its ends (papers 1 and 3)
+    tap(q, 'tool-crayon'); tap(q, 'size-2'); tap(q, 'color-6')
+    pts = [(300, 400), (900, 400)] * 3
+    drag(q, pts[:2]); one = q.evaluate("()=>{let n=0,p=0;for(let x=500;x<700;x+=3)for(let y=396;y<=404;y++){n++;if(__cb.shown(x,y)[0]>200)p++;}return 1-p/n}")
+    drag(q, pts)
+    more = q.evaluate("()=>{let n=0,p=0;for(let x=500;x<700;x+=3)for(let y=396;y<=404;y++){n++;if(__cb.shown(x,y)[0]>200)p++;}return 1-p/n}")
+    report(more > one + 0.08, 'crayon: back and forth adds colour in the middle', 'covered in the middle: one pass %.2f, then four more %.2f' % (one, more))
+
+def f_crayon_bend(q):  # owner 21 Nov 17:26: a bend does not paint thicker than the straight part
+    tap(q, 'tool-crayon'); tap(q, 'shape-0'); tap(q, 'size-2'); tap(q, 'color-6')
+    drag(q, [(300, 300), (700, 300), (700, 700)])
+    cov = "([x0,y0,x1,y1])=>{let n=0,p=0;for(let x=x0;x<x1;x+=2)for(let y=y0;y<y1;y+=2){n++;if(__cb.shown(x,y)[0]>200)p++;}return 1-p/n}"
+    straight = q.evaluate(cov, [450, 290, 550, 310]); corner = q.evaluate(cov, [670, 290, 690, 310])
+    report(corner < straight + 0.12, 'crayon: the bend is not denser than the straight part', 'covered straight %.2f, inside the bend %.2f' % (straight, corner))
+FLOWS.update({'crayon_back_forth': f_crayon_back_forth, 'crayon_bend': f_crayon_bend})
+
+def f_picker(q):  # owner 21 Nov 17:26: a colour picker next to the palette: tap it, tap the painting, paint with that colour
+    tap(q, 'tool-simple'); tap(q, 'size-2'); tap(q, 'color-2'); drag(q, [(300, 300), (600, 300)])
+    tap(q, 'color-6'); tap(q, 'pick'); s = q.evaluate("([x,y])=>__cb.screenOf(x,y)", [450, 300]); q.mouse.click(*s); time.sleep(0.1)
+    drag(q, [(300, 600), (600, 600)]); a, b = shown(q, 450, 300), shown(q, 450, 600)
+    report(max(abs(a[i] - b[i]) for i in range(3)) < 12, 'colour picker: the picked red paints red', 'picked from %s, painted %s' % (a, b))
+
+def f_keep_amount(q):  # owner 21 Nov 17:26: with a paint amount chosen, choosing another colour keeps it
+    hold(q, 'color-2', 0.6); lv = q.evaluate("()=>__cb.st.load"); tap(q, 'color-6')
+    report(lv == 1 and q.evaluate("()=>__cb.st.load") == 1, 'another colour keeps the paint amount', 'a third chosen (%s), after another colour %s' % (lv, q.evaluate("()=>__cb.st.load")))
+
+def f_simple_over(q):  # owner 21 Nov 17:26: the simple brush lays its colour over what is there by opacity; a soft edge never lightens the colour under it
+    tap(q, 'tool-simple'); tap(q, 'size-3'); tap(q, 'color-6'); drag(q, [(200, 400), (1000, 400)])
+    under = shown(q, 600, 400); tap(q, 'blur-0'); tap(q, 'color-4'); drag(q, [(600, 100), (600, 700)])
+    edge = [shown(q, 600 + dx, 400) for dx in range(30, 80, 5)]
+    report(all(lum(e) >= lum(under) - 6 and e[2] <= under[2] + 6 for e in edge), 'simple brush: a soft yellow edge over blue only adds yellow', 'blue %s, across the edge %s' % (under, edge[::3]))
+FLOWS.update({'picker': f_picker, 'keep_amount': f_keep_amount, 'simple_over': f_simple_over})
