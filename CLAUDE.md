@@ -9,6 +9,11 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 1. Attach the repo with `add_repo` (push access). If it or a push is refused, retry once before saying anything about access.
 2. Read the game's `games/<game>/WARNINGS.md` (traps found in that game, written as instructions) and the "Now" and "Task list" sections of its `BUILD.md`. Nothing else until the task needs it.
 
+## How to work
+
+- Act as a professional software developer: clean code (one owner per behaviour, no dead code, no leftovers, names that say what things are, no duplication) and test-driven development (a failing test first, then the code that makes it pass, then clean up).
+- **No failing tests, ever.** Every test in the repo passes after every change. A failing test is never left in place, skipped or reported as "already failing": find whether the test or the code is wrong, and if only the owner can decide, ask him before the change is called done.
+
 ## The two gates (they come before everything else)
 
 1. **A question is answered first.** If the owner's message contains a question, the first thing sent is the answer (SendUserMessage), before any tool call that changes or tests anything. If an answer could change what gets built, stop after answering and wait.
