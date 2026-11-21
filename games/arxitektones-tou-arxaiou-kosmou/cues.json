@@ -1096,8 +1096,8 @@
    "points": ["pile:one-mudbrick", "plan"],
    "touch": ["pile:all", "plan"],
    "show": "drag pile:one-mudbrick > plan:first-place",
-   "wait": "until:piece-resting",
-   "note": "Again, so there is something for the shovel."
+   "wait": "until:placed:3",
+   "note": "Again, so there is something for the shovel. Owner 21 Nov: it waits until three pieces stand in the building (what the shovel step needs), so one piece put in at once neither cuts nor skips its line."
   },
   {
    "id": "t-shovel",

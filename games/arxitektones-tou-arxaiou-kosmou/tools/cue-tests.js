@@ -126,7 +126,7 @@
       step("t-drag-3", "dragged back to the pile by hand");
       if (cur() !== 138 && !said().includes(138)) bad.push("after the drag back, not line 138 (" + cur() + ")"); // owner 16 Nov night, 1
       run(8); step("t-drag-3", "8 s later (no going round again)");
-      drag(pileAt("mudbrick"), planAt()); settle(); run(1); step("t-shovel", "one piece in (the shovel waits for three)"); if (said().includes(95)) bad.push("95 before four pieces");
+      drag(pileAt("mudbrick"), planAt()); settle(); run(1); step("t-drag-3", "one piece in (its line asks for a few: it waits for three, owner 21 Nov)"); if (said().includes(95)) bad.push("95 before four pieces");
       // 15 Nov night: the shovel's line once four pieces stand
       drag(pileAt("mudbrick"), planAt(-3)); run(1); if (said().includes(95)) bad.push("95 at two pieces");
       drag(pileAt("mudbrick"), planAt(3)); run(2); if (!said().includes(95)) bad.push("95 not said at three pieces"); // 15 Nov night: three
