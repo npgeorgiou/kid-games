@@ -20,6 +20,8 @@ Traps found while working on this game, as instructions. Add a line whenever a n
 - Every cue has a level (tutorial, intro, explanation, flavour) in cues.json; the engine applies it. Change a cue's behaviour by its level, never with a condition in the game (owner 21 Nov).
 - A cue is done only when the line its "then" started is done too: the test's red stays until the failure's lines are said (21 Nov).
 
+- A tutorial step waits for what its line asks for ("put a few pieces" waits for three); a step that waits for less ends at once, its line is cut or skipped, and the tutorial goes silent (owner 21 Nov). Every tutorial flow repeats the owner's own order of actions, including doing the next thing at once.
+
 ## Building and the hand
 - The outline is the shape of the building (solid, with only its real openings), never the union of the suggested build's pieces.
 - Every piece weighs its size counted in its material's regular block; lifting, carrying, pushing, breaking and the test all go by total weight.
