@@ -30,30 +30,33 @@ canvas.pic{position:absolute;touch-action:none}
 <script>
 'use strict';
 // SECTION: MODEL -- the paint model in plain words
-/* The paint model (one part per material):
+/* The paint model (all of it runs on the graphics card, one small program per step):
  1. The picture is a grid of pixels. Each pixel holds how much light its paint swallows, per red/green/blue
-    (absorbance, A = -ln(reflectance)), and how thick the paint is (H). Mixing two paints averages their absorbance
-    by amount, a subtractive mix, so blue and yellow make green (standard technique: Beer-Lambert pigment mixing).
+    (absorbance, A = -ln(reflectance)), and how thick the oil paint is (H). Opaque paints that mix (oil, crayon, simple
+    brush) mix like real pigment: the pigments' light swallowing and scattering are averaged by amount and turned back
+    into a colour (standard technique: Kubelka-Munk mixing). See-through watercolour layers add their absorbance on top
+    (standard technique: Beer-Lambert glazing). Blue and yellow make green either way.
  2. Oil brush (standard technique: two-way paint transfer, as ArtRage and Rebelle do it): the brush tip is a small grid
     of paint that travels with the finger. At every dab each tip pixel gives some of its paint to the picture and takes
-    some of the picture's paint back, so the brush carries and mixes colour along the stroke and runs dry. Only the
-    paint on the outside of the bristles mixes; the paint deep in them refills it with the brush's own colour,
-    and neighbouring bristles share a little paint. Across the
-    stroke the tip is split into bristles of uneven strength (streaks), and the stroke's edges get a ridge of paint.
- 3. Watercolour (standard technique: Curtis et al. 1997, simplified): a stroke wets a see-through layer of pigment that
-    spreads a little while wet, then dries into the picture (absorbance adds, so layers darken), darker at its rim.
+    some of the picture's wet paint back, so the brush carries and mixes colour along the stroke and runs dry. Only the
+    paint on the outside of the bristles mixes; the paint deep in them refills it with the brush's own colour, and
+    neighbouring bristles share a little paint. Across the stroke the tip is split into bristles of uneven strength
+    (streaks), and the stroke's edges get a ridge of paint. Each pixel remembers when its oil was laid; oil dries
+    slowly, and the brush can only pick up the part that is still wet, so new paint sits on top of dry paint.
+ 3. Watercolour (standard techniques: Curtis et al. 1997 for pigment in water; the virtual-pipes shallow-water model,
+    O'Brien and Hodgins 1995 / Mei et al. 2007, for the flow): the brush puts water and pigment on the paper and makes
+    the paper damp. Water flows to lower neighbours (deeper water, the paper's dips, and down the page when the paper is
+    tilted), only into damp paper or pushed by deep water (water makes the paper it reaches damp, so a drip's trail keeps running), and carries its pigment along. Water dries faster at the edge
+    of a wet patch, so water and pigment move out to the edge (darker rim). Pigment settles out of the water, more in the
+    paper's dips (granulation), is lifted again while there is a lot of water, and is fixed for good when the paper is dry.
  4. Crayon: wax lands only on the raised grain of the paper, a fixed paper texture, so specks of paper stay.
  5. Simple brush: a round dab with a size and a softness; one stroke is one even coat (standard technique: a stroke
     mask that keeps the strongest dab per pixel).
- Light: paint thickness is lit from the top left (bump shading from the slope of H). */
+ Light: oil thickness and the paper's grain are lit from the top left (bump shading); damp paper looks a little darker. */
 
-// SECTION: SETUP -- picture size, buffers, paper grain, colours
+// SECTION: SETUP -- picture size, paper grain, colours, tuning
 const CW = 1600, CH = 1000, N = CW * CH, TS = 64, TX = Math.ceil(CW / TS), TY = Math.ceil(CH / TS);
-const A = new Float32Array(N * 3), Ht = new Float32Array(N);
-const B0A = new Float32Array(N * 3), B0H = new Float32Array(N), S = new Float32Array(N);
-let Wv = new Float32Array(N), Wt = new Float32Array(N);
 const grain = new Float32Array(N);
-const tileStamp = new Int32Array(TX * TY).fill(-1);
 const ab = (c) => -Math.log(Math.max(0.02, c));
 const PAPER = [0.96, 0.945, 0.9], PAPER_A = PAPER.map(ab);
 const COLORS = [ // reflectance, sRGB 0..1
@@ -62,10 +65,16 @@ const COLORS = [ // reflectance, sRGB 0..1
 const SIZES = [8, 18, 36]; // brush radius for each size dot, the same for every tool (owner 20 Nov)
 const SOFT = [0.95, 0.6, 0.05]; // sharp, medium, fuzzy: how far out the dab stays full strength
 // tuning (the prototype answers these with the child)
-const OIL_LOAD = 10, OIL_GIVE = 1 / 700, OIL_TAKE = 0.02, OIL_SURF = 0.3, OIL_RIDGE = 1, OIL_PAPER = 0.05, BUMP = 3, GLOSS = 70;
-const LX = -0.45, LY = -0.55, LZ = 0.70, HX = LX / 1.843, HY = LY / 1.843, HZ = (LZ + 1) / 1.843; // light from the top left; half-way vector between light and eye
-const WATER_ADD = 0.35, WATER_DENSITY = 0.45, WATER_EDGE = 0.9, WATER_D = 0.22, WET_SECS = 0.8;
-const CRAY_T = 0.3, CRAY_RAMP = 0.3, CRAY_FLOW = 0.35;
+const K = {
+  OIL_LOAD: 10, OIL_GIVE: 1 / 700, OIL_TAKE: 0.04, OIL_SURF: 0.3, OIL_RIDGE: 0.4, OIL_PAPER: 0.05, OIL_DRY: 25, // OIL_DRY: seconds for laid oil to lose most of its wetness
+  BUMP: 2.8, PBUMP: 0.35, GLOSS: 30, WETDARK: 0.08,
+  LX: -0.45, LY: -0.55, LZ: 0.70, HX: -0.45 / 1.843, HY: -0.55 / 1.843, HZ: 1.7 / 1.843, // light from the top left; half-way vector between light and eye
+  W_ADD: 0.35, W_MAX: 1.5, PDIF: 25, W_DENS: 0.45, // water per dab, most water a pixel holds, pigment per water
+  CF: 0.2, DEEP: 0.3, KP: 0.05, MAXF: 0.5, TILT_G: 0.9, // flow: speed, how deep water pushes onto dry paper, pull of the paper's dips, most water leaving a pixel per step, slope when tilted
+  EV: 0.15, EDGE: 25, W0: 0.02, SETTLE: 30, DEP0: 0.05, GRAN: 0.8, LIFT: 0.3, DAMPW: 2, DAMPE: 2, FIX: 4, // drying, edge drying, settling, granulation, lifting, damp paper, fixing
+  CRAY_T: 0.3, CRAY_RAMP: 0.3, CRAY_FLOW: 0.35,
+};
+const SIM_DT = 1 / 120, MAX_STEPS = 4, CHECK_EVERY = 6, W_EPS = 1e-4, DAMP_EPS = 0.01;
 
 function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 (function makeGrain() { // fine noise blurred once, plus a coarse wave, then spread evenly over 0..1
@@ -85,178 +94,307 @@ function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let
   const cdf = new Float32Array(1024); let s = 0; for (let i = 0; i < 1024; i++) { s += hist[i]; cdf[i] = s / N; }
   for (let k = 0; k < N; k++) grain[k] = cdf[Math.min(1023, (grain[k] * 1024) | 0)];
 })();
-function blank() { for (let k = 0; k < N; k++) { A[k * 3] = PAPER_A[0]; A[k * 3 + 1] = PAPER_A[1]; A[k * 3 + 2] = PAPER_A[2]; Ht[k] = 0; } }
 
-// SECTION: RENDER -- picture buffers to the screen
-const view = document.getElementById('paper'), vctx = view.getContext('2d');
-view.width = CW; view.height = CH;
-const img = vctx.createImageData(CW, CH), px = img.data;
+// SECTION: GL -- the graphics card: picture textures, one pass = one small program over a rectangle (standard technique: render to texture)
+const view = document.getElementById('paper'); view.width = CW; view.height = CH;
+const gl = view.getContext('webgl2', { preserveDrawingBuffer: true, antialias: false, alpha: false, depth: false, stencil: false, powerPreference: 'high-performance' });
+if (!gl || !gl.getExtension('EXT_color_buffer_float')) { document.body.innerHTML = '<p style="color:#fff;font:4vh sans-serif;padding:4vh">WebGL2</p>'; throw new Error('WebGL2 with float textures is needed'); }
+gl.bindVertexArray(gl.createVertexArray());
+function fbFor(...ts) { const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); ts.forEach((t, i) => gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, t, 0)); return f; }
+function tex(w, h, one) {
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  for (const p of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST);
+  for (const p of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T]) gl.texParameteri(gl.TEXTURE_2D, p, gl.CLAMP_TO_EDGE);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, one ? gl.R32F : gl.RGBA32F, w, h);
+  return { t, w, h, fb: fbFor(t) };
+}
+const PIC = tex(CW, CH), WAT = tex(CW, CH), DEP = tex(CW, CH), MISC = tex(CW, CH), B0 = tex(CW, CH), FLUX = tex(CW, CH), GRAIN = tex(CW, CH, true);
+// PIC: absorbance rgb + oil thickness. WAT: pigment in the water rgb + water depth. DEP: settled pigment rgb + damp paper.
+// MISC: r when the oil was laid (seconds), g simple-brush stroke mask, b which stroke that mask belongs to. B0: the picture before this simple stroke.
+const STATES = [PIC, WAT, DEP, MISC];
+const SC = [tex(CW, CH), tex(CW, CH), tex(CW, CH)];
+const scFB = [1, 2, 3].map((k) => { const f = fbFor(...SC.slice(0, k).map((s) => s.t)); gl.drawBuffers([...Array(k).keys()].map((i) => gl.COLOR_ATTACHMENT0 + i)); return f; });
+const TIP = [tex(80, 80), tex(80, 80)], TILES = tex(TX, TY);
+const pbo = gl.createBuffer(); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo); gl.bufferData(gl.PIXEL_PACK_BUFFER, TX * TY * 16, gl.STREAM_READ); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+const tileBuf = new Float32Array(TX * TY * 4);
+let version = 0; // grows whenever the picture changes (test hooks read the picture back only then)
+
+const fl = (x) => (Number.isInteger(x) ? x.toFixed(1) : String(x));
+const VS = '#version 300 es\nvoid main(){vec2 p=vec2(float((gl_VertexID&1)<<2),float((gl_VertexID&2)<<1));gl_Position=vec4(p-1.0,0.0,1.0);}';
+const HEAD = `#version 300 es
+precision highp float; precision highp int; precision highp sampler2D;
+const int CW = ${CW}, CH = ${CH};
+${Object.entries(K).map(([k, v]) => `const float ${k} = ${fl(v)};`).join('\n')}
+float sm(float e0, float e1, float x) { float t = clamp((x - e0) / (e1 - e0), 0., 1.); return t * t * (3. - 2. * t); }
+vec3 ks(vec3 a) { vec3 r = clamp(exp(-a), .02, .999); return (1. - r) * (1. - r) / (2. * r); }
+vec3 unks(vec3 k) { vec3 r = 1. + k - sqrt(k * k + 2. * k); return -log(clamp(r, .02, 1.)); }
+vec3 km(vec3 a, vec3 b, float t) { return t <= 0. ? a : unks(mix(ks(a), ks(b), min(t, 1.))); } // Kubelka-Munk mix of two paints
+bool inside(ivec2 q) { return q.x >= 0 && q.y >= 0 && q.x < CW && q.y < CH; }
+ivec2 cl(ivec2 q) { return clamp(q, ivec2(0), ivec2(CW - 1, CH - 1)); }
+`;
+function shader(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+function program(fs) {
+  const p = gl.createProgram(); gl.attachShader(p, shader(gl.VERTEX_SHADER, VS)); gl.attachShader(p, shader(gl.FRAGMENT_SHADER, HEAD + fs)); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const u = {}; for (let i = 0, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); i < n; i++) { const a = gl.getActiveUniform(p, i); u[a.name.replace('[0]', '')] = { loc: gl.getUniformLocation(p, a.name), type: a.type, size: a.size }; }
+  return { p, u };
+}
+function use(pr, uni) {
+  gl.useProgram(pr.p); let unit = 0;
+  for (const k in uni) { const u = pr.u[k], v = uni[k]; if (!u) continue;
+    switch (u.type) {
+      case gl.SAMPLER_2D: gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, v.t); gl.uniform1i(u.loc, unit++); break;
+      case gl.FLOAT: if (u.size > 1) gl.uniform1fv(u.loc, v); else gl.uniform1f(u.loc, v); break;
+      case gl.FLOAT_VEC2: gl.uniform2f(u.loc, v[0], v[1]); break;
+      case gl.FLOAT_VEC3: gl.uniform3f(u.loc, v[0], v[1], v[2]); break;
+      case gl.INT: gl.uniform1i(u.loc, v); break;
+      case gl.INT_VEC2: gl.uniform2i(u.loc, v[0], v[1]); break;
+    } }
+}
+const clip = (r) => r && [Math.max(0, r[0] | 0), Math.max(0, r[1] | 0), Math.min(CW - 1, Math.ceil(r[2])), Math.min(CH - 1, Math.ceil(r[3]))];
+const grow = (r, d) => r && [r[0] - d, r[1] - d, r[2] + d, r[3] + d];
+const join = (a, b) => (!a ? b && b.slice() : !b ? a.slice() : [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])]);
+function scissor(r) { gl.enable(gl.SCISSOR_TEST); gl.scissor(r[0], r[1], r[2] - r[0] + 1, r[3] - r[1] + 1); }
+function blit(src, dst, sx, sy, w, h, dx, dy) {
+  gl.disable(gl.SCISSOR_TEST); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, src.fb); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, dst.fb);
+  gl.blitFramebuffer(sx, sy, sx + w, sy + h, dx, dy, dx + w, dy + h, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+}
+function pass(pr, r, outs, uni) { // run a program over rectangle r of the picture, writing the listed picture textures
+  if (!r || r[2] < r[0] || r[3] < r[1]) return;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, scFB[outs.length - 1]); gl.viewport(0, 0, CW, CH); scissor(r);
+  use(pr, uni); gl.drawArrays(gl.TRIANGLES, 0, 3);
+  outs.forEach((T, i) => blit(SC[i], T, r[0], r[1], r[2] - r[0] + 1, r[3] - r[1] + 1, r[0], r[1]));
+  version++;
+}
+function drawTo(T, w, h, pr, uni, r) { gl.bindFramebuffer(gl.FRAMEBUFFER, T.fb); gl.viewport(0, 0, w, h); if (r) scissor(r); else gl.disable(gl.SCISSOR_TEST); use(pr, uni); gl.drawArrays(gl.TRIANGLES, 0, 3); }
+function clearTex(T, v) { gl.bindFramebuffer(gl.FRAMEBUFFER, T.fb); gl.disable(gl.SCISSOR_TEST); gl.clearBufferfv(gl.COLOR, 0, v); }
+const OUT3 = 'layout(location=0) out vec4 o0; layout(location=1) out vec4 o1; layout(location=2) out vec4 o2;\n';
+const OUT2 = 'layout(location=0) out vec4 o0; layout(location=1) out vec4 o1;\n';
+const OUT1 = 'out vec4 o0;\n';
+const OIL = `uniform sampler2D P, M, T; uniform ivec2 C; uniform int R, NB; uniform vec2 D; uniform float SP, NOW, BR[80]; uniform vec3 RES;
+bool oilAt(int i, int j, out vec4 pic, out vec4 mis, out vec4 tip) { // one tip pixel against the picture pixel under it (model part 2)
+  ivec2 cp = C + ivec2(i, j); pic = texelFetch(P, cl(cp), 0); mis = texelFetch(M, cl(cp), 0); tip = texelFetch(T, ivec2(i + R, j + R), 0);
+  int d2 = i * i + j * j; if (d2 > R * R || !inside(cp)) return false;
+  float fR = float(R), sp = (-float(i) * D.y + float(j) * D.x) / fR;
+  int bi = clamp(int((sp + 1.) * .5 * float(NB)), 0, NB - 1);
+  float m = (1. - sm(.85, 1., sqrt(float(d2)) / fR)) * BR[bi]; if (m <= 0.) return false;
+  float h = pic.a, L = tip.a, wet = exp(-max(0., NOW - mis.r) / OIL_DRY);
+  float give = m * L * OIL_GIVE * SP * (1. + OIL_RIDGE * sm(.65, .95, abs(sp)));
+  float take = m * OIL_TAKE * SP * h * wet;
+  float hc = h - take + give, wc = give / (h * wet - take + give + OIL_PAPER);
+  float L2 = L - give + take, wt = take / (min(L2, OIL_SURF) + take + 1e-6);
+  vec3 a = pic.rgb, b = tip.rgb; pic.rgb = km(a, b, wc); tip.rgb = km(b, a, wt); pic.a = hc; tip.a = L2;
+  if (L2 > OIL_SURF) tip.rgb = km(tip.rgb, RES, min(1., give / (4. * OIL_SURF))); // paint from deep in the bristles refills the outside
+  if (hc > 1e-6) mis.r = mix(mis.r, NOW, clamp(give / hc, 0., 1.));
+  return true;
+}
+`;
+const PR = {
+  oilPic: program(OIL + OUT2 + 'void main(){ ivec2 p = ivec2(gl_FragCoord.xy); vec4 a, m, t; oilAt(p.x - C.x, p.y - C.y, a, m, t); o0 = a; o1 = m; }'),
+  oilTip: program(OIL + OUT1 + 'void main(){ ivec2 t = ivec2(gl_FragCoord.xy); vec4 a, m, q; oilAt(t.x - R, t.y - R, a, m, q); o0 = q; }'),
+  tipBlend: program(`uniform sampler2D T; uniform int NB; ${OUT1} void main(){ // neighbouring bristles touch and share a little paint
+    ivec2 p = ivec2(gl_FragCoord.xy), n = ivec2(NB - 1); vec4 c = texelFetch(T, p, 0);
+    vec3 k = .6 * ks(c.rgb) + .1 * (ks(texelFetch(T, clamp(p - ivec2(1, 0), ivec2(0), n), 0).rgb) + ks(texelFetch(T, clamp(p + ivec2(1, 0), ivec2(0), n), 0).rgb)
+      + ks(texelFetch(T, clamp(p - ivec2(0, 1), ivec2(0), n), 0).rgb) + ks(texelFetch(T, clamp(p + ivec2(0, 1), ivec2(0), n), 0).rgb));
+    o0 = vec4(unks(k), c.a); }`),
+  crayon: program(`uniform sampler2D P, G; uniform ivec2 C; uniform float R; uniform vec3 CA; ${OUT1} void main(){
+    ivec2 p = ivec2(gl_FragCoord.xy); vec4 c = texelFetch(P, p, 0); float r = length(vec2(p - C)) / R;
+    float cover = clamp((texelFetch(G, p, 0).r - CRAY_T) / CRAY_RAMP, 0., 1.), a = r > 1. ? 0. : (1. - sm(.7, 1., r)) * cover * CRAY_FLOW;
+    o0 = vec4(km(c.rgb, CA, a), c.a); }`),
+  simple: program(`uniform sampler2D P, M, B; uniform ivec2 C; uniform float R, HD, ID; uniform vec3 CA; ${OUT3} void main(){
+    ivec2 p = ivec2(gl_FragCoord.xy); vec4 pic = texelFetch(P, p, 0), mis = texelFetch(M, p, 0), b0 = texelFetch(B, p, 0);
+    bool mine = mis.b == ID; if (!mine) b0 = pic; float mo = mine ? mis.g : 0.;
+    float rr = length(vec2(p - C)) / R, m = rr > 1. ? 0. : rr <= HD ? 1. : 1. - sm(HD, 1., rr);
+    if (m > mo) { mis.g = m; mis.b = ID; pic.rgb = km(b0.rgb, CA, m); }
+    o0 = pic; o1 = mis; o2 = b0; }`),
+  water: program(`uniform sampler2D W, DP, G; uniform ivec2 C; uniform float R; uniform vec3 PG; ${OUT2} void main(){
+    ivec2 p = ivec2(gl_FragCoord.xy); vec4 w = texelFetch(W, p, 0), d = texelFetch(DP, p, 0); float r = length(vec2(p - C)) / R + (texelFetch(G, p, 0).r - .5) * .12; // water soaks into the paper unevenly: a ragged edge
+    float m = r > 1. ? 0. : 1. - sm(.85, 1., r), add = m * W_ADD * max(0., 1. - w.a / W_MAX);
+    o0 = vec4(w.rgb + PG * add * W_DENS, w.a + add); o1 = vec4(d.rgb, max(d.a, m)); }`),
+  flux: program(`uniform sampler2D W, DP, G; uniform float TILT; ${OUT1} void main(){ // water leaving this pixel to its 4 neighbours (left, right, down, up)
+    ivec2 p = ivec2(gl_FragCoord.xy); float w = texelFetch(W, p, 0).a, h0 = w + KP * texelFetch(G, p, 0).r; vec4 f = vec4(0);
+    ivec2 n[4] = ivec2[4](p - ivec2(1, 0), p + ivec2(1, 0), p + ivec2(0, 1), p - ivec2(0, 1)); float tl[4] = float[4](0., 0., TILT, -TILT);
+    for (int k = 0; k < 4; k++) { ivec2 q = n[k]; if (!inside(q)) continue;
+      float gq0 = texelFetch(G, q, 0).r, dh = h0 - texelFetch(W, q, 0).a - KP * gq0 + tl[k], gq = gq0, cond = clamp(texelFetch(DP, q, 0).a + w * w * DEEP * (.1 + 1.8 * gq * gq), 0., 1.); // into damp paper, or pushed by deep water where the paper lets it (so drips break out at some places)
+      f[k] = max(0., dh) * CF * cond; }
+    float s = f.x + f.y + f.z + f.w; if (s > MAXF * w) f *= MAXF * w / max(s, 1e-12); o0 = f; }`),
+  upd: program(`uniform sampler2D W, DP, P, F, G; uniform float DT; ${OUT3} void main(){ // model part 3, one step
+    ivec2 p = ivec2(gl_FragCoord.xy); vec4 wa = texelFetch(W, p, 0), dp = texelFetch(DP, p, 0), pic = texelFetch(P, p, 0), f = texelFetch(F, p, 0); float g = texelFetch(G, p, 0).r;
+    float w = wa.a, outs = f.x + f.y + f.z + f.w; vec3 pg = wa.rgb * (1. - outs / max(w, 1e-9)); float win = 0.;
+    ivec2 q[4] = ivec2[4](p - ivec2(1, 0), p + ivec2(1, 0), p + ivec2(0, 1), p - ivec2(0, 1)); int c[4] = int[4](1, 0, 3, 2);
+    for (int k = 0; k < 4; k++) { if (!inside(q[k])) continue; float fl = texelFetch(F, q[k], 0)[c[k]]; vec4 wq = texelFetch(W, q[k], 0); win += fl; pg += wq.rgb * fl / max(wq.a, 1e-9); }
+    w = w - outs + win;
+    float c0 = wa.a > 1e-6 ? 1. / wa.a : 0.; vec3 dif = vec3(0); // pigment spreads through the water it is in (diffusion between wet neighbours)
+    for (int k = 0; k < 4; k++) { if (!inside(q[k])) continue; vec4 wq = texelFetch(W, q[k], 0); if (wq.a <= 1e-6 || wa.a <= 1e-6) continue; dif += (wq.rgb / wq.a - wa.rgb * c0) * min(wq.a, wa.a); }
+    pg = max(pg + min(.1, DT * PDIF * (.6 + .8 * g)) * dif, 0.); // faster along the paper's raised fibres: feathery (capped so, with the flow, no pixel can give away more pigment than it has)
+    float ring = 0.; ivec2 o[8] = ivec2[8](ivec2(4, 0), ivec2(-4, 0), ivec2(0, 4), ivec2(0, -4), ivec2(3, 3), ivec2(-3, 3), ivec2(3, -3), ivec2(-3, -3));
+    for (int k = 0; k < 8; k++) ring += texelFetch(DP, cl(p + o[k]), 0).a; ring /= 8.;
+    w = max(0., w - DT * EV * (1. + EDGE * clamp(dp.a - ring, 0., 1.) * .3 / (w + .3))); // the thin water at the edge of a wet patch dries first
+    float wf = w / (w + W0);
+    vec3 lift = dp.rgb * min(1., DT * LIFT * wf * (.75 + .5 * g)), d = dp.rgb - lift; pg += lift;
+    float sw = W0 / (w + W0), fdep = w <= 0. ? 1. : 1. - exp(-DT * (DEP0 * (1. + GRAN * (1. - g)) + SETTLE * sw * sw)); // settles faster as the water gets shallow
+    vec3 dep = pg * fdep; pg -= dep; d += dep;
+    float damp = max(dp.a * (1. - DT * DAMPE * (1. - wf)), min(1., w * DAMPW)); // water wets the paper it reaches; the paper stays damp under water and dries after it
+    vec3 fx = d * min(1., DT * FIX * (1. - damp) * (1. - damp)); d -= fx; pic.rgb += fx;
+    o0 = vec4(pg, w); o1 = vec4(d, damp); o2 = pic; }`),
+  fin: program(`uniform sampler2D W, DP, P; ${OUT3} void main(){ ivec2 p = ivec2(gl_FragCoord.xy); vec4 pic = texelFetch(P, p, 0);
+    o0 = vec4(0); o1 = vec4(0); o2 = vec4(pic.rgb + texelFetch(DP, p, 0).rgb + texelFetch(W, p, 0).rgb, pic.a); }`),
+  tiles: program(`uniform sampler2D W, DP; ${OUT1} void main(){ ivec2 t = ivec2(gl_FragCoord.xy) * ${TS}; float mw = 0., md = 0.;
+    for (int y = 0; y < ${TS}; y++) for (int x = 0; x < ${TS}; x++) { ivec2 q = t + ivec2(x, y); if (!inside(q)) continue; mw = max(mw, texelFetch(W, q, 0).a); md = max(md, texelFetch(DP, q, 0).a); }
+    o0 = vec4(mw, md, 0, 0); }`),
+  show: program(`uniform sampler2D P, W, DP, G; ${OUT1}
+    float hh(ivec2 q) { return texelFetch(P, cl(q), 0).a; } float gg(ivec2 q) { return texelFetch(G, cl(q), 0).r; }
+    void main(){ ivec2 p = ivec2(int(gl_FragCoord.x), CH - 1 - int(gl_FragCoord.y));
+    vec4 pic = texelFetch(P, p, 0), dp = texelFetch(DP, p, 0); vec3 A = pic.rgb + dp.rgb + texelFetch(W, p, 0).rgb;
+    ivec2 X = ivec2(1, 0), Y = ivec2(0, 1);
+    float gx = hh(p - Y + X) + 2. * hh(p + X) + hh(p + Y + X) - hh(p - Y - X) - 2. * hh(p - X) - hh(p + Y - X);
+    float gy = hh(p + Y - X) + 2. * hh(p + Y) + hh(p + Y + X) - hh(p - Y - X) - 2. * hh(p - Y) - hh(p - Y + X);
+    float px = gg(p + X) - gg(p - X), py = gg(p + Y) - gg(p - Y), h = pic.a, paper = 1. - sm(0., .08, h);
+    float nx = -(gx * BUMP + px * PBUMP * paper), ny = -(gy * BUMP + py * PBUMP * paper), nl = inversesqrt(nx * nx + ny * ny + 1.);
+    float dif = (nx * LX + ny * LY + LZ) * nl / LZ, sh = .8 + .2 * dif;
+    float hd = (nx * HX + ny * HY + HZ) * nl, spec = GLOSS * min(1., h * 3.) * sm(.01, .04, h) * pow(max(0., hd), 16.);
+    o0 = vec4((exp(-A) * sh * (1. - WETDARK * dp.a) * 255. + spec) / 255., 1.); }`),
+};
+
+// SECTION: RENDER -- picture textures to the screen, only where something changed
 let dirty = null;
-function markDirty(x0, y0, x1, y1) {
-  x0 = Math.max(0, Math.floor(x0) - 1); y0 = Math.max(0, Math.floor(y0) - 1); x1 = Math.min(CW - 1, Math.ceil(x1) + 1); y1 = Math.min(CH - 1, Math.ceil(y1) + 1);
-  if (!dirty) dirty = [x0, y0, x1, y1]; else { dirty[0] = Math.min(dirty[0], x0); dirty[1] = Math.min(dirty[1], y0); dirty[2] = Math.max(dirty[2], x1); dirty[3] = Math.max(dirty[3], y1); }
+function markDirty(r) { dirty = join(dirty, r); }
+function render() {
+  const r = clip(water.moved ? join(dirty, water.rect) : dirty); dirty = null; water.moved = false; if (!r) return;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, CW, CH); gl.enable(gl.SCISSOR_TEST);
+  gl.scissor(r[0], CH - 1 - r[3], r[2] - r[0] + 1, r[3] - r[1] + 1);
+  use(PR.show, { P: PIC, W: WAT, DP: DEP, G: GRAIN }); gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
-function renderRect(x0, y0, x1, y1) {
-  const wet = water.active, pg = water.pig;
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-    const k = y * CW + x; let a0 = A[k * 3], a1 = A[k * 3 + 1], a2 = A[k * 3 + 2];
-    if (wet) { const w = Wv[k]; if (w > 0.002) { const amt = w * (1 + WATER_EDGE * 4 * w * (1 - w)) * WATER_DENSITY; a0 += amt * pg[0]; a1 += amt * pg[1]; a2 += amt * pg[2]; } }
-    const h = Ht[k], xl = x > 0 ? -1 : 0, xr = x < CW - 1 ? 1 : 0, yu = y > 0 ? -CW : 0, yd = y < CH - 1 ? CW : 0;
-    const gx = (Ht[k + yu + xr] + 2 * Ht[k + xr] + Ht[k + yd + xr]) - (Ht[k + yu + xl] + 2 * Ht[k + xl] + Ht[k + yd + xl]);
-    const gy = (Ht[k + yd + xl] + 2 * Ht[k + yd] + Ht[k + yd + xr]) - (Ht[k + yu + xl] + 2 * Ht[k + yu] + Ht[k + yu + xr]);
-    const nx = -gx * BUMP, ny = -gy * BUMP, nl = 1 / Math.sqrt(nx * nx + ny * ny + 1);
-    const dif = (nx * LX + ny * LY + LZ) * nl / LZ;
-    const sh = (0.8 + 0.2 * dif) * (0.965 + 0.035 * grain[k]);
-    const hd = (nx * HX + ny * HY + HZ) * nl, sp = h > 0.02 ? GLOSS * Math.min(1, h * 3) * Math.pow(Math.max(0, hd), 30) : 0;
-    const o = k * 4;
-    px[o] = Math.exp(-a0) * sh * 255 + sp; px[o + 1] = Math.exp(-a1) * sh * 255 + sp; px[o + 2] = Math.exp(-a2) * sh * 255 + sp; px[o + 3] = 255;
-  }
-  vctx.putImageData(img, 0, 0, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+const renderAll = () => { markDirty([0, 0, CW - 1, CH - 1]); render(); };
+let rb = { v: -1 };
+function readPic() { // the picture read back from the graphics card (saving and the flow tests)
+  if (rb.v === version) return rb;
+  const f = new Float32Array(N * 4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, PIC.fb); gl.readPixels(0, 0, CW, CH, gl.RGBA, gl.FLOAT, f);
+  const A = new Float32Array(N * 3), H = new Float32Array(N);
+  for (let k = 0; k < N; k++) { A[k * 3] = f[k * 4]; A[k * 3 + 1] = f[k * 4 + 1]; A[k * 3 + 2] = f[k * 4 + 2]; H[k] = f[k * 4 + 3]; }
+  rb = { v: version, A, H }; return rb;
 }
-function renderAll() { renderRect(0, 0, CW - 1, CH - 1); dirty = null; }
 
-// SECTION: UNDO -- tiles copied the first time a stroke touches them (standard technique: tile-based undo)
-let strokeNo = 0, entry = null;
-const undoStack = []; let undoBytes = 0;
-const UNDO_MAX = 12, UNDO_BYTES = 140e6;
-function captureRect(x0, y0, x1, y1) {
-  const tx0 = Math.max(0, (x0 / TS) | 0), ty0 = Math.max(0, (y0 / TS) | 0), tx1 = Math.min(TX - 1, (x1 / TS) | 0), ty1 = Math.min(TY - 1, (y1 / TS) | 0);
-  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
-    const ti = ty * TX + tx; if (tileStamp[ti] === strokeNo) continue; tileStamp[ti] = strokeNo;
-    const bx = tx * TS, by = ty * TS, w = Math.min(TS, CW - bx), h = Math.min(TS, CH - by);
-    const ta = new Float32Array(w * h * 3), th = new Float32Array(w * h);
-    for (let j = 0; j < h; j++) {
-      const k = (by + j) * CW + bx;
-      ta.set(A.subarray(k * 3, (k + w) * 3), j * w * 3); th.set(Ht.subarray(k, k + w), j * w);
-      B0A.set(A.subarray(k * 3, (k + w) * 3), k * 3); B0H.set(Ht.subarray(k, k + w), k); S.fill(0, k, k + w);
-    }
-    entry.tiles.push({ bx, by, w, h, a: ta, h2: th }); entry.bytes += (w * h * 16);
-  }
+// SECTION: UNDO -- tiles copied the first time anything changes them (standard technique: tile-based undo, kept on the graphics card)
+const PCOL = 32, PROW = 12, POOL = STATES.map(() => tex(PCOL * TS, PROW * TS)), freeSlots = [...Array(PCOL * PROW).keys()];
+let strokeNo = 0, open = null; // open: the entry that gets the tiles changed now (the latest one; the wet paint keeps changing after a stroke)
+const undoStack = [];
+const UNDO_MAX = 12;
+function release(e) { for (const t of e.tiles) freeSlots.push(t.slot); e.tiles = []; e.seen.clear(); }
+function newEntry(before) {
+  const e = { tiles: [], seen: new Set(), stickers: before === undefined ? null : before };
+  undoStack.push(e); open = e;
+  while (undoStack.length > UNDO_MAX) release(undoStack.shift());
+  return e;
 }
-function newEntry() { strokeNo++; entry = { kind: 'paint', tiles: [], bytes: 0 }; }
-function pushEntry(e) {
-  if (e.kind === 'paint' && !e.tiles.length) return;
-  undoStack.push(e); undoBytes += e.bytes || 0;
-  while (undoStack.length > UNDO_MAX || undoBytes > UNDO_BYTES) undoBytes -= undoStack.shift().bytes || 0;
+function capture(r) {
+  if (!open || !r) return;
+  for (let ty = (r[1] / TS) | 0; ty <= Math.min(TY - 1, (r[3] / TS) | 0); ty++) for (let tx = (r[0] / TS) | 0; tx <= Math.min(TX - 1, (r[2] / TS) | 0); tx++) {
+    const ti = ty * TX + tx; if (open.seen.has(ti)) continue;
+    while (!freeSlots.length && undoStack[0] !== open) release(undoStack.shift());
+    if (!freeSlots.length) { release(open); undoStack.pop(); open = null; return; } // one change bigger than the whole store: it cannot be taken back
+    const slot = freeSlots.pop(), bx = tx * TS, by = ty * TS, w = Math.min(TS, CW - bx), h = Math.min(TS, CH - by);
+    open.seen.add(ti); open.tiles.push({ ti, slot });
+    STATES.forEach((T, k) => blit(T, POOL[k], bx, by, w, h, (slot % PCOL) * TS, ((slot / PCOL) | 0) * TS));
+  }
 }
 function undo() {
   if (stroke) return;
-  bakeWater();
   const e = undoStack.pop(); if (!e) return;
-  undoBytes -= e.bytes || 0;
-  if (e.kind === 'paint') for (const t of e.tiles) {
-    for (let j = 0; j < t.h; j++) { const k = (t.by + j) * CW + t.bx; A.set(t.a.subarray(j * t.w * 3, (j + 1) * t.w * 3), k * 3); Ht.set(t.h2.subarray(j * t.w, (j + 1) * t.w), k); }
-    markDirty(t.bx, t.by, t.bx + t.w - 1, t.by + t.h - 1);
-  } else { stickers = JSON.parse(e.before); stickDirty = true; }
+  let box = null;
+  for (const { ti, slot } of e.tiles) {
+    const bx = (ti % TX) * TS, by = ((ti / TX) | 0) * TS, w = Math.min(TS, CW - bx), h = Math.min(TS, CH - by);
+    STATES.forEach((T, k) => blit(POOL[k], T, (slot % PCOL) * TS, ((slot / PCOL) | 0) * TS, w, h, bx, by));
+    box = join(box, [bx, by, bx + w - 1, by + h - 1]);
+  }
+  release(e); version++;
+  if (e.stickers !== null) { stickers = JSON.parse(e.stickers); stickDirty = true; }
+  open = undoStack[undoStack.length - 1] || null;
+  if (box) { markDirty(box); wakeWater(box); } // the restored tiles may hold paint that was still wet then
   changed();
 }
 
 // SECTION: TOOLS -- one dab of each material (the model's parts 2-5)
-const st = { tool: 'oil', color: 4, size: 1, soft: 0 };
-let stroke = null;
-const water = { active: false, pig: [0, 0, 0], rect: null, last: 0, stroking: false };
-const smooth = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+const st = { tool: 'oil', color: 4, size: 1, soft: 0, tilt: false };
+let stroke = null, clockShift = 0;
+const paintNow = () => performance.now() / 1000 + clockShift;
+const water = { active: false, rect: null, recent: null, stroking: false, pend: null, dabNo: 0, frames: 0, acc: 0 };
 function oilStart(s) {
   const R = s.r, n = 2 * R + 1, ca = COLORS[st.color].map(ab);
-  s.n = n; s.res = ca; s.tipA = new Float32Array(n * n * 3); s.tipL = new Float32Array(n * n).fill(OIL_LOAD);
-  for (let t = 0; t < n * n; t++) { s.tipA[t * 3] = ca[0]; s.tipA[t * 3 + 1] = ca[1]; s.tipA[t * 3 + 2] = ca[2]; }
-  const NB = 2 * R + 1, r = rng((Math.random() * 1e9) | 0), b = new Float32Array(NB); // one bristle per pixel across
+  s.n = n; s.res = ca;
+  const d = new Float32Array(n * n * 4); for (let t = 0; t < n * n; t++) { d[t * 4] = ca[0]; d[t * 4 + 1] = ca[1]; d[t * 4 + 2] = ca[2]; d[t * 4 + 3] = K.OIL_LOAD; }
+  gl.bindTexture(gl.TEXTURE_2D, TIP[0].t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, n, n, gl.RGBA, gl.FLOAT, d);
+  const NB = n, r = rng((Math.random() * 1e9) | 0), b = new Float32Array(NB); // one bristle per pixel across
   for (let i = 0; i < NB; i++) b[i] = r() * r();
   let sm = b; for (let pass = 0; pass < 3; pass++) { const t = sm; sm = t.map((v, i) => (t[Math.max(0, i - 2)] + 4 * t[Math.max(0, i - 1)] + 6 * v + 4 * t[Math.min(NB - 1, i + 1)] + t[Math.min(NB - 1, i + 2)]) / 16); } // bristles blend into soft grooves
   let lo = 1, hi = 0; for (const v of sm) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
   s.bristle = sm.map((v) => 0.45 + 0.55 * (v - lo) / (hi - lo + 1e-6)); s.rnd = r; // strong but soft streaks
 }
 function oilDab(s, cx, cy) {
-  const R = s.r, n = s.n, dx = s.dir[0], dy = s.dir[1], NB = s.bristle.length, tipA = s.tipA, tipL = s.tipL;
-  const X = Math.round(cx), Y = Math.round(cy);
-  for (let i = 0; i < NB; i++) s.bristle[i] = Math.min(1, Math.max(0.2, s.bristle[i] + (s.rnd() - 0.5) * 0.02)); // each bristle wanders
-  captureRect(X - R, Y - R, X + R, Y + R);
-  for (let j = -R; j <= R; j++) {
-    const y = Y + j; if (y < 0 || y >= CH) continue;
-    for (let i = -R; i <= R; i++) {
-      const x = X + i, d2 = i * i + j * j; if (x < 0 || x >= CW || d2 > R * R) continue;
-      const sp = (-i * dy + j * dx) / R, bi = Math.min(NB - 1, Math.max(0, ((sp + 1) * 0.5 * NB) | 0));
-      const m = (1 - smooth(0.75, 1, Math.sqrt(d2) / R)) * s.bristle[bi];
-      if (m <= 0) continue;
-      const k = y * CW + x, t = (j + R) * n + (i + R), h = Ht[k], L = tipL[t];
-      const give = m * L * OIL_GIVE * s.sp * (1 + OIL_RIDGE * smooth(0.65, 0.95, Math.abs(sp)));
-      const take = m * OIL_TAKE * s.sp * h;
-      const hc = h - take + give, wc = give / (hc + OIL_PAPER);
-      const L2 = L - give + take, wt = take / (Math.min(L2, OIL_SURF) + take + 1e-6);
-      for (let c = 0; c < 3; c++) { const a = A[k * 3 + c], b = tipA[t * 3 + c]; A[k * 3 + c] = a + (b - a) * wc; tipA[t * 3 + c] = b + (a - b) * wt; }
-      Ht[k] = hc; tipL[t] = L2;
-      if (L2 > OIL_SURF) { const f = Math.min(1, give / (4 * OIL_SURF)); for (let c = 0; c < 3; c++) tipA[t * 3 + c] += (s.res[c] - tipA[t * 3 + c]) * f; } // paint from deep in the bristles refills the outside
-    }
-  }
-  tipBlend(s);
-  markDirty(X - R, Y - R, X + R, Y + R);
-}
-function tipBlend(s) { // neighbouring bristles touch and share a little paint
-  const n = s.n, a = s.tipA, t = s.tmp || (s.tmp = new Float32Array(a.length));
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x, l = x > 0 ? i - 1 : i, r = x < n - 1 ? i + 1 : i, u = y > 0 ? i - n : i, d = y < n - 1 ? i + n : i;
-    for (let c = 0; c < 3; c++) t[i * 3 + c] = 0.6 * a[i * 3 + c] + 0.1 * (a[l * 3 + c] + a[r * 3 + c] + a[u * 3 + c] + a[d * 3 + c]); }
-  a.set(t);
+  const R = s.r, n = s.n, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]);
+  for (let i = 0; i < n; i++) s.bristle[i] = Math.min(1, Math.max(0.2, s.bristle[i] + (s.rnd() - 0.5) * 0.02)); // each bristle wanders
+  capture(r);
+  const uni = { P: PIC, M: MISC, T: TIP[0], C: [X, Y], R, NB: n, D: s.dir, SP: s.sp, NOW: paintNow(), BR: s.bristle, RES: s.res };
+  drawTo(TIP[1], n, n, PR.oilTip, uni); // the tip's new paint, from the tip and picture before this dab
+  pass(PR.oilPic, r, [PIC, MISC], uni); // the picture's new paint, from the same
+  drawTo(TIP[0], n, n, PR.tipBlend, { T: TIP[1], NB: n });
+  markDirty(r);
 }
 function waterDab(s, cx, cy) {
-  const R = s.r, X = Math.round(cx), Y = Math.round(cy);
-  for (let j = -R; j <= R; j++) { const y = Y + j; if (y < 0 || y >= CH) continue;
-    for (let i = -R; i <= R; i++) { const x = X + i, d2 = i * i + j * j; if (x < 0 || x >= CW || d2 > R * R) continue;
-      const k = y * CW + x, m = 1 - smooth(0.5, 1, Math.sqrt(d2) / R); Wv[k] = Math.min(1, Wv[k] + m * WATER_ADD); } }
-  growWet(X - R, Y - R, X + R, Y + R); water.last = performance.now();
-  markDirty(X - R, Y - R, X + R, Y + R);
-}
-function growWet(x0, y0, x1, y1) {
-  x0 = Math.max(1, x0); y0 = Math.max(1, y0); x1 = Math.min(CW - 2, x1); y1 = Math.min(CH - 2, y1);
-  const r = water.rect; if (!r) water.rect = [x0, y0, x1, y1]; else { r[0] = Math.min(r[0], x0); r[1] = Math.min(r[1], y0); r[2] = Math.max(r[2], x1); r[3] = Math.max(r[3], y1); }
-}
-function spreadWater() { // one step of the wet pigment spreading (diffusion), the wet area grows by a pixel
-  const r = water.rect; growWet(r[0] - 1, r[1] - 1, r[2] + 1, r[3] + 1);
-  for (let y = r[1]; y <= r[3]; y++) for (let x = r[0]; x <= r[2]; x++) { const k = y * CW + x, w = Wv[k];
-    Wt[k] = w + WATER_D * (Wv[k - 1] + Wv[k + 1] + Wv[k - CW] + Wv[k + CW] - 4 * w); }
-  const t = Wv; Wv = Wt; Wt = t;
-  markDirty(r[0], r[1], r[2], r[3]);
-}
-function bakeWater() {
-  if (!water.active) return;
-  const r = water.rect, pg = water.pig;
-  newEntry(); captureRect(r[0], r[1], r[2], r[3]);
-  for (let y = r[1]; y <= r[3]; y++) for (let x = r[0]; x <= r[2]; x++) { const k = y * CW + x, w = Wv[k];
-    if (w > 0.002) { const amt = w * (1 + WATER_EDGE * 4 * w * (1 - w)) * WATER_DENSITY; A[k * 3] += amt * pg[0]; A[k * 3 + 1] += amt * pg[1]; A[k * 3 + 2] += amt * pg[2]; }
-    Wv[k] = 0; Wt[k] = 0; }
-  pushEntry(entry); entry = null;
-  water.active = false; water.rect = null; markDirty(r[0], r[1], r[2], r[3]); changed();
+  const R = s.r, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]);
+  capture(r); pass(PR.water, r, [WAT, DEP], { W: WAT, DP: DEP, G: GRAIN, C: [X, Y], R, PG: s.ca });
+  wakeWater(r); markDirty(r);
 }
 function crayonDab(s, cx, cy) {
-  const R = s.r, X = Math.round(cx), Y = Math.round(cy), ca = s.ca;
-  captureRect(X - R, Y - R, X + R, Y + R);
-  for (let j = -R; j <= R; j++) { const y = Y + j; if (y < 0 || y >= CH) continue;
-    for (let i = -R; i <= R; i++) { const x = X + i, d2 = i * i + j * j; if (x < 0 || x >= CW || d2 > R * R) continue;
-      const k = y * CW + x, cover = Math.min(1, Math.max(0, (grain[k] - CRAY_T) / CRAY_RAMP));
-      const a = (1 - smooth(0.7, 1, Math.sqrt(d2) / R)) * cover * CRAY_FLOW; if (a <= 0) continue;
-      for (let c = 0; c < 3; c++) A[k * 3 + c] += (ca[c] - A[k * 3 + c]) * a; } }
-  markDirty(X - R, Y - R, X + R, Y + R);
+  const R = s.r, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]);
+  capture(r); pass(PR.crayon, r, [PIC], { P: PIC, G: GRAIN, C: [X, Y], R, CA: s.ca }); markDirty(r);
 }
 function simpleDab(s, cx, cy) {
-  const R = s.r, X = Math.round(cx), Y = Math.round(cy), ca = s.ca, hd = SOFT[st.soft];
-  captureRect(X - R, Y - R, X + R, Y + R);
-  for (let j = -R; j <= R; j++) { const y = Y + j; if (y < 0 || y >= CH) continue;
-    for (let i = -R; i <= R; i++) { const x = X + i, d2 = i * i + j * j; if (x < 0 || x >= CW || d2 > R * R) continue;
-      const k = y * CW + x, rr = Math.sqrt(d2) / R, m = rr <= hd ? 1 : 1 - smooth(hd, 1, rr);
-      if (m <= S[k]) continue; S[k] = m;
-      for (let c = 0; c < 3; c++) A[k * 3 + c] = B0A[k * 3 + c] + (ca[c] - B0A[k * 3 + c]) * m; } }
-  markDirty(X - R, Y - R, X + R, Y + R);
+  const R = s.r, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]);
+  capture(r); pass(PR.simple, r, [PIC, MISC, B0], { P: PIC, M: MISC, B: B0, C: [X, Y], R, HD: SOFT[st.soft], ID: s.id, CA: s.ca }); markDirty(r);
 }
 const DAB = { oil: oilDab, water: waterDab, crayon: crayonDab, simple: simpleDab };
 const SPACING = { oil: 0.1, water: 0.2, crayon: 0.25, simple: 0.1 };
 
+// SECTION: WATER -- wet paint keeps moving after the stroke, only inside the wet area; it is checked now and then, and fixed when dry
+function wakeWater(r) { const m = clip(grow(r, TS)); water.rect = join(water.rect, m); water.recent = join(water.recent, m); water.active = true; water.dabNo++; }
+function simStep(dt) {
+  const r = water.rect; capture(r); water.moved = true;
+  drawTo(FLUX, CW, CH, PR.flux, { W: WAT, DP: DEP, G: GRAIN, TILT: st.tilt ? K.TILT_G : 0 }, clip(grow(r, 1)));
+  pass(PR.upd, r, [WAT, DEP, PIC], { W: WAT, DP: DEP, P: PIC, F: FLUX, G: GRAIN, DT: dt });
+}
+function checkWater() { // which tiles still hold water or damp paper (read back without waiting: standard technique, fenced pixel-buffer readback)
+  const p = water.pend;
+  if (p) {
+    if (gl.clientWaitSync(p.sync, 0, 0) === gl.TIMEOUT_EXPIRED) return;
+    gl.deleteSync(p.sync); water.pend = null;
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, tileBuf); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    let box = null;
+    for (let ty = p.t[1]; ty <= p.t[3]; ty++) for (let tx = p.t[0]; tx <= p.t[2]; tx++) { const o = (ty * TX + tx) * 4;
+      if (tileBuf[o] > W_EPS || tileBuf[o + 1] > DAMP_EPS) box = join(box, [tx * TS, ty * TS, tx * TS + TS - 1, ty * TS + TS - 1]); }
+    if (!box && !water.recent && !water.stroking && water.dabNo === p.dabNo) { finishWater(); return; }
+    const r = join(box && clip(grow(box, TS)), water.recent); if (r) water.rect = r;
+    return;
+  }
+  if (++water.frames % CHECK_EVERY) return;
+  const r = water.rect, t = [(r[0] / TS) | 0, (r[1] / TS) | 0, Math.min(TX - 1, (r[2] / TS) | 0), Math.min(TY - 1, (r[3] / TS) | 0)];
+  drawTo(TILES, TX, TY, PR.tiles, { W: WAT, DP: DEP }, t);
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, TILES.fb); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo); gl.readPixels(0, 0, TX, TY, gl.RGBA, gl.FLOAT, 0); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  water.pend = { sync: gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0), t, dabNo: water.dabNo }; water.recent = null; gl.flush();
+}
+function stopWater() { if (water.pend) gl.deleteSync(water.pend.sync); Object.assign(water, { active: false, rect: null, recent: null, pend: null }); }
+function finishWater() {
+  if (!water.active) return;
+  const r = water.rect; capture(r); pass(PR.fin, r, [WAT, DEP, PIC], { W: WAT, DP: DEP, P: PIC }); markDirty(r);
+  stopWater(); changed();
+}
+
 // SECTION: STROKE -- finger on the paper: one finger paints, others are ignored
 function startStroke(p) {
-  if (st.tool === 'water') { if (water.active && water.pig.join() !== COLORS[st.color].map(ab).join()) bakeWater(); }
-  else bakeWater();
   const r = SIZES[st.size];
-  stroke = { tool: st.tool, r, sp: Math.max(1, r * SPACING[st.tool]), last: p, carry: 0, dir: [1, 0], ca: COLORS[st.color].map(ab) };
-  if (st.tool === 'water') { water.active = true; water.pig = stroke.ca; water.stroking = true; }
-  else { newEntry(); if (st.tool === 'oil') oilStart(stroke); }
+  stroke = { tool: st.tool, r, sp: Math.max(1, r * SPACING[st.tool]), last: p, carry: 0, dir: [1, 0], ca: COLORS[st.color].map(ab), id: ++strokeNo };
+  newEntry();
+  if (st.tool === 'water') water.stroking = true; else if (st.tool === 'oil') oilStart(stroke);
   DAB[st.tool](stroke, p.x, p.y);
 }
 function moveStroke(p) {
@@ -270,8 +408,7 @@ function moveStroke(p) {
 }
 function endStroke() {
   if (!stroke) return;
-  if (stroke.tool === 'water') water.stroking = false; else { pushEntry(entry); entry = null; }
-  stroke = null; changed();
+  water.stroking = false; stroke = null; changed();
 }
 let painter = null; // the one pointer that paints
 function toPaper(e) { const r = view.getBoundingClientRect(); return { x: (e.clientX - r.left) * CW / r.width, y: (e.clientY - r.top) * CH / r.height }; }
@@ -289,6 +426,7 @@ view.addEventListener('pointermove', (e) => {
 });
 function painterUp(e) { if (e.pointerId !== painter) return; painter = null; endStroke(); }
 view.addEventListener('pointerup', painterUp); view.addEventListener('pointercancel', painterUp);
+addEventListener('keydown', (e) => { if (e.ctrlKey && (e.key === 'x' || e.key === 'X')) { e.preventDefault(); undo(); } }); // Ctrl+X takes back, like the back button (owner 21 Nov)
 
 // SECTION: STICKERS -- code-drawn stickers, dragged from the tray, they sit on top of the paint
 const sctx = document.getElementById('stick').getContext('2d');
@@ -323,7 +461,7 @@ window.addEventListener('pointermove', (e) => { if (!dragging || e.pointerId !==
 function dragUp(e) {
   if (!dragging || e.pointerId !== dragging.id) return;
   const s = stickers[dragging.i]; if (!onPaper(s)) stickers.splice(dragging.i, 1);
-  if (JSON.stringify(stickers) !== dragging.before) { pushEntry({ kind: 'stickers', before: dragging.before, bytes: dragging.before.length }); changed(); }
+  if (JSON.stringify(stickers) !== dragging.before) { newEntry(dragging.before); changed(); }
   dragging = null; stickDirty = true;
 }
 window.addEventListener('pointerup', dragUp); window.addEventListener('pointercancel', dragUp);
@@ -351,9 +489,13 @@ const ICON = {
   undo(c) { c.strokeStyle = '#4a3a2a'; c.lineWidth = 9; c.lineCap = 'round'; c.beginPath(); c.arc(52, 56, 24, Math.PI * 1.1, Math.PI * 2.4); c.stroke(); c.fillStyle = '#4a3a2a'; c.beginPath(); c.moveTo(14, 46); c.lineTo(36, 30); c.lineTo(38, 56); c.fill(); },
   newpage(c) { c.fillStyle = '#fff'; c.strokeStyle = '#8a7a6a'; c.lineWidth = 3; c.fillRect(24, 16, 52, 68); c.strokeRect(24, 16, 52, 68); c.strokeStyle = '#3c9a3c'; c.lineWidth = 9; c.lineCap = 'round'; c.beginPath(); c.moveTo(50, 36); c.lineTo(50, 64); c.moveTo(36, 50); c.lineTo(64, 50); c.stroke(); },
   gallery(c) { for (const [x, y, col] of [[18, 22, '#e8a33a'], [52, 22, '#3a8ad8'], [18, 54, '#d84a5a'], [52, 54, '#4aa84a']]) { c.fillStyle = '#7a5a3a'; c.fillRect(x, y, 30, 26); c.fillStyle = col; c.fillRect(x + 4, y + 4, 22, 18); } },
+  tilt(c) { c.save(); c.translate(50, 46); c.rotate(-0.35); c.fillStyle = '#fff'; c.strokeStyle = '#8a7a6a'; c.lineWidth = 3; c.fillRect(-26, -30, 52, 54); c.strokeRect(-26, -30, 52, 54); c.restore();
+    c.fillStyle = '#2f6fd0'; c.beginPath(); c.moveTo(40, 30); c.lineTo(62, 30); c.lineTo(62, 38); c.quadraticCurveTo(58, 44, 55, 40); c.lineTo(53, 66); c.quadraticCurveTo(51, 76, 49, 66); c.lineTo(47, 40); c.quadraticCurveTo(43, 44, 40, 38); c.fill();
+    c.beginPath(); c.arc(51, 82, 5, 0, 7); c.fill(); },
   close(c) { c.strokeStyle = '#4a3a2a'; c.lineWidth = 10; c.lineCap = 'round'; c.beginPath(); c.moveTo(30, 30); c.lineTo(70, 70); c.moveTo(70, 30); c.lineTo(30, 70); c.stroke(); },
 };
 for (const t of ['oil', 'water', 'crayon', 'simple', 'sticker']) makeBtn(left, 'tool-' + t, ICON[t], () => { st.tool = t; refresh(); });
+makeBtn(left, 'tilt', ICON.tilt, () => { st.tilt = !st.tilt; refresh(); }); // tilts the paper: wet watercolour runs down and drips
 const sizeBtns = [0, 1, 2].map((i) => makeBtn(right, 'size-' + i, (c) => { c.fillStyle = '#3a2a1a'; c.beginPath(); c.arc(50, 50, [9, 18, 32][i], 0, 7); c.fill(); }, () => { st.size = i; refresh(); }));
 const softBtns = [0, 1, 2].map((i) => makeBtn(right, 'soft-' + i, (c) => { const g = c.createRadialGradient(50, 50, 0, 50, 50, 34); g.addColorStop(0, '#3a2a1a'); g.addColorStop(SOFT[i], '#3a2a1a'); g.addColorStop(1, 'rgba(58,42,26,0)'); c.fillStyle = g; c.beginPath(); c.arc(50, 50, 34, 0, 7); c.fill(); }, () => { st.soft = i; refresh(); }));
 makeBtn(right, 'undo', ICON.undo, () => undo());
@@ -363,7 +505,7 @@ const pots = COLORS.map((col, i) => makeBtn(bottom, 'color-' + i, (c) => { c.fil
 const trayBtns = STICKER_KINDS.map((k) => makeBtn(bottom, 'sticker-' + k, (c) => { c.save(); c.translate(50, 50); c.scale(38, 38); SKIN[k](c); c.restore(); }, (e) => newStickerDrag(e, k)));
 function refresh() {
   for (const o of buttons) { const id = o.b.dataset.id;
-    o.b.classList.toggle('on', id === 'tool-' + st.tool || id === 'color-' + st.color || id === 'size-' + st.size || (id === 'soft-' + st.soft && st.tool === 'simple')); }
+    o.b.classList.toggle('on', id === 'tool-' + st.tool || id === 'color-' + st.color || id === 'size-' + st.size || (id === 'soft-' + st.soft && st.tool === 'simple') || (id === 'tilt' && st.tilt)); }
   const sticker = st.tool === 'sticker';
   for (const b of pots) b.classList.toggle('hide', sticker);
   for (const b of trayBtns) b.classList.toggle('hide', !sticker);
@@ -384,6 +526,7 @@ function layout() {
 addEventListener('resize', layout);
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 
+
 // SECTION: GALLERY -- every picture kept on this PC (IndexedDB), the newest opens at start
 let cur = { id: Date.now() }, isChanged = false, saveTimer = 0;
 function changed() { isChanged = true; clearTimeout(saveTimer); saveTimer = setTimeout(() => save(), 2000); }
@@ -392,34 +535,40 @@ function db() { if (!dbp) dbp = new Promise((res, rej) => { const r = indexedDB.
 function req(mode, fn) { return db().then((d) => new Promise((res, rej) => { const t = d.transaction('pictures', mode), q = fn(t.objectStore('pictures')); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); })); }
 async function gz(u8) { return await new Response(new Blob([u8]).stream().pipeThrough(new CompressionStream('gzip'))).blob(); }
 async function gunz(b) { return new Uint8Array(await new Response(b.stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()); }
-function thumb() { if (dirty) { renderRect(...dirty); dirty = null; } if (stickDirty) drawStickers(); const c = document.createElement('canvas'); c.width = 320; c.height = 200; const x = c.getContext('2d'); x.drawImage(view, 0, 0, 320, 200); x.drawImage(document.getElementById('stick'), 0, 0, 320, 200); return c.toDataURL('image/jpeg', 0.8); }
+function thumb() { render(); if (stickDirty) drawStickers(); const c = document.createElement('canvas'); c.width = 320; c.height = 200; const x = c.getContext('2d'); x.drawImage(view, 0, 0, 320, 200); x.drawImage(document.getElementById('stick'), 0, 0, 320, 200); return c.toDataURL('image/jpeg', 0.8); }
 let saving = Promise.resolve();
 function save() {
   saving = saving.then(async () => {
-    if (!isChanged || stroke) return; clearTimeout(saveTimer); bakeWater(); isChanged = false;
-    const qa = new Uint8Array(N * 3), qh = new Uint8Array(N);
+    if (!isChanged || stroke) return;
+    if (water.active) { changed(); return; } // kept once the wet paint is dry
+    clearTimeout(saveTimer); isChanged = false;
+    const { A, H } = readPic(), qa = new Uint8Array(N * 3), qh = new Uint8Array(N);
     for (let i = 0; i < N * 3; i++) qa[i] = Math.min(255, Math.round(A[i] * 64));
-    for (let i = 0; i < N; i++) qh[i] = Math.min(255, Math.round(Ht[i] * 127.5));
+    for (let i = 0; i < N; i++) qh[i] = Math.min(255, Math.round(H[i] * 127.5));
     const rec = { id: cur.id, time: Date.now(), thumb: thumb(), a: await gz(qa), h: await gz(qh), st: JSON.stringify(stickers) };
     await req('readwrite', (s) => s.put(rec));
   }).catch((e) => console.error(e));
   return saving;
 }
+function resetUndo() { for (const e of undoStack) release(e); undoStack.length = 0; open = null; }
+function blank() {
+  stopWater(); clearTex(PIC, [...PAPER_A, 0]); clearTex(WAT, [0, 0, 0, 0]); clearTex(DEP, [0, 0, 0, 0]); clearTex(MISC, [-1e6, 0, 0, 0]); version++;
+}
 async function load(id) {
   const rec = await req('readonly', (s) => s.get(id)); if (!rec) return false;
-  const qa = await gunz(rec.a), qh = await gunz(rec.h);
-  for (let i = 0; i < N * 3; i++) A[i] = qa[i] / 64;
-  for (let i = 0; i < N; i++) Ht[i] = qh[i] / 127.5;
+  const qa = await gunz(rec.a), qh = await gunz(rec.h), f = new Float32Array(N * 4);
+  for (let k = 0; k < N; k++) { f[k * 4] = qa[k * 3] / 64; f[k * 4 + 1] = qa[k * 3 + 1] / 64; f[k * 4 + 2] = qa[k * 3 + 2] / 64; f[k * 4 + 3] = qh[k] / 127.5; }
+  blank(); gl.bindTexture(gl.TEXTURE_2D, PIC.t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, CW, CH, gl.RGBA, gl.FLOAT, f); version++;
   stickers = JSON.parse(rec.st); stickDirty = true; cur = { id }; isChanged = false;
-  undoStack.length = 0; undoBytes = 0; renderAll(); return true;
+  resetUndo(); renderAll(); return true;
 }
 async function newPicture() {
-  if (stroke) return; await save();
-  blank(); stickers = []; stickDirty = true; cur = { id: Date.now() }; isChanged = false; undoStack.length = 0; undoBytes = 0; renderAll();
+  if (stroke) return; finishWater(); await save();
+  blank(); stickers = []; stickDirty = true; cur = { id: Date.now() }; isChanged = false; resetUndo(); renderAll();
 }
 const gal = document.getElementById('gal');
 async function openGallery() {
-  if (stroke) return; await save();
+  if (stroke) return; finishWater(); await save();
   const all = (await req('readonly', (s) => s.getAll())) || [];
   all.sort((a, b) => b.time - a.time);
   gal.innerHTML = '';
@@ -433,18 +582,18 @@ async function openGallery() {
     card.addEventListener('click', async () => { gal.classList.add('hide'); if (r.id !== cur.id) await load(r.id); });
   }
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { if (!stroke) finishWater(); save(); } });
 
-// SECTION: LOOP -- wet watercolour spreads then dries, dirty parts drawn once per frame
-function frame() {
-  if (water.active) {
-    const age = (performance.now() - water.last) / 1000;
-    if (water.stroking || age < WET_SECS) spreadWater(); else bakeWater();
-  }
-  if (dirty) { const d = dirty; dirty = null; renderRect(d[0], d[1], d[2], d[3]); }
+// SECTION: LOOP -- wet paint moves, changed parts drawn once per frame
+let lastT = 0;
+function frame(t) {
+  const dt = lastT ? Math.min(0.1, (t - lastT) / 1000) : 1 / 60; lastT = t;
+  if (water.active) { water.acc = Math.min(water.acc + dt, MAX_STEPS * SIM_DT); while (water.acc >= SIM_DT) { simStep(SIM_DT); water.acc -= SIM_DT; } checkWater(); } // fixed steps: wet paint behaves the same at any frame rate
+  render();
   if (stickDirty) drawStickers();
   requestAnimationFrame(frame);
 }
+(function upload() { gl.bindTexture(gl.TEXTURE_2D, GRAIN.t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, CW, CH, gl.RED, gl.FLOAT, grain); })();
 (async () => {
   blank(); layout(); renderAll();
   try { const all = (await req('readonly', (s) => s.getAll())) || []; if (all.length) { all.sort((a, b) => b.time - a.time); await load(all[0].id); } } catch (e) { console.error(e); }
@@ -452,11 +601,15 @@ function frame() {
 })();
 requestAnimationFrame(frame);
 
-// SECTION: TEST HOOKS -- read-only views for the flow tests
-window.__cb = { CW, CH, st, A, Ht, grain, undoStack, water, get stickers() { return stickers; }, get cur() { return cur; }, ready: false,
+// SECTION: TEST HOOKS -- read-only views for the flow tests (age: let time pass for the oil paint)
+window.__cb = { CW, CH, st, grain, undoStack, water, get A() { return readPic().A; }, get Ht() { return readPic().H; }, get stickers() { return stickers; }, get cur() { return cur; }, ready: false,
   screenOf(x, y) { const r = view.getBoundingClientRect(); return [r.left + x * r.width / CW, r.top + y * r.height / CH]; },
   btn(id) { const b = document.querySelector('[data-id="' + id + '"]'); if (!b || b.classList.contains('hide')) return null; const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; },
-  shown(x, y) { const d = vctx.getImageData(Math.round(x), Math.round(y), 1, 1).data; return [d[0], d[1], d[2]]; },
-  save: () => save(), count: async () => ((await req('readonly', (s) => s.getAll())) || []).length };
+  shown(x, y) { render(); const d = new Uint8Array(4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.readPixels(Math.round(x), CH - 1 - Math.round(y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, d); return [d[0], d[1], d[2]]; },
+  age(s) { clockShift += s; },
+  fast(sec) { for (let i = 0; i < sec / SIM_DT && water.active; i++) { simStep(SIM_DT); if (i % 24 === 0) { water.frames = CHECK_EVERY - 1; checkWater(); gl.finish(); checkWater(); } } render(); }, // debug: let the wet paint run on
+
+  sum(T, r) { const t = { W: WAT, D: DEP, P: PIC }[T], w = r[2] - r[0], h = r[3] - r[1], f = new Float32Array(w * h * 4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, t.fb); gl.readPixels(r[0], r[1], w, h, gl.RGBA, gl.FLOAT, f); const s = [0, 0, 0, 0]; for (let i = 0; i < f.length; i++) s[i & 3] += f[i]; return s.map((v) => +v.toFixed(1)); },
+  probe(pts) { const f = new Float32Array(4), o = []; for (const [x, y] of pts) { const v = []; for (const T of [WAT, DEP]) { gl.bindFramebuffer(gl.READ_FRAMEBUFFER, T.fb); gl.readPixels(x, y, 1, 1, gl.RGBA, gl.FLOAT, f); v.push(+f[3].toFixed(3)); } o.push(v); } return o; }, save: () => save(), count: async () => ((await req('readonly', (s) => s.getAll())) || []).length };
 </script>
 </body></html>

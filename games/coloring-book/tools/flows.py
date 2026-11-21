@@ -21,6 +21,7 @@ def drag(q, pts, step=6):  # paper points; moves at about 60 per second like a f
     q.mouse.up(); time.sleep(0.1)
 
 def shown(q, x, y): return q.evaluate("([x,y])=>__cb.shown(x,y)", [x, y])
+def row(q, y): return q.evaluate("(y)=>{const o=[];for(let x=320;x<1080;x+=4)o.push(__cb.shown(x,y));return o}", y)
 def lum(c): return 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
 def report(ok, name, seen): print('%-4s %-48s %s' % ('PASS' if ok else 'FAIL', name, seen))
 
@@ -39,13 +40,18 @@ def f_oil_thick_dry(q):
     spread = max(prof[2:-2]) - min(prof[2:-2])
     report(h[0] > 0.08 and h[2] < h[0] * 0.8 and spread > 12, 'oil: thick, streaky, runs dry', 'thickness start/mid/end %s, brightness across %s' % (h, prof))
 
+def wait_dry(q, most=60):  # watercolour stays wet a few seconds (owner 21 Nov: wet and dry); wait until it is dry
+    t = time.time()
+    while q.evaluate("()=>__cb.water.active") and time.time() - t < most: time.sleep(0.2)
+    return round(time.time() - t, 1)
+
 def f_water(q):
     tap(q, 'tool-water'); tap(q, 'size-1'); tap(q, 'color-7'); drag(q, [(300, 400), (900, 400)])
-    time.sleep(1.6)
+    wait_dry(q)
     wet = q.evaluate("()=>__cb.water.active")
     prof = [round(lum(shown(q, 600, 400 + j))) for j in range(0, 40, 2)]
     paper = round(lum(shown(q, 600, 600))); centre = prof[0]; darkest = min(prof)
-    tap(q, 'color-7'); drag(q, [(300, 400), (900, 400)]); time.sleep(1.6)
+    tap(q, 'color-7'); drag(q, [(300, 400), (900, 400)]); wait_dry(q)
     twice = round(lum(shown(q, 600, 400)))
     report(not wet and centre < paper - 30 and darkest < centre - 4 and prof.index(darkest) > 3 and twice < centre - 15,
            'watercolour: dries, darker rim, layers darken', 'paper %d, centre %d, across %s, second layer %d' % (paper, centre, prof, twice))
@@ -115,8 +121,36 @@ def f_speed(q):  # what he would feel: time spent painting per frame with the bi
     ft = q.evaluate("()=>__ft.slice(5).sort((a,b)=>a-b)"); p95 = ft[int(len(ft) * 0.95)]
     report(p95 < 34, 'speed: big oil brush, fast strokes (this machine)', '95%% of frames under %.0f ms' % p95)
 
+def f_ctrl_x(q):  # owner 21 Nov: Ctrl+X takes back too
+    tap(q, 'tool-oil'); tap(q, 'color-2'); drag(q, [(200, 300), (900, 300)]); painted = shown(q, 500, 300)
+    q.keyboard.press('Control+x'); time.sleep(0.1); look = shown(q, 500, 300)
+    report(lum(painted) < 150 and lum(look) > 200, 'Ctrl+X takes back the last stroke', 'painted %s, after Ctrl+X %s' % (painted, look))
+
+def f_oil_dry(q):  # owner 21 Nov (plan): wet paint mixes, dry paint stays put; new paint sits on top of dry paint
+    tap(q, 'tool-oil'); tap(q, 'size-2'); tap(q, 'color-4'); drag(q, [(200, 300), (700, 300)])
+    q.evaluate("()=>__cb.age(300)")  # five minutes pass
+    tap(q, 'color-7'); drag(q, [(450, 120), (450, 520)])
+    mid, before, after = shown(q, 450, 300), shown(q, 450, 160), shown(q, 450, 380)
+    gr = lambda c: c[1] - c[2]
+    report(mid[2] > mid[1] and abs(gr(after) - gr(before)) < 10, 'oil: dry paint is not smeared, new paint covers it',
+           'crossing %s, blue before %s, blue after %s' % (mid, before, after))
+
+def f_tilt(q):  # owner 21 Nov: drips and tilting; wet watercolour runs down the tilted paper
+    tap(q, 'tilt'); tap(q, 'tool-water'); tap(q, 'size-2'); tap(q, 'color-7')
+    drag(q, [(300, 300), (1100, 300)]); drag(q, [(300, 310), (1100, 310)]); took = wait_dry(q, 30)
+    paper = min(lum(c) for c in row(q, 800))
+    below = min(lum(c) for c in row(q, 400)); above = min(lum(c) for c in row(q, 215))
+    report(below < paper - 25 and above > paper - 8, 'tilted paper: wet paint runs down', 'darkest paper %d, darkest 60 below %d, darkest 60 above %d, waited %ss' % (paper, below, above, took))
+
+def f_flat(q):  # with the paper flat the paint does not run down
+    tap(q, 'tool-water'); tap(q, 'size-2'); tap(q, 'color-7')
+    drag(q, [(300, 300), (1100, 300)]); drag(q, [(300, 310), (1100, 310)]); took = wait_dry(q, 30)
+    paper = min(lum(c) for c in row(q, 800)); below = min(lum(c) for c in row(q, 400))
+    report(below > paper - 8, 'flat paper: paint stays where it was put', 'darkest paper %d, darkest 60 below %d, waited %ss' % (paper, below, took))
+
 FLOWS = {'oil_mix': f_oil_mix, 'oil_thick_dry': f_oil_thick_dry, 'water': f_water, 'crayon': f_crayon, 'soft': f_soft, 'undo': f_undo,
-         'two_fingers': f_two_fingers, 'stickers': f_stickers, 'gallery': f_gallery, 'speed': f_speed}
+         'two_fingers': f_two_fingers, 'stickers': f_stickers, 'gallery': f_gallery, 'speed': f_speed,
+         'ctrl_x': f_ctrl_x, 'oil_dry': f_oil_dry, 'tilt': f_tilt, 'flat': f_flat}
 
 def run(names):
     with sync_playwright() as p:
