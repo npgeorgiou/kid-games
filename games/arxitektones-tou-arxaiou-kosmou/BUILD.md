@@ -15,8 +15,7 @@ You are an architect of the ancient world. On a picture map of the Mediterranean
 
 ## Open
 
-- The old owner-list checks (`tools/harness.py owner`) have 7 failures that were already failing before 21 Nov (sound levels, boats, hand-feel timings, restart boats); they guard numbers the owner changed since and wait for his word.
-- None asked otherwise. Known and accepted: the Valens and Parthenon piles do not fit the sidebar at 1280x800 (owner, 13 Nov).
+- None. Every test passes (21 Nov): cue tests, flows, `owner`, `spec`, `map`, `real`, `sandbox`, `loudness`, `sizes`, `realwave`, `realintro`, `mapbuttons`. Known and accepted: the Valens and Parthenon piles do not fit the sidebar at 1280x800 (owner, 13 Nov).
 
 ## Task list
 

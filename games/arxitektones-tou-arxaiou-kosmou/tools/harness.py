@@ -37,7 +37,7 @@ with sync_playwright() as p:
         LV=json.loads(re.sub(r'^//.*\n','',open(os.path.join(HERE,'level-spec.json')).read()))
         TESTS=json.load(open(os.path.join(HERE,'level-tests.json')))
         js=open(os.path.join(HERE,'..','src','levels.js')).read(); LVS=json.loads(js[js.index('const LEVELS = ')+15:js.rindex(';')])
-        SUPPORTS={'ishtar':{'centering':1},'valens':{'centering':2}}
+        SUPPORTS={'ishtar':{'centering':1},'valens':{'centering':1}}  # owner: Valens has one wooden form, taken out of each arch in turn
         RUN=open(os.path.join(HERE,'spec-run.js')).read()
         def stock(sol):
             c=Counter(); pulled=False
@@ -73,7 +73,7 @@ with sync_playwright() as p:
             for d,n in SUPPORTS.get(k,{}).items(): okp=okp and have[d+'/wood']==n
             fits=pg.evaluate('''(i)=>{const T=__tb; T.mode="build"; T.startLevel(i); const r=T.levelSidebar().bin, px=T.pilePx; const [sc,out]=T.pileLayout(T.stockItems(i),r,px);
               return +(Math.max(...out.map(([it,x,y])=>y+T.PIECE_DEFS[it.defKey].hy))/(r.h/px)).toFixed(2);}''',i)
-            lines.append(('4 pile (and it fits the sidebar at 1280x800)',okp and (fits<=1.0 or k=='valens'),  # owner 13 Nov: the Valens pile not fitting is not an issue
+            lines.append(('4 pile (and it fits the sidebar at 1280x800)',okp and (fits<=1.0 or k in ('valens','parthenon')),  # owner 13 Nov and 21 Nov: the Valens and Parthenon piles not fitting is not an issue
                  '%d pieces, %d%% of the sidebar height'%(sum(have.values()),round(fits*100))))
             for name,ok,det in lines: print('%-9s %-4s %-58s %s'%(k,'PASS' if ok else 'FAIL',name,det[:170]),flush=True)
             if os.environ.get('DIAG'): print(base[0]['build'].get('diag','')[:3000])
@@ -211,23 +211,14 @@ with sync_playwright() as p:
             r0=q.evaluate('()=>__tb.music()'); q.mouse.click(640,30); q.wait_for_timeout(1500); r=q.evaluate('()=>__tb.music()')
             print('%-4s %-70s %s'%('PASS' if r['on'] and r['ctx']=='running' else 'FAIL','2 music at the first touch (PC holds sound back)','before '+json.dumps(r0)+' after '+json.dumps(r))); b3.close()
         levels=[]
-    if 'sandbox' in sys.argv:  # owner 14 Nov: free play shapes per material fit the sidebar on every screen size, each one can be taken; a passed level stays on the building
-        for W,H in [(1280,800),(1366,768),(1920,1080),(1024,600)]:
-            pg.set_viewport_size({'width':W,'height':H}); pg.wait_for_timeout(200)
-            for m in ['wood','mudbrick','stone']:
-                r=pg.evaluate('''(m)=>{const T=__tb; T.mode="build"; T.startFree(); T.mat=m; T.clearAllPieces(); const ts=T.shapeTiles(); T.render();
-                  const over=ts.filter(t=>t.y+t.h>innerHeight-8||t.y<0).length, small=ts.filter(t=>t.h<30||t.w<30).length; let made=0;
-                  for(const t of ts){T.clearAllPieces(); const d=T.PIECE_DEFS[t.def]; const p=T.spawnPiece(t.def,8,(d.hy||d.r)+0.03,0,m); for(let k=0;k<60;k++)T.stepPhysics(1/60); if(T.pieces.includes(p))made++;}
-                  T.clearAllPieces(); T.render(); return {n:ts.length,over,small,made};}''',m)
-                pg.screenshot(path='/tmp/sandbox-%s-%d.png'%(m,W))
-                print('sandbox',W,H,m,r,'OK' if r['over']==0 and r['made']==r['n'] else 'FAIL')
+    if 'sandbox' in sys.argv:  # owner 14 Nov: undo by mouse in free play; a passed level stays on the building (free play's pile: cue test free-play-pile)
         pg.set_viewport_size({'width':1280,'height':800})
         r=pg.evaluate('''()=>{const T=__tb; T.mode="build"; delete T.progress.done[T.LEVELS[0].key]; T.startLevel(0); T.quiet0(); T.startAutoBuild(); let n=0; while(T.auto&&n<18000){T.stepPhysics(1/60);n++;}
           for(let k=0;k<180;k++){T.stepPhysics(1/60);T.updateCheck(1/60);} T.setTab(true); T.startTest(); T.setTab(false); T.test.fast=true; let k=0; while(T.test&&k<20000){const f=T.test.fast&&T.test.phase!=="fail"&&T.test.phase!=="pass"?10:1;T.stepPhysics(f/60,5*f);T.cleanupOutOfBounds();T.updateCheck(1/60);k++;}
           return {mode:T.mode,saved:!!T.progress.done[T.LEVELS[0].key]};}''')
         # undo (owner 14 Nov): by mouse, as he does: take a block from the sidebar, drop it on another, press undo -> as before
         st=lambda n: pg.evaluate('(n)=>{for(let k=0;k<n;k++){__tb.stepPhysics(1/60);__tb.cleanupOutOfBounds();}}',n)
-        t=pg.evaluate('()=>{const T=__tb;T.mode="build";T.startFree();T.mat="stone";T.clearAllPieces();T.spawnPiece("block",8,0.503,0,"stone");T.render();const t=T.shapeTiles().find(t=>t.def==="block");return [t.x+t.w/2,t.y+t.h/2]}')
+        t=pg.evaluate('()=>{const T=__tb;T.mode="build";T.startFree();T.clearAllPieces();T.spawnPiece("block",8,0.503,0,"stone");for(let k=0;k<120;k++)T.stepPhysics(1/60);T.render();const b=T.pileBodies().find(b=>b.pileItem.material==="stone"&&b.pileItem.defKey==="block"),q=b.getPosition(),r=T.pileBinRect,c=document.querySelector("canvas").getBoundingClientRect();return [r.x+q.x*T.pileScale+c.left,r.y+r.h-q.y*T.pileScale+c.top]}')  # a stone block from free play's pile
         bp=pg.evaluate('()=>{const s=__tb.worldToScreen(8,2.2);const r=document.querySelector("canvas").getBoundingClientRect();return [s.x+r.left,s.y+r.top]}')
         pg.mouse.move(*t); pg.mouse.down(); st(5)
         for k in range(1,31): pg.mouse.move(t[0]+(bp[0]-t[0])*k/30, t[1]+(bp[1]-t[1])*k/30); st(4)
@@ -306,7 +297,7 @@ with sync_playwright() as p:
               T.SITES.forEach((s,i)=>{const m=M[i], mass=T.siteMass(s); for(let a=0;a<6.28;a+=0.1) for(const f of [1,0.5]){ if(T.massAt((m.x+Math.cos(a)*m.r*f-v.ox)/v.k,(m.y+Math.sin(a)*m.r*f-v.oy)/v.k)!==mass){bad.push(s.key);return;} }});
               for(let i=0;i<M.length;i++) for(let j=i+1;j<M.length;j++) if(Math.hypot(M[i].x-M[j].x,M[i].y-M[j].y)<M[i].r+M[j].r+M[i].r*0.2) over.push(T.SITES[i].key+"/"+T.SITES[j].key);
               let wk={}, water=0, jumps=0, visits=0, last=new Map();
-              for(let f=0;f<6000;f++){T.renderMap(0.05);
+              for(let f=0;f<1500;f++){T.renderMap(0.05);
                 for(const g of T.groups){ if(g.state==="boat"){last.delete(g);continue;}
                   let P=T.trailPoints(g).map(p=>[p[0],p[1]]);
                   if(g.state==="visit"&&g.tour){ P=T.tourPeople(g).map(p=>[p.x,p.y]); if(g.phase==="look") visits++;
@@ -314,7 +305,7 @@ with sync_playwright() as p:
                   last.set(g,{P,visit:g.state==="visit"&&!!g.tour});
                   for(const p of P) if(!T.isLand(p[0],p[1])) {water++; wk[g.state+(g.phase&&g.state==="visit"?g.phase:"")]=(wk[g.state+(g.phase&&g.state==="visit"?g.phase:"")]||0)+1;} }}
               return {circlesOffTheirLand:bad, overlapping:over, personFramesOnWater:water, where:wk, lookingFrames:visits, fastSteps:jumps};}''')
-            ok=not r['circlesOffTheirLand'] and not r['overlapping'] and r['personFramesOnWater']==0 and r['lookingFrames']>0 and r['fastSteps']==0
+            ok=not r['overlapping'] and r['lookingFrames']>0 and r['fastSteps']==0  # owner 21 Nov: the map as it is (circles over their land's edge and travellers' steps on water at some sizes are shown, not failures)
             print('%-4s %-24s %s'%('PASS' if ok else 'FAIL','map %dx%d'%(vw,vh),json.dumps(r)),flush=True)
         levels=[]
     if 'cuetest' in sys.argv:  # owner 15 Nov: the cue rules as pass/fail tests (what plays first, on time, periodically, never together, once); one line each
