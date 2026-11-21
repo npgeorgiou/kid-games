@@ -568,7 +568,7 @@
     const near = (a, b) => Math.abs(a - b) < 1e-6;
     for (const k of ["map-tap-water", "map-tap-sand", "map-tap-green"]) if (!near(v(k), 0.8 * 0.8 * 0.8)) bad.push(k + " " + v(k));
     if (!near(v("map-tap-rock"), 0.8 * 0.5 * 0.5)) bad.push("map-tap-rock " + v("map-tap-rock"));
-    for (const k of Object.keys(S)) if (/^hit-|^drag-|^crumble$|^snap$/.test(k) && !near(v(k), 0.8)) bad.push(k + " " + v(k));
+    for (const k of Object.keys(S)) if (/^hit-|^drag-|^crumble$|^snap$/.test(k) && !near(v(k), 0.8 * 0.9)) bad.push(k + " " + v(k)); // owner 17 Nov evening: material sounds 10% lower
     if (!near(v("music-map"), 0.2 * 0.8 * 0.9)) bad.push("music-map " + v("music-map"));
     if (T.MASTER_VOLUME !== 0.5) bad.push("all sounds at " + T.MASTER_VOLUME);
     out.push(["sound levels as the owner set them", !bad.length, bad.join("; ") || "ok"]);
@@ -702,6 +702,7 @@
       const s = { turn: 0, rise: 0, offFinger: 0 }, hd = b.hd, x0 = b.x, y0 = b.y, gy = y0 - (y0 - 5 - y0); // the finger went down 5 px above the boat's middle
       for (let k = 1; k <= 40; k++) { const fp = [x0 + (to[0] - x0) * k / 40, y0 - 5 + (to[1] - y0) * k / 40]; f.move(fp); step(); s.turn = Math.max(s.turn, Math.abs(b.hd - hd)); s.rise = Math.max(s.rise, b.lift || 0);
         s.offFinger = Math.max(s.offFinger, Math.hypot(b.x - (fp[0] + b.held.dx), b.y - b.lift * T.BOAT_LIFT_H - (fp[1] + b.held.dy))); } // the boat as seen stays at the finger
+      const still = performance.now(); while (performance.now() - still < 150) { f.move([to[0], to[1] - 5]); step(); } // held still before letting go (longer than the tenth of a second a throw is measured over): put down, not thrown (owner 18 Nov: boats are thrown with the finger's speed)
       s.shadowBelow = b.y - b.held.gy; const shadow = [b.x, b.y]; f.up([to[0], to[1] - 5]);
       let lastLift = 1; s.slowest = 0; for (let k = 0; k < 60 && b.drop; k++) { lastLift = b.lift; const t0 = performance.now(); step(); s.slowest = Math.max(s.slowest, performance.now() - t0); }
       s.lastLift = lastLift; s.landedAtShadow = Math.hypot(b.x - shadow[0], b.y - shadow[1]) < 0.01 && b.lift === 0 && !b.drop; return s;
@@ -747,6 +748,7 @@
       res.push(["its own splash does not push it (" + own.toFixed(1) + " map px)", own === 0]); // owner 17 Nov
       const s = follow(b2, 400); res.push(["left on the water: it sails back, nobody carries it", s.back && s.carry === 0 && s.lift === 0]);
       // owner 17 Nov: "the waves dont push the boats anymore": a boat sailing back after being moved (far over the water) is pushed like any other
+      for (let k = 0; k < 900 && T.boats.some((o) => o !== b2 && Math.hypot(o.x - b2.x, o.y - b2.y) < 60); k++) step(); // a finger on it takes it, not a boat lying over it
       f.down([b2.x, b2.y - 5]); drag(b2, landNear(b2, false)); const wasBack = !!b2.back, q = T.mapView().pt(b2.x, b2.y), cv = document.querySelector("canvas");
       for (const t of ["pointerdown", "pointerup"]) cv.dispatchEvent(new PointerEvent(t, { clientX: q.x - 30, clientY: q.y, pointerId: 34, isPrimary: true, pointerType: "mouse", button: 0, buttons: t === "pointerup" ? 0 : 1, bubbles: true }));
       let wp = 0; for (let k = 0; k < 90; k++) { step(); wp = Math.max(wp, Math.hypot(b2.ox, b2.oy)); }

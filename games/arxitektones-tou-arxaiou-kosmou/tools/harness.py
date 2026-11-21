@@ -195,7 +195,7 @@ with sync_playwright() as p:
               localStorage.setItem('tower-builder-progress-v1',JSON.stringify(T.progress)); for(const g of T.groups){g.state='visit';g.site='mastaba';g.wait=3;g.boat=null;}
               for(let k=0;k<600;k++) T.renderMap(0.05); const b=T.restartButton&&T.restartButton(); return b&&[b.x,b.y];}""")
             if st:
-                q.mouse.click(st[0],st[1]); q.wait_for_timeout(300)
+                q.mouse.click(st[0],st[1]); q.wait_for_timeout(300); q.mouse.click(st[0],st[1]); q.wait_for_timeout(300)  # owner 17 Nov: the first press says what it does, the second erases
                 r=q.evaluate("""()=>{const T=__tb; return {done:Object.keys(T.progress.done).length, saved:localStorage.getItem('tower-builder-progress-v1'),
                   people:T.groups.every((g,i)=>g.state==='boat'&&g.boat===T.boats[i]&&g.onFoot===0), boats:T.boats.every((b,i)=>b.wait>0||(b.leg===i%b.line.legs.length&&b.dir===1&&Math.abs(b.d-b.lens[b.leg]*((i*0.37)%1))<20)), mode:T.mode};}""")
                 ok=r['done']==0 and r['people'] and r['boats'] and r['mode']=='map' and (r['saved'] is None or json.loads(r['saved']).get('done',{})=={})

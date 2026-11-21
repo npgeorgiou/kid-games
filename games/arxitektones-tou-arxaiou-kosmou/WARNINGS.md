@@ -3,6 +3,7 @@
 Traps found while working on this game, as instructions. Add a line whenever a new one costs time or causes a wrong fix.
 
 ## Testing
+- Never read test results through `tail` or `head`: count every FAIL line (`grep -c ^FAIL`) and read them all (21 Nov: 19 failing hand checks went unseen behind `tail -8`).
 - `tools/harness.py` loads the built file, not `src/`: run `python3 build.py` before every test run.
 - The green button pressed less than 3 seconds after letting go of Ctrl runs the 10x fast test (Ctrl latch). A flow that copies the child pressing green waits more than 3 s after Ctrl.
 - In a site, ESC leaves the site, so flows cannot skip a line with ESC there; on the map they can.
