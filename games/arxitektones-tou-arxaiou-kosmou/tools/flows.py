@@ -646,6 +646,77 @@ def tutorial_early_brick(b):
     q.close()
     return r['step'] == 'done' and all(x in r['said'] for x in (95, 135, 100)), r
 
+def tutorial_no_mudbrick_line(b):
+    # owner 21 Nov: "the cue that appears when you touch a mudbrick for the first time ... should NOT be appearing there" (in the
+    # first site's teaching): the child takes bricks between the steps, as in tutorial-early-brick; the mudbrick line is not said
+    # while the teaching runs, and every step still comes
+    ok, r = tutorial_early_brick(b)
+    said = r['said'] if isinstance(r, dict) else []
+    end = max([i for i, x in enumerate(said) if isinstance(x, str)] + [len(said)])
+    return ok and 78 not in said[:end], dict(said=said, step=r.get('step') if isinstance(r, dict) else r)
+
+def tutorial_test_while_step_waits(b, step, at):
+    # owner 21 Nov: "at some point the tutorial of 1st level stopped, after [the mudbrick line] was heard ... no 'this is the red
+    # button', no 'this is the shovel, the undo', no 'green can be pressed now'": the first site's teaching waits for enough
+    # pieces; a line is playing when the child lays the piece that starts the next step (here the first wood: its line), the child
+    # builds on and presses the green button before that step's line had its turn; the teaching must go on after the test.
+    # The child lays bricks in rows; the at-th piece is the first wood, let go inside the dotted outline, so two lines (the wood's,
+    # the dotted outline's) play while the parent's quick build (Ctrl) finishes the building and the green button is pressed
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("(s)=>{__tb.cueMem().seq['first-site']=s}", step)
+    record(q)
+    click(q, 'site:mastaba')
+    until(q, "()=>__tb.voice.cur&&__tb.voice.cur.cue&&__tb.voice.cur.cue.id==='site-intro'", 2); time.sleep(0.3)
+    q.keyboard.press('Escape'); time.sleep(0.3); quiet(q)
+    W = q.evaluate("()=>__tb.buildingWidthPx"); gy = q.evaluate("()=>__tb.worldToScreen(0,0).y")
+    for n in range(at - 1):
+        drag(q, pile_piece(q, 'mudbrick'), [W * (0.3 + 0.06 * (n % 6)), gy - 25 - 22 * (n // 6)], hold=0.4)
+    top = q.evaluate("()=>{const T=__tb, w=T.worldToScreen(T.LEVEL_X0, 3.6); return [w.x, w.y];}")
+    drag(q, pile_piece(q, 'wood'), top, hold=0.2)
+    q.keyboard.down('Control'); time.sleep(0.1); click(q, 'autobuild'); until(q, "()=>!__tb.auto", 20); q.keyboard.up('Control')
+    green = until(q, "()=>__tb.testReady()", 4)
+    queued = q.evaluate("()=>__tb.voice.queue.map((x)=>x.cue&&x.cue.id)")
+    if green: click(q, 'test')
+    started = until(q, "()=>!!__tb.test", 2)
+    ended = started and until(q, "()=>!__tb.test", 60)
+    failed = not q.evaluate("()=>!!__tb.progress.done.mastaba"); in_test = q.evaluate("()=>__rec.said.slice()")
+    end = time.time() + 100
+    while time.time() < end and q.evaluate("()=>__tb.cueMem().seq['first-site']") != 'done':
+        if q.evaluate("()=>__tb.cueMem().seq['first-site']==='t-undo'&&!__tb.voice.cur&&!__tb.test") and pile_piece(q, 'mudbrick'): drag(q, pile_piece(q, 'mudbrick'), [W * 0.5, gy - 200], hold=0.4)  # the child builds on until the undo step comes
+        if q.evaluate("()=>__tb.cueMem().seq['first-site']==='t-red'") and 99 in q.evaluate("()=>__rec.said") and q.evaluate("()=>!__tb.test&&!__tb.voice.cur"): click(q, 'test')  # the red-button step, after its line
+        if q.evaluate("()=>__tb.cueMem().seq['first-site']==='t-green'") and 100 in q.evaluate("()=>__rec.said") and q.evaluate("()=>__tb.testReady()&&!__tb.test"): click(q, 'test')
+        time.sleep(0.5)
+    r = dict(green=green, queued_at_green=queued, test_started=started, test_ended=ended, failed=failed, said_by_test_end=in_test, said=q.evaluate("()=>__rec.said"), step=q.evaluate("()=>__tb.cueMem().seq['first-site']"),
+             now=q.evaluate("()=>({mode:__tb.mode, pieces:__tb.pieces.length, pile:__tb.pileBodies().map((x)=>x.pileItem.material[0]).join(''), cur:__tb.voice.cur&&__tb.voice.cur.n, queue:__tb.voice.queue.map((x)=>x.n), whens:__tb.whens.length, test:!!__tb.test, fail:!!__tb.failShow})"))
+    q.close()
+    test_lines = 71 in in_test and (not failed or 105 in in_test)  # the test's own lines still play: the green-button line, and at the first fail its explanation of the red
+    return started and test_lines and r['step'] == 'done' and all(n in r['said'] for n in ((99, 135, 100) if step == 't-red' else (135, 100))), r
+
+def tutorial_test_before_red_step(b): return tutorial_test_while_step_waits(b, 't-red', 8)
+def tutorial_test_before_undo_step(b): return tutorial_test_while_step_waits(b, 't-undo', 10)
+
+def red_during_fail_lines(b):
+    # owner 21 Nov: "no red was shown when the wind moved the pieces, just the 'to kokkino deixnei pou xalase' but no red was
+    # shown": the first site, its teaching over, a build that fails the test (wooden blocks on top, voices on); while the
+    # failure's line and the line saying the red shows where it broke are heard, the red is on the screen
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.cueMem().seq['first-site']='done'}")
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    q.evaluate("""()=>{const T=__tb; for(const e of [['block','mudbrick',-3,0.5],['block','mudbrick',-1,0.5],['block','mudbrick',1,0.5],['block','mudbrick',3,0.5],['square','mudbrick',-3.5,1.5],['block','mudbrick',-2,1.5],['block','mudbrick',0,1.5],['block','mudbrick',2,1.5],['square','mudbrick',3.5,1.5],['block','wood',-3,2.5],['block','wood',-1,2.5],['block','wood',1,2.5],['block','wood',3,2.5]]) T.spawnPiece(e[0],T.LEVEL_X0+e[2],e[3]+0.002,0,e[1]);}""")
+    green = until(q, "()=>__tb.testReady()", 8)
+    if green: click(q, 'test')
+    seen, end = [], time.time() + 60
+    while time.time() < end and (green and (q.evaluate("()=>!!__tb.test") or not seen)):
+        st = q.evaluate("()=>{const c=__tb.voice.cur; return c&&c.cue&&c.cue.on&&(c.cue.on==='test-fail'||c.cue.on==='fail-explain')?[c.n, !!__tb.failShow, __tb.test&&__tb.test.phase]:null}")
+        if st: seen.append(st)
+        time.sleep(0.1)
+    lines = sorted(set(x[0] for x in seen)); dark = [x for x in seen if not x[1]]
+    r = dict(green=green, lines=lines, without_red=dark[:5], heard=len(seen))
+    q.close()
+    return green and 105 in lines and not dark, r
+
 def boat_on_boat(b):
     # owner 18 Nov: "make so dropping a boat on another boat makes the same sound that the blocks do on wood-on-wood hit. sound
     # volume should be the same as the stone-on-boat sound": a boat carried over another boat at sea and let go there
@@ -712,7 +783,7 @@ def music_tick(b):
     q.close()
     return r['map_off'] == 0 and r['site_off'] == 0 and r['after_reopen'] == [False, 0] and r['map_on'] == 1, r
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick, 'boat-on-boat': boat_on_boat, 'sidebar-icons-spread': sidebar_icons_spread, 'button-click-sound': button_click_sound, 'music-tick': music_tick}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick, 'tutorial-no-mudbrick-line': tutorial_no_mudbrick_line, 'tutorial-test-before-red-step': tutorial_test_before_red_step, 'tutorial-test-before-undo-step': tutorial_test_before_undo_step, 'red-during-fail-lines': red_during_fail_lines, 'boat-on-boat': boat_on_boat, 'sidebar-icons-spread': sidebar_icons_spread, 'button-click-sound': button_click_sound, 'music-tick': music_tick}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
 
 def run(b, names):
     for n, f in FLOWS.items():

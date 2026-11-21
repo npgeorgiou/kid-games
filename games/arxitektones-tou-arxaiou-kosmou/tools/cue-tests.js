@@ -148,7 +148,7 @@
       lay(9); run(1.5); if (cur() !== 135 || !glowsOn("undo")) bad.push("ten pieces: line " + cur() + ", undo glows " + glowsOn("undo") + ", pieces in " + kids().length + " pile " + T.pileBodies().filter((b) => b.pileItem.material === "mudbrick").length);
       run(3); step("t-green", "after the undo line");
       const busy = log.filter((q) => (q[1] === 78 || q[1] === 72) && q[3]); if (busy.length) bad.push("78/72 started while a step waited or right after a teaching line");
-      if (!said().includes(78)) bad.push("78 never said in the free building");
+      if (said().includes(78)) bad.push("78 said while the teaching runs"); // owner 16 Nov ("after the tutorial cues are done") and 21 Nov
       { const sd = said(), a = sd.indexOf(98), b = sd.indexOf(136), c = sd.indexOf(99); if (!(a >= 0 && a < b && b < c)) bad.push("dotted-outline line 136 not between 98 and 99: " + sd.join(",")); } // 15 Nov night
 
       return [!bad.length, bad.join("; ") || said().join(",")];

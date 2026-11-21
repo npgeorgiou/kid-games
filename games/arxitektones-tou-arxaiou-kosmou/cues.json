@@ -10,6 +10,8 @@
   "While a teaching line plays or waits its turn, or a step waits for the child, every other line is dropped (a dropped first-time line keeps its first time for later). In the free building between steps (the child building on his own while the next step waits for enough pieces) other lines play as usual (owner 15 Nov night: the first crumble line must still play on the first site).",
   "Lines about a moment of building (a crumble, a snap) are not said during a test; the test's own lines say what happened.",
   "An action that ends a waiting step fires nothing else (pressing the red button in the red-button step says no line 70).",
+  "A teaching step is never dropped: when lines waiting their turn are dropped (a test starts), a step waiting its turn stays and is said in its turn, after the test if one started (owner 21 Nov: the test started while the red-button step waited behind another line, and the teaching stopped).",
+  "Owner 21 Nov: flavour never interrupts a teaching sequence. From its first step until its last is done, lines marked flavour are dropped, also between steps (their first time stays for after). Lines explaining what just happened (the first crumble, the first snap) still play between steps as before.",
   "Attention: none (default) only makes what it points at glow; point darkens the rest of the screen while the step waits, and only what it points at (or its touch list) can be touched; freeze darkens and freezes the game while its line plays. A demo darkens all but the building and takes no touch. Ctrl held (parent) is never held back.",
   "What a line talks about glows from its own outline (a plank's glow is long), with a slow ring spreading out: yellow, or green/red for a green/red thing.",
   "A step that waits says its line and shows the ghost hand again 5 s after its line ends, until the child does it.",
@@ -249,6 +251,7 @@
    "once": "ever / place (once at each place: in this game a site) / session (once per place since the game was opened: a page refresh or the restart is the child coming back) / visit (once per visit); none: every time",
    "sessionName": "the name its session memory goes by; cues with the same name share it (a first-time line counts as this session's too)",
    "teaching": "true: a teaching cue, one that shows the child a thing of the game (a button, the plan's dots, an opening, the shovel, the test's parts, the red); silent, with its glows and hand, when ΔΙΔΑΣΚΑΛΙΑ is unticked",
+   "flavour": "true: a remark (a material, a repeat, the red button): never said while a place's teaching runs, from its first step to its last",
    "kind": "teach: always plays, waits its turn; queued (default): waits its turn; bg: only if nothing is playing or waiting",
    "repeat": "a waiting step says its line again this many seconds after it ends; none: 5 s",
    "volume": "how much louder its line plays (1.2: a fifth louder); none: as loud as the others",
@@ -697,6 +700,7 @@
   },
   {
    "id": "pick-mudbrick",
+   "flavour": true,
    "on": "pickup",
    "say": 78,
    "topic": "Building",
@@ -705,6 +709,7 @@
   },
   {
    "id": "pick-stone",
+   "flavour": true,
    "on": "pickup",
    "say": 79,
    "topic": "Building",
@@ -713,6 +718,7 @@
   },
   {
    "id": "pick-wood",
+   "flavour": true,
    "on": "pickup",
    "say": 80,
    "topic": "Building",
@@ -732,6 +738,7 @@
   },
   {
    "id": "crumble-again",
+   "flavour": true,
    "on": "crumble",
    "say": 72,
    "topic": "Building",
@@ -751,6 +758,7 @@
   },
   {
    "id": "snap-again",
+   "flavour": true,
    "on": "snap",
    "say": 73,
    "topic": "Building",
@@ -782,6 +790,7 @@
   },
   {
    "id": "red-press",
+   "flavour": true,
    "on": "press-red",
    "say": 70,
    "topic": "Building",

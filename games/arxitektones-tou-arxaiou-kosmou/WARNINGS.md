@@ -16,6 +16,10 @@ Traps found while working on this game, as instructions. Add a line whenever a n
 - Lines dropped while a teaching line plays or a step waits for the child, not merely between steps (owner 15 Nov).
 - ESC in a site leaves at once; ESC during the site intro skips the intro (owner 18 Nov). Both are guarded by tests; keep both.
 
+- A teaching step is never dropped from the queue (test start, a child's action): a dropped step never finishes and the teaching stops for good (21 Nov). Drop lines with the engine's dropQueued.
+- Flavour lines (marked "flavour" in cues.json) never play while a place's teaching runs; explanations of what just happened (first crumble, first snap) still play between steps (owner 21 Nov).
+- A cue is done only when the line its "then" started is done too: the test's red stays until the failure's lines are said (21 Nov).
+
 ## Building and the hand
 - The outline is the shape of the building (solid, with only its real openings), never the union of the suggested build's pieces.
 - Every piece weighs its size counted in its material's regular block; lifting, carrying, pushing, breaking and the test all go by total weight.

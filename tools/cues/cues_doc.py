@@ -63,6 +63,7 @@ def main(path):
         if c.get("do") == "demo": parts.append("Plays the place's demo (below).")
         if c.get("do") == "teaching": parts.append("Runs the place's teaching steps, from where the child left them.")
         if c.get("teaching"): parts.append("Teaching: silent when ΔΙΔΑΣΚΑΛΙΑ is unticked.")
+        if c.get("flavour"): parts.append("Flavour: never said while a teaching sequence runs.")
         s = says(c.get("say"))
         if s:
             kind = {"teach": "teaching", "bg": "background, only if nothing else is playing or waiting"}.get(c.get("kind"), "queued")

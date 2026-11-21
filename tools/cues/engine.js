@@ -86,7 +86,7 @@
     scene++;
     for (const q of voice.queue) setMark(q.onceKey, false);
     voice.queue.length = 0; if (voice.cur) endLine(voice.cur);
-    active = []; whens = []; visit = {};
+    active = []; whens = []; visit = {}; teachingRun = null;
     cueGameNewScene();
   }
   function cueReset() { progress.cues = null; sessionMem = {}; newScene(); }
@@ -120,25 +120,34 @@
     if (teachingBusy() || stepWaiting() || demo) return; // a teaching sequence and a demo are never cut
     const c = voice.cur;
     if (c) { c.fin = true; endLine(c); }
-    for (const q of voice.queue) setMark(q.onceKey, false);
-    voice.queue = [];
+    dropQueued();
     active = active.filter((a) => a.seq && waiting(a)); // glows, pointing and the ghost hand of what was playing go with it
   }
+  function dropQueued(keep = () => false) { // lines waiting their turn are dropped (first times stay unused), except those kept; a
+    // teaching step never is: it would never finish and the teaching would stop there (owner 21 Nov: the test started while the
+    // red-button step waited behind another line, and no step came after)
+    voice.queue = voice.queue.filter((q) => { if (q.seq || keep(q)) return true; setMark(q.onceKey, false); return false; });
+  }
+  // a cue is done when its line and its visuals are done, and so is the line its "then" started (owner 21 Nov: the red of a failed
+  // test went away while "the red shows where it broke" was still to come); one dropped or never fired is done
+  function cueDone(c) { return !c || ((c.fin || (voice.cur !== c && !voice.queue.includes(c) && !active.includes(c))) && cueDone(c.next)); }
   function stepWaiting() { return active.some((s) => s.seq && waiting(s)); } // a teaching step waiting for the child
-  function teachingBusy() { return (voice.cur && voice.cur.kind === "teach") || voice.queue.some((q) => q.kind === "teach"); }
+  function teachingBusy() { return (voice.cur && voice.cur.kind === "teach") || voice.queue.some((q) => q.kind === "teach" && !(test && !q.duringTest)); } // a teaching line held back by a test (it waits for after) does not silence the test's own lines
   // fire one cue: its line (with what it points at, its hand, its wait), or its glow, or what it does
   function fire(c, x, seq) {
     const key = onceKey(c, x);
-    const then = () => { if (c.after != null && (useTeach || !c.teaching)) say(c.after, { kind: "teach" }); if (seq) nextStep(seq, c.id); else if (c.then) cueEvent(c.then, x); };
+    let line = null;
+    const then = () => { if (c.after != null && (useTeach || !c.teaching)) say(c.after, { kind: "teach" }); if (seq) nextStep(seq, c.id); else if (c.then) { const f = cueEvent(c.then, x).fired.find((l) => l && l.n != null) || null; if (line) line.next = f; } }; // the line its "then" starts is part of it (cueDone)
     if (c.do === "teaching") { if (!useTeach) return c; setMark(key, true); runSequence(sequenceOf(x.place)); return c; } // ΔΙΔΑΣΚΑΛΙΑ off: no steps (they wait, unmarked, for when it is ticked again)
     if (!useTeach && c.teaching) { then(); return null; } // ΔΙΔΑΣΚΑΛΙΑ off: a teaching line is not said (and stays unused); what follows it goes on, and nothing waits for it (it did not fire: owner 17 Nov, the test waited for an unsaid explanation and never ran)
     if (c.do === "demo") { setMark(key, true); if (useDemos) startDemo(placeKey(x.place), then); else then(); return c; } // ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ off: no demo, the rest goes on
     const memo = {}, pts = (names) => (names || []).flatMap((n) => pointTargets(n, x, memo));
     if (c.glow) { setMark(key, true); glowFor(pts(c.points), c.glow); then(); return c; }
     if (c.say == null) { setMark(key, true); then(); return c; }
+    if (!seq && c.flavour && teachingRun && cueMem().seq[teachingRun] !== "done") return null; // owner 21 Nov: flavour lines never interject a place's teaching, from its first step to its last (their first time stays unused)
     if (!seq && (teachingBusy() || stepWaiting())) return null; // while a teaching line plays or waits, or a step waits for the child, other lines are dropped (their first time stays unused)
     const n = lineOf(c, x);
-    const line = say(n, {
+    line = say(n, {
       cue: c, kind: c.kind || "queued", attention: c.attention || "none", targets: pts(c.points), touch: c.touch ? pts(c.touch) : null,
       act: showOf(c.show, x, memo), waitEvent: c.wait && !c.wait.startsWith("until:") ? c.wait : null,
       waitUntil: c.wait && c.wait.startsWith("until:") ? c.wait.slice(6) : null, needs: c.needs, seq,
@@ -158,7 +167,8 @@
 
   // --- sequences: steps in order, resumed where the child left them; a step that needs something missing goes back
   function sequenceOf(place) { const k = placeKey(place); return Object.keys(CUE_TABLE.sequences).find((n) => CUE_TABLE.sequences[n].place === k) || null; }
-  function runSequence(name) { if (name) runStep(name, cueMem().seq[name] || CUE_TABLE.sequences[name].steps[0]); }
+  let teachingRun = null; // the teaching sequence started on this visit; under way until the record says it is done
+  function runSequence(name) { teachingRun = name; if (name) runStep(name, cueMem().seq[name] || CUE_TABLE.sequences[name].steps[0]); }
   function runStep(name, id, depth = 0) {
     const c = cueById(id), m = cueMem(); m.seq[name] = id; cueSave();
     const go = () => {

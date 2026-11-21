@@ -2597,7 +2597,7 @@
     } else if (test.phase === "pass") {
       if (T >= PHASE_TIME.pass) { saveMonument(); finishTest(true); } // stays on the building; the map button goes back (owner 14 Nov)
     } else if (test.phase === "fail") {
-      if (T >= PHASE_TIME.fail) restoreSnapshot();
+      if (T >= PHASE_TIME.fail && cueDone(test.failCue)) restoreSnapshot(); // the red stays while the failure's lines say what it shows
     }
   }
 
@@ -4048,7 +4048,7 @@
   function onBreak(kind, p) { if (!p.demo && !demo) cueEvent(kind, { piece: p }); }
   function onRedPress() { if (!cueEvent("press-test").ended) cueEvent("press-red"); }
   function onTestStart() { // lines still waiting from the building are dropped (first times stay unused): after the test they would be stale
-    voice.queue = voice.queue.filter((q) => { if (q.duringTest) return true; setMark(q.onceKey, false); return false; });
+    dropQueued((q) => q.duringTest);
     if (!cueEvent("press-test").ended) test.waitCue = cueEvent("test-start").fired.find((c) => c.n != null) || null;
   }
   // The test's steps follow its cues (owner 18 Nov: "the 'lets see, will it stand' cue ... should play first, then the tests
@@ -4057,7 +4057,6 @@
   // 1. each step of the test (the green button, each part) fires its cue and remembers it;
   // 2. the next part begins only when that cue is done (its line and what it shows); the part fires its own cue as it begins.
   // A cue is done when it is finished or gone (said, cut, dropped); a step whose cue did not fire waits for nothing.
-  const cueDone = (c) => c.fin || (voice.cur !== c && !voice.queue.includes(c) && !active.includes(c));
   function enterPart(ph) {
     if (test.waitCue && !cueDone(test.waitCue)) { test.phase = "wait"; test.t = 0; test.after = ph; return; }
     const f = cueEvent("test-part", { part: ph }).fired.find((c) => c.n != null) || null;
@@ -4065,7 +4064,7 @@
     if (!f || f.attention !== "freeze") { nextPhase(ph); return; }
     test.phase = "cue"; test.t = 0; test.after = ph; // a freezing line: the part waits for it
   }
-  function onFail(part, why) { stopTestLines(); if (part) cueEvent("test-fail", { part, why }); }
+  function onFail(part, why) { stopTestLines(); test.failCue = part ? cueEvent("test-fail", { part, why }).fired.find((c) => c && c.n != null) || null : null; } // the red stays until this cue is done
   function stopTestLines() { // the test's explanations play with its parts (owner 18 Nov); a test that fails stops them with it, unplayed ones keep their first time
     const of = (q) => q.cue && q.cue.on === "test-part";
     voice.queue = voice.queue.filter((q) => { if (!of(q)) return true; setMark(q.onceKey, false); return false; });
