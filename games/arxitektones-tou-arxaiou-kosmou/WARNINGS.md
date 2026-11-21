@@ -22,6 +22,9 @@ Traps found while working on this game, as instructions. Add a line whenever a n
 
 - A tutorial step waits for what its line asks for ("put a few pieces" waits for three); a step that waits for less ends at once, its line is cut or skipped, and the tutorial goes silent (owner 21 Nov). Every tutorial flow repeats the owner's own order of actions, including doing the next thing at once.
 
+- A piece dragged back to the pile can land wedged in the pile's left wall; flows pick pile pieces with pile_piece_inside (seen 21 Nov, not reported by the owner).
+- The tutorial's invariant (its current step always alive) is checked by the cue test tutorial-never-stops with random actions; run it after any engine change.
+
 ## Building and the hand
 - The outline is the shape of the building (solid, with only its real openings), never the union of the suggested build's pieces.
 - Every piece weighs its size counted in its material's regular block; lifting, carrying, pushing, breaking and the test all go by total weight.

@@ -574,6 +574,46 @@
       if (!said().includes(80)) bad.push("80 not said after the tutorial (" + said().join(",") + ")");
       return [!bad.length, bad.join("; ") || "80 only after the tutorial"];
     },
+    // owner 21 Nov: "the tutorial is not meant to stop just like that": the first site's tutorial, the child doing any of his
+    // actions in any order and at any moment (fast one after another, during a line, between steps); while the tutorial runs its
+    // current step is always alive, and when the child does what each step asks, the tutorial reaches its end. Seeded, 12 runs.
+    "tutorial-never-stops": () => {
+      const bad = [];
+      const kidsIn = () => T.pieces.filter((p) => !p.demo && !p.auto);
+      const acts = {
+        pickup: () => T.cueEvent("pickup", { material: ["mudbrick", "wood"][Math.floor(rnd() * 2)] }),
+        putIn: () => { const p = T.spawnPiece("block", T.LEVEL_X0 - 3 + 2 * (kidsIn().length % 4), 0.5 + Math.floor(kidsIn().length / 4), 0, "mudbrick"); T.cueEvent("pickup", { material: "mudbrick" }); T.cueEvent("placed-in-plan"); return p; },
+        dragBack: () => { const p = kidsIn().pop(); if (p) T.removePiece(p); T.cueEvent("drag-back"); if (rnd() < 0.5) T.cueEvent("pickup", { material: "mudbrick" }); }, // the hand, fast, takes a pile piece at once
+        tap3: () => { const p = kidsIn().pop(); if (p) T.removePiece(p); T.cueEvent("tap3"); },
+        broom: () => { kidsIn().forEach(T.removePiece); T.cueEvent("press-broom"); },
+        red: () => T.cueEvent("press-test"),
+      };
+      let seed = 1; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      for (let r = 1; r <= 12 && !bad.length; r++) {
+        seed = r * 7919; fresh(); start(0); T.onEnterSite(0); run(3);
+        const hist = [];
+        for (let k = 0; k < 120; k++) { // random actions, fast
+          const n = Object.keys(acts)[Math.floor(rnd() * Object.keys(acts).length)]; acts[n](); hist.push(n + "@" + T.tutorialAt("first-site"));
+          run([0, 1 / 60, 0.1, 0.5, 2][Math.floor(rnd() * 5)], false);
+          if (!T.tutorialLive()) { bad.push("run " + r + ": the tutorial stopped at " + T.tutorialAt("first-site") + " after " + hist.slice(-6).join(" ")); break; }
+          if (T.tutorialAt("first-site") === "t-green") break;
+        }
+        if (bad.length) break;
+        // then he does what each step asks, once its line is said, until the end (the green button: the quick build and the test)
+        for (let k = 0; k < 400 && T.tutorialAt("first-site") !== "done"; k++) {
+          const st = T.tutorialAt("first-site"), c = T.voice.cur, waits = T.active.find((x) => x.cue && x.cue.id === st && !x.fin);
+          if (!c && waits && waits.ended) {
+            if (st === "t-drag-1" || st === "t-drag-2" || st === "t-drag-3") acts.putIn();
+            else if (st === "t-tap3") acts.tap3(); else if (st === "t-dragback") acts.dragBack(); else if (st === "t-shovel") acts.broom();
+            else if (st === "t-red") acts.red(); else if (st === "t-green") T.cueEvent("test-start");
+          } else if (!c && !T.voice.queue.length && T.whens.length) acts.putIn(); // a step waits for pieces: he builds
+          run(0.3, true);
+          if (!T.tutorialLive()) { bad.push("run " + r + ": stopped at " + st + " while following the steps"); break; }
+        }
+        if (!bad.length && T.tutorialAt("first-site") !== "done") bad.push("run " + r + ": did not reach the end (at " + T.tutorialAt("first-site") + ")");
+      }
+      return [!bad.length, bad.join("; ") || "12 runs: never stopped, always reached the end"];
+    },
   };
   window.__cueTests = (names) => Object.keys(tests).filter((n) => !names.length || names.includes(n)).map((n) => {
     try { const [ok, info] = tests[n](); return [n, !!ok, info || ""]; } catch (e) { return [n, false, "error " + e.message]; }

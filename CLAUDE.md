@@ -31,6 +31,17 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 - Never change the game to make a test pass. If a test fails, first decide from the failure detail whether the game or the test is wrong.
 - Keep runs short (seconds each). Run only what the change can affect, in the foreground. If a point takes more than about five minutes, stop and tell the owner why in one line.
 
+## Debugging (read before touching any bug)
+
+1. **Read the code before writing a test.** Follow the owner's action through the code by reading it: the input handler, the events it fires, the engine functions they reach. Write down every place that can change the state involved (adds it, ends it, removes it, skips it). The bug is almost always in one of those places, usually where something is removed or skipped.
+2. **Name the broken invariant, then fix every path that breaks it.** E.g. "a running tutorial always has exactly one live step". Find every code path that can break it and fix them all, not only the first one found. Prefer making it impossible (one owner of the state) over guarding each path.
+3. **Repeat his action exactly, then vary its timing.** His order, his speed ("fast", "at once", "during the line"). Write the same flow with the action before, during and after the moment he names. A test that never does what he did proves nothing.
+4. **Anything odd in a test is a bug until the code proves otherwise.** A step skipped, a line cut, a stuck state, a repeat: never call it "how the test clicks" without showing the code path that makes it harmless.
+5. **Look, don't guess.** Log the events and the state around the action once (event names, what fired, what was removed), read the log, then remove the logging.
+6. **Test the invariant, not only the story.** Add a check that drives many random action orders and timings (seeded, fast) and fails when the invariant breaks.
+7. **Never say "fixed" until his exact steps failed before the change and pass after**, and say what was fixed in his terms. If what he did is unknown, say so; never present a guessed path as his.
+8. **Time box.** If the cause is not found in 15 minutes of reading, tell him in one line what is known and what is being checked.
+
 ## Talking to the owner
 
 - English only. One short line per item, nothing else: what changed, the answer, or the yes/no question. No causes, explanations, how it was found or tested, reasoning, logs, recaps or offers unless he asks. The whole reply fits on a phone screen.

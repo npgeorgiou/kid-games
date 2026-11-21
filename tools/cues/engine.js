@@ -112,7 +112,9 @@
   function cueEvent(name, ctx = {}) {
     const out = { ended: false, fired: [] };
     if (CUES_OFF) return out;
-    for (const s of active) if (s.waitEvent === name && waiting(s)) { s.done = true; out.ended = true; }
+    // a step waiting for this action is done, and finished at once: its line stops and the next step starts now, so nothing
+    // between this moment and the next frame (the child's next touch, a test starting) can lose it (owner 21 Nov)
+    for (const s of active.slice()) if (s.waitEvent === name && waiting(s)) { s.done = true; out.ended = true; if (voice.cur === s) endLine(s); finish(s); }
     if (out.ended) return out;
     const x = Object.assign(cueContext(), ctx);
     const hits = CUE_TABLE.cues.filter((c) => c.on === name && !isMarked(onceKey(c, x)) && (c.if || []).every((k) => cond(k, x)));
@@ -126,7 +128,7 @@
     const c = voice.cur;
     if (c) { c.fin = true; endLine(c); }
     dropQueued();
-    active = active.filter((a) => a.seq && waiting(a)); // glows, pointing and the ghost hand of what was playing go with it
+    active = active.filter((a) => a.seq && !a.fin); // a tutorial step stays until it is finished: one just done by the child still starts the next step (owner 21 Nov: dragged back to the pile, the hand took a pile piece at once, and the tutorial stopped) // glows, pointing and the ghost hand of what was playing go with it
   }
   function dropQueued(keep = () => false) { // lines waiting their turn are dropped (first times stay unused), except those kept; a
     // teaching step never is: it would never finish and the teaching would stop there (owner 21 Nov: the test started while the
@@ -179,6 +181,13 @@
   function tutorialAt(name) { const m = cueMem().seq[name]; return m == null ? "not started" : m; }
   let tutorialRun = null; // the tutorial started on this visit
   function tutorialRunning() { return !!tutorialRun && tutorialAt(tutorialRun) !== "done"; } // from its first step until its last is done
+  // the tutorial's invariant: while it runs, its current step is alive (waiting for its start, its line waiting or playing, or
+  // waiting for the child); the cue tests check it after every action
+  function tutorialLive() {
+    if (!tutorialRunning()) return true;
+    const id = tutorialAt(tutorialRun), live = (x) => x.cue && x.cue.id === id && !x.fin;
+    return whens.some((w) => w.step === id) || (voice.cur && live(voice.cur)) || voice.queue.some(live) || active.some(live);
+  }
   function runTutorial(name) { tutorialRun = name; if (name) runStep(name, cueMem().seq[name] || CUE_TABLE.tutorials[name].steps[0]); }
   function runStep(name, id, depth = 0) {
     const c = cueById(id), m = cueMem(); m.seq[name] = id; cueSave();
@@ -186,7 +195,7 @@
       if (c.needs && !cond(c.needs) && c.back !== id && depth < 8) { runStep(name, c.back, depth + 1); return; }
       fire(c, cueContext(), name);
     };
-    if (c.start) cueWhen(() => cond(c.start), go); else go();
+    if (c.start) cueWhen(() => cond(c.start), go, id); else go();
   }
   function nextStep(name, id) {
     const sq = CUE_TABLE.tutorials[name], i = sq.steps.indexOf(id);
@@ -205,7 +214,7 @@
     return c;
   }
   function glowFor(targets, seconds) { if (targets.length) active.push({ n: null, ended: true, scene, t0: cueClock, until: cueClock + seconds, targets, attention: "none" }); }
-  function cueWhen(cond, fire) { whens.push({ cond, fire }); }
+  function cueWhen(cond, fire, step = null) { whens.push({ cond, fire, step }); }
   function startLine(c) {
     voice.cur = c; c.t0 = cueClock; c.ended = false; if (!active.includes(c)) active.push(c);
     const box = () => { if (voice.cur !== c) return; cueAudio = null; c.t0 = cueClock; cueText.textContent = CUE_TABLE.lines[c.n] || ""; cueBar.style.left = "0"; cueBox.style.display = "block"; };

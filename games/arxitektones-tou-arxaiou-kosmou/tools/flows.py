@@ -732,7 +732,7 @@ def tutorial_put_right_after_dragback(b):
     end = time.time() + 40  # the tutorial from its start, each step done once its line has been said: a piece in, three taps, a piece in
     while time.time() < end and not q.evaluate("()=>__tb.voice.cur&&__tb.voice.cur.n===134"):
         st = q.evaluate("()=>{const c=__tb.voice.cur; return __tb.cueMem().seq['first-site']+'/'+(c?c.n:'')}")
-        if st in ('t-drag-1/', 't-drag-2/'): drag(q, pile_piece(q, 'mudbrick'), [W * 0.3, gy - 25], hold=0.4)
+        if st in ('t-drag-1/', 't-drag-2/'): drag(q, pile_piece_inside(q, 'mudbrick'), [W * 0.3, gy - 25], hold=0.4)
         elif st == 't-tap3/':
             p = q.evaluate(last)
             if p:
@@ -742,16 +742,64 @@ def tutorial_put_right_after_dragback(b):
     if ok:
         time.sleep(0.5); p = q.evaluate(last)
         if p: drag(q, p, [W + 60, gy - 120], hold=0.3)  # he drags it back
-        drag(q, pile_piece(q, 'mudbrick'), [W * 0.4, gy - 25], hold=0.4)  # and at once puts another one in the site
+        drag(q, pile_piece_inside(q, 'mudbrick'), [W * 0.4, gy - 25], hold=0.4)  # and at once puts another one in the site
     heard = until(q, "()=>__l.some((x)=>x.n===138&&x.end)", 15)
     for k in range(1, 4):  # then he goes on putting pieces in, one at a time
         if q.evaluate("()=>__l.some((x)=>x.n===95)"): break
-        drag(q, pile_piece(q, 'mudbrick'), [W * (0.4 + 0.12 * k), gy - 25], hold=0.4); time.sleep(1)
+        drag(q, pile_piece_inside(q, 'mudbrick'), [W * (0.4 + 0.12 * k), gy - 25], hold=0.4); time.sleep(1)
     shovel = until(q, "()=>__l.some((x)=>x.n===95)", 10)
     r = q.evaluate("()=>({lines:__l.map((x)=>[x.n, x.end?+((x.end-x.t0)/1000).toFixed(1):null]), len138:__tb.VOICE_SECONDS[138], step:__tb.cueMem().seq['first-site']})")
     q.close()
     full = [d for n, d in r['lines'] if n == 138 and d is not None and d >= r['len138'] - 0.3]
     return ok and heard and bool(full) and shovel, r
+
+def pile_piece_inside(q, material):  # like pile_piece, but only a piece whose middle lies inside the pile's box (one wedged in its wall cannot be grabbed there)
+    return q.evaluate("(m)=>{const T=__tb, r=T.pileBinRect; const pts=T.pileBodies().filter((x)=>x.pileItem.material===m&&x.getLinearVelocity().length()<0.05).map((b)=>{const p=b.getPosition(); return [r.x+p.x*T.pileScale, r.y+r.h-p.y*T.pileScale];}).filter(([x,y])=>x>r.x+10&&x<r.x+r.w-10); return pts[0]||null;}", material)
+
+def tutorial_piece_in_at_dragback(b, when):
+    # owner 21 Nov: "AGAIN I MANAGED TO MAKE YOU SKIP THE TUTORIALS by dragging fast a piece to the site after the line that was
+    # asking me to drag it back to the pile": the tutorial from its start, each step done once its line is said; at the drag-back
+    # step he takes a new piece from the pile and puts it in the site fast (when: 'during' its line, 'after' it, 'before' it while
+    # the line before it plays); every later step's line must still come, in full: drag back, put a few pieces, the shovel
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    click(q, 'site:mastaba')
+    until(q, "()=>__tb.voice.cur&&__tb.voice.cur.cue&&__tb.voice.cur.cue.id==='site-intro'", 2); time.sleep(0.3)
+    q.keyboard.press('Escape'); time.sleep(0.3)
+    W = q.evaluate("()=>__tb.buildingWidthPx"); gy = q.evaluate("()=>__tb.worldToScreen(0,0).y")
+    q.evaluate("""()=>{window.__l=[]; let ln=null; const f=()=>{const c=__tb.voice.cur, n=c&&c.n; if(n!==ln){ if(ln!=null) __l[__l.length-1].end=performance.now(); if(n!=null) __l.push({n, t0:performance.now()}); ln=n; } requestAnimationFrame(f);}; requestAnimationFrame(f);}""")
+    last = "()=>{const T=__tb, p=T.pieces.filter((x)=>!x.demo&&x.heldBy==null).pop(); if(!p) return null; const s=T.worldToScreen(p.body.getPosition().x,p.body.getPosition().y); return [s.x,s.y];}"
+    cur = "()=>{const c=__tb.voice.cur; return __tb.cueMem().seq['first-site']+'/'+(c?c.n:'')}"
+    target = {'before': 't-tap3/132', 'during': 't-dragback/134', 'after': 't-dragback/'}[when]
+    end, did = time.time() + 40, False
+    while time.time() < end and not did:
+        st = q.evaluate(cur)
+        if st == target or (when == 'before' and st.endswith('/132')) or (when == 'after' and st.startswith('t-dragback/') and q.evaluate("()=>__l.some((x)=>x.n===134&&x.end)") and not q.evaluate("()=>!!__tb.voice.cur")):
+            if when == 'during': time.sleep(0.4)
+            drag(q, pile_piece_inside(q, 'mudbrick'), [W * 0.6, gy - 25], steps=8, hold=0.1); did = True; break  # fast, into the site
+        if st in ('t-drag-1/', 't-drag-2/'): drag(q, pile_piece_inside(q, 'mudbrick'), [W * 0.3, gy - 25], hold=0.4)
+        elif st == 't-tap3/':
+            p = q.evaluate(last)
+            if p:
+                for _ in range(3): q.mouse.click(p[0], p[1]); time.sleep(0.12)
+        time.sleep(0.1)
+    end = time.time() + 45  # then he follows whatever the tutorial says next, once each line is said
+    while time.time() < end and not q.evaluate("()=>__l.some((x)=>x.n===95)"):
+        st = q.evaluate(cur)
+        if st == 't-dragback/' and q.evaluate("()=>__l.filter((x)=>x.n===134&&x.end).length>0"):
+            p = q.evaluate(last)
+            if p: drag(q, p, [W + 60, gy - 120], hold=0.3)
+        elif st.startswith('t-drag-3/') and q.evaluate("()=>__l.some((x)=>x.n===138&&x.end)"): drag(q, pile_piece_inside(q, 'mudbrick'), [W * (0.3 + 0.1 * (int(time.time() * 3) % 5)), gy - 25], hold=0.4)
+        elif st in ('t-drag-1/', 't-drag-2/'): drag(q, pile_piece_inside(q, 'mudbrick'), [W * 0.3, gy - 25], hold=0.4)
+        time.sleep(0.5)
+    r = q.evaluate("()=>({lines:__l.map((x)=>[x.n, x.end?+((x.end-x.t0)/1000).toFixed(1):null]), len:{134:__tb.VOICE_SECONDS[134],138:__tb.VOICE_SECONDS[138]}, step:__tb.cueMem().seq['first-site'], pieces:__tb.pieces.filter((p)=>!p.demo).map((p)=>{const c=p.body.getPosition(); return [+(c.x-__tb.LEVEL_X0).toFixed(1), +c.y.toFixed(1), p.heldBy, !!p.ghost]})})")
+    q.close()
+    full = lambda n: any(m == n and d is not None and d >= r['len'][str(n)] - 0.3 for m, d in r['lines'])
+    return did and full(134) and full(138) and any(m == 95 for m, _ in r['lines']), r
+
+def tutorial_piece_in_before_dragback(b): return tutorial_piece_in_at_dragback(b, 'before')
+def tutorial_piece_in_during_dragback(b): return tutorial_piece_in_at_dragback(b, 'during')
+def tutorial_piece_in_after_dragback(b): return tutorial_piece_in_at_dragback(b, 'after')
 
 def boat_on_boat(b):
     # owner 18 Nov: "make so dropping a boat on another boat makes the same sound that the blocks do on wood-on-wood hit. sound
@@ -819,7 +867,7 @@ def music_tick(b):
     q.close()
     return r['map_off'] == 0 and r['site_off'] == 0 and r['after_reopen'] == [False, 0] and r['map_on'] == 1, r
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick, 'tutorial-no-mudbrick-line': tutorial_no_mudbrick_line, 'tutorial-test-before-red-step': tutorial_test_before_red_step, 'tutorial-test-before-undo-step': tutorial_test_before_undo_step, 'red-during-fail-lines': red_during_fail_lines, 'tutorial-put-right-after-dragback': tutorial_put_right_after_dragback, 'boat-on-boat': boat_on_boat, 'sidebar-icons-spread': sidebar_icons_spread, 'button-click-sound': button_click_sound, 'music-tick': music_tick}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick, 'tutorial-no-mudbrick-line': tutorial_no_mudbrick_line, 'tutorial-test-before-red-step': tutorial_test_before_red_step, 'tutorial-test-before-undo-step': tutorial_test_before_undo_step, 'red-during-fail-lines': red_during_fail_lines, 'tutorial-put-right-after-dragback': tutorial_put_right_after_dragback, 'tutorial-piece-in-before-dragback': tutorial_piece_in_before_dragback, 'tutorial-piece-in-during-dragback': tutorial_piece_in_during_dragback, 'tutorial-piece-in-after-dragback': tutorial_piece_in_after_dragback, 'boat-on-boat': boat_on_boat, 'sidebar-icons-spread': sidebar_icons_spread, 'button-click-sound': button_click_sound, 'music-tick': music_tick}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
 
 def run(b, names):
     for n, f in FLOWS.items():
