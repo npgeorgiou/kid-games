@@ -9,15 +9,16 @@
 - Brush rates per dab must use 1 - exp(-rate): with the big brush sizes a linear rate exceeds 1 and takes more paint than there is.
 - A tap on a colour gives a full brush; holding goes round a third, two thirds, full (0.5 s steps); hold(q, 'color-N', 1.6) is also full. Sizes, brushes and softness are in popups: the flows' tap() opens the popup first.
 - Undo of old steps is asynchronous (they come back from compressed memory); undo presses are queued, never dropped. Waking the water simulation after an undo only when that step had wet paint, or undo crawls.
-- Crayon texture must come from the paper's fine tooth (grain minus its broad waves); raw grain gives big white blotches, pixel noise looks like TV static.
-- Oil/acrylic keep the paint's own colour (PIC) and what is under it (UNDER, with the coat's thickness in its alpha); everything else (crayon, simple, marker, watercolour) must write the same colour into both, or the coat shows old colours.
+- Acrylic and the oil pastel (crayon) keep the paint's own colour (PIC) and what is under it (UNDER, with the coat's thickness in its alpha); everything else (simple, marker, watercolour) must write the same colour into both, or the coat shows old colours.
 - The undo store and its spill to memory cover every state texture (STATES); adding a picture texture means adding it there.
 - Coolors pages are drawn by script: read them through the cloud browser's page snapshot, not WebFetch.
 - Never put a // comment in the middle of a one-line object literal when patching: it silently comments out the rest of the line (a stroke lost its colour and nothing painted).
 - A picture's palette from plain cluster averages comes out beige and misses small bright parts: use the more colourful half of each group and weigh colourfulness.
 
-- Brush popup marks are real strokes painted by tools/previews.py (lib/previews, about 9 minutes): rerun it after any change to how a tool, brush or canvas looks, or the popup shows the old look.
+- Brush popup marks are real strokes painted by tools/previews.py (lib/previews, under 2 minutes): rerun it after any change to how a tool, brush or canvas looks, or the popup shows the old look.
 - Wet paint is worked only on runs of wet tiles (waterRuns), never the box around all wet places; any new water pass goes over those runs, and the flow is computed one pixel past each run.
 - Only number entries of K become shader constants; lists (like CRAY_PRESS) stay in the script.
-- Marker and simple lay one coverage per stroke over the colour from before the stroke (MISC g/b, B0). Crayon lays wax once per pass: only where the pixel was not under the previous dab (PC); per-dab laying saturates and paints bends thicker.
+- Marker and simple lay one coverage per stroke over the colour from before the stroke (MISC g/b, B0). The crayon is an oil pastel on the acrylic brush model (MED.crayon, REACH for the grain); the OIL_ constants are the pastel's (no oil tool). Look at crayon strokes at full size before sending: numbers passed while it painted fish scales.
 - Flows pick colours by their place in the Basic palette (6 is blue); if the Basic palette changes, change the places in the flows, never what they check.
+- The undo room spills old steps to memory ahead of time while nobody paints (keepRoom); a step read back while he paints made strokes lag and show late.
+- Never put a // comment inside a GLSL template line either: it comments out the rest of the shader line and the page never becomes ready.

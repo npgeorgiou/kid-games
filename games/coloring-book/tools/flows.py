@@ -296,3 +296,99 @@ def f_simple_over(q):  # owner 21 Nov 17:26: the simple brush lays its colour ov
     edge = [shown(q, 600 + dx, 400) for dx in range(30, 80, 5)]
     report(all(lum(e) >= lum(under) - 6 and e[2] <= under[2] + 6 for e in edge), 'simple brush: a soft yellow edge over blue only adds yellow', 'blue %s, across the edge %s' % (under, edge[::3]))
 FLOWS.update({'picker': f_picker, 'keep_amount': f_keep_amount, 'simple_over': f_simple_over})
+
+def f_water_no_hitch(q):  # owner 21 Nov 18:29: after a few strokes on dry paper, new strokes lag and show late: no frame may hang while he paints on (the undo room filling up)
+    tap(q, 'tool-simple'); tap(q, 'size-4'); tap(q, 'color-6')
+    for y in (100, 300, 500, 700, 900): drag(q, [(50, y), (1550, y)], step=80)
+    for c in ('color-2', 'color-4'):
+        tap(q, c)
+        for y in (100, 300, 500, 700, 900): drag(q, [(50, y), (1550, y)], step=80)
+    time.sleep(2); tap(q, 'tool-water'); tap(q, 'size-3'); free = q.evaluate("()=>__cb.freeTiles")  # a moment of rest, as between his strokes
+    q.evaluate("()=>{window.__gaps=[];let l=performance.now();const f=(t)=>{__gaps.push(t-l);l=t;if(__gaps.length<40)requestAnimationFrame(f)};requestAnimationFrame(f)}")
+    drag(q, [(400, 200), (1200, 200)], step=30); time.sleep(1)
+    g = sorted(q.evaluate("()=>__gaps.slice(2)")); med = g[len(g) // 2]
+    report(g[-1] < 3 * med + 50 and free >= 400, 'painting never waits for undo room: a whole page is free before a stroke', 'longest frame %.0f ms, usual %.0f ms (this machine), free undo room before %s' % (g[-1], med, free))
+FLOWS['water_no_hitch'] = f_water_no_hitch
+
+def f_simple_soft_keeps(q):  # owner 21 Nov 18:29: the soft simple brush damages lines it painted before; a new soft line only adds colour, never takes any away
+    tap(q, 'tool-simple'); tap(q, 'blur-0'); tap(q, 'size-3'); tap(q, 'color-6')
+    drag(q, [(200, 300), (1000, 300)])
+    ys = range(240, 365, 5); before = [lum(shown(q, 700, y)) for y in ys]
+    drag(q, [(200, 380), (1000, 380)]); drag(q, [(200, 250), (1000, 250)])
+    after = [lum(shown(q, 700, y)) for y in ys]
+    lost = [(y, round(b), round(a)) for y, b, a in zip(ys, before, after) if a > b + 4]
+    report(not lost, 'simple soft brush: new lines never take colour away from old ones', 'places that got lighter (y, before, after) %s' % lost[:4])
+FLOWS['simple_soft_keeps'] = f_simple_soft_keeps
+
+def f_picker_shows(q):  # owner 21 Nov 18:29: the colour picker has its own pointer, and beside it a big swatch of the colour it would pick there
+    tap(q, 'tool-simple'); tap(q, 'size-3'); tap(q, 'color-2'); drag(q, [(300, 300), (700, 300)])
+    brush = q.evaluate("()=>document.getElementById('paper').style.cursor")
+    tap(q, 'pick'); s = q.evaluate("([x,y])=>__cb.screenOf(x,y)", [500, 300]); q.mouse.move(*s); time.sleep(0.2)
+    own = q.evaluate("()=>document.getElementById('paper').style.cursor")
+    sw = q.evaluate("()=>{const e=document.getElementById('pickpeek');if(!e||e.classList.contains('hide'))return null;const r=e.getBoundingClientRect();return [r.width,getComputedStyle(e).backgroundColor]}")
+    report(own != brush and sw is not None and sw[0] >= 60 and 'rgb(2' in sw[1], 'colour picker: own pointer and a big swatch of the colour under it', 'pointer changed %s, swatch %s' % (own != brush, sw))
+FLOWS['picker_shows'] = f_picker_shows
+
+def f_mop(q):  # owner 21 Nov 18:29: the mop (3rd watercolour brush) is wetter and softer than the round brush
+    tap(q, 'tool-water'); tap(q, 'size-2'); tap(q, 'color-6')
+    tap(q, 'shape-0'); drag(q, [(300, 300), (900, 300)], step=20)
+    tap(q, 'shape-2'); drag(q, [(300, 650), (900, 650)], step=20)
+    q.evaluate("()=>__cb.fast(8)")
+    def prof(y0): return [lum(c) for c in q.evaluate("(y0)=>{const o=[];for(let y=y0-110;y<=y0+110;y+=2)o.push(__cb.shown(600,y));return o}", y0)]
+    def shape(p):  # width of the mark, and of its edges (where it is between a fifth and three quarters of its darkest)
+        paper = sorted(p[:15] + p[-15:])[15]; d = [paper - v for v in p]; top = max(d)
+        return sum(2 for v in d if v > 0.2 * top), sum(2 for v in d if 0.2 * top < v < 0.75 * top)
+    (wr, er), (wm, em) = shape(prof(300)), shape(prof(650))
+    report(wm > wr * 1.2 and em > er * 1.5, 'mop: wetter (spreads wider) and softer (gentler edge) than round', 'width round %d mop %d, edge round %d mop %d' % (wr, wm, er, em))
+FLOWS['mop'] = f_mop
+
+def f_marker_real(q):  # owner 21 Nov 18:29: he does not see a marker's crossings get darker or its edge darker; any colour, the size he starts with
+    out = []
+    for col in ('color-4', 'color-2', 'color-5'):
+        q.reload(); q.wait_for_function("()=>window.__cb&&__cb.ready")
+        tap(q, 'tool-marker'); tap(q, col); drag(q, [(200, 300), (900, 300)]); drag(q, [(550, 100), (550, 500)])
+        r = q.evaluate("()=>__cb.st.size") ; R = [8, 16, 28, 48, 80][r]
+        one, two = shown(q, 300, 300), shown(q, 550, 300)
+        prof = [shown(q, 300, 300 + dy) for dy in range(0, R + 1)]
+        darkest_edge = min(prof[int(R * 0.6):], key=sum); centre = prof[0]  # darker: less light in all three colours together
+        out.append((col, one, two, centre, darkest_edge, sum(one) - sum(two), sum(centre) - sum(darkest_edge)))
+    ok = all(c[5] > 0.06 * sum(c[1]) and c[6] > 0.04 * sum(c[3]) for c in out)  # noticed as a share of how light the line is
+    report(ok, 'marker: crossings clearly darker and the edge darker, in every colour', '; '.join('%s crossing -%.0f edge -%.0f' % (c[0], c[5], c[6]) for c in out))
+FLOWS['marker_real'] = f_marker_real
+
+def f_palettes(q):  # owner 21 Nov 18:29: column 1 like his Fiery Red Sunset (dark to light across neighbouring colours), column 2 varied full palettes (pastel, dark, faded, fuller), column 3 two families in one run; 10 each, no two alike; the popup uses most of the screen
+    tap(q, 'palette'); time.sleep(0.3)
+    cols = q.evaluate("()=>[...document.querySelectorAll('.palcol')].filter(c=>c.closest('.palcols')).map(c=>[...c.querySelectorAll('.pal')].map(p=>[...p.querySelectorAll('u')].map(u=>getComputedStyle(u).backgroundColor.match(/\\d+/g).map(Number))))")
+    box = q.evaluate("()=>{const r=document.querySelector('.popbox').getBoundingClientRect();return [r.width/innerWidth,r.height/innerHeight]}")
+    import colorsys
+    def L(c): return colorsys.rgb_to_hls(*[v / 255 for v in c])[1] * 100
+    def far(a, b): return sum(sum(abs(x - y) for x, y in zip(p, r)) for p, r in zip(a, b)) / 30
+    fiery = [[3, 7, 30], [55, 6, 23], [106, 4, 15], [157, 2, 8], [208, 0, 0], [220, 47, 2], [232, 93, 4], [244, 140, 6], [250, 163, 7], [255, 186, 8]]
+    same = [(c, i, j) for c, col in enumerate(cols) for i in range(len(col)) for j in range(i + 1, len(col)) if far(col[i], col[j]) < 25]
+    c1_range = all(max(L(x) for x in p) - min(L(x) for x in p) > 35 for p in cols[0]) if cols else False  # his example runs 45 from darkest to lightest
+    means = [sum(L(x) for x in p) / 10 for p in cols[1]] if len(cols) > 1 else []
+    ok = (len(cols) == 3 and all(len(c) == 10 and all(len(p) == 10 for p in c) for c in cols) and fiery in cols[0] and not same and c1_range
+          and min(means) < 45 and max(means) > 78 and box[0] > 0.8 and box[1] > 0.75)
+    report(ok, 'palettes: three columns of 10, Fiery Red Sunset in the first, none alike, light and dark in the second, popup most of the screen',
+           'columns %s, Fiery in 1st %s, alike %s, column 1 dark to light %s, column 2 lightness %s..%s, popup %.0f%% x %.0f%%' % ([len(c) for c in cols], bool(cols) and fiery in cols[0], same[:3], c1_range, round(min(means or [0])), round(max(means or [0])), box[0] * 100, box[1] * 100))
+FLOWS['palettes'] = f_palettes
+
+def f_acrylic_scrub(q):  # owner 21 Nov 18:29: a 3rd acrylic brush like the Brusheezy acrylic packs (broad scrubbed strokes breaking into dry streaks), clearly unlike the flat
+    n = q.evaluate("()=>__cb.shapes.acrylic.length")
+    if n < 4: report(False, 'acrylic: a scrubby 3rd brush unlike the flat', 'only %d acrylic brushes' % n); return
+    tap(q, 'tool-acrylic'); tap(q, 'size-3'); tap(q, 'color-6')
+    tap(q, 'shape-1'); drag(q, [(200, 300), (1100, 300)])
+    tap(q, 'shape-2'); drag(q, [(200, 650), (1100, 650)])
+    def paper_share(y0): return q.evaluate("(y0)=>{let n=0,p=0;for(let x=400;x<900;x+=4)for(let y=y0-30;y<=y0+30;y+=3){n++;const c=__cb.shown(x,y);if(c[0]>150&&c[1]>150)p++;}return p/n}", y0)
+    flat, scrub = paper_share(300), paper_share(650)
+    report(scrub > flat + 0.12 and scrub < 0.7, 'acrylic: a scrubby 3rd brush unlike the flat', 'paper showing through: flat %.2f, scrub %.2f' % (flat, scrub))
+FLOWS['acrylic_scrub'] = f_acrylic_scrub
+
+def f_pastel_smear(q):  # owner 21 Nov 18:29: the crayon is an oil pastel: passing over pastel smears it, carrying its colour along past where it was
+    tap(q, 'tool-crayon'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-4')
+    drag(q, [(300, 300), (500, 300), (300, 340), (500, 340)])
+    tap(q, 'color-6'); drag(q, [(400, 320), (900, 320)])
+    avg = "([x0,x1])=>{const s=[0,0,0];let n=0;for(let x=x0;x<x1;x+=3)for(let y=305;y<=335;y+=3){const c=__cb.shown(x,y);if(c[0]+c[1]+c[2]<600){s[0]+=c[0];s[1]+=c[1];s[2]+=c[2];n++;}}return s.map(v=>Math.round(v/Math.max(1,n)))}"
+    near = q.evaluate(avg, [515, 585]); far = q.evaluate(avg, [800, 880])
+    report(near[1] - near[2] > far[1] - far[2] + 25, 'oil pastel: dragging through yellow carries yellow along (greener just after it)', 'just past the yellow %s, far from it %s' % (near, far))
+FLOWS['pastel_smear'] = f_pastel_smear
