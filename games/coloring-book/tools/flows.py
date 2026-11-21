@@ -132,15 +132,31 @@ def f_ctrl_z(q):  # owner 21 Nov: Ctrl+Z takes back; Ctrl+X does not
     q.keyboard.press('Control+z'); time.sleep(0.1); look = shown(q, 500, 300)
     report(lum(painted) < 150 and after_x == painted and lum(look) > 200, 'Ctrl+Z takes back the last stroke, Ctrl+X does nothing', 'painted %s, after Ctrl+X %s, after Ctrl+Z %s' % (painted, after_x, look))
 
-def f_load(q):  # owner 21 Nov: a tap keeps the dots; holding a colour sets 1, 2, 3 dots, one more each half second
+def f_load(q):  # owner 21 Nov: a tap gives a full brush; holding goes round a third, two thirds, full, a third...; a third looks washed out from the start
     tap(q, 'tool-oil'); levels = []
-    for sec in (0.6, 0.1, 1.1, 1.6): hold(q, 'color-7', sec); levels.append(q.evaluate("()=>__cb.st.load"))
+    for sec in (0.05, 0.6, 1.1, 1.6, 2.1): hold(q, 'color-7', sec); levels.append(q.evaluate("()=>__cb.st.load"))
     hold(q, 'color-7', 0.6); drag(q, [(200, 300), (1400, 300)])
-    hold(q, 'color-7', 1.6); drag(q, [(200, 600), (1400, 600)])
-    thick = lambda y: sum(q.evaluate("(y)=>{const H=__cb.Ht;let s=0;for(let x=900;x<1300;x++)s+=H[y*1600+x];return s/400}", y) for _ in [0])
-    little, full = thick(300), thick(600)
-    report(levels == [1, 1, 2, 3] and little < full * 0.6, 'holding a colour sets the paint; a tap keeps it',
-           'dots after holding 0.6, then a tap, then 1.1, 1.6 s: %s; paint thickness late in the stroke with little paint %.3f, with full %.3f' % (levels, little, full))
+    hold(q, 'color-7', 0.05); drag(q, [(200, 600), (1400, 600)])
+    little, full = lum(shown(q, 300, 300)), lum(shown(q, 300, 600))
+    report(levels == [3, 1, 2, 3, 1] and little > full + 30, 'paint amount: a tap is full, holding goes round; little paint is washed out',
+           'after a tap, then holding 0.6, 1.1, 1.6, 2.1 s: %s; brightness near the start with a third %d, full %d' % (levels, little, full))
+
+def f_fixed_angle(q):  # owner 21 Nov: the flat brush does not turn by itself
+    tap(q, 'tool-simple'); tap(q, 'shape-1'); tap(q, 'size-3'); hold(q, 'color-1', 0.05)
+    drag(q, [(200, 300), (800, 300)]); drag(q, [(1200, 150), (1200, 750)])
+    across_h = sum(1 for dy in range(-60, 61, 2) if lum(shown(q, 500, 300 + dy)) < 120) * 2
+    across_v = sum(1 for dx in range(-60, 61, 2) if lum(shown(q, 1200 + dx, 450)) < 120) * 2
+    report(abs(across_h - across_v) <= 6 and across_h < 85, 'flat brush keeps its angle whichever way it moves', 'stroke width moving across %d px, moving down %d px (brush 96 px)' % (across_h, across_v))
+
+def f_marker_ends(q):  # owner 21 Nov: big marker brushes must not leave blurry ends
+    tap(q, 'tool-marker'); tap(q, 'size-4'); hold(q, 'color-1', 0.05); drag(q, [(300, 400), (900, 400)])
+    prof = [lum(shown(q, 900 + dx, 400)) for dx in range(40, 110)]
+    soft = sum(1 for v in prof if 60 < v < 200)
+    report(soft <= 4, 'marker: crisp end at the biggest size', 'pixels of soft edge at the end %d' % soft)
+
+def f_guide_place(q):  # owner 21 Nov: the guide picture sits exactly on the paper
+    r = q.evaluate("""()=>{const g=document.getElementById('guide'),p=document.getElementById('paper');g.classList.remove('hide');const a=g.getBoundingClientRect(),b=p.getBoundingClientRect();g.classList.add('hide');return [a.left-b.left,a.top-b.top,a.width-b.width,a.height-b.height]}""")
+    report(all(abs(v) < 1 for v in r), 'guide picture lies exactly on the paper', 'offset and size difference %s' % r)
 
 def f_undo_all(q):  # owner 21 Nov: undo goes all the way back
     tap(q, 'tool-simple'); tap(q, 'size-4'); hold(q, 'color-1', 1.6); n = 24
@@ -176,13 +192,13 @@ def f_acrylic(q):  # acrylic dries fast: soon after, the brush no longer smears 
     gr = lambda c: c[1] - c[2]
     report(gr(oil_after) > gr(after) + 15, 'acrylic dries faster than oil', 'blue after crossing 30 s old acrylic %s, 30 s old oil %s' % (after, oil_after))
 
-def f_shapes(q):  # owner 21 Nov: brush shapes; a flat brush makes a mark as wide as the brush with straight sides
+def f_shapes(q):  # owner 21 Nov: brush shapes; a flat brush is a bar, held at one diagonal angle (it does not turn with the stroke)
     tap(q, 'tool-simple'); tap(q, 'size-3'); hold(q, 'color-1', 1.6); tap(q, 'shape-0'); drag(q, [(300, 200), (300, 200.5)])
     tap(q, 'shape-1'); drag(q, [(700, 200), (700, 200.5)])
-    w = lambda x: sum(1 for dy in range(-60, 61, 2) if lum(shown(q, x + dy, 200)) < 120)
-    h = lambda x: sum(1 for dy in range(-60, 61, 2) if lum(shown(q, x, 200 + dy)) < 120)
-    report(abs(w(300) - h(300)) <= 2 and h(700) > 2 * w(700), 'brush shapes: round dab is round, flat dab is a bar across the stroke',
-           'round %dx%d, flat %dx%d (across x along, 2 px steps)' % (h(300), w(300), h(700), w(700)))
+    line = lambda x, dx, dy: sum(1 for k in range(-60, 61, 2) if lum(shown(q, x + k * dx, 200 + k * dy)) < 120)
+    rnd, bar, across = (line(300, 1, 0), line(300, 0, 1)), line(700, 0.707, -0.707), line(700, 0.707, 0.707)
+    report(abs(rnd[0] - rnd[1]) <= 2 and bar > 2 * across, 'brush shapes: round dab is round, flat dab is a diagonal bar',
+           'round %dx%d, flat along the diagonal %d, across it %d (2 px steps)' % (rnd[0], rnd[1], bar, across))
 
 def f_canvas(q):  # owner 21 Nov: other canvases; linen shows a woven surface
     tap(q, 'canvas'); tap(q, 'canvas-linen'); time.sleep(0.5)
@@ -207,7 +223,7 @@ def f_flat(q):  # with the paper flat the paint does not run down
 FLOWS = {'oil_mix': f_oil_mix, 'oil_thick_dry': f_oil_thick_dry, 'water': f_water, 'crayon': f_crayon, 'soft': f_soft, 'undo': f_undo,
          'two_fingers': f_two_fingers, 'stickers': f_stickers, 'gallery': f_gallery, 'speed': f_speed,
          'ctrl_z': f_ctrl_z, 'oil_dry': f_oil_dry, 'flat': f_flat,
-         'load': f_load, 'undo_all': f_undo_all, 'marker': f_marker, 'delete': f_delete, 'delete_elsewhere': f_delete_elsewhere, 'acrylic': f_acrylic, 'shapes': f_shapes, 'canvas': f_canvas}
+         'load': f_load, 'fixed_angle': f_fixed_angle, 'marker_ends': f_marker_ends, 'guide_place': f_guide_place, 'undo_all': f_undo_all, 'marker': f_marker, 'delete': f_delete, 'delete_elsewhere': f_delete_elsewhere, 'acrylic': f_acrylic, 'shapes': f_shapes, 'canvas': f_canvas}
 
 def run(names):
     with sync_playwright() as p:
