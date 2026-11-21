@@ -4,22 +4,18 @@ Read `WARNINGS.md` first. Rules the owner gave live in the tests (`tools/flows.p
 
 ## Now
 
-Done (owner, 18 Nov 2026). Music can be switched off in the settings box; every button clicks.
+Done (owner, 18 Nov 2026), with cue fixes on 21 Nov.
 
 You are an architect of the ancient world. On a picture map of the Mediterranean and the Middle East you sail to ten famous sites in order, from an Egyptian mastaba to Valens' aqueduct. At each site you take mudbricks, stones and wood from a small pile with your hand and build the building's shape. Then the green button tests it: wind from both sides, a load lowered on top, an earthquake. If anything breaks or falls, the test fails and shows in red where; fix it and try again.
 
-- Map: ten sites with boats on fixed ports, traveller groups, waves, sand you can draw in, stones and boats you can throw; restart button; parent key Ctrl opens every site.
-- Sites: levels from `levels.md` (tests `tools/harness.py spec`, `real`); each has a tempting wrong piece that fails the test; finished sites go red when their headpiece is out.
-- Hand: one model (planck drag, strength by the weight held); two fingers carry and turn a piece.
-- Physics and breaking: shared `tools/physics/`; mudbrick crumbles, wood snaps over gaps.
-- Cues: voice, glows, the ghost hand and the first-site teaching from `cues.json` through `tools/cues/`; settings gear with teaching and helper videos on or off.
-- The test's voice order (18 Nov): the green-button line, then each part (wind, load, earthquake) starts when the line before it is done, together with its own first-time explanation; at the first win the "withstood" line, then 1 s after it the site's own line, then "press here for the map".
-- Quick build and 10x test: Ctrl.
+- Map, sites, hand, physics: as on 18 Nov (see `levels.md`, `tools/physics/`).
+- Cues (21 Nov): every cue has a level (tutorial, intro, explanation, flavour) in `cues.json`, applied by `tools/cues/engine.js`. The first site's steps are the tutorial "first-site"; the engine knows where it stands (not started, its cue, done). Tutorial steps are never dropped (a test started early no longer stops the tutorial); flavour never plays while the tutorial runs; explanations wait their turn; a failed test's red stays until its lines are said.
+- Owner's words, 21 Nov: "the tutorial of 1st level stopped, after the 'plintoi apo laspi' ... no 'this is the red button', no 'this is the shovel, the undo', no 'green can be pressed now', and no red was shown when the wind moved the pieces"; "ALSO WE NEED ANOTHER CUE LEVEL LOGIC ... TUTORIAL, FLAVOUR, INTRO, EXPLANATION ... A TUTORIAL THAT HAS CUES ... SO WE CAN DETECT EASILY IF THE TUTORIAL ENDED OR WHERE IT IS NOW"; "MAKE THE CHANGES TO THE CUE FRAMEWORK, NOT PATCH THE GAME FILES".
+- Tests for these: cue tests `tutorial-where`, `explanation-waits-in-tutorial`, `flavour-not-between-steps`; flows `tutorial-no-mudbrick-line`, `tutorial-test-before-red-step`, `tutorial-test-before-undo-step`, `red-during-fail-lines`.
 
 ## Open
 
-- None. The game is done (owner, 18 Nov 2026: "consider done").
-- Known and accepted: the Valens pile does not fit the sidebar (owner, 13 Nov); the Parthenon pile does not fit it either at 1280x800.
+- None asked. Known and accepted: the Valens and Parthenon piles do not fit the sidebar at 1280x800 (owner, 13 Nov).
 
 ## Task list
 
