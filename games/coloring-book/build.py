@@ -14,7 +14,8 @@ out = out.replace("/*%MIXBOX_GLSL%*/''", json.dumps(glsl)).replace("%MIXBOX_LUT%
 pals = []
 for line in (here / "lib" / "coolors" / "palettes.txt").read_text().splitlines():
     if not line.strip() or line.startswith("#"): continue
-    grp = line[0] if line[:2] in ("c ", "s ", "f ") else ""; name, hx = [t.strip() for t in (line[2:] if grp else line).split("|")]
+    # a line starting with a column number is shown in that column of the palettes popup
+    grp = line[0] if re.match(r"\d ", line) else ""; name, hx = [t.strip() for t in (line[2:] if grp else line).split("|")]
     pals.append({"name": name, "hex": " ".join(hx.split()), "grp": grp})
 out = out.replace("/*%COOLORS%*/[]", json.dumps(pals))
 prev = {f.stem: json.loads(f.read_text()) for f in sorted((here / "lib" / "previews").glob("*.json"))}  # brush previews, made by tools/previews.py

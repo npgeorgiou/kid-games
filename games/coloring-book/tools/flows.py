@@ -398,21 +398,20 @@ def f_marker_real(q):  # owner 21 Nov 18:29: he does not see a marker's crossing
     report(ok, 'marker: crossings clearly darker and the edge darker, in every colour', '; '.join('%s crossing -%.0f edge -%.0f' % (c[0], c[5], c[6]) for c in out))
 FLOWS['marker_real'] = f_marker_real
 
-def f_palettes(q):  # owner 21 Nov 18:29: column 1 like his Fiery Red Sunset (dark to light across neighbouring colours), column 2 varied full palettes (pastel, dark, faded, fuller), column 3 two families in one run; 10 each, no two alike; the popup uses most of the screen
+def f_palettes(q):  # owner 22 Nov 00:21: his palettes (lib/owner-palettes): column 1 the monochromes (he left out Payne's grey), column 2 the 5 rainbows then the first 5 extras,
+    # columns 3 and 4 the other 20 extras; Basic stays on top; his Red and Pink stay though alike (22 Nov: "none alike" is only for palettes we choose). Owner 21 Nov: 10 each, the popup most of the screen
+    import csv
+    def his(name): return [[[int(h[k:k + 2], 16) for k in (1, 3, 5)] for h in r[1:11]] for r in list(csv.reader(open(GAME.parent / 'lib' / 'owner-palettes' / name)))[1:] if r and "Payne" not in r[0]]
+    mono, rainbow, extra = his('monochromatic.csv'), his('rainbow.csv'), his('extra.csv')
+    want = [mono, rainbow + extra[:5], extra[5:15], extra[15:25]]
     tap(q, 'palette'); time.sleep(0.3)
     cols = q.evaluate("()=>[...document.querySelectorAll('.palcol')].filter(c=>c.closest('.palcols')).map(c=>[...c.querySelectorAll('.pal')].map(p=>[...p.querySelectorAll('u')].map(u=>getComputedStyle(u).backgroundColor.match(/\\d+/g).map(Number))))")
+    basic = q.evaluate("()=>document.querySelectorAll('.palpic .pal').length")
     box = q.evaluate("()=>{const r=document.querySelector('.popbox').getBoundingClientRect();return [r.width/innerWidth,r.height/innerHeight]}")
-    import colorsys
-    def L(c): return colorsys.rgb_to_hls(*[v / 255 for v in c])[1] * 100
-    def far(a, b): return sum(sum(abs(x - y) for x, y in zip(p, r)) for p, r in zip(a, b)) / 30
-    fiery = [[3, 7, 30], [55, 6, 23], [106, 4, 15], [157, 2, 8], [208, 0, 0], [220, 47, 2], [232, 93, 4], [244, 140, 6], [250, 163, 7], [255, 186, 8]]
-    same = [(c, i, j) for c, col in enumerate(cols) for i in range(len(col)) for j in range(i + 1, len(col)) if far(col[i], col[j]) < 25]
-    c1_range = all(max(L(x) for x in p) - min(L(x) for x in p) > 35 for p in cols[0]) if cols else False  # his example runs 45 from darkest to lightest
-    means = [sum(L(x) for x in p) / 10 for p in cols[1]] if len(cols) > 1 else []
-    ok = (len(cols) == 3 and all(len(c) == 10 and all(len(p) == 10 for p in c) for c in cols) and fiery in cols[0] and not same and c1_range
-          and min(means) < 45 and max(means) > 78 and box[0] > 0.8 and box[1] > 0.75)
-    report(ok, 'palettes: three columns of 10, Fiery Red Sunset in the first, none alike, light and dark in the second, popup most of the screen',
-           'columns %s, Fiery in 1st %s, alike %s, column 1 dark to light %s, column 2 lightness %s..%s, popup %.0f%% x %.0f%%' % ([len(c) for c in cols], bool(cols) and fiery in cols[0], same[:3], c1_range, round(min(means or [0])), round(max(means or [0])), box[0] * 100, box[1] * 100))
+    wrong = [(c + 1, i + 1) for c in range(4) for i in range(10) if c >= len(cols) or i >= len(cols[c]) or cols[c][i] != want[c][i]]
+    report(not wrong and len(cols) == 4 and basic == 1 and box[0] > 0.8 and box[1] > 0.75,
+           'palettes: his four columns of 10 in his order, Basic on top, popup most of the screen',
+           'columns %s, not his (column, row) %s, Basic %d, popup %.0f%% x %.0f%%' % ([len(c) for c in cols], wrong[:4], basic, box[0] * 100, box[1] * 100))
 FLOWS['palettes'] = f_palettes
 
 def f_acrylic_scrub(q):  # owner 21 Nov 18:29: a 3rd acrylic brush like the Brusheezy acrylic packs (broad scrubbed strokes breaking into dry streaks), clearly unlike the flat

@@ -100,8 +100,8 @@ const CANVASES = { // the canvas's colour and its surface (grain kind, how stron
 };
 const hexCols = (hex) => hex.split(' ').map((h) => [0, 2, 4].map((k) => parseInt(h.substr(k, 2), 16) / 255));
 const COOLORS = /*%COOLORS%*/[]; // popular 10-colour palettes from coolors.co (lib/coolors/palettes.txt), inlined by build.py
-const PALETTES = [{ name: 'Basic', by: '', grp: 'b', colors: hexCols('f7f7f2 0a0a0d db0f12 fa730d ffe00f 1a8c26 0d33bf 731f99 fa8cb3 73401a') }] // our own basic set, then 10 of each group (owner 21 Nov: every palette exactly 10 colours)
-  .concat(COOLORS.filter((p) => p.grp).map((p) => ({ name: p.name, by: 'Coolors', grp: p.grp, colors: hexCols(p.hex) })));
+const PALETTES = [{ name: 'Basic', by: '', grp: 'b', colors: hexCols('f7f7f2 0a0a0d db0f12 fa730d ffe00f 1a8c26 0d33bf 731f99 fa8cb3 73401a') }] // our own basic set, then the owner's palettes, 10 to a column (owner 21 Nov: every palette exactly 10 colours)
+  .concat(COOLORS.filter((p) => p.grp).map((p) => ({ name: p.name, by: '', grp: p.grp, colors: hexCols(p.hex) })));
 const SIZES = [8, 16, 28, 48, 80]; // brush radius for each size dot, the same for every medium (owner 21 Nov: 5 sizes, the biggest a little over double the old biggest)
 const SOFT = [0.95, 0.05]; // sharp, blurred: how far out the dab stays full strength (owner 21 Nov: two rows, the brushes sharp and blurred)
 const LOADS = [0.12, 0.4, 1]; // paint in the brush for a third-, two-thirds- and full bucket (owner 21 Nov: the lowest even less)
@@ -741,10 +741,11 @@ function makePots() {
 const colorsNow = () => PALETTES[st.palette].colors;
 addEventListener('pointerup', () => { clearInterval(potHold); potHold = null; });
 addEventListener('pointercancel', () => { clearInterval(potHold); potHold = null; });
-const palBtn = makeBtn(bottom, 'palette', icon('palette', '#3a2a1a'), () => openPop(palBtn, (box) => { // owner 21 Nov: on top Basic and the picture's palettes beside a copy of the picture; below three columns of 10: one colour family, all colours, two or three families; big and roomy
+const palBtn = makeBtn(bottom, 'palette', icon('palette', '#3a2a1a'), () => openPop(palBtn, (box) => { // owner 21 Nov: on top Basic and the picture's palettes beside a copy of the picture; below the columns of 10 (owner 22 Nov: four, his own palettes); big and roomy
+  const groups = [...new Set(PALETTES.map((p) => p.grp).filter((g) => g && g !== 'b'))], K = groups.length; // one column per group, in the list's order
   const GAP = 4, PAD = 8, ROW = 14, COL = 32, availH = palBtn.getBoundingClientRect().top - 60, availW = innerWidth * 0.94 - 40;
-  const nr = PALETTES.some((p) => p.fromPicture) ? 12 : 11, sw = Math.floor(Math.max(10, Math.min((availW - 2 * COL - 3 * (9 * GAP + 2 * PAD)) / 30, (availH - 40 - nr * (2 * PAD) - (nr - 1) * ROW - 30) / nr)));
-  const colGap = Math.max(COL, Math.min(120, (availW - 3 * (10 * sw + 9 * GAP + 2 * PAD)) / 2)); // spare width goes between the columns
+  const nr = PALETTES.some((p) => p.fromPicture) ? 12 : 11, sw = Math.floor(Math.max(10, Math.min((availW - (K - 1) * COL - K * (9 * GAP + 2 * PAD)) / (10 * K), (availH - 40 - nr * (2 * PAD) - (nr - 1) * ROW - 30) / nr)));
+  const colGap = Math.max(COL, Math.min(120, (availW - K * (10 * sw + 9 * GAP + 2 * PAD)) / (K - 1))); // spare width goes between the columns
   const wrap = document.createElement('div'); wrap.className = 'palwrap'; wrap.style.gap = 30 + 'px'; box.appendChild(wrap);
   const palBtnOf = (p, i) => { const b = document.createElement('button'); b.className = 'pal' + (i === st.palette ? ' on' : ''); b.dataset.id = 'pal-' + i; b.style.padding = PAD + 'px';
     b.innerHTML = '<b style="gap:' + GAP + 'px">' + p.colors.map((c) => '<u style="background:' + rgbS(c) + ';width:' + sw + 'px;height:' + sw + 'px"></u>').join('') + '</b>';
@@ -755,7 +756,7 @@ const palBtn = makeBtn(bottom, 'palette', icon('palette', '#3a2a1a'), () => open
   const pic = PALETTES.map((p, i) => [p, i]).filter(([p]) => p.fromPicture);
   if (pic.length) { const g = document.createElement('div'); g.className = 'palpicg'; top.appendChild(g); const im = document.createElement('img'); im.src = pic[0][0].thumb; im.style.height = (2 * sw + 4 * PAD + ROW) + 'px'; g.appendChild(im); const st2 = document.createElement('div'); st2.className = 'palcol'; st2.style.gap = ROW + 'px'; g.appendChild(st2); for (const [p, i] of pic) st2.appendChild(palBtnOf(p, i)); } // the picture, and its two palettes beside it
   const cols = document.createElement('div'); cols.className = 'palcols'; cols.style.gap = colGap + 'px'; wrap.appendChild(cols);
-  for (const grp of ['c', 's', 'f']) { const col = document.createElement('div'); col.className = 'palcol'; col.style.gap = ROW + 'px'; cols.appendChild(col);
+  for (const grp of groups) { const col = document.createElement('div'); col.className = 'palcol'; col.style.gap = ROW + 'px'; cols.appendChild(col);
     PALETTES.forEach((p, i) => { if (p.grp === grp) col.appendChild(palBtnOf(p, i)); }); }
 }));
 const pickBtn = makeBtn(bottom, 'pick', (c) => { // owner 21 Nov: a colour picker, as in Photoshop: tap it, then tap the painting; the button then holds that colour
