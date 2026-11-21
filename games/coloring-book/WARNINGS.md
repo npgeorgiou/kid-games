@@ -16,3 +16,8 @@
 - Never put a // comment in the middle of a one-line object literal when patching: it silently comments out the rest of the line (a stroke lost its colour and nothing painted).
 - A picture's palette from plain cluster averages comes out beige and misses small bright parts: use the more colourful half of each group and weigh colourfulness.
 
+- Brush popup marks are real strokes painted by tools/previews.py (lib/previews, about 9 minutes): rerun it after any change to how a tool, brush or canvas looks, or the popup shows the old look.
+- Wet paint is worked only on runs of wet tiles (waterRuns), never the box around all wet places; any new water pass goes over those runs, and the flow is computed one pixel past each run.
+- Only number entries of K become shader constants; lists (like CRAY_PRESS) stay in the script.
+- Crayon, marker and simple lay one coverage per stroke over the colour from before the stroke (MISC g/b, B0); laying it per dab saturates, so a second crayon colour hides the first instead of blending.
+- Flows pick colours by their place in the Basic palette (6 is blue); if the Basic palette changes, change the places in the flows, never what they check.

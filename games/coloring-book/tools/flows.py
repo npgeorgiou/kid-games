@@ -1,4 +1,5 @@
 # Flow tests: what the owner does, in the running game: real page, real mouse drags at a real rate, real touches.
+# Colours are picked by their place in the Basic palette: 0 white, 1 black, 2 red, 3 orange, 4 yellow, 5 green, 6 blue, 7 purple, 8 pink, 9 brown (owner 21 Nov: every palette 10 colours).
 # Each flow starts from a fresh page with no saved pictures and prints PASS or FAIL, its name, and what was seen.
 import time, json
 from playwright.sync_api import sync_playwright
@@ -32,7 +33,7 @@ def report(ok, name, seen): print('%-4s %-48s %s' % ('PASS' if ok else 'FAIL', n
 
 def f_oil_mix(q):
     tap(q, 'tool-acrylic'); tap(q, 'size-2'); hold(q, 'color-4', 1.6); drag(q, [(200, 300), (700, 300)])
-    hold(q, 'color-7', 1.6); drag(q, [(450, 120), (450, 520)])
+    hold(q, 'color-6', 1.6); drag(q, [(450, 120), (450, 520)])
     mid, before, after = shown(q, 450, 300), shown(q, 450, 160), shown(q, 450, 380)
     gr = lambda c: c[1] - c[2]
     report(mid[1] > mid[0] and mid[1] > mid[2] and gr(after) > gr(before) + 15, 'oil: blue over yellow is green and carried on',
@@ -51,12 +52,12 @@ def wait_dry(q, most=60):  # watercolour stays wet a few seconds (owner 21 Nov: 
     return round(time.time() - t, 1)
 
 def f_water(q):
-    tap(q, 'tool-water'); tap(q, 'size-1'); hold(q, 'color-7', 1.6); drag(q, [(300, 400), (900, 400)])
+    tap(q, 'tool-water'); tap(q, 'size-1'); hold(q, 'color-6', 1.6); drag(q, [(300, 400), (900, 400)])
     wait_dry(q)
     wet = q.evaluate("()=>__cb.water.active")
     prof = [round(lum(shown(q, 600, 400 + j))) for j in range(0, 40, 2)]
     paper = round(lum(shown(q, 600, 600))); centre = prof[0]; darkest = min(prof)
-    hold(q, 'color-7', 1.6); drag(q, [(300, 400), (900, 400)]); wait_dry(q)
+    hold(q, 'color-6', 1.6); drag(q, [(300, 400), (900, 400)]); wait_dry(q)
     twice = round(lum(shown(q, 600, 400)))
     report(not wet and centre < paper - 30 and darkest < centre - 4 and prof.index(darkest) > 3 and twice < centre - 15,
            'watercolour: dries, darker rim, layers darken', 'paper %d, centre %d, across %s, second layer %d' % (paper, centre, prof, twice))
@@ -79,7 +80,7 @@ def f_soft(q):
 def f_undo(q):
     tap(q, 'tool-acrylic'); hold(q, 'color-2', 1.6); drag(q, [(200, 200), (600, 300)])
     before = q.evaluate("()=>{let s=0;for(let i=0;i<__cb.A.length;i+=7)s+=__cb.A[i]+__cb.Ht[i/3|0];return s}")
-    hold(q, 'color-7', 1.6); drag(q, [(300, 100), (300, 500)]); tap(q, 'undo')
+    hold(q, 'color-6', 1.6); drag(q, [(300, 100), (300, 500)]); tap(q, 'undo')
     after = q.evaluate("()=>{let s=0;for(let i=0;i<__cb.A.length;i+=7)s+=__cb.A[i]+__cb.Ht[i/3|0];return s}")
     time.sleep(0.1); look = shown(q, 300, 450)
     report(abs(before - after) < 1e-3 and lum(look) > 200, 'undo takes back the last stroke exactly', 'difference %.6f, where it was %s' % (before - after, look))
@@ -134,9 +135,9 @@ def f_ctrl_z(q):  # owner 21 Nov: Ctrl+Z takes back; Ctrl+X does not
 
 def f_load(q):  # owner 21 Nov: a tap gives a full brush; holding goes round a third, two thirds, full, a third...; a third looks washed out from the start
     tap(q, 'tool-acrylic'); levels = []
-    for sec in (0.05, 0.6, 1.1, 1.6, 2.1): hold(q, 'color-7', sec); levels.append(q.evaluate("()=>__cb.st.load"))
-    hold(q, 'color-7', 0.6); drag(q, [(200, 300), (1400, 300)])
-    hold(q, 'color-7', 0.05); drag(q, [(200, 600), (1400, 600)])
+    for sec in (0.05, 0.6, 1.1, 1.6, 2.1): hold(q, 'color-6', sec); levels.append(q.evaluate("()=>__cb.st.load"))
+    hold(q, 'color-6', 0.6); drag(q, [(200, 300), (1400, 300)])
+    hold(q, 'color-6', 0.05); drag(q, [(200, 600), (1400, 600)])
     little, full = lum(shown(q, 300, 300)), lum(shown(q, 300, 600))
     report(levels == [3, 1, 2, 3, 1] and little > full + 30, 'paint amount: a tap is full, holding goes round; little paint is washed out',
            'after a tap, then holding 0.6, 1.1, 1.6, 2.1 s: %s; brightness near the start with a third %d, full %d' % (levels, little, full))
@@ -180,7 +181,7 @@ def f_undo_all(q):  # owner 21 Nov: undo goes all the way back
     report(dark < 80 and min(look) > 200, 'undo goes all the way back to the empty page', 'painted %d, after %d undos %s' % (dark, n, look))
 
 def f_marker(q):  # owner 21 Nov: a marker; its ink is see-through, so crossing lines get darker
-    tap(q, 'tool-marker'); tap(q, 'size-2'); hold(q, 'color-7', 1.6); drag(q, [(200, 300), (900, 300)]); drag(q, [(550, 100), (550, 500)])
+    tap(q, 'tool-marker'); tap(q, 'size-2'); hold(q, 'color-6', 1.6); drag(q, [(200, 300), (900, 300)]); drag(q, [(550, 100), (550, 500)])
     one, two = shown(q, 300, 300), shown(q, 550, 300)
     report(lum(two) < lum(one) - 15, 'marker: crossing lines get darker', 'one line %s, crossing %s' % (one, two))
 
@@ -213,14 +214,14 @@ def f_canvas(q):  # owner 21 Nov: other canvases; linen shows a woven surface
 def f_oil_dry(q):  # owner 21 Nov (plan): wet paint mixes, dry paint stays put; new paint sits on top of dry paint
     tap(q, 'tool-acrylic'); tap(q, 'size-2'); hold(q, 'color-4', 1.6); drag(q, [(200, 300), (700, 300)])
     q.evaluate("()=>__cb.age(300)")  # five minutes pass
-    hold(q, 'color-7', 1.6); drag(q, [(450, 120), (450, 520)])
+    hold(q, 'color-6', 1.6); drag(q, [(450, 120), (450, 520)])
     mid, before, after = shown(q, 450, 300), shown(q, 450, 160), shown(q, 450, 380)
     gr = lambda c: c[1] - c[2]
     report(mid[2] > mid[1] and abs(gr(after) - gr(before)) < 10, 'oil: dry paint is not smeared, new paint covers it',
            'crossing %s, blue before %s, blue after %s' % (mid, before, after))
 
 def f_flat(q):  # with the paper flat the paint does not run down
-    tap(q, 'tool-water'); tap(q, 'size-2'); hold(q, 'color-7', 1.6)
+    tap(q, 'tool-water'); tap(q, 'size-2'); hold(q, 'color-6', 1.6)
     drag(q, [(300, 300), (1100, 300)]); drag(q, [(300, 310), (1100, 310)]); took = wait_dry(q, 30)
     paper = min(lum(c) for c in row(q, 800)); below = min(lum(c) for c in row(q, 400))
     report(below > paper - 8, 'flat paper: paint stays where it was put', 'darkest paper %d, darkest 60 below %d, waited %ss' % (paper, below, took))
@@ -239,3 +240,26 @@ def run(names):
             except Exception as e: report(False, n, 'error: %s' % str(e).splitlines()[0])
             q.context.close()
         b.close()
+
+def f_crayon_levels(q):  # owner 21 Nov: the bucket levels are how hard the crayon presses; the lighter ones must still paint clearly
+    tap(q, 'tool-crayon'); tap(q, 'size-2'); out = []
+    for lv, y in ((1, 250), (2, 450), (3, 650)):
+        hold(q, 'color-6', 0.6 + 0.5 * (lv - 1)) if lv < 3 else tap(q, 'color-6')
+        drag(q, [(300, y), (900, y)])
+        out.append(q.evaluate("(y)=>{let n=0,p=0;for(let x=400;x<800;x+=3)for(let k=y-4;k<=y+4;k++){const c=__cb.shown(x,k);n++;if(c[0]>200)p++;}return 1-p/n}", y))
+    report(0.3 < out[0] < out[1] < out[2], 'crayon: a third, two thirds, full press cover more and more', 'covered %s' % ['%.2f' % v for v in out])
+
+def f_crayon_blend(q):  # owner 21 Nov: crayons blend: a second colour pressed over the first mixes with it
+    tap(q, 'tool-crayon'); tap(q, 'size-2'); tap(q, 'color-4'); drag(q, [(300, 300), (900, 300)])
+    a = q.evaluate("()=>__cb.shown(600,300)"); tap(q, 'color-6'); drag(q, [(300, 300), (900, 300)])
+    b = q.evaluate("()=>{const s=[0,0,0];let n=0;for(let x=500;x<700;x+=2){const c=__cb.shown(x,300);if(c[0]<235){s[0]+=c[0];s[1]+=c[1];s[2]+=c[2];n++;}}return s.map(v=>v/n)}")
+    report(b[1] > b[2] and b[0] < 200, 'crayon: blue over yellow blends green', 'yellow %s, both %s' % (a, [round(v) for v in b]))
+FLOWS.update({'crayon_levels': f_crayon_levels, 'crayon_blend': f_crayon_blend})
+
+def f_water_speed(q):  # owner 21 Nov: watercolour laggy, more so with more paint on the page: frame time follows the wet paint, not the box around it
+    tap(q, 'tool-water'); tap(q, 'size-2'); tap(q, 'color-6')
+    ft = "()=>new Promise(res=>{const o=[];let l=performance.now();const f=(t)=>{o.push(t-l);l=t;if(o.length<12)requestAnimationFrame(f);else res(o.slice(2).sort((a,b)=>a-b)[5])};requestAnimationFrame(f)})"
+    drag(q, [(150, 150), (400, 150)], step=30); one = q.evaluate(ft)
+    drag(q, [(1200, 850), (1450, 850)], step=30); two = q.evaluate(ft)
+    report(two < one * 2.6, 'watercolour: two far wet spots cost about twice one', 'frame %.0f ms with one, %.0f ms with two (this machine)' % (one, two))
+FLOWS['water_speed'] = f_water_speed

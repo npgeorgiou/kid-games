@@ -14,8 +14,10 @@ out = out.replace("/*%MIXBOX_GLSL%*/''", json.dumps(glsl)).replace("%MIXBOX_LUT%
 pals = []
 for line in (here / "lib" / "coolors" / "palettes.txt").read_text().splitlines():
     if not line.strip() or line.startswith("#"): continue
-    d = line.startswith("*"); name, hx = [t.strip() for t in line.lstrip("* ").split("|")]
-    pals.append({"name": name, "hex": " ".join(hx.split()), "def": d})
+    grp = line[0] if line[:2] in ("c ", "s ", "f ") else ""; name, hx = [t.strip() for t in (line[2:] if grp else line).split("|")]
+    pals.append({"name": name, "hex": " ".join(hx.split()), "grp": grp})
 out = out.replace("/*%COOLORS%*/[]", json.dumps(pals))
+prev = {f.stem: json.loads(f.read_text()) for f in sorted((here / "lib" / "previews").glob("*.json"))}  # brush previews, made by tools/previews.py
+out = out.replace("/*%PREVIEWS%*/{}", json.dumps(prev))
 (here / "coloring-book.html").write_text(out, encoding="utf-8")
 print("wrote coloring-book.html", len(out), "bytes")

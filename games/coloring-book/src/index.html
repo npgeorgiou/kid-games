@@ -11,7 +11,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
 #left,#right{flex-direction:column;top:0;bottom:0}
 #pop{position:fixed;inset:0;pointer-events:none;z-index:5}
 .popbox{position:fixed;pointer-events:auto;background:#f4ecdc;border-radius:calc(var(--b)*0.2);padding:var(--g);display:flex;flex-direction:column;gap:var(--g);box-shadow:0 0.6vh 2vh rgba(0,0,0,.5);overflow:hidden}
-.palgrid{display:grid;gap:calc(var(--g)*0.6)}
+.palwrap{display:flex;flex-direction:column;gap:calc(var(--g)*1.6)}.palpic{display:flex;gap:calc(var(--g)*1.6);padding-bottom:calc(var(--g)*1.2);border-bottom:2px solid #d8c8a8}.palcols{display:flex;gap:calc(var(--g)*1.6);align-items:flex-start}.palcol{display:flex;flex-direction:column;gap:calc(var(--g)*0.5)}
 .poprow{display:flex;gap:var(--g)}
 .arrow{position:fixed;width:calc(var(--g)*2.2);height:calc(var(--g)*2.2);background:#f4ecdc;transform:translate(-50%,-50%) rotate(45deg);pointer-events:none}
 .pal{display:flex;flex-direction:column;align-items:flex-start;gap:calc(var(--g)*0.4);border:0;border-radius:calc(var(--b)*0.12);background:#eadfcb;padding:calc(var(--g)*0.6);font:600 calc(var(--b)*0.24) sans-serif;color:#3a2a1a;touch-action:none}
@@ -50,7 +50,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
 // SECTION: MODEL -- the paint model in plain words
 /* The paint model (all of it runs on the graphics card, one small program per step). Words used: a medium is what
  you paint with, called a tool (oil, acrylic, watercolour, crayon, marker, simple brush); a brush shape is the shape of the brush or crayon
- tip (round, flat, filbert, mop; point, blunt, side); paint load is how much paint the brush took (hold a colour longer).
+ tip (round, flat, dry brush, knife, mop; tip, side); paint load is how much paint the brush took (hold a colour longer).
  1. The picture is a grid of pixels on a canvas (watercolour paper, smooth paper, cotton canvas, linen; each has its
     own surface grain). Each pixel holds how much light its paint swallows, per red/green/blue (absorbance,
     A = -ln(reflectance)), and how thick the paint is (H). Wet paints mix with each other like real pigment (Mixbox
@@ -94,16 +94,16 @@ const CANVASES = { // the canvas's colour and its surface (grain kind, how stron
 };
 const hexCols = (hex) => hex.split(' ').map((h) => [0, 2, 4].map((k) => parseInt(h.substr(k, 2), 16) / 255));
 const COOLORS = /*%COOLORS%*/[]; // popular 10-colour palettes from coolors.co (lib/coolors/palettes.txt), inlined by build.py
-const PALETTES = [{ name: 'Basic', by: '', colors: hexCols('f7f7f2 0a0a0d db0f12 fa730d ffe00f 1a8c26 59b3f2 0d33bf 731f99 fa8cb3 73401a') }] // our own basic set, then the 10 shown by default (owner 21 Nov)
-  .concat(COOLORS.filter((p) => p.def).map((p) => ({ name: p.name, by: 'Coolors', colors: hexCols(p.hex) })));
+const PALETTES = [{ name: 'Basic', by: '', grp: 's', colors: hexCols('f7f7f2 0a0a0d db0f12 fa730d ffe00f 1a8c26 0d33bf 731f99 fa8cb3 73401a') }] // our own basic set, then 10 of each group (owner 21 Nov: every palette exactly 10 colours)
+  .concat(COOLORS.filter((p) => p.grp).map((p) => ({ name: p.name, by: 'Coolors', grp: p.grp, colors: hexCols(p.hex) })));
 const SIZES = [8, 16, 28, 48, 80]; // brush radius for each size dot, the same for every medium (owner 21 Nov: 5 sizes, the biggest a little over double the old biggest)
 const SOFT = [0.95, 0.05]; // sharp, blurred: how far out the dab stays full strength (owner 21 Nov: two rows, the brushes sharp and blurred)
 const LOADS = [0.12, 0.4, 1]; // paint in the brush for a third-, two-thirds- and full bucket (owner 21 Nov: the lowest even less)
 const FIXED = [Math.SQRT1_2, Math.SQRT1_2]; // brushes that are not round are held at one angle, a diagonal; they never turn by themselves (owner 21 Nov)
-const PAINT = [{ id: 'round', k: 0, al: 1 }, { id: 'flat', k: 1, al: 0.22, fixed: 1 }, { id: 'filbert', k: 2, al: 0.45, fixed: 1 }, { id: 'fan', k: 1, al: 0.08, fixed: 1, comb: 5 }, { id: 'knife', k: 1, al: 0.12, fixed: 1, knife: 1 }]; // no brush that differs from another only in size: size has its own button (owner 21 Nov)
+const PAINT = [{ id: 'round', k: 0, al: 1 }, { id: 'flat', k: 1, al: 0.22, fixed: 1 }, { id: 'dry', k: 1, al: 0.3, fixed: 1, dry: 0.6 }, { id: 'knife', k: 1, al: 0.12, fixed: 1, knife: 1 }]; // owner 21 Nov: like the Brusheezy acrylic stroke packs: round, flat, dry brush (streaky, breaks up), knife (smear); no filbert or fan // no brush that differs from another only in size: size has its own button (owner 21 Nov)
 const SHAPES = { // brushes per tool (owner 21 Nov: all of them): kind (0 round, 1 flat, 2 oval), length along the stroke, size, edge softness, water, held at one angle
-  acrylic: PAINT, // fan: few strong bristle tufts; knife: no bristles, scrapes and smears flat (owner 21 Nov: no oil)
-  water: [{ id: 'round', k: 0, al: 1 }, { id: 'flat', k: 1, al: 0.25, fixed: 1 }, { id: 'mop', k: 0, al: 1, soft: 0.5, water: 1.3 }, { id: 'sponge', k: 0, al: 1, soft: 0.7, sponge: 1 }],
+  acrylic: PAINT, // dry brush: little paint on stiff, uneven bristles; knife: no bristles, scrapes and smears flat (owner 21 Nov: no oil)
+  water: [{ id: 'round', k: 0, al: 1 }, { id: 'flat', k: 1, al: 0.25, fixed: 1 }, { id: 'mop', k: 0, al: 1, soft: 0.5, water: 1.3 }, { id: 'dry', k: 1, al: 0.35, fixed: 1, dry: 0.12 }], // owner 21 Nov: no sponge; dry brush: little water, full colour, breaks on the paper's tooth in streaks along the stroke,
   crayon: [{ id: 'tip', k: 0, al: 1 }, { id: 'side', k: 1, al: 0.3, light: 0.75, fixed: 1 }],
   marker: [{ id: 'bullet', k: 0, al: 1 }, { id: 'chisel', k: 1, al: 0.3, fixed: 1 }],
   simple: [{ id: 'round', k: 0, al: 1 }, { id: 'square', k: 1, al: 1, fixed: 1 }],
@@ -118,7 +118,8 @@ const K = {
   W_ADD: 0.35, W_MAX: 1.5, PDIF: 25, W_DENS: 0.8, W_LEN: 30, // water per dab, most water a pixel holds, pigment spreading, pigment per water, stroke length (in brush radii) a full brush's water lasts
   CF: 0.4, DEEP: 0.3, KP: 0.015, MAXF: 0.5, // flow: speed, how deep water pushes onto dry paper, pull of the paper's dips, most water leaving a pixel per step
   EV: 0.15, EDGE: 25, W0: 0.02, SETTLE: 30, DEP0: 0.05, GRAN: 0.35, LIFT: 0.3, DAMPW: 2, DAMPE: 2, FIX: 4, // drying, edge drying, settling, granulation, lifting, damp paper, fixing
-  CRAY_COVER: 0.9, CRAY_FLOW: 0.55, CRAY_WAX: 0.004, MARK_RIM: 0.25,
+  CRAY_COVER: 0.9, CRAY_FLOW: 0.55, CRAY_WAX: 0.004, CRAY_PRESS: [0.5, 0.75, 1], CRAY_BURN: 0.6, // owner 21 Nov: the bucket levels are how hard the crayon is pressed; pressing pushes the wax already there into the paper's tooth, so colours blend (burnishing)
+  MARK_RIM: 0.25,
 };
 const SIM_DT = 1 / 60, MAX_STEPS = 2, CHECK_EVERY = 6, W_EPS = 1e-4, DAMP_EPS = 0.01;
 
@@ -129,10 +130,10 @@ function makeGrain(kind, W, H, out) { // the canvas surface, 0 (dip) .. 1 (raise
   const t = new Float32Array(n); // fine noise blurred once
   for (let y = 0; y < H; y++) for (let x = 1; x < W - 1; x++) { const k = y * W + x; t[k] = (f[k - 1] + f[k] + f[k + 1]) / 3; }
   for (let y = 1; y < H - 1; y++) for (let x = 0; x < W; x++) { const k = y * W + x; f[k] = (t[k - W] + t[k] + t[k + W]) / 3; }
-  const G = 7, gw = Math.ceil(W / G) + 2, gh = Math.ceil(H / G) + 2, c = new Float32Array(gw * gh);
+  const G = 3.5, gw = Math.ceil(W / G) + 2, gh = Math.ceil(H / G) + 2, c = new Float32Array(gw * gh);
   for (let i = 0; i < c.length; i++) c[i] = r();
   const coarse = (x, y) => { const gx = x / G, gy = y / G, ix = gx | 0, iy = gy | 0, fx = gx - ix, fy = gy - iy; return c[iy * gw + ix] * (1 - fx) * (1 - fy) + c[iy * gw + ix + 1] * fx * (1 - fy) + c[(iy + 1) * gw + ix] * (1 - fx) * fy + c[(iy + 1) * gw + ix + 1] * fx * fy; };
-  const P = kind === 'linen' ? 5 : 8, th = new Float32Array(Math.ceil(Math.max(W, H) / P) + 2).map(() => 0.65 + 0.6 * r()); // threads; linen's vary in thickness (slubs)
+  const P = kind === 'linen' ? 3 : 4, th = new Float32Array(Math.ceil(Math.max(W, H) / P) + 2).map(() => 0.65 + 0.6 * r()); // threads; linen's vary in thickness (slubs)
   const S = Math.PI;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const k = y * W + x; let g;
@@ -169,7 +170,7 @@ function tex(w, h, one) {
 }
 const PIC = tex(CW, CH), UNDER = tex(CW, CH), WAT = tex(CW, CH), DEP = tex(CW, CH), MISC = tex(CW, CH), B0 = tex(CW, CH), FLUX = tex(CW, CH), GRAIN = tex(CW, CH, true);
 // PIC: the colour of the top paint (absorbance rgb) + paint thickness. UNDER: what is under the wet oil or acrylic coat (rgb) + how thick that coat is (a); the coat hides it more the thicker it is. WAT: pigment in the water rgb + water depth. DEP: settled pigment rgb + damp paper.
-// MISC: r when the oil or acrylic was laid (seconds), g simple-brush stroke mask, b which stroke that mask belongs to, a how much of the paint is acrylic. B0: the picture before this simple stroke.
+// MISC: r when the oil or acrylic was laid (seconds), g simple-brush, marker or crayon stroke mask, b which stroke that mask belongs to, a how much of the paint is acrylic. B0: the picture before this simple, marker or crayon stroke.
 const STATES = [PIC, WAT, DEP, MISC, UNDER];
 const SC = [tex(CW, CH), tex(CW, CH), tex(CW, CH), tex(CW, CH)];
 const scFB = [1, 2, 3, 4].map((k) => { const f = fbFor(...SC.slice(0, k).map((s) => s.t)); gl.drawBuffers([...Array(k).keys()].map((i) => gl.COLOR_ATTACHMENT0 + i)); return f; });
@@ -186,7 +187,7 @@ const VS = '#version 300 es\nvoid main(){vec2 p=vec2(float((gl_VertexID&1)<<2),f
 const HEAD = `#version 300 es
 precision highp float; precision highp int; precision highp sampler2D;
 const int CW = ${CW}, CH = ${CH};
-${Object.entries(K).map(([k, v]) => `const float ${k} = ${fl(v)};`).join('\n')}
+${Object.entries(K).filter(([, v]) => typeof v === "number").map(([k, v]) => `const float ${k} = ${fl(v)};`).join('\n')}
 uniform sampler2D mixbox_lut;
 ${MIXBOX_GLSL}
 float sm(float e0, float e1, float x) { float t = clamp((x - e0) / (e1 - e0), 0., 1.); return t * t * (3. - 2. * t); }
@@ -277,22 +278,27 @@ const PR = {
     ivec2 o[4] = ivec2[4](ivec2(1, 0), ivec2(-1, 0), ivec2(0, 1), ivec2(0, -1));
     for (int k = 0; k < 4; k++) z += .1 * mixbox_rgb_to_latent(rgbOf(texelFetch(T, clamp(p + o[k], ivec2(0), n), 0).rgb));
     o0 = vec4(abOf(mixbox_latent_to_rgb(z)), c.a); }`),
-  crayon: program(`uniform sampler2D P, G, BT, U, M; uniform ivec2 C; uniform float R, LOADF, PRES, JIT, ALONG; uniform int NB; uniform vec3 CA; ${OUT2}
+  crayon: program(`uniform sampler2D P, G, BT, U, M, B; uniform ivec2 C; uniform float R, LOADF, PRES, JIT, ALONG, ID; uniform int NB; uniform vec3 CA; ${OUT4}
     float hash(vec2 v) { return fract(sin(dot(v, vec2(127.1, 311.7))) * 43758.5453); }
-    void main(){ // model part 4
-    ivec2 p = ivec2(gl_FragCoord.xy); vec4 c = texelFetch(P, p, 0), u = texelFetch(U, p, 0); vec2 d = vec2(p - C); float r = foot(d, R);
-    if (r >= 1.) { o0 = c; o1 = u; return; }
+    vec3 before(ivec2 q) { vec4 mq = texelFetch(M, q, 0); return mq.b == ID ? texelFetch(B, q, 0).rgb : visOf(texelFetch(P, q, 0), texelFetch(U, q, 0), mq.a); } // the colour there before this stroke
+    void main(){ // model part 4: one stroke lays its wax once over what was there (more dabs only reach deeper into the tooth), so a second colour mixes with the first
+    ivec2 p = ivec2(gl_FragCoord.xy); vec4 c = texelFetch(P, p, 0), u = texelFetch(U, p, 0), mis = texelFetch(M, p, 0), b0 = texelFetch(B, p, 0); vec2 d = vec2(p - C); float r = foot(d, R);
+    if (r >= 1.) { o0 = c; o1 = mis; o2 = b0; o3 = u; return; }
+    bool mine = mis.b == ID; float mo = mine ? mis.g : 0.;
     vec2 uv = brushUV(d, R); int bi = clamp(int((uv.y + 1.) * .5 * float(NB)), 0, NB - 1);
     float tip = texelFetch(BT, ivec2(bi, 0), 0).r; // the crayon's uneven tip: streaks along the stroke
     float al = (ALONG + uv.x * R * SSC) / 9., a0 = floor(al), breaks = mix(hash(vec2(float(bi), a0)), hash(vec2(float(bi), a0 + 1.)), sm(0., 1., al - a0)); // streaks break up now and then
-    float tooth = 0.; // the paper's fine tooth (its broad waves taken out), stretched along the stroke as the wax drags over it
+    float tooth = 0.; vec3 near = vec3(0.); float nw = 0.; // the paper's fine tooth (its broad waves taken out), stretched along the stroke as the wax drags over it; and the wax around, which pressing smears together
     for (int k = -2; k <= 2; k++) { ivec2 q = p + ivec2(round(D * float(k)));
-      float wave = (texelFetch(G, cl(q + ivec2(4, 0)), 0).r + texelFetch(G, cl(q - ivec2(4, 0)), 0).r + texelFetch(G, cl(q + ivec2(0, 4)), 0).r + texelFetch(G, cl(q - ivec2(0, 4)), 0).r) * .25;
+      if (!mine) for (int j = -1; j <= 1; j += 2) { ivec2 e = cl(q + ivec2(round(vec2(-D.y, D.x) * float(j) * 2.))); float wx = step(.0001, texelFetch(P, e, 0).a); near += wx * rgbOf(before(e)); nw += wx; }
+      float wave = (texelFetch(G, cl(q + ivec2(2, 0)), 0).r + texelFetch(G, cl(q - ivec2(2, 0)), 0).r + texelFetch(G, cl(q + ivec2(0, 2)), 0).r + texelFetch(G, cl(q - ivec2(0, 2)), 0).r) * .25;
       tooth += texelFetch(G, cl(q), 0).r - wave; }
-    tooth = clamp(.5 + 1.4 * tooth / 5., 0., 1.);
-    float thr = 1. - CRAY_COVER * LOADF * min(PRES, 1.2) * (.55 + .45 * tip) * (.75 + .25 * breaks) + JIT; // pressing harder (more wax) reaches deeper; each pass a little more
-    float a = sm(thr - .1, thr + .1, tooth) * (1. - sm(.85, 1., r)) * CRAY_FLOW;
-    vec3 v = km(visOf(c, u, texelFetch(M, p, 0).a), CA, a); o0 = vec4(v, c.a + a * CRAY_WAX); o1 = vec4(v, u.a); }`), // the wax has a little body, so the light shows its texture
+    tooth = clamp(.5 + 2.4 * tooth / 5., 0., 1.); // (owner 21 Nov: finer paper, so its tooth is shallower between near neighbours)
+    float thr = 1. - CRAY_COVER * LOADF * min(PRES, 1.2) * (.55 + .45 * tip) * (.75 + .25 * breaks) + JIT; // pressing harder (more wax) reaches deeper
+    float a = max(mo, sm(thr - .1, thr + .1, tooth) * (1. - sm(.85, 1., r)) * CRAY_FLOW * (.6 + .4 * LOADF));
+    if (!mine) { b0 = vec4(visOf(c, u, mis.a), c.a);
+      if (nw > 0. && c.a > .0001) b0.rgb = abOf(mix(rgbOf(b0.rgb), near / nw, CRAY_BURN * LOADF * nw / 10.)); } // burnishing: pressing blends the wax that is already there
+    vec3 v = km(b0.rgb, CA, a); mis.g = a; mis.b = ID; o0 = vec4(v, b0.a + a * CRAY_WAX * 4.); o1 = mis; o2 = b0; o3 = vec4(v, u.a); }`), // the wax has a little body, so the light shows its texture
   simple: program(`uniform sampler2D P, M, B, U; uniform ivec2 C; uniform float R, HD, ID, LO, GLAZE; uniform vec3 CA, PA; ${OUT4} void main(){
     ivec2 p = ivec2(gl_FragCoord.xy); vec4 pic = texelFetch(P, p, 0), mis = texelFetch(M, p, 0), b0 = texelFetch(B, p, 0), u = texelFetch(U, p, 0);
     bool mine = mis.b == ID; if (!mine) b0 = vec4(visOf(pic, u, mis.a), pic.a); float mo = mine ? mis.g : 0.;
@@ -300,26 +306,32 @@ const PR = {
     if (GLAZE > 0.) m *= 1. + MARK_RIM * sm(.6, .95, rr); // marker ink gathers a little at the edge of the line
     if (m > mo) { mis.g = m; mis.b = ID; pic.rgb = GLAZE > 0. ? b0.rgb + max(CA - PA, 0.) * m : km(b0.rgb, CA, m); u.rgb = pic.rgb; } // marker: see-through ink, crossing lines get darker
     o0 = pic; o1 = mis; o2 = b0; o3 = u; }`),
-  water: program(`uniform sampler2D W, DP, G; uniform ivec2 C; uniform float R, ADDK, SOFTE, SPONGE; uniform vec3 PG; ${OUT2} void main(){
+  water: program(`uniform sampler2D W, DP, G; uniform ivec2 C; uniform float R, ADDK, SOFTE, DRY; uniform vec2 MD; uniform vec3 PG; ${OUT2} void main(){
     ivec2 p = ivec2(gl_FragCoord.xy); vec4 w = texelFetch(W, p, 0), d = texelFetch(DP, p, 0); float g = texelFetch(G, p, 0).r;
     float r = foot(vec2(p - C), R) + (g - .5) * .06; // water soaks into the paper unevenly: a ragged edge
-    float m = (r > 1. ? 0. : 1. - sm(SOFTE, 1., r)) * dryBrush(min(ADDK, 1.), g) * (SPONGE > 0. ? sm(.42, .58, texelFetch(G, cl(ivec2(vec2(p) * .3)), 0).r) : 1.), add = m * W_ADD * ADDK * max(0., 1. - w.a / W_MAX);
-    o0 = vec4(w.rgb + PG * add * W_DENS, w.a + add); o1 = vec4(d.rgb, max(d.a, m)); }`),
+    float ld = min(ADDK, 1.), gs = g;
+    if (DRY > 0.) { ld *= DRY; gs = 0.; for (int k = -3; k <= 3; k++) gs += texelFetch(G, cl(p + ivec2(round(MD * float(k) * 1.5))), 0).r; gs /= 7.; gs = clamp(.5 + (gs - .5) * 2.2, 0., 1.); } // dry brush: the bristles skip over the tooth, streaks along the stroke
+    float m = (r > 1. ? 0. : 1. - sm(SOFTE, 1., r)) * dryBrush(ld, gs), room = max(0., 1. - w.a / W_MAX), add = m * W_ADD * ADDK * room * (DRY > 0. ? DRY : 1.);
+    o0 = vec4(w.rgb + PG * m * W_ADD * ADDK * room * W_DENS, w.a + add); o1 = vec4(d.rgb, max(d.a, m)); }`),
   flux: program(`uniform sampler2D W, DP, G; ${OUT1} void main(){ // water leaving this pixel to its 4 neighbours (left, right, down, up)
-    ivec2 p = ivec2(gl_FragCoord.xy); float w = texelFetch(W, p, 0).a, h0 = w + KP * texelFetch(G, p, 0).r; vec4 f = vec4(0);
+    ivec2 p = ivec2(gl_FragCoord.xy); float w = texelFetch(W, p, 0).a; if (w <= 0.) { o0 = vec4(0); return; } // no water, nothing leaves (owner 21 Nov: watercolour laggy)
+    float h0 = w + KP * texelFetch(G, p, 0).r; vec4 f = vec4(0);
     ivec2 n[4] = ivec2[4](p - ivec2(1, 0), p + ivec2(1, 0), p + ivec2(0, 1), p - ivec2(0, 1));
     for (int k = 0; k < 4; k++) { ivec2 q = n[k]; if (!inside(q)) continue;
       float gq = texelFetch(G, q, 0).r, dh = h0 - texelFetch(W, q, 0).a - KP * gq, cond = clamp(texelFetch(DP, q, 0).a + w * w * DEEP * (.1 + 1.8 * gq * gq), 0., 1.); // into damp paper, or pushed by deep water where the paper lets it
       f[k] = max(0., dh) * CF * cond; }
     float s = f.x + f.y + f.z + f.w; if (s > MAXF * w) f *= MAXF * w / max(s, 1e-12); o0 = f; }`),
-  upd: program(`uniform sampler2D W, DP, P, F, G, U; uniform float DT; ${OUT4} void main(){ // model part 3, one step
-    ivec2 p = ivec2(gl_FragCoord.xy); vec4 wa = texelFetch(W, p, 0), dp = texelFetch(DP, p, 0), pic = texelFetch(P, p, 0), f = texelFetch(F, p, 0); float g = texelFetch(G, p, 0).r;
-    float w = wa.a, outs = f.x + f.y + f.z + f.w; vec3 pg = wa.rgb * (1. - outs / max(w, 1e-9)); float win = 0.;
-    ivec2 q[4] = ivec2[4](p - ivec2(1, 0), p + ivec2(1, 0), p + ivec2(0, 1), p - ivec2(0, 1)); int c[4] = int[4](1, 0, 3, 2);
-    for (int k = 0; k < 4; k++) { if (!inside(q[k])) continue; float fl = texelFetch(F, q[k], 0)[c[k]]; vec4 wq = texelFetch(W, q[k], 0); win += fl; pg += wq.rgb * fl / max(wq.a, 1e-9); }
-    w = w - outs + win;
+  upd: program(`uniform sampler2D W, DP, F, G; uniform float DT; ${OUT2} void main(){ // model part 3, one step (fixing into the picture is its own, less frequent pass: fixp)
+    ivec2 p = ivec2(gl_FragCoord.xy); vec4 wa = texelFetch(W, p, 0), dp = texelFetch(DP, p, 0); float g = texelFetch(G, p, 0).r;
+    ivec2 q[4] = ivec2[4](p - ivec2(1, 0), p + ivec2(1, 0), p + ivec2(0, 1), p - ivec2(0, 1)); int c[4] = int[4](1, 0, 3, 2); vec4 wn[4]; float any = wa.a;
+    for (int k = 0; k < 4; k++) { wn[k] = inside(q[k]) ? texelFetch(W, q[k], 0) : vec4(0); any += wn[k].a; }
+    if (any <= 0.) { o0 = vec4(0); o1 = vec4(dp.rgb + wa.rgb, dp.a * max(0., 1. - DT * DAMPE)); return; } // dry here and around: only the damp paper dries (the same as the full step gives; owner 21 Nov: watercolour laggy)
+    vec4 f = texelFetch(F, p, 0); float w = wa.a, outs = f.x + f.y + f.z + f.w; vec3 pg = wa.rgb * (1. - outs / max(w, 1e-9)); float win = 0.;
     float c0 = wa.a > 1e-6 ? 1. / wa.a : 0.; vec3 dif = vec3(0); // pigment spreads through the water it is in (diffusion between wet neighbours)
-    for (int k = 0; k < 4; k++) { if (!inside(q[k])) continue; vec4 wq = texelFetch(W, q[k], 0); if (wq.a <= 1e-6 || wa.a <= 1e-6) continue; dif += (wq.rgb / wq.a - wa.rgb * c0) * min(wq.a, wa.a); }
+    for (int k = 0; k < 4; k++) { if (!inside(q[k])) continue; vec4 wq = wn[k];
+      if (wq.a > 0.) { float fl = texelFetch(F, q[k], 0)[c[k]]; win += fl; pg += wq.rgb * fl / max(wq.a, 1e-9); }
+      if (wq.a > 1e-6 && wa.a > 1e-6) dif += (wq.rgb / wq.a - wa.rgb * c0) * min(wq.a, wa.a); }
+    w = w - outs + win;
     pg = max(pg + min(.1, DT * PDIF * (.85 + .3 * g)) * dif, 0.); // a little faster along the paper's raised fibres (capped so, with the flow, no pixel can give away more pigment than it has)
     float ring = 0.; ivec2 o[8] = ivec2[8](ivec2(4, 0), ivec2(-4, 0), ivec2(0, 4), ivec2(0, -4), ivec2(3, 3), ivec2(-3, 3), ivec2(3, -3), ivec2(-3, -3));
     for (int k = 0; k < 8; k++) ring += texelFetch(DP, cl(p + o[k]), 0).a; ring /= 8.;
@@ -329,8 +341,10 @@ const PR = {
     float sw = W0 / (w + W0), fdep = w <= 0. ? 1. : 1. - exp(-DT * (DEP0 * (1. + GRAN * (1. - g)) + SETTLE * sw * sw)); // settles faster as the water gets shallow
     vec3 dep = pg * fdep; pg -= dep; d += dep;
     float damp = max(dp.a * (1. - DT * DAMPE * (1. - wf)), min(1., w * DAMPW)); // water wets the paper it reaches; the paper stays damp under water and dries after it
-    vec3 fx = d * min(1., DT * FIX * (1. - damp) * (1. - damp)); d -= fx; pic.rgb += fx; vec4 u = texelFetch(U, p, 0); u.rgb += fx; // a see-through layer on top of everything
-    o0 = vec4(pg, w); o1 = vec4(d, damp); o2 = pic; o3 = u; }`),
+    o0 = vec4(pg, w); o1 = vec4(d, damp); }`),
+  fixp: program(`uniform sampler2D DP, P, U; uniform float DT; ${OUT3} void main(){ // laid pigment fixes into the picture as the paper dries, a see-through layer on top of everything (what shows is the same: the screen adds the laid pigment)
+    ivec2 p = ivec2(gl_FragCoord.xy); vec4 dp = texelFetch(DP, p, 0), pic = texelFetch(P, p, 0), u = texelFetch(U, p, 0);
+    vec3 fx = dp.rgb * min(1., DT * FIX * (1. - dp.a) * (1. - dp.a)); o0 = vec4(dp.rgb - fx, dp.a); o1 = vec4(pic.rgb + fx, pic.a); o2 = vec4(u.rgb + fx, u.a); }`),
   fin: program(`uniform sampler2D W, DP, P, U; ${OUT4} void main(){ ivec2 p = ivec2(gl_FragCoord.xy); vec4 pic = texelFetch(P, p, 0), u = texelFetch(U, p, 0); vec3 a = texelFetch(DP, p, 0).rgb + texelFetch(W, p, 0).rgb;
     o0 = vec4(0); o1 = vec4(0); o2 = vec4(pic.rgb + a, pic.a); o3 = vec4(u.rgb + a, u.a); }`),
   tiles: program(`uniform sampler2D W, DP; ${OUT1} void main(){ ivec2 t = ivec2(gl_FragCoord.xy) * ${TS}; float mw = 0., md = 0.;
@@ -354,10 +368,10 @@ const PR = {
 let dirty = null;
 function markDirty(r) { dirty = join(dirty, r); }
 function render() {
-  const r = clip(water.moved ? join(dirty, water.rect) : dirty); dirty = null; water.moved = false; if (!r) return;
+  const rs = (water.moved ? waterRuns() : []).concat(dirty ? [clip(dirty)] : []); dirty = null; water.moved = false; if (!rs.length) return;
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, CW, CH); gl.enable(gl.SCISSOR_TEST);
-  gl.scissor(r[0], CH - 1 - r[3], r[2] - r[0] + 1, r[3] - r[1] + 1);
-  use(PR.show, { P: PIC, W: WAT, DP: DEP, G: GRAIN, M: MISC, U: UNDER, PB: CANVASES[st.canvas].bump }); gl.drawArrays(gl.TRIANGLES, 0, 3);
+  use(PR.show, { P: PIC, W: WAT, DP: DEP, G: GRAIN, M: MISC, U: UNDER, PB: CANVASES[st.canvas].bump });
+  for (const r of rs) { gl.scissor(r[0], CH - 1 - r[3], r[2] - r[0] + 1, r[3] - r[1] + 1); gl.drawArrays(gl.TRIANGLES, 0, 3); }
 }
 const renderAll = () => { markDirty([0, 0, CW - 1, CH - 1]); render(); };
 let rb = { v: -1 };
@@ -441,7 +455,7 @@ const st = { tool: 'acrylic', palette: 0, color: 4, load: 3, size: 1, soft: 0, s
 const colorOf = (i) => PALETTES[st.palette].colors[Math.min(i, PALETTES[st.palette].colors.length - 1)];
 let stroke = null, clockShift = 0;
 const paintNow = () => performance.now() / 1000 + clockShift;
-const water = { active: false, rect: null, recent: null, stroking: false, pend: null, dabNo: 0, frames: 0, acc: 0 };
+const water = { steps: 0, active: false, rect: null, mask: new Uint8Array(TX * TY), recent: null, stroking: false, pend: null, dabNo: 0, frames: 0, acc: 0 };
 const MED = { // oil and acrylic: same brush model, different paint (model part 2)
   oil: { UGIVE: K.OIL_GIVE, UTAKE: K.OIL_TAKE, URIDGE: K.OIL_RIDGE, UEDGE: K.OIL_EDGE, MAT: 0 },
   acrylic: { UGIVE: K.ACR_GIVE, UTAKE: K.ACR_TAKE, URIDGE: K.ACR_RIDGE, UEDGE: K.ACR_EDGE, MAT: 1 },
@@ -456,17 +470,17 @@ function bristles(s, n, lo, seed) { // strengths across the tip: soft grooves (o
 }
 function uploadBristles(s) { gl.bindTexture(gl.TEXTURE_2D, BTEX.t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, s.nb, 1, gl.RED, gl.FLOAT, s.bristle); }
 function oilStart(s) {
-  const R = s.r, n = 2 * R + 1, ca = s.ca, L = K.OIL_LOAD * s.load;
+  const R = s.r, n = 2 * R + 1, ca = s.ca, L = K.OIL_LOAD * s.load * (s.shape.dry || 1);
   s.n = n; s.res = ca;
   const d = new Float32Array(n * n * 4); for (let t = 0; t < n * n; t++) { d[t * 4] = ca[0]; d[t * 4 + 1] = ca[1]; d[t * 4 + 2] = ca[2]; d[t * 4 + 3] = L; }
   gl.bindTexture(gl.TEXTURE_2D, TIP[0].t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, n, n, gl.RGBA, gl.FLOAT, d);
   bristles(s, n, s.tool === 'acrylic' ? K.ACR_LINES : 0.3, (Math.random() * 1e9) | 0); // one bristle per pixel across: the brush's lines
-  if (s.shape.comb) s.bristle = s.bristle.map((v, i) => (Math.floor(i / Math.max(1, n / 24)) % s.shape.comb ? 0.04 : v)); // fan: separate tufts
+  if (s.shape.dry) { const r = rng(17); s.bristle = s.bristle.map((v) => (r() < 0.45 ? 0.03 : 0.5 + 0.5 * v)); } // dry brush: only some bristles carry paint, each on its own, so the mark is scratchy and streaky
   if (s.shape.knife) s.bristle.fill(1); // knife: one smooth blade
 }
 function oilDab(s, cx, cy) {
   const R = s.r, n = s.n, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]);
-  if (!s.shape.knife && !s.shape.comb) for (let i = 0; i < n; i++) s.bristle[i] = Math.min(1, Math.max(0.2, s.bristle[i] + (s.rnd() - 0.5) * 0.02)); // each bristle wanders
+  if (!s.shape.knife && !s.shape.dry) for (let i = 0; i < n; i++) s.bristle[i] = Math.min(1, Math.max(0.2, s.bristle[i] + (s.rnd() - 0.5) * 0.02)); // each bristle wanders
   uploadBristles(s); capture(r);
   const med = MED[s.tool], kn = s.shape.knife ? { UTAKE: med.UTAKE * K.KNIFE_TAKE, URIDGE: K.KNIFE_RIDGE } : {};
   const uni = Object.assign({ P: PIC, M: MISC, U: UNDER, T: TIP[0], BT: BTEX, G: GRAIN, C: [X, Y], R, NB: n, SP: s.sp, NOW: paintNow(), PRES: s.pres, RES: s.res }, med, kn, shapeUni(s));
@@ -478,14 +492,14 @@ function oilDab(s, cx, cy) {
 function waterDab(s, cx, cy) {
   const R = s.r, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]);
   s.wl *= Math.exp(-s.sp / (K.W_LEN * R)); // the brush's water runs out along the stroke
-  capture(r); pass(PR.water, r, [WAT, DEP], Object.assign({ W: WAT, DP: DEP, G: GRAIN, C: [X, Y], R, PG: s.ca, ADDK: s.wl * (s.shape.water || 1) * Math.min(1.2, s.pres), SOFTE: s.shape.soft || 0.85, SPONGE: s.shape.sponge || 0 }, shapeUni(s)));
+  capture(r); pass(PR.water, r, [WAT, DEP], Object.assign({ W: WAT, DP: DEP, G: GRAIN, C: [X, Y], R, PG: s.ca, ADDK: s.wl * (s.shape.water || 1) * Math.min(1.2, s.pres), SOFTE: s.shape.soft || 0.85, DRY: s.shape.dry || 0, MD: s.dir }, shapeUni(s)));
   wakeWater(r); markDirty(r);
 }
 function crayonDab(s, cx, cy) {
   const R = s.r, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]);
   uploadBristles(s); capture(r);
   s.along = (s.along || 0) + s.sp;
-  pass(PR.crayon, r, [PIC, UNDER], Object.assign({ P: PIC, U: UNDER, M: MISC, G: GRAIN, BT: BTEX, C: [X, Y], R, LOADF: s.load * (s.shape.light || 1), PRES: s.pres, NB: s.nb, CA: s.ca, JIT: (s.rnd() - 0.5) * 0.12, ALONG: s.along }, shapeUni(s))); markDirty(r);
+  pass(PR.crayon, r, [PIC, MISC, B0, UNDER], Object.assign({ P: PIC, U: UNDER, M: MISC, B: B0, ID: s.id, G: GRAIN, BT: BTEX, C: [X, Y], R, LOADF: K.CRAY_PRESS[st.load - 1] * (s.shape.light || 1), PRES: s.pres, NB: s.nb, CA: s.ca, JIT: (s.rnd() - 0.5) * 0.12, ALONG: s.along }, shapeUni(s))); markDirty(r);
 }
 function simpleDab(s, cx, cy) { // the simple brush, and the marker (see-through ink, model part 6)
   const R = s.r, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]), mk = s.tool === 'marker';
@@ -495,11 +509,17 @@ const DAB = { oil: oilDab, acrylic: oilDab, water: waterDab, crayon: crayonDab, 
 const SPACING = { oil: 0.1, acrylic: 0.1, water: 0.2, crayon: 0.25, marker: 0.1, simple: 0.1 };
 
 // SECTION: WATER -- wet paint keeps moving after the stroke, only inside the wet area; it is checked now and then, and fixed when dry
-function wakeWater(r) { if (open) open.wet = true; const m = clip(grow(r, TS)); water.rect = join(water.rect, m); water.recent = join(water.recent, m); water.active = true; water.dabNo++; }
+function markTiles(mask, r) { if (r) for (let ty = (r[1] / TS) | 0; ty <= Math.min(TY - 1, (r[3] / TS) | 0); ty++) for (let tx = (r[0] / TS) | 0; tx <= Math.min(TX - 1, (r[2] / TS) | 0); tx++) mask[ty * TX + tx] = 1; }
+function waterRuns() { // owner 21 Nov (watercolour laggy): only the tiles that hold water are worked, as runs of tiles along each row, not the box around all wet places
+  const out = []; for (let ty = 0; ty < TY; ty++) for (let tx = 0; tx < TX; tx++) { if (!water.mask[ty * TX + tx]) continue; let e = tx; while (e + 1 < TX && water.mask[ty * TX + e + 1]) e++;
+    out.push(clip([tx * TS, ty * TS, e * TS + TS - 1, ty * TS + TS - 1])); tx = e; }
+  return out; }
+function wakeWater(r) { if (open) open.wet = true; const m = clip(grow(r, TS)); water.rect = join(water.rect, m); markTiles(water.mask, m); water.recent = join(water.recent, m); water.active = true; water.dabNo++; }
 function simStep(dt) {
-  const r = water.rect; if (open) open.wet = true; capture(r); water.moved = true;
-  drawTo(FLUX, CW, CH, PR.flux, { W: WAT, DP: DEP, G: GRAIN }, clip(grow(r, 1)));
-  pass(PR.upd, r, [WAT, DEP, PIC, UNDER], { W: WAT, DP: DEP, P: PIC, F: FLUX, G: GRAIN, U: UNDER, DT: dt });
+  const rs = waterRuns(); if (open) open.wet = true; water.moved = true;
+  for (const r of rs) { capture(r); drawTo(FLUX, CW, CH, PR.flux, { W: WAT, DP: DEP, G: GRAIN }, clip(grow(r, 1))); } // the flow one pixel past each run, so a run's edge never reads an old flow
+  for (const r of rs) pass(PR.upd, r, [WAT, DEP], { W: WAT, DP: DEP, F: FLUX, G: GRAIN, DT: dt });
+  if (++water.steps % CHECK_EVERY === 0) for (const r of rs) pass(PR.fixp, r, [DEP, PIC, UNDER], { DP: DEP, P: PIC, U: UNDER, DT: dt * CHECK_EVERY });
 }
 function checkWater() { // which tiles still hold water or damp paper (read back without waiting: standard technique, fenced pixel-buffer readback)
   const p = water.pend;
@@ -507,11 +527,11 @@ function checkWater() { // which tiles still hold water or damp paper (read back
     if (gl.clientWaitSync(p.sync, 0, 0) === gl.TIMEOUT_EXPIRED) return;
     gl.deleteSync(p.sync); water.pend = null;
     gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, tileBuf); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
-    let box = null;
+    let box = null; const mask = new Uint8Array(TX * TY);
     for (let ty = p.t[1]; ty <= p.t[3]; ty++) for (let tx = p.t[0]; tx <= p.t[2]; tx++) { const o = (ty * TX + tx) * 4;
-      if (tileBuf[o] > W_EPS || tileBuf[o + 1] > DAMP_EPS) box = join(box, [tx * TS, ty * TS, tx * TS + TS - 1, ty * TS + TS - 1]); }
+      if (tileBuf[o] > W_EPS || tileBuf[o + 1] > DAMP_EPS) { const t = [tx * TS, ty * TS, tx * TS + TS - 1, ty * TS + TS - 1]; box = join(box, t); markTiles(mask, clip(grow(t, TS))); } } // a wet tile and its neighbours, where its water can go
     if (!box && !water.recent && !water.stroking && water.dabNo === p.dabNo) { finishWater(); return; }
-    const r = join(box && clip(grow(box, TS)), water.recent); if (r) water.rect = r;
+    markTiles(mask, water.recent); const r = join(box && clip(grow(box, TS)), water.recent); if (r) { water.rect = r; water.mask = mask; }
     return;
   }
   if (++water.frames % CHECK_EVERY) return;
@@ -520,7 +540,7 @@ function checkWater() { // which tiles still hold water or damp paper (read back
   gl.bindFramebuffer(gl.READ_FRAMEBUFFER, TILES.fb); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo); gl.readPixels(0, 0, TX, TY, gl.RGBA, gl.FLOAT, 0); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
   water.pend = { sync: gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0), t, dabNo: water.dabNo }; water.recent = null; gl.flush();
 }
-function stopWater() { if (water.pend) gl.deleteSync(water.pend.sync); Object.assign(water, { active: false, rect: null, recent: null, pend: null }); }
+function stopWater() { if (water.pend) gl.deleteSync(water.pend.sync); Object.assign(water, { active: false, rect: null, mask: new Uint8Array(TX * TY), recent: null, pend: null }); }
 function finishWater() {
   if (!water.active) return;
   const r = water.rect; capture(r); pass(PR.fin, r, [WAT, DEP, PIC, UNDER], { W: WAT, DP: DEP, P: PIC, U: UNDER }); markDirty(r);
@@ -658,26 +678,17 @@ document.addEventListener('pointerdown', (e) => { // touching anywhere else clos
 }, true);
 
 // Brushes are shown as the mark they make, in the chosen colour; sizes as the brush's tip at that size (owner 21 Nov).
-const BAR = [Math.SQRT1_2, -Math.SQRT1_2]; // the direction a held flat brush lies in on screen (across FIXED)
-function markDraw(t, i, soft) { return (c) => {
-  const s = SHAPES[t][i], col = rgbS(colorOf(st.color)), R = 15 * (s.sc || 1), x0 = 20, x1 = 80, y = 50;
-  c.save(); c.fillStyle = col; c.strokeStyle = col; c.lineCap = 'round'; c.lineJoin = 'round';
-  const edge = soft !== undefined ? soft : s.soft; if (edge) c.filter = 'blur(' + (edge < 0.5 ? 5 : edge < 0.8 ? 2.5 : 0.8) + 'px)';
-  const bar = (r) => { const a = BAR[0] * r, b = BAR[1] * r; c.beginPath(); c.moveTo(x0 - a, y - b); c.lineTo(x0 + a, y + b); c.lineTo(x1 + a, y + b); c.lineTo(x1 - a, y - b); c.closePath(); c.fill(); };
-  if (s.sponge) { const r = rng(3); for (let k = 0; k < 26; k++) { c.globalAlpha = 0.5 + 0.5 * r(); c.beginPath(); c.arc(x0 + r() * 60, y - R + r() * 2 * R, 2 + r() * 4, 0, 7); c.fill(); } }
-  else if (s.comb) { c.lineWidth = 2.5; for (let k = -2; k <= 2; k++) { const a = BAR[0] * k * 6, b = BAR[1] * k * 6; c.beginPath(); c.moveTo(x0 + a, y + b); c.quadraticCurveTo(50 + a, y + b - 8, x1 + a, y + b); c.stroke(); } }
-  else if (s.k === 0) { c.lineWidth = 2 * R; c.beginPath(); c.moveTo(x0, y + 10); c.quadraticCurveTo(50, y - 18, x1, y + 4); c.stroke(); }
-  else { bar(s.al >= 1 ? 13 : 17 * (s.sc || 1)); if (s.k === 2) { for (const x of [x0, x1]) { c.beginPath(); c.ellipse(x, y, 17 * s.al * 2, 17, -Math.PI / 4, 0, 7); c.fill(); } } }
-  if (s.knife) { c.filter = 'none'; c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 2; c.beginPath(); c.moveTo(x0 + 10, y - 10); c.lineTo(x1 + 10, y - 10); c.stroke(); } // a smooth flat slab with a sheen
-  if (t === 'crayon') { c.filter = 'none'; const r = rng(5); c.fillStyle = '#f4ecdc'; for (let k = 0; k < 160; k++) c.fillRect(x0 - 12 + r() * 84, y - 20 + r() * 40, 1.5 + r() * 2, 1); } // paper specks
-  c.restore(); }; }
 function tipShape(c, s, R) { c.save(); if (s.fixed) c.rotate(Math.PI / 4); c.beginPath(); // the brush's tip, held as it paints
   if (s.k === 0) c.arc(0, 0, R, 0, 7); else if (s.k === 1) c.rect(-Math.max(2, R * s.al), -R, 2 * Math.max(2, R * s.al), 2 * R); else c.ellipse(0, 0, R * s.al, R, 0, 0, 7);
   c.restore(); }
 function tipDraw(t, i, size) { return (c) => { const s = SHAPES[t] ? SHAPES[t][st.shape[t]] : { k: 0, al: 1 }; c.save(); c.translate(50, 50); c.fillStyle = '#3a2a1a'; tipShape(c, s, [6, 11, 17, 25, 36][size]); c.fill(); c.restore(); }; }
+const PREVIEWS = /*%PREVIEWS%*/{}, previewImg = {}; // owner 21 Nov: each brush's mark is a real stroke, painted by tools/previews.py as he would, on each canvas (lib/previews), inlined by build.py
+function preview(t, i, blur) { const key = st.canvas + ':' + t + '-' + i + (blur ? '-blur' : ''), src = PREVIEWS[st.canvas] && PREVIEWS[st.canvas][t + '-' + i + (blur ? '-blur' : '')];
+  if (!src) return null; let im = previewImg[key]; if (!im) { im = previewImg[key] = new Image(); im.onload = () => buttons.forEach(drawIcon); im.src = src; } return im.complete && im.naturalWidth ? im : null; }
 function brushDraw(t, i, blur) { return (c) => { // both: the tip's shape (top left) and the mark it makes (below) (owner 21 Nov)
-  const s = SHAPES[t][i]; c.save(); c.translate(24, 24); c.fillStyle = '#3a2a1a'; tipShape(c, s, 13); c.fill(); c.restore();
-  c.save(); c.translate(14, 30); c.scale(0.78, 0.78); markDraw(t, i, blur)(c); c.restore(); }; }
+  const s = SHAPES[t][i], im = preview(t, i, blur);
+  if (im) { c.save(); c.beginPath(); c.roundRect(4, 30, 92, 62, 8); c.clip(); c.drawImage(im, 0, 0, im.naturalWidth, im.naturalHeight, -4, 22, 108, 74); c.restore(); }
+  c.save(); c.translate(24, 24); c.fillStyle = '#3a2a1a'; tipShape(c, s, 13); c.fill(); c.restore(); }; }
 const brushBtn = makeBtn(right, 'brush', (c) => { if (SHAPES[st.tool]) brushDraw(st.tool, st.shape[st.tool], st.tool === 'simple' && st.soft ? 0.05 : undefined)(c); }, () => openPop(brushBtn, (box) => {
   const t = st.tool, simple = t === 'simple';
   for (const blur of simple ? [0, 1] : [0]) { // the simple tool: the brushes sharp, then the same brushes blurred; one choice at a time
@@ -731,16 +742,18 @@ function makePots() {
 const colorsNow = () => PALETTES[st.palette].colors;
 addEventListener('pointerup', () => { clearInterval(potHold); potHold = null; });
 addEventListener('pointercancel', () => { clearInterval(potHold); potHold = null; });
-const palBtn = makeBtn(bottom, 'palette', icon('palette', '#3a2a1a'), () => openPop(palBtn, (box) => { // all palettes at once, in as many columns as fit the screen
-  const g = document.createElement('div'); g.className = 'palgrid'; box.appendChild(g);
-  const n = PALETTES.length, cols = Math.max(1, Math.ceil(n * 52 / (innerHeight * 0.8))); g.style.gridTemplateColumns = 'repeat(' + cols + ', auto)';
-  const sw = Math.max(10, Math.min(26, (innerWidth * 0.9 / cols - 30) / 10.5)), fs = Math.max(10, Math.min(16, (innerHeight * 0.8 / Math.ceil(n / cols)) * 0.3));
-  PALETTES.forEach((p, i) => { const b = document.createElement('button'); b.className = 'pal' + (i === st.palette ? ' on' : ''); b.dataset.id = 'pal-' + i;
-    b.style.fontSize = fs + 'px';
+const palBtn = makeBtn(bottom, 'palette', icon('palette', '#3a2a1a'), () => openPop(palBtn, (box) => { // owner 21 Nov: the picture's palettes on top, then three columns: one colour family, the whole spectrum, two families
+  const sw = Math.max(10, Math.min(34, (innerHeight * 0.85 - 80) / 16, (innerWidth * 0.9 - 160) / 33)), wrap = document.createElement('div'); wrap.className = 'palwrap'; box.appendChild(wrap);
+  const palBtnOf = (p, i) => { const b = document.createElement('button'); b.className = 'pal' + (i === st.palette ? ' on' : ''); b.dataset.id = 'pal-' + i;
     b.innerHTML = '<b>' + p.colors.map((c) => '<u style="background:' + rgbS(c) + ';width:' + sw + 'px;height:' + sw + 'px"></u>').join('') + '</b>';
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); st.palette = i; st.color = Math.min(st.color, p.colors.length - 1); closePop(); makePots(); refresh(); });
-    g.appendChild(b); });
-  let cols2 = cols; while (box.getBoundingClientRect().height > innerHeight * 0.86 && cols2 < 8) g.style.gridTemplateColumns = 'repeat(' + (++cols2) + ', auto)'; // more columns until it fits
+    return b; };
+  const pic = PALETTES.map((p, i) => [p, i]).filter(([p]) => p.fromPicture);
+  if (pic.length) { const t = document.createElement('div'); t.className = 'palpic'; wrap.appendChild(t); for (const [p, i] of pic) t.appendChild(palBtnOf(p, i)); }
+  const cols = document.createElement('div'); cols.className = 'palcols'; wrap.appendChild(cols);
+  for (const grp of ['c', 's', 'f']) { const col = document.createElement('div'); col.className = 'palcol'; cols.appendChild(col);
+    PALETTES.forEach((p, i) => { if (p.grp === grp) col.appendChild(palBtnOf(p, i)); }); }
+  for (let w = sw; w > 10 && box.getBoundingClientRect().height > palBtn.getBoundingClientRect().top - 40; w--) box.querySelectorAll('.pal u').forEach((u) => { u.style.width = u.style.height = w + 'px'; }); // as big as fits the screen
 }));
 const trayBtns = STICKER_KINDS.map((k) => makeBtn(bottom, 'sticker-' + k, (c) => { c.save(); c.translate(50, 50); c.scale(38, 38); SKIN[k](c); c.restore(); }, (e) => newStickerDrag(e, k)));
 makePots();
@@ -832,7 +845,12 @@ function palettesFor(cnv) {
     g.w = g.n / px.length * (1 + Math.hypot(g.lab[1], g.lab[2]) / 6); }); // a small bright roof counts against a big grey sky
   const pool = groups.filter((g) => g.n > 0).sort((a, b) => b.w - a.w), picked = [];
   for (const minD of [30, 20, 12, 0]) for (const g of pool) { if (picked.length >= 10) break; if (!picked.includes(g) && picked.every((q) => Math.sqrt(dist(q.lab, g.lab)) > minD)) picked.push(g); }
-  picked.sort((a, b) => a.lab[0] - b.lab[0]);
+  { // owner 21 Nov: shown as a colour progression: the colourful ones round the colour wheel (starting after its widest empty stretch), then the greys from light to dark
+    const hue = (g) => (Math.atan2(g.lab[2], g.lab[1]) * 180 / Math.PI + 360) % 360, ch = (g) => Math.hypot(g.lab[1], g.lab[2]);
+    const col = picked.filter((g) => ch(g) >= 12).sort((a, b) => hue(a) - hue(b)), grey = picked.filter((g) => ch(g) < 12).sort((a, b) => b.lab[0] - a.lab[0]);
+    let gap = -1, at = 0; col.forEach((g, k) => { const d = ((k + 1 < col.length ? hue(col[k + 1]) : hue(col[0]) + 360) - hue(g)); if (d > gap) { gap = d; at = (k + 1) % col.length; } });
+    picked.splice(0, picked.length, ...col.slice(at), ...col.slice(0, at), ...grey);
+  }
   const cenRGB = picked.map((g) => unlab([g.lab[0], g.lab[1] * 1.35, g.lab[2] * 1.35])); // a little more colourful, as the picture looks to the eye, not as its pixels average out
   let best = null, bd = 1e9;
   const pl = picked.map((g) => g.lab);
@@ -960,10 +978,11 @@ function frame(t) {
 requestAnimationFrame(frame);
 
 // SECTION: TEST HOOKS -- read-only views for the flow tests (age: let time pass for the oil paint)
-window.__cb = { CW, CH, st, get grain() { return grain; }, undoStack, water, get A() { return readPic().A; }, get Ht() { return readPic().H; }, get stickers() { return stickers; }, get cur() { return cur; }, ready: false,
+window.__cb = { CW, CH, st, shapes: SHAPES, get grain() { return grain; }, undoStack, water, get A() { return readPic().A; }, get Ht() { return readPic().H; }, get stickers() { return stickers; }, get cur() { return cur; }, ready: false,
   screenOf(x, y) { const r = view.getBoundingClientRect(); return [r.left + x * r.width / CW, r.top + y * r.height / CH]; },
   btn(id) { const b = document.querySelector('[data-id="' + id + '"]'); if (!b || b.classList.contains('hide')) return null; const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; },
   shown(x, y) { render(); const d = new Uint8Array(4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.readPixels(Math.round(x), CH - 1 - Math.round(y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, d); return [d[0], d[1], d[2]]; },
+  cell(x, y, w, h) { render(); const d = new Uint8Array(w * h * 4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.readPixels(x, CH - y - h, w, h, gl.RGBA, gl.UNSIGNED_BYTE, d); const c = document.createElement('canvas'); c.width = w; c.height = h; const x2 = c.getContext('2d'), im = x2.createImageData(w, h); for (let j = 0; j < h; j++) im.data.set(d.subarray((h - 1 - j) * w * 4, (h - j) * w * 4), j * w * 4); x2.putImageData(im, 0, 0); return c.toDataURL('image/png'); }, // tools/previews.py: a part of the picture as it shows
   age(s) { clockShift += s; }, pal(i) { return PALETTES[i] && PALETTES[i].colors; },
   fast(sec) { for (let i = 0; i < sec / SIM_DT && water.active; i++) { simStep(SIM_DT); if (i % 24 === 0) { water.frames = CHECK_EVERY - 1; checkWater(); gl.finish(); checkWater(); } } render(); }, // debug: let the wet paint run on
 
