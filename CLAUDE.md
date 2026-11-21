@@ -6,12 +6,14 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 
 ## Start of every chat
 
-1. Attach the repo with `add_repo` (push access). If it or a push is refused, retry once before saying anything about access.
+1. Attach the repo with `add_repo` (push access). If it or a push is refused, retry once before saying anything about access. Then turn on the commit gate: `git config core.hooksPath .githooks`.
 2. Read the game's `games/<game>/WARNINGS.md` (traps found in that game, written as instructions) and the "Now" and "Task list" sections of its `BUILD.md`. Nothing else until the task needs it.
 
 ## How to work
 
 - Act as a professional software developer: clean code (one owner per behaviour, no dead code, no leftovers, names that say what things are, no duplication) and test-driven development (a failing test first, then the code that makes it pass, then clean up).
+- **Process beats speed.** Never skip, shorten or reorder a test step to save time; make the tests and tools faster instead.
+- **The commit gate enforces test-first.** A commit that changes a game's code must carry `Flow: <game> <flow> ...`; `.githooks/commit-msg` runs each named flow and refuses the commit unless it failed on the code before and passes now. Never bypass it (`--no-verify`).
 - **No failing tests, ever.** Every test in the repo passes after every change. A failing test is never left in place, skipped or reported as "already failing": find whether the test or the code is wrong, and if only the owner can decide, ask him before the change is called done.
 
 ## The two gates (they come before everything else)
@@ -30,6 +32,7 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 
 ## Testing
 
+- Before every change, re-read this Testing section.
 - Test first, in the real game. A flow test (`games/<game>/tools/flows.py`, run by `tools/harness.py flows`) does what the owner does: real page, real clicks, keys and drags at a real rate, his settings. For a bug, first a flow repeating his exact steps that fails the way he says; it stays forever.
 - A check measures what he notices. If he reports a gap, a delay or an order, the check measures that gap, delay or order.
 - Tests that guard earlier owner rules are never edited, loosened or deleted to fit a change. A failing old test is a found conflict.
@@ -64,4 +67,4 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 - After every change: build, run the affected flows, commit, push, check the remote has the commit, and send only the changed HTML files as downloads.
 - When a trap is found in a game (something that cost time or caused a wrong fix), add it to that game's `WARNINGS.md` as a one-line instruction. General lessons go here only if they hold for every game.
 - At the end of a chat, rewrite the game's `BUILD.md` "Now" section (what the game is now and what is open, short; never an appended log) and the game's line in Status in `docs/design-rules.md`. History lives in git.
-- When a chat gets long, say so and give a handoff that stands alone: the owner's words verbatim, his screenshots saved in the repo.
+- Hand off early: when a chat gets long, and at the latest after the third owner message that asks for changes, say so and give a handoff that stands alone: the owner's words verbatim, his screenshots saved in the repo. The rules weaken as a chat grows.
