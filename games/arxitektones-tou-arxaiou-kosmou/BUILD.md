@@ -1,6 +1,6 @@
 # Αρχιτέκτονες του αρχαίου κόσμου (Tower Builder)
 
-Read `WARNINGS.md` first. Rules the owner gave live in the tests (`tools/flows.py`, `tools/cue-tests.js`, `tools/owner-tests.js`), the cue table (`cues.json`), the level spec (`levels.md`) and the owner's checklist (`checklist.md`). `BUILD-history.md` is the old log of every update and the owner's words; read it only to find where a decision came from.
+Read `WARNINGS.md` first. Rules the owner gave live in the tests (`tools/flows.py`, `tools/cue-tests.js`, `tools/owner-tests.js`), the cue table (`cues.json`), the level spec (`levels.md`) and the owner's checklist (`checklist.md`). Where a decision came from: git history.
 
 ## Now
 

@@ -67,4 +67,5 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 - After every change: build, run the affected flows, commit, push, check the remote has the commit, and send only the changed HTML files as downloads.
 - When a trap is found in a game (something that cost time or caused a wrong fix), add it to that game's `WARNINGS.md` as a one-line instruction. General lessons go here only if they hold for every game.
 - At the end of a chat, rewrite the game's `BUILD.md` "Now" section (what the game is now and what is open, short; never an appended log) and the game's line in Status in `docs/design-rules.md`. History lives in git.
+- Never make a history, log or changelog file (such as `BUILD-history.md`), and never append updates to any file as a log. History lives in git commit messages only.
 - Hand off early: when a chat gets long, and at the latest after the third owner message that asks for changes, say so and give a handoff that stands alone: the owner's words verbatim, his screenshots saved in the repo. The rules weaken as a chat grows.
