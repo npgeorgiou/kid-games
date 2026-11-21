@@ -2,6 +2,8 @@
 # Usage: python3 tools/harness.py [level indexes]. Exposes internals via window.__tb (hook injected, rAF disabled, stepped manually).
 # Extend this file in place for new checks; do not make new scratch harnesses.
 import re, sys, json
+import subprocess as _sp, sys as _sys
+if _sp.run(['git', 'config', 'core.hooksPath'], capture_output=True, text=True).stdout.strip() != '.githooks': _sys.exit('tests refused: the commit gate is off in this copy; run: git config core.hooksPath .githooks')  # owner 21 Nov: rules enforced, not remembered
 from playwright.sync_api import sync_playwright
 import os, re
 HERE=os.path.dirname(os.path.abspath(__file__))

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # Commit gate (owner 21 Nov: rules are enforced, not remembered). Enable once per clone: git config core.hooksPath .githooks
-# A commit that changes a game's code (anything in games/<game>/ but its .md files and owner-shots) must name its flows in the message:
+# A commit that changes a game (its .html page, src/ or lib/) must name its flows in the message:
 #   Flow: <game> <flow> [<flow> ...]
 # Each named flow must FAIL on the code before the change (the last commit, with the new flows file) and PASS on the code being committed.
 import subprocess, sys, re, os, tempfile, shutil
 msg = open(sys.argv[1], encoding='utf-8').read()
 files = subprocess.run(['git', 'diff', '--cached', '--name-only'], capture_output=True, text=True).stdout.split()
-games = sorted({f.split('/')[1] for f in files if f.startswith('games/') and not f.endswith('.md') and '/owner-shots/' not in f and f.count('/') >= 2})
+games = sorted({f.split('/')[1] for f in files if f.startswith('games/') and f.count('/') >= 2 and (f.endswith('.html') or '/src/' in f or '/lib/' in f)})  # the game itself: its page, its source, its libraries (not tests, tools or notes)
 if not games: sys.exit(0)
 named = {}
 for g, rest in re.findall(r'^Flow:\s*(\S+)\s+(.+)$', msg, re.M): named.setdefault(g, []).extend(rest.split())

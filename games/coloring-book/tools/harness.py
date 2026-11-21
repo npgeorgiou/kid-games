@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # Build the game and run its flow tests: python3 tools/harness.py flows [names]
 import sys, subprocess, shutil, pathlib
+import subprocess as _sp, sys as _sys
+if _sp.run(['git', 'config', 'core.hooksPath'], capture_output=True, text=True).stdout.strip() != '.githooks': _sys.exit('tests refused: the commit gate is off in this copy; run: git config core.hooksPath .githooks')  # owner 21 Nov: rules enforced, not remembered
 here = pathlib.Path(__file__).resolve().parent.parent
 subprocess.run([sys.executable, str(here / "build.py")], check=True, stdout=subprocess.DEVNULL)
 shutil.copy(here / "coloring-book.html", "/tmp/cb.html")
