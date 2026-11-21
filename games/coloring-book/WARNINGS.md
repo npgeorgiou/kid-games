@@ -13,4 +13,6 @@
 - Oil/acrylic keep the paint's own colour (PIC) and what is under it (UNDER, with the coat's thickness in its alpha); everything else (crayon, simple, marker, watercolour) must write the same colour into both, or the coat shows old colours.
 - The undo store and its spill to memory cover every state texture (STATES); adding a picture texture means adding it there.
 - Coolors pages are drawn by script: read them through the cloud browser's page snapshot, not WebFetch.
+- Never put a // comment in the middle of a one-line object literal when patching: it silently comments out the rest of the line (a stroke lost its colour and nothing painted).
+- A picture's palette from plain cluster averages comes out beige and misses small bright parts: use the more colourful half of each group and weigh colourfulness.
 

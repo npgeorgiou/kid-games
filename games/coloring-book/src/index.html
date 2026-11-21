@@ -97,30 +97,30 @@ const COOLORS = /*%COOLORS%*/[]; // popular 10-colour palettes from coolors.co (
 const PALETTES = [{ name: 'Basic', by: '', colors: hexCols('f7f7f2 0a0a0d db0f12 fa730d ffe00f 1a8c26 59b3f2 0d33bf 731f99 fa8cb3 73401a') }] // our own basic set, then the 10 shown by default (owner 21 Nov)
   .concat(COOLORS.filter((p) => p.def).map((p) => ({ name: p.name, by: 'Coolors', colors: hexCols(p.hex) })));
 const SIZES = [8, 16, 28, 48, 80]; // brush radius for each size dot, the same for every medium (owner 21 Nov: 5 sizes, the biggest a little over double the old biggest)
-const SOFT = [0.95, 0.6, 0.05]; // sharp, medium, fuzzy: how far out the dab stays full strength
-const LOADS = [1 / 3, 2 / 3, 1]; // paint load for 1, 2, 3 dots (owner 21 Nov: a tap keeps the dots; holding a colour sets 1, 2, 3 dots, one more each half second)
+const SOFT = [0.95, 0.05]; // sharp, blurred: how far out the dab stays full strength (owner 21 Nov: two rows, the brushes sharp and blurred)
+const LOADS = [0.12, 0.4, 1]; // paint in the brush for a third-, two-thirds- and full bucket (owner 21 Nov: the lowest even less)
 const FIXED = [Math.SQRT1_2, Math.SQRT1_2]; // brushes that are not round are held at one angle, a diagonal; they never turn by themselves (owner 21 Nov)
-const PAINT = [{ id: 'round', k: 0, al: 1 }, { id: 'flat', k: 1, al: 0.22, fixed: 1 }, { id: 'filbert', k: 2, al: 0.45, fixed: 1 }, { id: 'fan', k: 1, al: 0.08, fixed: 1, comb: 5 }, { id: 'rigger', k: 0, al: 1, sc: 0.3 }, { id: 'knife', k: 1, al: 0.12, fixed: 1, knife: 1 }];
+const PAINT = [{ id: 'round', k: 0, al: 1 }, { id: 'flat', k: 1, al: 0.22, fixed: 1 }, { id: 'filbert', k: 2, al: 0.45, fixed: 1 }, { id: 'fan', k: 1, al: 0.08, fixed: 1, comb: 5 }, { id: 'knife', k: 1, al: 0.12, fixed: 1, knife: 1 }]; // no brush that differs from another only in size: size has its own button (owner 21 Nov)
 const SHAPES = { // brushes per tool (owner 21 Nov: all of them): kind (0 round, 1 flat, 2 oval), length along the stroke, size, edge softness, water, held at one angle
-  oil: PAINT, acrylic: PAINT, // fan: few strong bristle tufts; rigger: long thin lines; knife: no bristles, scrapes and smears flat
+  acrylic: PAINT, // fan: few strong bristle tufts; knife: no bristles, scrapes and smears flat (owner 21 Nov: no oil)
   water: [{ id: 'round', k: 0, al: 1 }, { id: 'flat', k: 1, al: 0.25, fixed: 1 }, { id: 'mop', k: 0, al: 1, soft: 0.5, water: 1.3 }, { id: 'sponge', k: 0, al: 1, soft: 0.7, sponge: 1 }],
-  crayon: [{ id: 'point', k: 0, al: 1, sc: 0.5 }, { id: 'blunt', k: 0, al: 1 }, { id: 'side', k: 1, al: 0.3, light: 0.75, fixed: 1 }],
-  marker: [{ id: 'bullet', k: 0, al: 1 }, { id: 'chisel', k: 1, al: 0.3, fixed: 1 }, { id: 'fine', k: 0, al: 1, sc: 0.4 }],
-  simple: [{ id: 'round', k: 0, al: 1 }, { id: 'flat', k: 1, al: 0.25, fixed: 1 }, { id: 'square', k: 1, al: 1, fixed: 1 }],
+  crayon: [{ id: 'tip', k: 0, al: 1 }, { id: 'side', k: 1, al: 0.3, light: 0.75, fixed: 1 }],
+  marker: [{ id: 'bullet', k: 0, al: 1 }, { id: 'chisel', k: 1, al: 0.3, fixed: 1 }],
+  simple: [{ id: 'round', k: 0, al: 1 }, { id: 'square', k: 1, al: 1, fixed: 1 }],
 };
 // tuning (the prototype answers these with the child)
 const K = {
   OIL_LOAD: 10 * 2 / 3, OIL_GIVE: 1 / 700, OIL_TAKE: 0.07, OIL_SURF: 0.3, OIL_RIDGE: 0.4, OIL_PAPER: 0.05, OIL_DRY: 25, // owner 21 Nov: runs dry a third sooner. OIL_DRY: seconds for laid oil to lose most of its wetness
-  OIL_HIDE: 0.045, OIL_MIXW: 2.5, OIL_EDGE: 0.85, KNIFE_TAKE: 3, KNIFE_RIDGE: 2.5, // a coat this thick hides about two thirds of what is under it; edge softness; the knife scrapes harder and pushes paint to its sides
-  ACR_GIVE: 0.7 / 700, ACR_TAKE: 0.025, ACR_RIDGE: 0.6, ACR_HIDE: 0.035, ACR_EDGE: 0.95, ACR_DRY: 6, ACR_GLOSS: 0.2, // acrylic: thinner, covers better, crisp edges, dries in about 15 s, little gloss (owner 21 Nov: only acrylic changes, kids are slow)
+  OIL_HIDE: 0.045, OIL_MIXW: 4, OIL_EDGE: 0.85, KNIFE_TAKE: 3, KNIFE_RIDGE: 2.5, // a coat this thick hides about two thirds of what is under it; edge softness; the knife scrapes harder and pushes paint to its sides
+  ACR_GIVE: 1.4 / 700, ACR_TAKE: 0.06, ACR_RIDGE: 1.2, ACR_HIDE: 0.035, ACR_EDGE: 0.95, ACR_DRY: 6, ACR_GLOSS: 0.35, ACR_LINES: 0.12, // acrylic, heavy body: thick paint that keeps the brush's lines (impasto), heaped at the sides, covers well, crisp edges, dries in about 15 s (owner 21 Nov: more leftover paint, in the brush's lines)
   BUMP: 2.8, GLOSS: 30, WETDARK: 0.08,
   LX: -0.45, LY: -0.55, LZ: 0.70, HX: -0.45 / 1.843, HY: -0.55 / 1.843, HZ: 1.7 / 1.843, // light from the top left; half-way vector between light and eye
   W_ADD: 0.35, W_MAX: 1.5, PDIF: 25, W_DENS: 0.8, W_LEN: 30, // water per dab, most water a pixel holds, pigment spreading, pigment per water, stroke length (in brush radii) a full brush's water lasts
-  CF: 0.2, DEEP: 0.3, KP: 0.015, MAXF: 0.5, // flow: speed, how deep water pushes onto dry paper, pull of the paper's dips, most water leaving a pixel per step
+  CF: 0.4, DEEP: 0.3, KP: 0.015, MAXF: 0.5, // flow: speed, how deep water pushes onto dry paper, pull of the paper's dips, most water leaving a pixel per step
   EV: 0.15, EDGE: 25, W0: 0.02, SETTLE: 30, DEP0: 0.05, GRAN: 0.35, LIFT: 0.3, DAMPW: 2, DAMPE: 2, FIX: 4, // drying, edge drying, settling, granulation, lifting, damp paper, fixing
   CRAY_COVER: 0.9, CRAY_FLOW: 0.55, CRAY_WAX: 0.004, MARK_RIM: 0.25,
 };
-const SIM_DT = 1 / 120, MAX_STEPS = 4, CHECK_EVERY = 6, W_EPS = 1e-4, DAMP_EPS = 0.01;
+const SIM_DT = 1 / 60, MAX_STEPS = 2, CHECK_EVERY = 6, W_EPS = 1e-4, DAMP_EPS = 0.01;
 
 function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function makeGrain(kind, W, H, out) { // the canvas surface, 0 (dip) .. 1 (raised), spread evenly over 0..1
@@ -303,7 +303,7 @@ const PR = {
   water: program(`uniform sampler2D W, DP, G; uniform ivec2 C; uniform float R, ADDK, SOFTE, SPONGE; uniform vec3 PG; ${OUT2} void main(){
     ivec2 p = ivec2(gl_FragCoord.xy); vec4 w = texelFetch(W, p, 0), d = texelFetch(DP, p, 0); float g = texelFetch(G, p, 0).r;
     float r = foot(vec2(p - C), R) + (g - .5) * .06; // water soaks into the paper unevenly: a ragged edge
-    float m = (r > 1. ? 0. : 1. - sm(SOFTE, 1., r)) * dryBrush(min(ADDK, 1.), g) * (SPONGE > 0. ? sm(.42, .58, texelFetch(G, cl(ivec2(vec2(p) * .3) + C), 0).r) : 1.), add = m * W_ADD * ADDK * max(0., 1. - w.a / W_MAX);
+    float m = (r > 1. ? 0. : 1. - sm(SOFTE, 1., r)) * dryBrush(min(ADDK, 1.), g) * (SPONGE > 0. ? sm(.42, .58, texelFetch(G, cl(ivec2(vec2(p) * .3)), 0).r) : 1.), add = m * W_ADD * ADDK * max(0., 1. - w.a / W_MAX);
     o0 = vec4(w.rgb + PG * add * W_DENS, w.a + add); o1 = vec4(d.rgb, max(d.a, m)); }`),
   flux: program(`uniform sampler2D W, DP, G; ${OUT1} void main(){ // water leaving this pixel to its 4 neighbours (left, right, down, up)
     ivec2 p = ivec2(gl_FragCoord.xy); float w = texelFetch(W, p, 0).a, h0 = w + KP * texelFetch(G, p, 0).r; vec4 f = vec4(0);
@@ -437,7 +437,7 @@ async function undoOne() {
 }
 
 // SECTION: TOOLS -- one dab of each medium (the model's parts 2-5)
-const st = { tool: 'oil', palette: 0, color: 4, load: 3, size: 1, soft: 0, shape: { oil: 0, acrylic: 0, water: 0, crayon: 1, marker: 0, simple: 0 }, canvas: 'wc' };
+const st = { tool: 'acrylic', palette: 0, color: 4, load: 3, size: 1, soft: 0, shape: { oil: 0, acrylic: 0, water: 0, crayon: 1, marker: 0, simple: 0 }, canvas: 'wc' };
 const colorOf = (i) => PALETTES[st.palette].colors[Math.min(i, PALETTES[st.palette].colors.length - 1)];
 let stroke = null, clockShift = 0;
 const paintNow = () => performance.now() / 1000 + clockShift;
@@ -460,7 +460,7 @@ function oilStart(s) {
   s.n = n; s.res = ca;
   const d = new Float32Array(n * n * 4); for (let t = 0; t < n * n; t++) { d[t * 4] = ca[0]; d[t * 4 + 1] = ca[1]; d[t * 4 + 2] = ca[2]; d[t * 4 + 3] = L; }
   gl.bindTexture(gl.TEXTURE_2D, TIP[0].t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, n, n, gl.RGBA, gl.FLOAT, d);
-  bristles(s, n, 0.3, (Math.random() * 1e9) | 0); // one bristle per pixel across: strong but soft streaks
+  bristles(s, n, s.tool === 'acrylic' ? K.ACR_LINES : 0.3, (Math.random() * 1e9) | 0); // one bristle per pixel across: the brush's lines
   if (s.shape.comb) s.bristle = s.bristle.map((v, i) => (Math.floor(i / Math.max(1, n / 24)) % s.shape.comb ? 0.04 : v)); // fan: separate tufts
   if (s.shape.knife) s.bristle.fill(1); // knife: one smooth blade
 }
@@ -537,7 +537,8 @@ function pressureOf(e) {
 function startStroke(p, pr) {
   if (undoing) return;
   const r = SIZES[st.size], t = st.tool;
-  stroke = { tool: t, r, sp: Math.max(1, r * SPACING[t]), last: p, carry: 0, dir: [1, 0], ca: colorOf(st.color).map(ab), id: ++strokeNo,
+  const sh0 = SHAPES[t] ? SHAPES[t][st.shape[t]] : { al: 1 }; // a thin brush steps closer, so its mark is smooth
+  stroke = { tool: t, r, sp: Math.max(1, r * SPACING[t] * Math.min(1, Math.max(0.4, 2 * sh0.al))), last: p, carry: 0, dir: [1, 0], ca: colorOf(st.color).map(ab), id: ++strokeNo,
     shape: SHAPES[t][st.shape[t]], load: LOADS[st.load - 1], pres: pr };
   newEntry();
   if (t === 'water') { water.stroking = true; stroke.wl = stroke.load; }
@@ -630,8 +631,9 @@ function makeBtn(parent, id, draw, onDown, cls) {
 function drawIcon(o) { const r = o.b.getBoundingClientRect(), d = devicePixelRatio || 1; o.c.width = Math.max(1, r.width * d); o.c.height = Math.max(1, r.height * d); const c = o.c.getContext('2d'); c.scale(o.c.width / 100, o.c.height / 100); o.draw(c); }
 const rgbS = (col) => 'rgb(' + col.map((v) => Math.round(v * 255)).join(',') + ')';
 const icon = (name, color) => (c) => { const p = ICONS[name]; if (!p) return; c.save(); c.translate(16, 16); c.scale(68 / 256, 68 / 256); c.fillStyle = color; c.fill(new Path2D(p)); c.restore(); };
-const softDot = (c) => { c.fillStyle = '#6a3d9a'; c.beginPath(); c.arc(50, 50, 30, 0, 7); c.fill(); }; // the simple tool: a plain dot, not a brush
-const TOOLS = { oil: icon('paint-brush', '#8a4b1c'), acrylic: icon('paint-brush-broad', '#1f6fc0'), water: icon('drop', '#2a9fd8'), crayon: icon('pencil-simple', '#c4372a'), marker: icon('highlighter', '#0e8a6a'), simple: softDot, sticker: icon('sticker', '#d98a00') };
+const tinted = (name) => (c) => { const p = ICONS[name]; if (!p) return; const P = new Path2D(p); c.save(); c.translate(16, 16); c.scale(68 / 256, 68 / 256); c.fillStyle = rgbS(colorOf(st.color)); c.fill(P); c.lineWidth = 7; c.strokeStyle = 'rgba(40,28,18,.85)'; c.stroke(P); c.restore(); }; // tools take the chosen colour (owner 21 Nov)
+const dotTinted = (c) => { c.fillStyle = rgbS(colorOf(st.color)); c.beginPath(); c.arc(50, 50, 30, 0, 7); c.fill(); c.lineWidth = 3; c.strokeStyle = 'rgba(40,28,18,.85)'; c.stroke(); }; // the simple tool: a plain dot, not a brush
+const TOOLS = { acrylic: tinted('paint-brush-broad'), water: tinted('drop'), crayon: tinted('pencil-simple'), marker: tinted('highlighter'), simple: dotTinted, sticker: icon('sticker', '#d98a00') };
 for (const t of Object.keys(TOOLS)) makeBtn(left, 'tool-' + t, TOOLS[t], () => { st.tool = t; closePop(); refresh(); });
 
 // the popup: one at a time, beside its button, closed by choosing or by touching anywhere else
@@ -669,26 +671,32 @@ function markDraw(t, i, soft) { return (c) => {
   if (s.knife) { c.filter = 'none'; c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 2; c.beginPath(); c.moveTo(x0 + 10, y - 10); c.lineTo(x1 + 10, y - 10); c.stroke(); } // a smooth flat slab with a sheen
   if (t === 'crayon') { c.filter = 'none'; const r = rng(5); c.fillStyle = '#f4ecdc'; for (let k = 0; k < 160; k++) c.fillRect(x0 - 12 + r() * 84, y - 20 + r() * 40, 1.5 + r() * 2, 1); } // paper specks
   c.restore(); }; }
-function tipDraw(t, i, size) { return (c) => { // the brush's tip at one size
-  const s = SHAPES[t] ? SHAPES[t][st.shape[t]] : { k: 0, al: 1 }, R = [6, 11, 17, 25, 36][size] * (s.sc ? Math.max(s.sc, 0.45) : 1);
-  c.save(); c.translate(50, 50); c.fillStyle = '#3a2a1a'; c.beginPath();
-  if (s.fixed) c.rotate(Math.PI / 4);
+function tipShape(c, s, R) { c.save(); if (s.fixed) c.rotate(Math.PI / 4); c.beginPath(); // the brush's tip, held as it paints
   if (s.k === 0) c.arc(0, 0, R, 0, 7); else if (s.k === 1) c.rect(-Math.max(2, R * s.al), -R, 2 * Math.max(2, R * s.al), 2 * R); else c.ellipse(0, 0, R * s.al, R, 0, 0, 7);
-  c.fill(); c.restore(); }; }
-const brushBtn = makeBtn(right, 'brush', (c) => { if (SHAPES[st.tool]) markDraw(st.tool, st.shape[st.tool], st.tool === 'simple' ? SOFT[st.soft] < 0.9 ? 1 - SOFT[st.soft] : 0 : undefined)(c); }, () => openPop(brushBtn, (box) => {
-  const r = row(box), t = st.tool;
-  SHAPES[t].forEach((s, i) => makeBtn(r, 'shape-' + i, markDraw(t, i), () => { st.shape[t] = i; closePop(); refresh(); }, i === st.shape[t] ? 'on' : ''));
-  if (t === 'simple') { const r2 = row(box); SOFT.forEach((v, i) => makeBtn(r2, 'soft-' + i, markDraw(t, st.shape[t], v < 0.9 ? 1 - v : 0), () => { st.soft = i; closePop(); refresh(); }, i === st.soft ? 'on' : '')); } // edge: sharp, medium, fuzzy
+  c.restore(); }
+function tipDraw(t, i, size) { return (c) => { const s = SHAPES[t] ? SHAPES[t][st.shape[t]] : { k: 0, al: 1 }; c.save(); c.translate(50, 50); c.fillStyle = '#3a2a1a'; tipShape(c, s, [6, 11, 17, 25, 36][size]); c.fill(); c.restore(); }; }
+function brushDraw(t, i, blur) { return (c) => { // both: the tip's shape (top left) and the mark it makes (below) (owner 21 Nov)
+  const s = SHAPES[t][i]; c.save(); c.translate(24, 24); c.fillStyle = '#3a2a1a'; tipShape(c, s, 13); c.fill(); c.restore();
+  c.save(); c.translate(14, 30); c.scale(0.78, 0.78); markDraw(t, i, blur)(c); c.restore(); }; }
+const brushBtn = makeBtn(right, 'brush', (c) => { if (SHAPES[st.tool]) brushDraw(st.tool, st.shape[st.tool], st.tool === 'simple' && st.soft ? 0.05 : undefined)(c); }, () => openPop(brushBtn, (box) => {
+  const t = st.tool, simple = t === 'simple';
+  for (const blur of simple ? [0, 1] : [0]) { // the simple tool: the brushes sharp, then the same brushes blurred; one choice at a time
+    const r = row(box);
+    SHAPES[t].forEach((s, i) => makeBtn(r, (blur ? 'blur-' : 'shape-') + i, brushDraw(t, i, blur ? 0.05 : undefined), () => { st.shape[t] = i; if (simple) st.soft = blur; closePop(); refresh(); },
+      i === st.shape[t] && (!simple || st.soft === blur) ? 'on' : ''));
+  }
 }));
 const sizeBtn = makeBtn(right, 'size', tipDraw(st.tool, 0, 1), () => openPop(sizeBtn, (box) => { // the same 5 sizes for every brush (owner 21 Nov)
   const r = row(box); SIZES.forEach((v, i) => makeBtn(r, 'size-' + i, tipDraw(st.tool, st.shape[st.tool], i), () => { st.size = i; closePop(); refresh(); }, i === st.size ? 'on' : ''));
 }));
-let guideHold = 0;
-const guideBtn = makeBtn(right, 'guide', (c) => icon(guide.src && !guide.on ? 'eye-slash' : 'image', '#3a2a1a')(c), () => { // a picture to follow, see-through on top: tap shows or hides it, hold to pick another
+const guideBtn = makeBtn(right, 'guide', (c) => icon(guide.src && !guide.on ? 'eye-slash' : 'image', '#3a2a1a')(c), () => { // a picture to follow, see-through on top
   if (!guide.src) { pickGuide(); return; }
-  guideHold = setTimeout(() => { guideHold = 0; pickGuide(); }, 1000);
+  openPop(guideBtn, (box) => { const r = row(box); // choose another picture, show or hide it, take it away (owner 21 Nov)
+    makeBtn(r, 'guide-pick', icon('image-square', '#3a2a1a'), () => { closePop(); pickGuide(); });
+    makeBtn(r, 'guide-show', icon(guide.on ? 'eye-slash' : 'eye', '#3a2a1a'), () => { guide.on = !guide.on; showGuide(); closePop(); refresh(); });
+    makeBtn(r, 'guide-remove', icon('x-circle', '#b03020'), () => { guide.src = null; showGuide(); closePop(); refresh(); isChanged = true; changed(); });
+  });
 });
-addEventListener('pointerup', () => { if (guideHold) { clearTimeout(guideHold); guideHold = 0; guide.on = !guide.on; showGuide(); refresh(); } });
 makeBtn(right, 'canvas', (c) => { c.fillStyle = '#d8cfbf'; c.fillRect(18, 22, 64, 56); c.strokeStyle = '#8a7a64'; c.lineWidth = 2; for (let i = 22; i < 82; i += 6) { c.beginPath(); c.moveTo(i, 22); c.lineTo(i, 78); c.stroke(); } for (let j = 24; j < 78; j += 6) { c.beginPath(); c.moveTo(18, j); c.lineTo(82, j); c.stroke(); } }, () => openCanvases());
 makeBtn(right, 'undo', icon('arrow-u-up-left', '#3a2a1a'), () => undo());
 makeBtn(right, 'new', icon('file-plus', '#3a2a1a'), () => newPicture());
@@ -706,12 +714,13 @@ const delBtn = makeBtn(right, 'delete', (c) => binDraw(delBtn)(c), () => { if (d
 let potHold = null, pots = [];
 function makePots() {
   for (const b of pots) { b.remove(); const i = buttons.findIndex((o) => o.b === b); if (i >= 0) buttons.splice(i, 1); }
-  pots = colorsNow().map((col, i) => makeBtn(bottom, 'color-' + i, (c) => { // a paint pot: the colour fills it a third, two thirds or to the top
-    const lv = i === st.color && st.tool !== 'sticker' ? st.load : 3, top = 90 - 80 * lv / 3;
-    c.fillStyle = rgbS(colorOf(i)); c.globalAlpha = 0.22; c.beginPath(); c.arc(50, 50, 40, 0, 7); c.fill(); c.globalAlpha = 1;
-    c.save(); c.beginPath(); c.arc(50, 50, 40, 0, 7); c.clip(); c.fillRect(0, top, 100, 100); c.restore();
-    c.strokeStyle = 'rgba(0,0,0,.3)'; c.lineWidth = 3; c.beginPath(); c.arc(50, 50, 40, 0, 7); c.stroke();
-    if (lv < 3) { c.strokeStyle = 'rgba(255,255,255,.9)'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(12, top); c.lineTo(88, top); c.stroke(); }
+  pots = colorsNow().map((col, i) => makeBtn(bottom, 'color-' + i, (c) => { // a paint bucket, filled a third, two thirds or to the top (owner 21 Nov)
+    const lv = i === st.color && st.tool !== 'sticker' ? st.load : 3, col = rgbS(colorOf(i));
+    const body = () => { c.beginPath(); c.moveTo(20, 34); c.lineTo(80, 34); c.lineTo(72, 90); c.lineTo(28, 90); c.closePath(); };
+    c.lineWidth = 4; c.strokeStyle = '#5a4a3a'; c.beginPath(); c.arc(50, 34, 26, Math.PI, 0); c.stroke(); // handle
+    body(); c.fillStyle = '#f7f2e8'; c.fill();
+    c.save(); body(); c.clip(); const top = 90 - 56 * lv / 3; c.fillStyle = col; c.fillRect(0, top, 100, 100); c.restore();
+    body(); c.lineWidth = 4; c.strokeStyle = '#5a4a3a'; c.stroke();
   }, () => { // owner 21 Nov: a tap gives a full brush; holding on goes round: a third, two thirds, full, a third, ... one step each half second
     st.color = i; st.load = 3; refresh(); clearInterval(potHold);
     const t0 = performance.now();
@@ -728,14 +737,22 @@ const palBtn = makeBtn(bottom, 'palette', icon('palette', '#3a2a1a'), () => open
   const sw = Math.max(10, Math.min(26, (innerWidth * 0.9 / cols - 30) / 10.5)), fs = Math.max(10, Math.min(16, (innerHeight * 0.8 / Math.ceil(n / cols)) * 0.3));
   PALETTES.forEach((p, i) => { const b = document.createElement('button'); b.className = 'pal' + (i === st.palette ? ' on' : ''); b.dataset.id = 'pal-' + i;
     b.style.fontSize = fs + 'px';
-    b.innerHTML = '<span>' + p.name + (p.by ? ' <i>' + p.by + '</i>' : '') + '</span><b>' + p.colors.map((c) => '<u style="background:' + rgbS(c) + ';width:' + sw + 'px;height:' + sw + 'px"></u>').join('') + '</b>';
+    b.innerHTML = '<b>' + p.colors.map((c) => '<u style="background:' + rgbS(c) + ';width:' + sw + 'px;height:' + sw + 'px"></u>').join('') + '</b>';
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); st.palette = i; st.color = Math.min(st.color, p.colors.length - 1); closePop(); makePots(); refresh(); });
     g.appendChild(b); });
   let cols2 = cols; while (box.getBoundingClientRect().height > innerHeight * 0.86 && cols2 < 8) g.style.gridTemplateColumns = 'repeat(' + (++cols2) + ', auto)'; // more columns until it fits
 }));
 const trayBtns = STICKER_KINDS.map((k) => makeBtn(bottom, 'sticker-' + k, (c) => { c.save(); c.translate(50, 50); c.scale(38, 38); SKIN[k](c); c.restore(); }, (e) => newStickerDrag(e, k)));
 makePots();
+function updateCursor() { // the pointer over the paper is the chosen brush, at its size, in its colour (owner 21 Nov)
+  if (st.tool === 'sticker' || !SHAPES[st.tool]) { view.style.cursor = 'default'; return; }
+  const s = SHAPES[st.tool][st.shape[st.tool]], sc = view.getBoundingClientRect().width / CW, R = Math.max(3, SIZES[st.size] * (s.sc || 1) * sc), n = Math.min(128, Math.ceil(2 * R + 6)), R2 = Math.min(R, n / 2 - 3);
+  const c = document.createElement('canvas'); c.width = c.height = n; const x = c.getContext('2d'); x.translate(n / 2, n / 2);
+  tipShape(x, s, R2); x.fillStyle = rgbS(colorOf(st.color)); x.globalAlpha = 0.35; x.fill(); x.globalAlpha = 1; x.lineWidth = 2; x.strokeStyle = 'rgba(0,0,0,.7)'; x.stroke(); x.lineWidth = 1; x.strokeStyle = 'rgba(255,255,255,.9)'; x.stroke();
+  view.style.cursor = 'url(' + c.toDataURL() + ') ' + (n / 2) + ' ' + (n / 2) + ', crosshair';
+}
 function refresh() {
+  updateCursor();
   const t = st.tool, sticker = t === 'sticker';
   for (const o of buttons) { if (o.inPop || o.inGal) continue; const id = o.b.dataset.id;
     o.b.classList.toggle('on', id === 'tool-' + t || id === 'color-' + st.color || (id === 'guide' && guide.src && guide.on)); }
@@ -763,6 +780,7 @@ function layout() {
   closePop(); refresh();
 }
 addEventListener('resize', layout);
+addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePop(); disarmDelete(); gal.classList.add('hide'); cvBox.classList.add('hide'); } }); // Esc leaves popups, the gallery and the canvases (owner 21 Nov)
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // SECTION: GUIDE -- another picture to follow, see-through on top of the paint (the paint never covers it)
@@ -779,21 +797,48 @@ guideFile.addEventListener('change', async () => {
 
 // Palettes for the guide picture (owner 21 Nov): one made from the picture's own colours (standard technique: k-means
 // colour quantisation), and the Coolors palette closest to it (each colour matched to its nearest, both ways).
+function lab(c) { // sRGB 0..1 to CIELAB (D65), where distances match how different colours look
+  const l = c.map((v) => (v > 0.04045 ? ((v + 0.055) / 1.055) ** 2.4 : v / 12.92));
+  const X = (0.4124 * l[0] + 0.3576 * l[1] + 0.1805 * l[2]) / 0.95047, Y = 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2], Z = (0.0193 * l[0] + 0.1192 * l[1] + 0.9505 * l[2]) / 1.08883;
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
+}
+function unlab(L) { // CIELAB back to sRGB 0..1, clipped
+  const fy = (L[0] + 16) / 116, fx = fy + L[1] / 500, fz = fy - L[2] / 200, g = (t) => (t ** 3 > 0.008856 ? t ** 3 : (t - 16 / 116) / 7.787);
+  const X = g(fx) * 0.95047, Y = g(fy), Z = g(fz) * 1.08883;
+  const l = [3.2406 * X - 1.5372 * Y - 0.4986 * Z, -0.9689 * X + 1.8758 * Y + 0.0415 * Z, 0.0557 * X - 0.204 * Y + 1.057 * Z];
+  return l.map((v) => Math.min(1, Math.max(0, v > 0.0031308 ? 1.055 * v ** (1 / 2.4) - 0.055 : 12.92 * v)));
+}
 function palettesFor(cnv) {
-  const W = 80, H = 50, sm = document.createElement('canvas'); sm.width = W; sm.height = H; const x = sm.getContext('2d'); x.drawImage(cnv, 0, 0, W, H);
-  const d = x.getImageData(0, 0, W, H).data, px = []; for (let k = 0; k < W * H; k++) px.push([d[k * 4] / 255, d[k * 4 + 1] / 255, d[k * 4 + 2] / 255]);
-  const r = rng(11), cen = []; for (let k = 0; k < 10; k++) cen.push(px[(r() * px.length) | 0].slice());
+  // The picture's own palette (standard technique: k-means++ colour quantisation in CIELAB): 32 colour groups, then the
+  // 10 that matter most, chosen in turn so that each is clearly different from those already taken; a group counts more
+  // the more of the picture it covers and the more colourful it is, so a big yellow wall is always in.
+  const W = 160, H = 100, sm = document.createElement('canvas'); sm.width = W; sm.height = H; const x = sm.getContext('2d'); x.drawImage(cnv, 0, 0, W, H);
+  const d = x.getImageData(0, 0, W, H).data, rgb = [], px = [];
+  for (let k = 0; k < W * H; k++) { const c = [d[k * 4] / 255, d[k * 4 + 1] / 255, d[k * 4 + 2] / 255]; rgb.push(c); px.push(lab(c)); }
   const dist = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
-  for (let it = 0; it < 12; it++) {
+  const r = rng(11), K = 32, cen = [px[(r() * px.length) | 0].slice()], dm = px.map((p) => dist(p, cen[0]));
+  while (cen.length < K) { let tot = 0; for (const v of dm) tot += v; let t = r() * tot, k = 0; while (k < px.length - 1 && (t -= dm[k]) > 0) k++; cen.push(px[k].slice()); px.forEach((p, i) => { dm[i] = Math.min(dm[i], dist(p, cen[cen.length - 1])); }); }
+  let lbl = new Int32Array(px.length);
+  for (let it = 0; it < 15; it++) {
     const sum = cen.map(() => [0, 0, 0, 0]);
-    for (const p of px) { let bi = 0, bd = 9; cen.forEach((q, i) => { const e = dist(p, q); if (e < bd) { bd = e; bi = i; } }); const s = sum[bi]; s[0] += p[0]; s[1] += p[1]; s[2] += p[2]; s[3]++; }
-    sum.forEach((s, i) => { if (s[3]) cen[i] = [s[0] / s[3], s[1] / s[3], s[2] / s[3]]; });
+    px.forEach((p, i) => { let bi = 0, bd = 1e9; cen.forEach((q, j) => { const e = dist(p, q); if (e < bd) { bd = e; bi = j; } }); lbl[i] = bi; const S = sum[bi]; S[0] += p[0]; S[1] += p[1]; S[2] += p[2]; S[3]++; });
+    sum.forEach((S, j) => { if (S[3]) cen[j] = [S[0] / S[3], S[1] / S[3], S[2] / S[3]]; });
   }
-  cen.sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]));
+  const groups = cen.map((q) => ({ n: 0, m: [], lab: q })); // each group's colour: the more colourful half of its pixels (a plain average turns a lit yellow wall beige)
+  px.forEach((p, i) => { const g = groups[lbl[i]]; g.n++; g.m.push(i); });
+  groups.forEach((g) => { if (!g.n) return; const ch = (i) => Math.hypot(px[i][1], px[i][2]); g.m.sort((a, b) => ch(b) - ch(a));
+    const top = g.m.slice(0, Math.max(1, Math.ceil(g.m.length / 2))); g.c = [0, 1, 2].map((k) => top.reduce((t, i) => t + rgb[i][k], 0) / top.length); g.lab = lab(g.c);
+    g.w = g.n / px.length * (1 + Math.hypot(g.lab[1], g.lab[2]) / 6); }); // a small bright roof counts against a big grey sky
+  const pool = groups.filter((g) => g.n > 0).sort((a, b) => b.w - a.w), picked = [];
+  for (const minD of [30, 20, 12, 0]) for (const g of pool) { if (picked.length >= 10) break; if (!picked.includes(g) && picked.every((q) => Math.sqrt(dist(q.lab, g.lab)) > minD)) picked.push(g); }
+  picked.sort((a, b) => a.lab[0] - b.lab[0]);
+  const cenRGB = picked.map((g) => unlab([g.lab[0], g.lab[1] * 1.35, g.lab[2] * 1.35])); // a little more colourful, as the picture looks to the eye, not as its pixels average out
   let best = null, bd = 1e9;
-  for (const p of COOLORS) { const cs = hexCols(p.hex); let e = 0; for (const q of cen) e += Math.min(...cs.map((c) => dist(c, q))); for (const c of cs) e += Math.min(...cen.map((q) => dist(c, q))); if (e < bd) { bd = e; best = p; } }
+  const pl = picked.map((g) => g.lab);
+  for (const p of COOLORS) { const cs = hexCols(p.hex).map(lab); let e = 0; for (const q of pl) e += Math.min(...cs.map((c) => dist(c, q))); for (const c of cs) e += Math.min(...pl.map((q) => dist(c, q))); if (e < bd) { bd = e; best = p; } }
   const keep = PALETTES.filter((p) => !p.fromPicture);
-  PALETTES.length = 0; PALETTES.push({ name: 'From your picture', by: '', colors: cen, fromPicture: 1 });
+  PALETTES.length = 0; PALETTES.push({ name: 'From your picture', by: '', colors: cenRGB, fromPicture: 1 });
   if (best) PALETTES.push({ name: best.name, by: 'Coolors, closest to your picture', colors: hexCols(best.hex), fromPicture: 1 });
   PALETTES.push(...keep); st.palette = Math.min(PALETTES.length - 1, st.palette + (best ? 2 : 1)); makePots();
 }
@@ -919,7 +964,7 @@ window.__cb = { CW, CH, st, get grain() { return grain; }, undoStack, water, get
   screenOf(x, y) { const r = view.getBoundingClientRect(); return [r.left + x * r.width / CW, r.top + y * r.height / CH]; },
   btn(id) { const b = document.querySelector('[data-id="' + id + '"]'); if (!b || b.classList.contains('hide')) return null; const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; },
   shown(x, y) { render(); const d = new Uint8Array(4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.readPixels(Math.round(x), CH - 1 - Math.round(y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, d); return [d[0], d[1], d[2]]; },
-  age(s) { clockShift += s; },
+  age(s) { clockShift += s; }, pal(i) { return PALETTES[i] && PALETTES[i].colors; },
   fast(sec) { for (let i = 0; i < sec / SIM_DT && water.active; i++) { simStep(SIM_DT); if (i % 24 === 0) { water.frames = CHECK_EVERY - 1; checkWater(); gl.finish(); checkWater(); } } render(); }, // debug: let the wet paint run on
 
   sum(T, r) { const t = { W: WAT, D: DEP, P: PIC }[T], w = r[2] - r[0], h = r[3] - r[1], f = new Float32Array(w * h * 4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, t.fb); gl.readPixels(r[0], r[1], w, h, gl.RGBA, gl.FLOAT, f); const s = [0, 0, 0, 0]; for (let i = 0; i < f.length; i++) s[i & 3] += f[i]; return s.map((v) => +v.toFixed(1)); },
