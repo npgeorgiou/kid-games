@@ -276,6 +276,23 @@ Columns: **Theme** (from brief) · **System** (standard game type it is) · **Br
 - Proposal (one concrete story): "After the storm". A storm hits a small island at night. In the morning the village wakes up broken: the fishing boat's name is washed off, so it may not sail; the bakery sign blew into the sea, so nobody finds the bread; a bottle with a letter washed up on the beach. The child walks around the village, which lives on its own (boats, cats, goats, villagers going about their day, day and night). Each person has one trouble, and some are fixed by writing: paint the boat's name on its hull, and it sails out and comes back with fish that the taverna cooks; write the bakery sign, and people walk to the bakery again; read the bottle letter (a girl on the next island lost her dog), write an answer, and the dog is found. Other troubles are fixed with hands: carry, feed, ring the bell. When all are fixed, the ferry comes back and the village has a feast. Further chapters: new troubles on the same island. Unresearched, not decided.
 - Swaps: open.
 
+### 43. Whole-hand touch games (idea from owner, 21 Nov; mechanics open)
+- Idea: games played with many touch points at once, the child using the whole hand, all 5 fingers.
+- Open: which game; what the Windows touch screen reports for 5+ fingers must be tested first.
+
+### 44. Mice living inside an orange (idea from owner, 21 Nov; mechanics open)
+- Theme: mice that live inside an orange, "or something like that" (owner's words).
+- Open: system and mechanics.
+
+### 45. The Parrot Shah platformer (idea from owner, 21 Nov; mechanics open)
+- Theme: the fairy tale "The Parrot Shah": a young Shah, with his old minister Saleb, puts his soul into a parrot to reach a faraway princess and brings back a magic fruit (story text: textfiles.com/stories/parotsha.txt; the rest of the tale to be read before design).
+- System: platformer, hopefully with both the Shah (the sultan) and the parrot as players.
+- Open: how the two players mix (switching, together, two children).
+
+### 46. Mixing liquids (idea from owner, 21 Nov; mechanics open)
+- Theme: a game about mixing liquids.
+- Open: system and mechanics.
+
 ## Real-game mechanics matched to our list
 
 Proposals only. Each line: mechanic (real games that use it) → where it could fit.
