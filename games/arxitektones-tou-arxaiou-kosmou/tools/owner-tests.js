@@ -12,6 +12,9 @@
   const X = 20; // middle of the building area
   const blockW = () => T.PIECE_DEFS.block.hx * 2 * T.PIECE_DEFS.block.hy * 2 * 5 * 10; // one big stone block, N
 
+  // ------------------------------------------------------------
+  // SECTION: HAND AND PIECES -- lifting, carrying, the hand list, pushing, trains of pieces, the hand feel
+  // ------------------------------------------------------------
   // --- 3: the hand lifts what the job needs: a piece and everything resting on it, by weight only
   if (want("hand")) {
     T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
@@ -358,6 +361,9 @@
     return { res: ph.join(">") + (passed ? " PASS" : " FAIL"), sig };
   };
 
+  // ------------------------------------------------------------
+  // SECTION: LEVELS -- repeatable tests, margins, re-entering, finished sites, the green button, red
+  // ------------------------------------------------------------
   // --- 14: quick build plus test gives the same result every time (20 times per level, frame rates and waits varied)
   if (want("repeat")) {
     for (let i = 0; i < T.LEVELS.length; i++) {
@@ -457,6 +463,9 @@
     }
   }
 
+  // ------------------------------------------------------------
+  // SECTION: FREE PLAY, QUICK BUILD AND SOUNDS -- the lever, ESC, hit loudness, sidebar speed, sound levels
+  // ------------------------------------------------------------
   // --- owner 16 Nov, late, free play: "I cannot pull the lever down, from its left side". His build: two stone squares
   // with a small stone between, a wooden drum on them, a 10 m plank across the drum, its right end on the ground. The hand
   // takes the plank near its raised left end and pulls down 2 m in a second, as a mouse does (60 moves a second).
@@ -547,6 +556,9 @@
     out.push(["sound levels as the owner set them", !bad.length, bad.join("; ") || "ok"]);
   }
 
+  // ------------------------------------------------------------
+  // SECTION: MAP -- waves and boats, ground, sand writing, dragged boats, the fleet, the restart
+  // ------------------------------------------------------------
   // --- owner 17 Nov: "make the concentric waves from the clicks push the boats away from their route, according to the
   // concentric circles direction, and of course then the boats continue smoothly toward their destination". A mouse click
   // on the water just beside a sailing boat: the boat goes away from the click, then back onto its route smoothly, sailing on.

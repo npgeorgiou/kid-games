@@ -42,6 +42,9 @@
   const btn = (id) => T.screenButtons().find((b) => b.id === id);
 
   const tests = {
+    // ------------------------------------------------------------
+    // SECTION: START AND MAP BUTTONS -- the table, first launch, the restart
+    // ------------------------------------------------------------
     // the table names only what the code knows
     "table": () => { const bad = T.cueCheckTable(); return [!bad.length, bad.join(", ")]; },
 
@@ -76,6 +79,9 @@
       return [!bad.length, bad.join("; ") || "line 91 with the ticks off; buttons in place"];
     },
 
+    // ------------------------------------------------------------
+    // SECTION: LOOKS -- textures, plain stone, long pieces, no glows at start
+    // ------------------------------------------------------------
     // list 15 Nov, 5: the textures button's stone is grey; each plain colour is close to its texture's colour; marble levels draw stone in marble
     "texture-button-colours": () => {
       const grey = T.TEX_BUTTON[0][0] === "silver-sandstone", far = T.TEX_BUTTON.filter(([k, m]) => !near(rgb(T.TEX_RGB[k]), rgb(T.PLAIN[m]), 45)).map((b) => b[0]);
@@ -106,6 +112,9 @@
       return [!pile && !uses108 && !said().includes(108), `pile or plan glow ${pile}, line 108 in table ${uses108}`];
     },
 
+    // ------------------------------------------------------------
+    // SECTION: FIRST SITE -- the teaching, openings, voice hooks, the dots, the test explained
+    // ------------------------------------------------------------
     // list 15 Nov, 6-9 and 15 Nov evening, 7: the first site's teaching, done with the child's own drags and taps
     "first-site-teaching": () => {
       const bad = [], step = (want, why) => { if (seq() !== want) bad.push(why + ": step " + seq() + " (want " + want + ")"); };
@@ -204,6 +213,9 @@
       return [ok, "phases " + ph.join(">") + " first test failed at " + failedAt + ", lines " + s1.join(",") + "; second " + s2.join(",")];
     },
 
+    // ------------------------------------------------------------
+    // SECTION: MAP AND SITES -- sky, flavour, glows, alerts, the headpiece line, lines after a test, intros
+    // ------------------------------------------------------------
     // skies test (owner 15 Nov): a site being built (never finished, or damaged) shows its day sky; a finished one the next night sky on every visit
     "sky-follows-site-state": () => {
       if (!T.setSky) return [true, "no skies in this build"];
@@ -314,6 +326,9 @@
       return [!bad.length, bad.join(", ")];
     },
 
+    // ------------------------------------------------------------
+    // SECTION: WORDS, DEMOS, ESC AND FREE PLAY -- arch stone words, demo order, ESC, intros once, free play pile, first pick lines
+    // ------------------------------------------------------------
     // list 15 Nov, 17: «καμαρόπετρες», never «σφήνες»
     "words-arch-stones": () => { const b = Object.entries(T.CUE_TABLE.lines).filter(([, t]) => /σφήν/i.test(t)).map(([n]) => n); return [!b.length, b.join(",")]; },
 
@@ -390,6 +405,9 @@
       const ok = lines.length === 2 && readies.length === 2 && lines[0][1] > readies[0] && lines[0][1] < readies[1] && lines[1][1] > readies[1];
       return [ok, lines.map(([o]) => o[1]).join(",")];
     },
+    // ------------------------------------------------------------
+    // SECTION: SETTINGS AND GENERAL RULES -- teaching off, demos off, voice, once, repeat, test-only lines, recordings
+    // ------------------------------------------------------------
     // owner 16 Nov: ΔΙΔΑΣΚΑΛΙΑ unticked: no teaching steps or teaching lines at the first site (map welcome still said); ticked again, the teaching runs
     "teaching-off": () => {
       const bad = [], teachLines = new Set(T.CUE_TABLE.cues.filter((c) => c.teaching && typeof c.say === "number").map((c) => c.say));
@@ -539,6 +557,9 @@
       T.setVoices(false);
       return [!bad.length, bad.join("; ") || "music at half and voice 20% louder during the intro; it ends with its recording"];
     },
+    // ------------------------------------------------------------
+    // SECTION: TUTORIAL AND LEVELS -- where a tutorial stands, explanations, flavour, never stopping
+    // ------------------------------------------------------------
     // owner 21 Nov: a tutorial is a named group of cues; where it stands is always known (not started, the cue it is on, done)
     "tutorial-where": () => {
       const bad = [];

@@ -62,7 +62,8 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 
 ## Working
 
-- Be mindful of tokens: read only the sections a task needs. Each `src/index.html` has `// SECTION: NAME -- what's here` markers; `grep -n "SECTION:"`, then read around the exact function.
+- Be mindful of tokens: read only the sections a task needs. Each `src/index.html` and every other file over 500 lines has `SECTION: NAME -- what's here` markers; `grep -n "SECTION:"`, then read around the exact function. A file that grows past 500 lines gets them; a marker is updated in the same change as the code it names.
+- Commands print only what is needed: counts, PASS/FAIL lines, the few lines asked for. Never print whole files, data or long logs (filter with `grep`, `grep -c`, `cut`). Never cut test results with `head` or `tail`: count every FAIL and read them all.
 - Do what was asked, all of it, nothing more. No unasked refactors, features or suggestions.
 - After every change: build, run the affected flows, commit, push, check the remote has the commit, and send only the changed HTML files as downloads.
 - When a trap is found in a game (something that cost time or caused a wrong fix), add it to that game's `WARNINGS.md` as a one-line instruction. General lessons go here only if they hold for every game.
