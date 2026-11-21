@@ -171,11 +171,11 @@
       const lines = Object.keys(D.lines).map(Number), unused = lines.filter((n) => !used.has(n)), missing = [...used].filter((n) => !ownRecording.has(n) && (!D.lines[n] || !D.lines[n].trim()));
       if (unused.length) bad.push("lines no cue says: " + unused.join(","));
       if (missing.length) bad.push("lines said but without text: " + missing.join(","));
-      const thens = new Set(D.cues.map((c) => c.then).concat(Object.values(D.sequences).map((q) => q.then)).filter(Boolean));
+      const thens = new Set(D.cues.map((c) => c.then).concat(Object.values(D.tutorials).map((q) => q.then)).filter(Boolean));
       const inCode = (ev) => window.__SRC.includes('cueEvent("' + ev + '"') || (["crumble", "snap"].includes(ev) && window.__SRC.includes('onBreak("' + ev + '"'));
       const deaf = [...new Set(D.cues.map((c) => c.on))].filter((ev) => ev !== "step" && !thens.has(ev) && !inCode(ev));
       if (deaf.length) bad.push("moments nothing makes: " + deaf.join(","));
-      for (const [n, q] of Object.entries(D.sequences)) for (const id of q.steps) if (!D.cues.some((c) => c.id === id)) bad.push(n + ": no step " + id);
+      for (const [n, q] of Object.entries(D.tutorials)) for (const id of q.steps) if (!D.cues.some((c) => c.id === id)) bad.push(n + ": no step " + id);
       return [!bad.length, bad.join("; ") || lines.length + " lines, all used"];
     },
 
@@ -538,6 +538,41 @@
       T.say(93); run(0.1); if (T.cueAudio && Math.abs(T.cueAudio.volume - T.MASTER_VOLUME * 0.9) > 1e-6) bad.push("other lines' volume " + T.cueAudio.volume);
       T.setVoices(false);
       return [!bad.length, bad.join("; ") || "music at half and voice 20% louder during the intro; it ends with its recording"];
+    },
+    // owner 21 Nov: a tutorial is a named group of cues; where it stands is always known (not started, the cue it is on, done)
+    "tutorial-where": () => {
+      const bad = [];
+      fresh(); if (T.tutorialAt("first-site") !== "not started") bad.push("fresh game: " + T.tutorialAt("first-site"));
+      start(0); T.onEnterSite(0); run(4);
+      if (T.tutorialAt("first-site") !== "t-drag-1" || !T.tutorialRunning()) bad.push("first site entered: " + T.tutorialAt("first-site") + ", running " + T.tutorialRunning());
+      T.cueMem().seq["first-site"] = "done"; if (T.tutorialAt("first-site") !== "done" || T.tutorialRunning()) bad.push("finished: " + T.tutorialAt("first-site") + ", running " + T.tutorialRunning());
+      return [!bad.length, bad.join("; ") || "not started, t-drag-1, done"];
+    },
+    // owner 21 Nov, levels: an explanation (a mudbrick crumbled) is never dropped by the tutorial: it waits its turn and is said;
+    // the step it came during still waits for the child after it
+    "explanation-waits-in-tutorial": () => {
+      const bad = [];
+      fresh(); start(0); T.onEnterSite(0); run(4);
+      if (seq() !== "t-drag-1" || !T.active.some((s) => s.seq && s.waitUntil)) bad.push("no step waiting (" + seq() + ")");
+      const p = T.spawnPiece("block", T.LEVEL_X0 + 30, 0.5, 0, "mudbrick"); // beside the building: it does not end the step
+      T.cueEvent("crumble", { piece: p }); run(0.1);
+      if (!T.voice.queue.some((q) => q.n === 72) && cur() !== 72) bad.push("72 dropped while the step waited");
+      run(8); if (!said().includes(72)) bad.push("72 never said (" + said().join(",") + ")");
+      if (seq() !== "t-drag-1" || !T.active.some((s) => s.seq && s.waitUntil)) bad.push("the step does not wait after it (" + seq() + ")");
+      return [!bad.length, bad.join("; ") || "72 said, the step still waits"];
+    },
+    // owner 21 Nov, levels: flavour is never said while a tutorial runs, also between its steps (nothing waiting, nothing playing);
+    // its first time stays for after the tutorial
+    "flavour-not-between-steps": () => {
+      const bad = [];
+      fresh(); T.cueMem().seq["first-site"] = "t-shovel"; start(0); T.onEnterSite(0); run(4); // the shovel step waits for three pieces: a gap
+      if (T.voice.cur || T.voice.queue.length || T.active.some((s) => s.seq)) bad.push("not a gap: line " + cur() + ", queue " + T.voice.queue.length);
+      T.cueEvent("pickup", { material: "wood" }); run(4);
+      if (said().includes(80)) bad.push("80 said between steps");
+      T.cueMem().seq["first-site"] = "done"; run(0.5);
+      T.cueEvent("pickup", { material: "wood" }); run(4);
+      if (!said().includes(80)) bad.push("80 not said after the tutorial (" + said().join(",") + ")");
+      return [!bad.length, bad.join("; ") || "80 only after the tutorial"];
     },
   };
   window.__cueTests = (names) => Object.keys(tests).filter((n) => !names.length || names.includes(n)).map((n) => {

@@ -17,7 +17,7 @@ Traps found while working on this game, as instructions. Add a line whenever a n
 - ESC in a site leaves at once; ESC during the site intro skips the intro (owner 18 Nov). Both are guarded by tests; keep both.
 
 - A teaching step is never dropped from the queue (test start, a child's action): a dropped step never finishes and the teaching stops for good (21 Nov). Drop lines with the engine's dropQueued.
-- Flavour lines (marked "flavour" in cues.json) never play while a place's teaching runs; explanations of what just happened (first crumble, first snap) still play between steps (owner 21 Nov).
+- Every cue has a level (tutorial, intro, explanation, flavour) in cues.json; the engine applies it. Change a cue's behaviour by its level, never with a condition in the game (owner 21 Nov).
 - A cue is done only when the line its "then" started is done too: the test's red stays until the failure's lines are said (21 Nov).
 
 ## Building and the hand

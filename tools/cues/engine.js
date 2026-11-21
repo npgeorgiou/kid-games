@@ -9,16 +9,20 @@
   // ---------------------------------------------------------------------
   // The cue model, three parts (the table's "rules" say the same in the owner's words; tools/cues/README.md is the pattern):
   // 1. Voice: one line at a time, in the order fired; a line lasts its recording, or LINE_TIME as a text box whose blue bar runs
-  //    out (ESC ends it early). Lines belong to the screen they were fired on; leaving drops what is left. bg lines play only if
-  //    nothing is playing or waiting; a flavour line fired with a teaching line at the same moment is dropped; during a test only
+  //    out (ESC ends it early). Lines belong to the screen they were fired on; leaving drops what is left. bg and flavour lines play
+  //    only if nothing is playing or waiting; a flavour line fired with a teaching line at the same moment is dropped; during a test only
   //    lines marked for it start; while a step waits for the child, every other line is dropped (a dropped first time stays unused).
   // 2. Attention, per cue: none (what it points at glows), point (while the step waits, the rest darkens and only its points or its
   //    touch list can be touched), freeze (while its line plays, the rest darkens and the game freezes). A demo darkens all but the
   //    building and takes no touch. Ctrl held (parent) is never held back.
   // 3. Steps: a cue that waits for an action (an event, or until a condition) keeps its glows and ghost hand until it is done, says
-  //    its line again REPEAT_GAP s after it ends, and an action that ends a step fires nothing else. A step in a sequence that needs
-  //    something gone missing goes back to the step that makes it. Sequences and the saved record (first times, recent lines of
-  //    groups, where each sequence stands) live in progress.cues, cleared by the restart.
+  //    its line again REPEAT_GAP s after it ends, and an action that ends a step fires nothing else. A step in a tutorial that needs
+  //    something gone missing goes back to the step that makes it. Tutorials (named groups of tutorial cues, one place each) and the
+  //    saved record (first times, recent lines of groups, where each tutorial stands) live in progress.cues, cleared by the restart.
+  // Every cue has a level (owner 21 Nov): tutorial (a tutorial's steps: nothing interrupts them but an explanation, which waits
+  // its turn), intro (the welcome, a site's intro), explanation (what just happened or what a thing means: never dropped by a
+  // tutorial, it waits its turn), flavour (remarks, facts, praise: only when nothing else plays or waits, never while a tutorial
+  // runs). A dropped line's first time stays unused.
   // The table only names events, conditions and points; their meanings are the vocabularies here (CUE_CONDITIONS, pointTargets,
   // the cueEvent calls), and cueCheckTable() lists any name the code does not know.
   const CUE_TABLE = null; // build.py puts cues.json here
@@ -86,7 +90,7 @@
     scene++;
     for (const q of voice.queue) setMark(q.onceKey, false);
     voice.queue.length = 0; if (voice.cur) endLine(voice.cur);
-    active = []; whens = []; visit = {}; teachingRun = null;
+    active = []; whens = []; visit = {}; tutorialRun = null;
     cueGameNewScene();
   }
   function cueReset() { progress.cues = null; sessionMem = {}; newScene(); }
@@ -99,6 +103,7 @@
     if (k === "why") return x.why === v;
     if (k === "placed") return childPieces().filter((p) => p.heldBy == null && worldToScreen(p.body.getPosition().x, 0).x < buildingWidthPx).length >= +v; // N of the child's pieces stand in the building
     if (k === "done") return isMarked("ever:" + v);
+    if (name === "tutorial-pending") { const t = tutorialOf(x.place); return !!t && tutorialAt(t) !== "done"; } // this place has a tutorial not finished
     return !!CUE_CONDITIONS[name](x);
   }
 
@@ -138,14 +143,17 @@
     const key = onceKey(c, x);
     let line = null;
     const then = () => { if (c.after != null && (useTeach || !c.teaching)) say(c.after, { kind: "teach" }); if (seq) nextStep(seq, c.id); else if (c.then) { const f = cueEvent(c.then, x).fired.find((l) => l && l.n != null) || null; if (line) line.next = f; } }; // the line its "then" starts is part of it (cueDone)
-    if (c.do === "teaching") { if (!useTeach) return c; setMark(key, true); runSequence(sequenceOf(x.place)); return c; } // ΔΙΔΑΣΚΑΛΙΑ off: no steps (they wait, unmarked, for when it is ticked again)
+    if (c.do === "teaching") { if (!useTeach) return c; setMark(key, true); runTutorial(tutorialOf(x.place)); return c; } // ΔΙΔΑΣΚΑΛΙΑ off: no steps (they wait, unmarked, for when it is ticked again)
     if (!useTeach && c.teaching) { then(); return null; } // ΔΙΔΑΣΚΑΛΙΑ off: a teaching line is not said (and stays unused); what follows it goes on, and nothing waits for it (it did not fire: owner 17 Nov, the test waited for an unsaid explanation and never ran)
     if (c.do === "demo") { setMark(key, true); if (useDemos) startDemo(placeKey(x.place), then); else then(); return c; } // ΒΟΗΘΗΤΙΚΑ ΒΙΝΤΕΟ off: no demo, the rest goes on
     const memo = {}, pts = (names) => (names || []).flatMap((n) => pointTargets(n, x, memo));
     if (c.glow) { setMark(key, true); glowFor(pts(c.points), c.glow); then(); return c; }
     if (c.say == null) { setMark(key, true); then(); return c; }
-    if (!seq && c.flavour && teachingRun && cueMem().seq[teachingRun] !== "done") return null; // owner 21 Nov: flavour lines never interject a place's teaching, from its first step to its last (their first time stays unused)
-    if (!seq && (teachingBusy() || stepWaiting())) return null; // while a teaching line plays or waits, or a step waits for the child, other lines are dropped (their first time stays unused)
+    // the levels (owner 21 Nov; their first time stays unused when dropped): flavour never while a tutorial runs, from its first
+    // step to its last; while a tutorial line plays or waits, or a step waits for the child, every other line is dropped except
+    // an explanation, which waits its turn; flavour also plays only when nothing else plays or waits (say)
+    if (!seq && c.level === "flavour" && tutorialRunning()) return null;
+    if (!seq && c.level !== "explanation" && (teachingBusy() || stepWaiting())) return null;
     const n = lineOf(c, x);
     line = say(n, {
       cue: c, kind: c.kind || "queued", attention: c.attention || "none", targets: pts(c.points), touch: c.touch ? pts(c.touch) : null,
@@ -165,10 +173,13 @@
     return pickFrom(s.group + (g.byPlace ? ":" + placeKey(x.place) : ""), all, ok);
   }
 
-  // --- sequences: steps in order, resumed where the child left them; a step that needs something missing goes back
-  function sequenceOf(place) { const k = placeKey(place); return Object.keys(CUE_TABLE.sequences).find((n) => CUE_TABLE.sequences[n].place === k) || null; }
-  let teachingRun = null; // the teaching sequence started on this visit; under way until the record says it is done
-  function runSequence(name) { teachingRun = name; if (name) runStep(name, cueMem().seq[name] || CUE_TABLE.sequences[name].steps[0]); }
+  // --- tutorials: a named group of tutorial cues at one place, taken in order, resumed where the child left them; a step that
+  // needs something missing goes back. Where one stands: tutorialAt(name) = "not started", the cue it is on, or "done".
+  function tutorialOf(place) { const k = placeKey(place); return Object.keys(CUE_TABLE.tutorials).find((n) => CUE_TABLE.tutorials[n].place === k) || null; }
+  function tutorialAt(name) { const m = cueMem().seq[name]; return m == null ? "not started" : m; }
+  let tutorialRun = null; // the tutorial started on this visit
+  function tutorialRunning() { return !!tutorialRun && tutorialAt(tutorialRun) !== "done"; } // from its first step until its last is done
+  function runTutorial(name) { tutorialRun = name; if (name) runStep(name, cueMem().seq[name] || CUE_TABLE.tutorials[name].steps[0]); }
   function runStep(name, id, depth = 0) {
     const c = cueById(id), m = cueMem(); m.seq[name] = id; cueSave();
     const go = () => {
@@ -178,7 +189,7 @@
     if (c.start) cueWhen(() => cond(c.start), go); else go();
   }
   function nextStep(name, id) {
-    const sq = CUE_TABLE.sequences[name], i = sq.steps.indexOf(id);
+    const sq = CUE_TABLE.tutorials[name], i = sq.steps.indexOf(id);
     if (i + 1 < sq.steps.length) { runStep(name, sq.steps[i + 1]); return; }
     cueMem().seq[name] = "done"; cueSave();
     if (sq.then) cueEvent(sq.then);
@@ -188,7 +199,7 @@
   function say(n, o = {}) {
     const c = Object.assign({ n, kind: "queued", attention: "none", frame: cueFrame, scene, at: cueClock + (o.after || 0) }, o);
     const teachNow = voice.queue.some((q) => q.frame === cueFrame && q.kind === "teach");
-    if (n == null || !(VOICE_FILES[n] || CUE_TABLE.lines[n]) || (n === 86 && !VOICE_FILES[n]) || (c.kind === "bg" && (voice.cur || voice.queue.length)) || (c.kind !== "teach" && teachNow)) return null;
+    if (n == null || !(VOICE_FILES[n] || CUE_TABLE.lines[n]) || (n === 86 && !VOICE_FILES[n]) || ((c.kind === "bg" || (c.cue && c.cue.level === "flavour")) && (voice.cur || voice.queue.length)) || (c.kind !== "teach" && teachNow)) return null;
     if (c.kind === "teach") voice.queue = voice.queue.filter((q) => { const drop = q.frame === cueFrame && q.kind !== "teach"; if (drop) setMark(q.onceKey, false); return !drop; });
     voice.queue.push(c);
     return c;
@@ -354,9 +365,13 @@
 
   // --- the moments the game names (thin calls from the rest of the code)
   // the table names only what the code knows: every event fired, condition, point and line used (the harness prints this)
+  const CUE_LEVELS = ["tutorial", "intro", "explanation", "flavour"];
   function cueCheckTable() {
-    const bad = [], conds = (n) => { const b = n.replace(/^not /, ""); if (!/^(material|part|done|why|placed):/.test(b) && !CUE_CONDITIONS[b]) bad.push("condition " + n); };
+    const bad = [], conds = (n) => { const b = n.replace(/^not /, ""); if (!/^(material|part|done|why|placed):/.test(b) && b !== "tutorial-pending" && !CUE_CONDITIONS[b]) bad.push("condition " + n); };
+    const steps = Object.values(CUE_TABLE.tutorials).flatMap((t) => t.steps);
     for (const c of CUE_TABLE.cues) {
+      if (!CUE_LEVELS.includes(c.level)) bad.push("level of " + c.id); // every cue has one of the four levels
+      if (steps.includes(c.id) !== (c.level === "tutorial" && c.on === "step")) bad.push("tutorial step " + c.id); // a tutorial's cues are its steps, level tutorial
       (c.if || []).forEach(conds); if (c.needs) conds(c.needs); if (c.start) conds(c.start); if (c.wait && c.wait.startsWith("until:")) conds(c.wait.slice(6));
       for (const p of (c.points || []).concat(c.touch || [])) if (!POINT_KINDS.includes(p.split(":")[0])) bad.push("point " + p);
       const n = typeof c.say === "number" ? [c.say] : c.say && c.say.byPlace && !c.say.group ? c.say.byPlace : [];

@@ -3916,7 +3916,6 @@
     "first-launch": () => !Object.keys(progress.done).length && !isMarked("ever:welcome-first"),
     "site-won-before": (x) => !!progress.done[siteKeyOf(x.place)], // finished once, standing or damaged since
     "site-finished": (x) => { const d = progress.done[siteKeyOf(x.place)]; return !!(d && !d.broken); },
-    "teaching-pending": (x) => { const s = sequenceOf(x.place); return !!s && cueMem().seq[s] !== "done"; },
     "demo-pending": (x) => { const k = siteKeyOf(x.place), d = CUE_TABLE.demos[k]; return !!(d && d.steps.length && !progress.done[k]); },
     "has-openings": () => !!(grid && grid.holes.length),
     "first-openings-site": () => currentLevel != null && currentLevel === LEVELS.findIndex((L) => L.holes && L.holes.length),

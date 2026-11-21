@@ -29,11 +29,20 @@ Glows start from the thing's own outline (a plank's glow is long), with a slow r
 - `words`: plain meanings of every event, condition, point and field the table uses (B is written from them; the doc tool stops if one is missing). Events also say where the code fires them.
 - `lines`: number → text (player language). `lineNotes`: number → note (changed, record again, ...).
 - `groups`: sets of lines picked at random, never one of the last half played; `byPlace` for one set per place; `lineIf` for lines that need a condition.
-- `cues`: one object per cue. `id`, `topic`, `on` (event), `if` (conditions, `not ...`, `done:<cue>`), `once` (`ever`/`place`/`session`/`visit`), `kind`, `say` (number, `{byPlace}`, `{group}`), `volume` (louder or quieter line), `attention`, `points`, `touch`, `show` (`tap X`, `tap3 X`, `drag X > Y`), `wait` (event, or `until:<condition>`), `needs` + `back`, `start`, `after` (line when done), `then` (event when done), `do` (`teaching`, `demo`), `during: "test"`, `delay: "sound:<name>"`, `glow` (seconds, no line), `note`.
-- `sequences`: named step lists (`place`, `steps`, `then`).
+- `cues`: one object per cue. `id`, `level` (see below), `topic`, `on` (event), `if` (conditions, `not ...`, `done:<cue>`), `once` (`ever`/`place`/`session`/`visit`), `kind`, `say` (number, `{byPlace}`, `{group}`), `volume` (louder or quieter line), `attention`, `points`, `touch`, `show` (`tap X`, `tap3 X`, `drag X > Y`), `wait` (event, or `until:<condition>`), `needs` + `back`, `start`, `after` (line when done), `then` (event when done), `do` (`teaching`, `demo`), `during: "test"`, `delay: "sound:<name>"`, `glow` (seconds, no line), `note`.
+- `tutorials`: named groups of tutorial cues, one place each (`place`, `steps` in order, `then`). Where one stands is always known: `tutorialAt(name)` gives "not started", the cue it is on, or "done"; `tutorialRunning()` is true from its first step until its last is done; the condition `tutorial-pending` (built in) holds at a place whose tutorial is not done.
 - `demos`: per place, `new` (what the place teaches) and `steps`: `tell N` (line while building), `put ...`, `wait S`, `say N` (line after, game frozen), `pull`, `taps SHAPE`, `fade`.
 
 Every cue on an event fires when its conditions hold (in table order). Alternatives are written as conditions that exclude each other (`done:<cue>`, `not ...`).
+
+## Levels (owner 21 Nov)
+
+Every cue has one; the table check fails without it.
+1. **tutorial**: a tutorial's steps and lines that show the child an action. Nothing interrupts them but an explanation, which waits its turn.
+2. **intro**: the welcome, a place's intro.
+3. **explanation**: what just happened or what a thing means (a piece crumbled, the test's lines). Never dropped by a tutorial: it waits its turn.
+4. **flavour**: remarks, facts, praise, stories. Only when nothing else plays or waits, and never while a tutorial runs (also between its steps).
+A dropped line's first time stays for later.
 
 ## Making cues for a new game
 
