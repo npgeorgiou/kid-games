@@ -2427,6 +2427,15 @@ const MAP_LAND = {"s": 4, "w": 544, "runs": "545,172,187,127,58,172,188,126,58,1
           b.setLinearVelocity(planck.Vec2(v.x * k, Math.min(PILE_MAX_UP, v.y * k)));
         }
       }
+      // the bin's side walls are solid (owner 21 Nov: a piece squeezed into the left wall by the hand stayed stuck there): a piece
+      // not in a hand that pokes into a wall is put back inside (position projection onto the bin, the usual way to keep bodies in
+      // a container when a strong joint can push them past a contact); the pieces it then touches are pushed apart by the solver
+      if (!held.has(b)) {
+        let lo = Infinity, hi = -Infinity;
+        for (let f = b.getFixtureList(); f; f = f.getNext()) { const bb = f.getAABB(0), rr = f.getShape().getRadius ? f.getShape().getRadius() : 0, sk = f.getShape().getType() === "circle" ? 0 : rr; lo = Math.min(lo, bb.lowerBound.x + sk); hi = Math.max(hi, bb.upperBound.x - sk); } // the shape itself, without its contact skin
+        const sx = lo < 0 ? -lo : hi > W ? W - hi : 0;
+        if (sx) { b.setTransform(planck.Vec2(b.getPosition().x + sx, b.getPosition().y), b.getAngle()); b.setAwake(true); }
+      }
       const q = b.getPosition();
       if (q.x < -0.6 || q.x > W + 0.6 || q.y < -0.6 || !Number.isFinite(q.x + q.y)) {
         feelHits[2] = (feelHits[2] || 0) + 1; // test counter (tools/harness.py)

@@ -801,6 +801,26 @@ def tutorial_piece_in_before_dragback(b): return tutorial_piece_in_at_dragback(b
 def tutorial_piece_in_during_dragback(b): return tutorial_piece_in_at_dragback(b, 'during')
 def tutorial_piece_in_after_dragback(b): return tutorial_piece_in_at_dragback(b, 'after')
 
+def pile_piece_not_in_wall(b):
+    # owner 21 Nov: "fix the piece stuck issue": a piece dragged from the building back into the pile, fast and low; no piece of
+    # the pile stays stuck in the pile's walls (seen at the left wall after a fast drag back). Five tries at different heights.
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.cueMem().seq['first-site']='done'}")
+    click(q, 'site:mastaba'); time.sleep(0.4); quiet(q)
+    W = q.evaluate("()=>__tb.buildingWidthPx"); gy = q.evaluate("()=>__tb.worldToScreen(0,0).y")
+    stuck = []
+    for k, (dx, dy) in enumerate([(60, 120), (40, 90), (20, 140), (80, 60), (30, 110)]):
+        drag(q, pile_piece_inside(q, 'mudbrick'), [W * 0.3, gy - 25], hold=0.4); time.sleep(0.5)
+        pc = q.evaluate("()=>{const T=__tb,p=T.pieces.filter((x)=>!x.demo)[0]; if(!p) return null; const s=T.worldToScreen(p.body.getPosition().x,p.body.getPosition().y);return [s.x,s.y]}")
+        if pc: drag(q, pc, [W + dx, gy - dy], steps=10, hold=0.2)
+        time.sleep(2)
+        out = q.evaluate("""()=>{const T=__tb,r=T.pileBinRect,Wm=r.w/T.pileScale; return T.pileBodies().map((b)=>{let lo=1e9,hi=-1e9; for(let f=b.getFixtureList();f;f=f.getNext()){const bb=f.getAABB(0); lo=Math.min(lo,bb.lowerBound.x); hi=Math.max(hi,bb.upperBound.x);} return [+lo.toFixed(2), +(hi-Wm).toFixed(2)];}).filter(([lo,hi])=>lo<-0.05||hi>0.05);}""")
+        if out: stuck.append([k, out])
+    time.sleep(1); still = q.evaluate("()=>Math.max(...__tb.pileBodies().map((b)=>b.getLinearVelocity().length()))")  # and the pile comes to rest
+    q.close()
+    return not stuck and still < 0.05, dict(stuck=stuck, pile_speed=still)
+
 def boat_on_boat(b):
     # owner 18 Nov: "make so dropping a boat on another boat makes the same sound that the blocks do on wood-on-wood hit. sound
     # volume should be the same as the stone-on-boat sound": a boat carried over another boat at sea and let go there
@@ -867,7 +887,7 @@ def music_tick(b):
     q.close()
     return r['map_off'] == 0 and r['site_off'] == 0 and r['after_reopen'] == [False, 0] and r['map_on'] == 1, r
 
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick, 'tutorial-no-mudbrick-line': tutorial_no_mudbrick_line, 'tutorial-test-before-red-step': tutorial_test_before_red_step, 'tutorial-test-before-undo-step': tutorial_test_before_undo_step, 'red-during-fail-lines': red_during_fail_lines, 'tutorial-put-right-after-dragback': tutorial_put_right_after_dragback, 'tutorial-piece-in-before-dragback': tutorial_piece_in_before_dragback, 'tutorial-piece-in-during-dragback': tutorial_piece_in_during_dragback, 'tutorial-piece-in-after-dragback': tutorial_piece_in_after_dragback, 'boat-on-boat': boat_on_boat, 'sidebar-icons-spread': sidebar_icons_spread, 'button-click-sound': button_click_sound, 'music-tick': music_tick}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
+FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick, 'tutorial-no-mudbrick-line': tutorial_no_mudbrick_line, 'tutorial-test-before-red-step': tutorial_test_before_red_step, 'tutorial-test-before-undo-step': tutorial_test_before_undo_step, 'red-during-fail-lines': red_during_fail_lines, 'tutorial-put-right-after-dragback': tutorial_put_right_after_dragback, 'pile-piece-not-in-wall': pile_piece_not_in_wall, 'tutorial-piece-in-before-dragback': tutorial_piece_in_before_dragback, 'tutorial-piece-in-during-dragback': tutorial_piece_in_during_dragback, 'tutorial-piece-in-after-dragback': tutorial_piece_in_after_dragback, 'boat-on-boat': boat_on_boat, 'sidebar-icons-spread': sidebar_icons_spread, 'button-click-sound': button_click_sound, 'music-tick': music_tick}  # middle_grab_bump: waits for the owner's answer on the lever (BUILD.md update 83)
 
 def run(b, names):
     for n, f in FLOWS.items():

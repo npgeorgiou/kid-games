@@ -22,7 +22,7 @@ Traps found while working on this game, as instructions. Add a line whenever a n
 
 - A tutorial step waits for what its line asks for ("put a few pieces" waits for three); a step that waits for less ends at once, its line is cut or skipped, and the tutorial goes silent (owner 21 Nov). Every tutorial flow repeats the owner's own order of actions, including doing the next thing at once.
 
-- A piece dragged back to the pile can land wedged in the pile's left wall; flows pick pile pieces with pile_piece_inside (seen 21 Nov, not reported by the owner).
+- The pile's side walls are kept solid by a projection after each step (the hand's joint is strong enough to squeeze pieces into a wall); flow pile-piece-not-in-wall guards it (21 Nov).
 - The tutorial's invariant (its current step always alive) is checked by the cue test tutorial-never-stops with random actions; run it after any engine change.
 
 ## Building and the hand
