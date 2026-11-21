@@ -2,6 +2,7 @@
 # Usage: python3 tools/harness.py [level indexes]. Exposes internals via window.__tb (hook injected, rAF disabled, stepped manually).
 # Extend this file in place for new checks; do not make new scratch harnesses.
 import re, sys, json
+import tempfile; TMP = tempfile.gettempdir()  # the commit gate runs old and new code at once, each with its own TMPDIR
 import subprocess as _sp, sys as _sys
 if _sp.run(['git', 'config', 'core.hooksPath'], capture_output=True, text=True).stdout.strip() != '.githooks': _sys.exit('tests refused: the commit gate is off in this copy; run: git config core.hooksPath .githooks')  # owner 21 Nov: rules enforced, not remembered
 from playwright.sync_api import sync_playwright
@@ -16,8 +17,8 @@ k=src.rindex('})();')
 src=src[:k]+hook+src[k:]
 src=src.replace('const LOAD_SCREEN_MS = 2000;','const LOAD_SCREEN_MS = 0;',1)  # no load screen in tests
 if 'cuetest' not in sys.argv and 'flows' not in sys.argv: src=src.replace('const CUES_OFF = false;','const CUES_OFF = true;',1)  # cues off except in the cue tests
-open('/tmp/tb.html','w').write(src)
-open('/tmp/tb-real.html','w').write(src.replace('window.requestAnimationFrame=()=>0;',''))
+open(TMP+'/tb.html','w').write(src)
+open(TMP+'/tb-real.html','w').write(src.replace('window.requestAnimationFrame=()=>0;',''))
 JIT='jitter' in sys.argv
 # wrong choices that must fail (level index -> [(name, JS: entry -> new material or nothing)])
 WRONG={}  # wrong choices now live in tools/level-tests.json (made by make-levels.py); run: harness.py spec
@@ -26,7 +27,7 @@ levels=[int(a) for a in sys.argv[1:] if a.isdigit()] or list(range(10))
 with sync_playwright() as p:
     b=p.chromium.launch(); pg=b.new_page(viewport={'width':1280,'height':800})
     errs=[]; pg.on('pageerror',lambda e: errs.append(str(e)))
-    pg.goto('file:///tmp/tb.html'); pg.wait_for_timeout(500)
+    pg.goto('file://'+TMP+'/tb.html'); pg.wait_for_timeout(500)
     JS_SPEED='''(s)=>{const T=__tb; const run=(n)=>{for(let k=0;k<n;k++){T.stepPhysics(1/60);T.cleanupOutOfBounds();T.updateCheck(1/60);}};
       run(s*60); let mp=0,mw=0,np=0,nw=0; for(let k=0;k<60;k++){run(1);
       for(const b of T.pileBodies()){const v=b.getLinearVelocity(),sp=Math.hypot(v.x,v.y)+Math.abs(b.getAngularVelocity())*0.5; mp=Math.max(mp,sp); if(sp>0.05)np++;}
@@ -95,7 +96,7 @@ with sync_playwright() as p:
         POLL=open(os.path.join(HERE,'spec-real.js')).read()
         pages=[]
         for i in (levels or range(10)):
-            q=b.new_page(viewport={'width':1280,'height':800}); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(300)
+            q=b.new_page(viewport={'width':1280,'height':800}); q.goto('file://'+TMP+'/tb-real.html'); q.wait_for_timeout(300)
             q.evaluate('(i)=>{const T=__tb; T.mode="build"; delete T.progress.done[T.LEVELS[i].key]; T.startLevel(i); T.quiet0(); T.startAutoBuild(); window.__st="build"; window.__i=i;}',i); pages.append((i,q))
         t0=time.time(); done={}
         while len(done)<len(pages) and time.time()-t0<900:
@@ -108,9 +109,9 @@ with sync_playwright() as p:
         levels=[]
     if 'whirlvideo' in sys.argv:  # owner 14 Nov: a video of whirling with the real mouse in the running game (real time)
         import math, glob, shutil, subprocess
-        shutil.rmtree('/tmp/vid',ignore_errors=True)
-        ctx=b.new_context(viewport={'width':1280,'height':800},record_video_dir='/tmp/vid',record_video_size={'width':1280,'height':800}); v=ctx.new_page()
-        v.goto('file:///tmp/tb-real.html'); v.wait_for_timeout(800)
+        shutil.rmtree(TMP+'/vid',ignore_errors=True)
+        ctx=b.new_context(viewport={'width':1280,'height':800},record_video_dir=TMP+'/vid',record_video_size={'width':1280,'height':800}); v=ctx.new_page()
+        v.goto('file://'+TMP+'/tb-real.html'); v.wait_for_timeout(800)
         v.evaluate("""()=>{const d=document.createElement('div');d.style.cssText='position:fixed;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:rgba(255,0,0,.85);pointer-events:none;z-index:99';document.body.appendChild(d);
           addEventListener('pointermove',e=>{d.style.left=e.clientX+'px';d.style.top=e.clientY+'px'},true);
           const s=document.createElementNS('http://www.w3.org/2000/svg','svg');s.style.cssText='position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:98';s.innerHTML='<circle id=gc fill=none stroke=red stroke-dasharray=6,6 stroke-width=2 r=0 />';document.body.appendChild(s);}""")
@@ -130,7 +131,7 @@ with sync_playwright() as p:
             print('mouse moves per second:',nm/6,flush=True)
             v.wait_for_timeout(300); v.mouse.up(); v.wait_for_timeout(1200)
             v.evaluate('()=>{document.getElementById("gc").setAttribute("r",0)}')
-        ctx.close(); src=glob.glob('/tmp/vid/*.webm')[0]; out=os.path.join(HERE,'..','owner-shots','whirl-real-mouse.mp4')
+        ctx.close(); src=glob.glob(TMP+'/vid/*.webm')[0]; out=os.path.join(HERE,'..','owner-shots','whirl-real-mouse.mp4')
         subprocess.run(['ffmpeg','-y','-loglevel','error','-i',src,'-c:v','libx264','-preset','veryfast','-pix_fmt','yuv420p',out]); print('video',out)
         levels=[]
     if 'mousewhirl' in sys.argv:  # owner 14 Nov: can a person whirl with the real mouse? stone block held at one end, circles as big as the round stone, once a second
@@ -181,7 +182,7 @@ with sync_playwright() as p:
             JS=open(os.path.join(HERE,'owner-tests.js')).read()
             allr={}
             for (w,h,dpr) in [(1280,800,1),(1366,768,1),(1920,1080,1),(1536,864,1.25),(1024,768,1)]:
-                c=b.new_context(viewport={'width':w,'height':h},device_scale_factor=dpr); q=c.new_page(); q.goto('file:///tmp/tb.html'); q.wait_for_timeout(300)
+                c=b.new_context(viewport={'width':w,'height':h},device_scale_factor=dpr); q=c.new_page(); q.goto('file://'+TMP+'/tb.html'); q.wait_for_timeout(300)
                 allr['%dx%d'%(w,h)]=q.evaluate("""()=>{const T=__tb; const fr=(dt)=>{const f=T.test&&T.test.fast&&T.test.phase!=="fail"&&T.test.phase!=="pass"?10:1;T.stepPhysics(dt*f,5*f);T.cleanupOutOfBounds();T.updateCheck(dt);};
                   return T.LEVELS.map((L,i)=>[1,1.2].map((m)=>{const q0=T.TEST_QUAKE[i],d0=T.TEST_LOAD_DENSITY[i]; T.TEST_QUAKE[i]=q0*m; T.TEST_LOAD_DENSITY[i]=d0*m;
                     T.mode="build"; delete T.progress.done[L.key]; T.startLevel((i+1)%10); T.startLevel(i); T.quiet0(); T.startAutoBuild(); let n=0; while(T.auto&&n<20000){fr(1/60);n++;}
@@ -192,7 +193,7 @@ with sync_playwright() as p:
                 rs={k:v[i] for k,v in allr.items()}
                 print('%-4s %-70s %s'%('PASS' if set(rs.values())=={'PASS/PASS'} else 'FAIL','7-2 same result on every screen size (also 1.2x): level %d'%(i+1),json.dumps(rs)),flush=True)
         if not names or 'restart' in names:  # 1: a real click on the restart button puts the whole map back to the beginning
-            q=b.new_page(viewport={'width':1280,'height':800}); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(500)
+            q=b.new_page(viewport={'width':1280,'height':800}); q.goto('file://'+TMP+'/tb-real.html'); q.wait_for_timeout(500)
             st=q.evaluate("""()=>{const T=__tb; T.progress.done.mastaba={pieces:[],loads:[]}; T.progress.done.djoser={pieces:[],loads:[]};
               localStorage.setItem('tower-builder-progress-v1',JSON.stringify(T.progress)); for(const g of T.groups){g.state='visit';g.site='mastaba';g.wait=3;g.boat=null;}
               for(let k=0;k<600;k++) T.renderMap(0.05); const b=T.restartButton&&T.restartButton(); return b&&[b.x,b.y];}""")
@@ -205,9 +206,9 @@ with sync_playwright() as p:
             else: print('FAIL 1 restart: no button on the map')
             q.close()
         if not names or 'music' in names:  # 2: music at load when the browser allows it, otherwise at the first touch
-            b2=p.chromium.launch(args=['--autoplay-policy=no-user-gesture-required']); q=b2.new_page(); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(2500)
+            b2=p.chromium.launch(args=['--autoplay-policy=no-user-gesture-required']); q=b2.new_page(); q.goto('file://'+TMP+'/tb-real.html'); q.wait_for_timeout(2500)
             r=q.evaluate('()=>__tb.music()'); print('%-4s %-70s %s'%('PASS' if r['on'] and r['ctx']=='running' else 'FAIL','2 music at load (PC allows sound)',json.dumps(r))); b2.close()
-            b3=p.chromium.launch(args=['--autoplay-policy=user-gesture-required']); q=b3.new_page(viewport={'width':1280,'height':800}); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(2500)
+            b3=p.chromium.launch(args=['--autoplay-policy=user-gesture-required']); q=b3.new_page(viewport={'width':1280,'height':800}); q.goto('file://'+TMP+'/tb-real.html'); q.wait_for_timeout(2500)
             r0=q.evaluate('()=>__tb.music()'); q.mouse.click(640,30); q.wait_for_timeout(1500); r=q.evaluate('()=>__tb.music()')
             print('%-4s %-70s %s'%('PASS' if r['on'] and r['ctx']=='running' else 'FAIL','2 music at the first touch (PC holds sound back)','before '+json.dumps(r0)+' after '+json.dumps(r))); b3.close()
         levels=[]
@@ -232,10 +233,10 @@ with sync_playwright() as p:
         levels=[]
     if 'shot' in sys.argv:  # screenshot of each level after the quick build (before the test): /tmp/shot<i>.png
         for i in levels:
-            pg.evaluate('''(i)=>{const T=__tb; T.mode="build"; T.startLevel(i); T.quiet0(); T.render();}''',i); pg.screenshot(path='/tmp/shot%da.png'%i)
+            pg.evaluate('''(i)=>{const T=__tb; T.mode="build"; T.startLevel(i); T.quiet0(); T.render();}''',i); pg.screenshot(path=TMP+'/shot%da.png'%i)
             pg.evaluate('''(i)=>{const T=__tb; T.mode="build"; T.startLevel(i); T.quiet0(); T.startAutoBuild(); let n=0; while(T.auto&&n<60*300){T.stepPhysics(1/60);T.cleanupOutOfBounds();T.updateCheck(1/60);n++;}
               for(let k=0;k<120;k++){T.stepPhysics(1/60);T.updateCheck(1/60);} T.render();}''',i)
-            pg.screenshot(path='/tmp/shot%d.png'%i)
+            pg.screenshot(path=TMP+'/shot%d.png'%i)
         levels=[]
     if 'maptime' in sys.argv:  # how long the map takes: a frame, and a boat's way back from land
         print(pg.evaluate("""()=>{const T=__tb; T.goMap(); for(const S of T.SITES) T.progress.done[S.key]=T.progress.done[S.key]||{pieces:[],loads:[]}; T.renderMap(1/60);
@@ -246,7 +247,7 @@ with sync_playwright() as p:
           for(let k=0;k<6000;k++){const s0=st(); const t1=performance.now(); T.renderMap(1/20); const d=performance.now()-t1; if(d>worst){worst=d; what=s0+' -> '+st();}} cv2.width=W; cv2.height=H;
           return 'frame '+frame.toFixed(1)+' ms (tiny canvas '+frame1.toFixed(1)+'), slowest in 5 min of play '+worst.toFixed(0)+' ms at '+what+', route cells '+rc.toFixed(0)+', field '+wf.toFixed(0)+', way back from land '+way.toFixed(0)+', again '+way2.toFixed(0)+' ms ('+(w&&w.runs.length)+' runs)';}""")); levels=[]
     if 'realwave' in sys.argv:  # owner 17 Nov: real clicks in the running game (real frames): do the waves push the boats, and is there a hitch?
-        q=b.new_page(viewport={'width':1280,'height':800}); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(500)
+        q=b.new_page(viewport={'width':1280,'height':800}); q.goto('file://'+TMP+'/tb-real.html'); q.wait_for_timeout(500)
         q.evaluate("""()=>{const T=__tb; for(const S of T.SITES) T.progress.done[S.key]={pieces:[],loads:[]}; T.goMap();
           window.__gaps=[]; let last=performance.now(); const f=()=>{const n=performance.now(); __gaps.push(n-last); last=n; requestAnimationFrame(f);}; requestAnimationFrame(f);}""")
         q.wait_for_timeout(1500)
@@ -262,7 +263,7 @@ with sync_playwright() as p:
     if 'flows' in sys.argv:  # what the owner does, in the running game with real mouse and keys (tools/flows.py)
         import flows; flows.run(b, [a for a in sys.argv[1:] if a not in ('flows',)]); levels=[]
     if 'realintro' in sys.argv:  # owner 17 Nov: in the running game: the welcome before any touch waits and plays at the first touch; an intro's picture goes when its recording ends
-        q=b.new_page(viewport={'width':1280,'height':800}); q.goto('file:///tmp/tb-real.html'); q.wait_for_timeout(1500)
+        q=b.new_page(viewport={'width':1280,'height':800}); q.goto('file://'+TMP+'/tb-real.html'); q.wait_for_timeout(1500)
         print('before any touch:', q.evaluate("()=>{const T=__tb,c=T.voice.cur; return {line:c&&c.n, recording:!!T.cueAudio, waiting:!!T.voiceBlocked, box:document.querySelector('div[style*=\"display: block\"]')?1:0};}"))
         q.mouse.click(640,400); q.wait_for_timeout(500)
         print('after the first touch:', q.evaluate("()=>{const T=__tb,c=T.voice.cur; return {line:c&&c.n, recording:!!T.cueAudio, playing:T.cueAudio?!T.cueAudio.paused:null, waiting:!!T.voiceBlocked};}"))
@@ -281,13 +282,13 @@ with sync_playwright() as p:
           const x0=b.x,y0=b.y; for(let k=1;k<=30;k++){ev("pointermove",[x0+(to[0]-x0)*k/30,y0-5+(to[1]-y0)*k/30],1,42); T.renderMap(1/60);} for(let k=0;k<20;k++) T.renderMap(1/60); // still held: over its shadow
           const v=T.mapView(), q=v.pt(b.x,b.y), w=v.pt(345,1160); return [q.x,q.y,w.x,w.y];}""")
         from PIL import Image
-        pg.screenshot(path='/tmp/ms.png'); im=Image.open('/tmp/ms.png')
+        pg.screenshot(path=TMP+'/ms.png'); im=Image.open(TMP+'/ms.png')
         c1=im.crop((int(box[0])-90,int(box[1])-80,int(box[0])+90,int(box[1])+50)).resize((470,340))
         c2=im.crop((int(box[2])-170,int(box[3])-90,int(box[2])+170,int(box[3])+90)).resize((640,340))
         out=Image.new('RGB',(1120,340),'white'); out.paste(c2,(0,0)); out.paste(c1,(650,0))
         out.save(os.path.join(HERE,'..','owner-shots','2026-11-17-groove-and-held-boat.png')); print('saved'); levels=[]
         pk=pg.evaluate("""()=>{const T=__tb; for(let k=0;k<3000;k++){T.renderMap(0.2); const b=T.boats.find((b)=>b.parked); if(b){T.renderMap(1/60); const q=T.mapView().pt(b.x,b.y); return [q.x,q.y];}} return null;}""")
-        if pk: pg.screenshot(path='/tmp/pk.png'); Image.open('/tmp/pk.png').crop((int(pk[0])-120,int(pk[1])-100,int(pk[0])+120,int(pk[1])+80)).resize((480,360)).save('/tmp/parked.png')
+        if pk: pg.screenshot(path=TMP+'/pk.png'); Image.open(TMP+'/pk.png').crop((int(pk[0])-120,int(pk[1])-100,int(pk[0])+120,int(pk[1])+80)).resize((480,360)).save(TMP+'/parked.png')
     if 'map' in sys.argv:  # owner 13 Nov: every big circle wholly on its own land, nothing overlaps; travellers on land, round the building slowly
         for vw,vh in [(2560,1600),(2560,1440),(1920,1200),(1920,1080),(1680,1050),(1600,900),(1536,864),(1440,900),(1366,768),(1280,800),(1280,720),(1280,1024),(1024,768),(1024,600)]:
             pg.set_viewport_size({'width':vw,'height':vh}); pg.wait_for_timeout(100)

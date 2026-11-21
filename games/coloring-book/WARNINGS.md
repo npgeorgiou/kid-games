@@ -22,3 +22,7 @@
 - Flows pick colours by their place in the Basic palette (6 is blue); if the Basic palette changes, change the places in the flows, never what they check.
 - The undo room spills old steps to memory ahead of time while nobody paints (keepRoom); a step read back while he paints made strokes lag and show late.
 - Never put a // comment inside a GLSL template line either: it comments out the rest of the shader line and the page never becomes ready.
+- Acrylic bristles are new for every stroke (random), so a streak can sit on any one pixel: check a brush stroke's colour across it (across()), never on one pixel.
+- A test paper must differ from the full paper only in size: its canvas grain is the full paper's grain at that place (paperGrain). If a flow's numbers change on its test paper, run it on the full paper to compare.
+- The test browser stalls each mouse move while heavy paint is drawn: drags put the pointer where the finger would be by now (drag); only frame-time flows send one fixed move after another (per_move).
+- The commit gate runs the old code outside the repo and at the same time as the new: harnesses and flows use only their own folder and tempfile.gettempdir(), never fixed /tmp paths.

@@ -2,16 +2,16 @@
 # Brush previews (owner 21 Nov: real results, painted as he would, on each canvas): python3 tools/previews.py
 # One page: for each canvas, one stroke per brush painted straight through the game's stroke code (no finger-speed waiting),
 # the wet paint run dry, each stroke kept as lib/previews/<canvas>.json (JPEG data URLs). Takes about a minute (most of it the watercolour running, on the test browser's slow processor drawing).
-import sys, time, json, base64, io, pathlib, subprocess, shutil
+import sys, time, json, base64, io, pathlib, subprocess
 here = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(here / "tools"))
 from flows import page, tap
 from playwright.sync_api import sync_playwright
 from PIL import Image
-subprocess.run([sys.executable, str(here / "build.py")], check=True, stdout=subprocess.DEVNULL); shutil.copy(here / "coloring-book.html", "/tmp/cb.html")
+subprocess.run([sys.executable, str(here / "build.py")], check=True, stdout=subprocess.DEVNULL)
 W, H = 400, 200
 with sync_playwright() as p:
-    b = p.chromium.launch(); q = page(b)
+    b = p.chromium.launch(); q = page(b, '1600x1000')
     for cv in ('wc', 'smooth', 'cotton'):
         if cv != 'wc': tap(q, 'canvas'); tap(q, 'canvas-' + cv); time.sleep(0.5)
         shapes = q.evaluate("()=>Object.fromEntries(Object.entries(__cb.shapes).map(([t,v])=>[t,v.length]))")

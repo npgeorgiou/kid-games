@@ -87,7 +87,10 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
  Light: paint thickness and the canvas grain are lit from the top left (bump shading); damp paper looks a little darker. */
 
 // SECTION: SETUP -- picture size, canvases, colours, brush shapes, tuning
-const CW = 1600, CH = 1000, N = CW * CH, TS = 64, TX = Math.ceil(CW / TS), TY = Math.ceil(CH / TS);
+const FW = 1600, FH = 1000; // the picture's size
+// ?paper=400x250@600,375 gives the tests a smaller paper (owner 21 Nov: tests run in seconds): that part of the full paper, with the same canvas grain there
+const [CW, CH, OX, OY] = (/[?&]paper=(\d+)x(\d+)(?:@(\d+),(\d+))?/.exec(location.search) || [0, FW, FH]).slice(1).map((v) => +v || 0);
+const N = CW * CH, TS = 64, TX = Math.ceil(CW / TS), TY = Math.ceil(CH / TS);
 const grain = new Float32Array(N);
 const ab = (c) => -Math.log(Math.max(0.02, c));
 const CANVASES = { // the canvas's colour and its surface (grain kind, how strongly it shows in the light)
@@ -874,8 +877,12 @@ function palettesFor(cnv) {
 
 // SECTION: CANVASES -- pick what to paint on: a new picture on that canvas
 const cvBox = document.getElementById('cv');
+function paperGrain(kind) { // the canvas grain of the full paper; a test paper takes its own part of it
+  if (CW === FW && CH === FH) return makeGrain(kind, CW, CH, grain);
+  const full = makeGrain(kind, FW, FH); for (let y = 0; y < CH; y++) grain.set(full.subarray((OY + y) * FW + OX, (OY + y) * FW + OX + CW), y * CW);
+}
 function useCanvas(id) {
-  st.canvas = CANVASES[id] ? id : 'wc'; makeGrain(CANVASES[st.canvas].kind, CW, CH, grain);
+  st.canvas = CANVASES[id] ? id : 'wc'; paperGrain(CANVASES[st.canvas].kind);
   gl.bindTexture(gl.TEXTURE_2D, GRAIN.t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, CW, CH, gl.RED, gl.FLOAT, grain);
 }
 function canvasSwatch(id) { // a small lit patch of the canvas

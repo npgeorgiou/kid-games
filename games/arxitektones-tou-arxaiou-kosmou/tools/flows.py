@@ -3,13 +3,14 @@
 # with no saved progress. Every flow prints one line: PASS or FAIL, its name, and on failure what was seen.
 # Keep each flow short: skip the voice with ESC where waiting adds nothing, poll often, give up fast.
 import time
+import tempfile; TMP = tempfile.gettempdir()  # the commit gate runs old and new code at once, each with its own TMPDIR
 
 # --------------------------------------------------------------------
 # SECTION: HELPERS -- the page, waiting, buttons, the mouse, pile pieces, recording what is said
 # --------------------------------------------------------------------
 def page(b):
     q = b.new_page(viewport={'width': 1280, 'height': 800})
-    q.goto('file:///tmp/tb-real.html')
+    q.goto('file://'+TMP+'/tb-real.html')
     q.evaluate("()=>{try{localStorage.clear()}catch(e){}}")
     q.reload()
     q.wait_for_function("()=>!!window.__tb")
