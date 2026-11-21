@@ -7,7 +7,7 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 ## Start of every chat
 
 1. Attach the repo with `add_repo` (push access). If it or a push is refused, retry once before saying anything about access. Then turn on the commit gate: `git config core.hooksPath .githooks`.
-2. Read the game's `games/<game>/WARNINGS.md` (traps found in that game, written as instructions) and the "Now" and "Task list" sections of its `BUILD.md`. Nothing else until the task needs it.
+2. Read the game's `games/<game>/WARNINGS.md` (traps found in that game, written as instructions) and its `README.md` (what the game is, where every file is, how to run the checks, and its "Now" and "Task list"). Nothing else until the task needs it.
 
 ## How to work
 
@@ -57,7 +57,7 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 - Never contradict what he says he did or saw; an unknown cause is stated as unknown and found with a test.
 - Never call anything agreed or done unless he said so. A proposal stays a proposal.
 - Questions to him are yes/no or pick-one, and say what each answer changes.
-- Go through every point and question in his message before replying; none dropped. A long list is copied verbatim into `BUILD.md` "Task list" first and answered point by point, numbered as he numbered them.
+- Go through every point and question in his message before replying; none dropped. A long list is copied verbatim into the game's `README.md` "Task list" first and answered point by point, numbered as he numbered them.
 - Never invent rules, stats, mechanics or history. Research historical details; unknown is unknown.
 
 ## Working
@@ -67,6 +67,6 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 - Do what was asked, all of it, nothing more. No unasked refactors, features or suggestions.
 - After every change: build, run the affected flows, commit, push, check the remote has the commit, and send only the changed HTML files as downloads.
 - When a trap is found in a game (something that cost time or caused a wrong fix), add it to that game's `WARNINGS.md` as a one-line instruction. General lessons go here only if they hold for every game.
-- At the end of a chat, rewrite the game's `BUILD.md` "Now" section (what the game is now and what is open, short; never an appended log) and the game's line in Status in `docs/design-rules.md`. History lives in git.
+- At the end of a chat, rewrite the game's `README.md` "Now" section, keep its file map true (what the game is now and what is open, short; never an appended log) and the game's line in Status in `docs/design-rules.md`. History lives in git.
 - Never make a history, log or changelog file (such as `BUILD-history.md`), and never append updates to any file as a log. History lives in git commit messages only.
 - Hand off early: when a chat gets long, and at the latest after the third owner message that asks for changes, say so and give a handoff that stands alone: the owner's words verbatim, his screenshots saved in the repo. The rules weaken as a chat grows.

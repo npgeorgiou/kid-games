@@ -24,7 +24,7 @@ img = Image.fromarray(np.uint8(sea) * 255); d = ImageDraw.Draw(img)
 d.line(STRAITS, fill=255, width=14)
 sea = np.asarray(img) > 0
 
-# Port names as in BUILD.md; positions placed by eye on the picture, then moved to the nearest open water.
+# Port names; positions placed by eye on the picture, then moved to the nearest open water.
 PORTS = {
     "athens": (352, 466), "corinth": (298, 446), "crete": (450, 612), "rhodes": (636, 560), "miletus": (572, 488),
     "lycia": (700, 562), "cyprus": (1084, 636), "phoenicia": (1134, 770), "alexandria": (700, 884), "cyrene": (180, 822),

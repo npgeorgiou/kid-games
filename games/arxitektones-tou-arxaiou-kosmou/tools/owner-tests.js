@@ -146,7 +146,7 @@
   }
 
   // --- eighth list 1: a triangle is grabbed only on itself, and slides along like any other piece
-  // --- 14 Nov (owner): THE HAND LIST, approved point by point (BUILD.md "update 35"). Run: harness.py owner list
+  // --- 14 Nov (owner): THE HAND LIST, approved point by point. Run: harness.py owner list
   if (want("list")) {
     T.mode = "build"; T.startLevel(0); T.clearAllPieces(); T.fillPile([]);
     const MATS = ["stone", "mudbrick", "wood"], deg = (a) => (a * 57.3).toFixed(0);
