@@ -264,7 +264,7 @@ PAPER = {  # flow: (test paper, where it starts on the full paper); not named: 4
     'shapes': ('600x200', (200, 100)), 'canvas': ('400x250', (200, 250)), 'flat': ('900x300', (250, 240)), 'crayon_levels': ('680x300', (260, 200)),
     'crayon_blend': ('680x120', (260, 240)), 'water_speed': ('1600x1000', (0, 0)), 'crayon_back_forth': ('680x120', (260, 340)), 'crayon_bend': ('500x300', (250, 250)),
     'picker': ('400x300', (250, 250)), 'simple_over': ('700x400', (250, 200)), 'water_no_hitch': ('1600x1000', (0, 0)), 'simple_soft_keeps': ('600x260', (350, 185)),
-    'picker_shows': ('500x200', (250, 200)), 'mop': ('680x500', (260, 180)), 'acrylic_scrub': ('1000x280', (150, 235)), 'pastel_smear': ('700x160', (250, 240))}
+    'picker_shows': ('500x200', (250, 200)), 'mop': ('680x500', (260, 180)), 'acrylic_scrub': ('1000x280', (150, 235)), 'pastel_smear': ('700x160', (250, 240)), 'simple_self_cross': ('600x350', (250, 150))}
 
 def f_test_paper(q):  # owner 21 Nov: tests on a smaller paper: the page takes its size from the address, and a stroke lands where it is drawn
     tap(q, 'tool-simple'); tap(q, 'color-1'); drag(q, [(100, 125), (300, 125)])
@@ -564,3 +564,17 @@ def f_ink_speed(q):  # owner 23 Nov: an ink pen: a slow line is wider than a fas
     fast, slow = width_across(q, 300, 70, 0, 1, 50), width_across(q, 300, 180, 0, 1, 50)
     report(slow > fast * 1.5, 'ink: slow lines wider than fast', 'width fast %d, slow %d' % (fast, slow))
 FLOWS.update({'new_tools': f_new_tools, 'shapes_vary': f_shapes_vary, 'pencil_grain': f_pencil_grain, 'ink_speed': f_ink_speed})
+
+def f_simple_self_cross(q):  # owner 23 Nov 10:27, point 1: simple tool, blurry brush, ONE stroke that crosses itself: the crossing must not spoil the line (no X-shaped crease where it crosses)
+    tap(q, 'tool-simple'); tap(q, 'blur-0'); tap(q, 'size-3'); tap(q, 'color-2')
+    drag(q, [(500, 450), (500, 200), (800, 200), (800, 300), (300, 300)])  # one stroke: up, right, down, then back left across its own start
+    paper, full = lum(shown(q, 650, 400)), lum(shown(q, 380, 300))
+    def cov(x, y): return (paper - lum(shown(q, x, y))) / max(1, paper - full)
+    rows = []
+    for o in range(8, 40, 2):
+        line = (cov(380, 300 + o) + cov(380, 300 - o) + cov(500 + o, 400) + cov(500 - o, 400)) / 4  # the line alone, o pixels from its middle
+        corner = min(cov(500 + sx * o, 300 + sy * o) for sx in (-1, 1) for sy in (-1, 1))            # the crossing's corners, o pixels from the middle both ways
+        if 0.25 < line < 0.7: rows.append((o, round(line, 2), round(corner, 2)))
+    ok = rows and all(c >= l + l * (1 - l) / 3 for _, l, c in rows)  # a crease: the corner no darker than the line; round: at least a third of what a second line adds there
+    report(ok, 'simple soft brush: a stroke crossing itself has round corners', '(offset, line, corner) %s' % ([r for r in rows if r[2] < r[1] + r[1] * (1 - r[1]) / 3][:4] or rows[:3]))
+FLOWS['simple_self_cross'] = f_simple_self_cross

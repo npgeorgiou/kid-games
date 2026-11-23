@@ -80,8 +80,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
     It uses the brush model of part 2 with a tip that does not run out: it lays paint and picks up the soft paint it passes
     over (so it smears and blends), it touches the raised grain first, and pressing harder (the bucket level) reaches into
     the dips; paint already laid fills the dips, so passes build up; small lumps break off and stay.
- 5. Simple brush: a dab with a shape, a size and a softness; one stroke is one even coat (standard technique: a stroke
-    mask that keeps the strongest dab per pixel).
+ 5. Simple brush: a dab with a shape, a size and a softness; one stroke is one even coat: each dab's soft edge adds
+    towards that coat, never past it (standard technique: Krita's wash mode), so a stroke crossing itself has round corners.
  6. Marker: like the simple brush, one even coat per stroke, but the ink is see-through (its colour adds on top, so
     crossing lines get darker) and gathers a little at the line's edge.
  7. Spray and shape stamps (owner 23 Nov): each dab is laid over what is there. Spray: small droplets scattered over the
@@ -138,6 +138,7 @@ const K = {
   PASTEL_GIVE: 1 / 2500, PASTEL_TAKE: 0.06, PASTEL_STICK: 8, PASTEL_REACH: [0.45, 0.65, 0.82], PASTEL_FILL: 1.2, PASTEL_LUMP: 0.004, // oil pastel: lays thick, picks up and smears soft paint, a stick lasts (8 brushfuls); how far into the grain each bucket level (pressure) reaches; laid paint fills the dips; lumps
   PENCIL_WAX: 0.75, PENCIL_PRESS: [0.35, 0.55, 0.8], STAMP_LIGHT: 0.25, STAMP_HUE: 0.1, SPRAY_DENS: 0.16, // owner 23 Nov: pencil (lead pressure per bucket level), shapes (colour spread), spray
   MARK_INK: 0.6, MARK_RIM: 1.5, // one layer of ink is lighter than the colour, so layers build up darker; owner 21 Nov: a real marker: see-through ink, crossing strokes darker, ink gathers at the edge
+  SIMPLE_FLOW: 3, // simple brush: how much of its soft edge one dab adds over a brush width of dabs (owner 23 Nov: a stroke crossing itself has no crease)
 };
 const SIM_DT = 1 / 60, MAX_STEPS = 2, CHECK_EVERY = 6, W_EPS = 1e-4, DAMP_EPS = 0.01;
 
@@ -300,7 +301,7 @@ const PR = {
     ivec2 o[4] = ivec2[4](ivec2(1, 0), ivec2(-1, 0), ivec2(0, 1), ivec2(0, -1));
     for (int k = 0; k < 4; k++) z += .1 * mixbox_rgb_to_latent(rgbOf(texelFetch(T, clamp(p + o[k], ivec2(0), n), 0).rgb));
     o0 = vec4(abOf(mixbox_latent_to_rgb(z)), c.a); }`),
-  simple: program(`uniform sampler2D P, M, B, U, G; uniform ivec2 C; uniform float R, HD, ID, LO, GLAZE, INK, LEAD; uniform vec3 CA, PA; ${OUT4} void main(){
+  simple: program(`uniform sampler2D P, M, B, U, G; uniform ivec2 C; uniform float R, HD, ID, LO, GLAZE, INK, LEAD, FL; uniform vec3 CA, PA; ${OUT4} void main(){
     ivec2 p = ivec2(gl_FragCoord.xy); vec4 pic = texelFetch(P, p, 0), mis = texelFetch(M, p, 0), b0 = texelFetch(B, p, 0), u = texelFetch(U, p, 0); float g = texelFetch(G, p, 0).r;
     bool mine = mis.b == ID; if (!mine) b0 = vec4(visOf(pic, u, mis.a), pic.a); float mo = mine ? mis.g : 0.;
     float rr = foot(vec2(p - C), R) + INK * (g - .5) * .14; // ink: the paper's grain makes the edge a little ragged
@@ -308,6 +309,7 @@ const PR = {
     if (LEAD > 0.) { vec2 bu = brushUV(vec2(p - C), R); float lines = fract(sin(floor(bu.y * R * SSC * .8) * 91.7 + ID * 3.1) * 43758.5453); // pencil: only the raised grain touches the lead,
       m *= sm(1.05 - LEAD - .35, 1.05 - LEAD + .35, g + (lines - .5) * .3); } // fine lines along the stroke where the lead is uneven
     if (GLAZE > 0.) m *= 1. + MARK_RIM * sm(.6, .95, rr); // marker ink gathers a little at the edge of the line
+    if (FL > 0. && LO > mo) { float src = m / max(LO, 1e-4); m = mo + (LO - mo) * (src >= 1. ? 1. : 1. - pow(1. - src, FL)); } // simple brush: each dab adds its soft edge towards the coat (standard technique: Krita's wash mode, alpha darken),
     if (m > mo) { mis.g = m; mis.b = ID; pic.rgb = GLAZE > 0. ? b0.rgb + max(CA - PA, 0.) * m : abOf(mix(rgbOf(b0.rgb), rgbOf(CA), m)); u.rgb = pic.rgb; } // marker: see-through ink, crossing lines get darker
     o0 = pic; o1 = mis; o2 = b0; o3 = u; }`),
   stamp: program(`uniform sampler2D P, M, B, U; uniform ivec2 C; uniform float R, DENS, DROP, SEED; uniform int SK; uniform vec3 CA; ${OUT4}
@@ -531,7 +533,7 @@ function simpleDab(s, cx, cy) { // the simple brush, the marker (see-through ink
   const lo = t === 'simple' ? [1 / 3, 2 / 3, 1][st.load - 1] : mk ? s.load * K.MARK_INK : t === 'pencil' ? K.PENCIL_WAX : 1;
   capture(r); pass(PR.simple, r, [PIC, MISC, B0, UNDER], Object.assign({ P: PIC, M: MISC, B: B0, U: UNDER, G: GRAIN, C: [X, Y], R, HD: sharp ? 1 - 1.5 / (R * (s.shape.sc || 1)) : t === 'pencil' ? 0.8 : SOFT[st.soft], ID: s.id,
     LO: lo * (t === 'ink' ? 1 : Math.min(1, s.pres)), CA: s.ca, GLAZE: mk ? 1 : 0, PA: CANVASES[st.canvas].paper.map(ab), INK: t === 'ink' ? 1 : 0,
-    LEAD: t === 'pencil' ? Math.min(1, K.PENCIL_PRESS[st.load - 1] * s.pres) : 0 }, shapeUni(s))); markDirty(r);
+    LEAD: t === 'pencil' ? Math.min(1, K.PENCIL_PRESS[st.load - 1] * s.pres) : 0, FL: t === 'simple' ? K.SIMPLE_FLOW * s.sp / (2 * R) : 0 }, shapeUni(s))); markDirty(r);
 }
 function stampDab(s, cx, cy) { // spray droplets, or one shape stamp (model part 7)
   const spray = s.tool === 'spray', R = spray ? s.r : s.r * (0.45 + 0.55 * Math.min(1.2, s.pres)), X = Math.round(cx), Y = Math.round(cy), r = clip([X - R - 2, Y - R - 2, X + R + 2, Y + R + 2]);
