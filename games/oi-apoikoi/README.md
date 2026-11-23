@@ -30,7 +30,12 @@ A playable prototype against the PC on one shared board, colours only. Rules and
 
 ## Open
 
-See `design.md` sections 6 and 7.
+Owner's yes (24 Nov 00:55), to do before the list in Task list, one point per commit:
+- Commit check (shared by all games): no old-code run; the whole current test set runs on the new code and any FAIL refuses the commit; a game-code commit must add or change a flow in the same commit; flows may set up a starting table, but every player move must be a real tap or drag on screen (no back-door moves).
+- The same checks run on GitHub on every push, and the owner is the required reviewer of the commit check and the GitHub check (CODEOWNERS). The owner turns on branch protection for main himself.
+- Random play acts only through the screen and checks after every move: the stockpile shown equals the land shown; jars shown equal matching edges.
+
+Also see `design.md` sections 6 and 7.
 
 ## Task list
 
