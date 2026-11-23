@@ -1,4 +1,4 @@
-# Dragomino (working name): design
+# Οι Άποικοι: design
 
 Status: draft, not approved. Designed in one chat with the owner on 23 Nov 2026; this file holds everything from it. Not in the brief, so all of it is "new". Base: the board game Dragomino (owner's choice); jars take the place of Dragomino's eggs.
 
@@ -26,7 +26,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Owner rule: a land is all the connected squares of one terrain.
 - Owner rule: every land is the same value, whatever its terrain, shape or size. No terrain, symbol or multiplier makes one land worth more than another.
 - Owner rule: there is no size limit on a player's land.
-- Owner rule: a new tile must touch your land and must have at least one matching edge; a tile with no matching edge can't be placed.
+- Owner rule: a tile is placed on two free squares with at least one matching edge with your own land. Matching edges with the other player's land also earn jars (rare: only when the lands have grown toward each other).
 - Owner rule: each player starts with the same start tile, two halves in the two most common colours.
 - Owner rule: one shared board that fits the screen. The start tiles are at the centres of its two halves. Each player's own land has a border all around its edges.
 - Owner rule: the colours are scarce in a fixed ratio; tiles are random by that ratio (except the start tile). Built for now: 24/22/20/18/16% (the owner asked for scarcity based on the math and did not pick between equal and this). Note from the owner: if sets don't form easily, the split may need rethinking, or sets may get a bigger job in the game.
@@ -38,7 +38,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 2. **Picking and bidding** (owner rule). A set is 5 goods, one of each. Only the winner pays. The player whose turn it is picks a tile. The opponent may bid sets on it; then the bidding goes back and forth. On a tie, the player whose turn it was wins. The winner's tile is locked for him. A tile nobody bids on goes to the picker.
 3. **Placing.** Each player places his tiles in his own land.
    - Owner rule: one jar per matching edge, so one tile can earn several, and edges with the opponent's land count too. They are opened at once, during the round.
-   - Owner rule: a tile is one rectangle, coloured half and half. You drag it onto the board, tap it to turn it, and it snaps into place; before it snaps, the place is shown.
+   - Owner rule: a tile is one rectangle, coloured half and half. The won tile stays where it is (in the top row at first): tap it to turn it, drag it and leave it anywhere, as often as you like, until it snaps into a place; before it snaps, the place is shown.
 0. **Start of round.** Owner rule: each square of land makes 1 good of its terrain. All goods are worth the same.
 4. **End of round.**
    - Owner rule: goods not spent are lost at the end of the round, but each 3 of the same good (for example 3 grain) become a jar (6 make 2). Sets don't become jars.
@@ -54,6 +54,8 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Owner rule: a free tile is always one that can be placed.
 - Owner rule: nobody starts with the first-player token; a jar sometimes gives it. Without it, the human player goes first (with two humans, one of them). The holder opens his end-of-round jars first.
 - Owner rule: a picker who loses the bid picks again.
+- Owner rule: tiles you can't place are greyed (colours still visible) and can't be picked. With none to pick, your turn passes, slowly and clearly, and the other player plays again. No tile is thrown.
+- Owner rule: the game ends when no tile left can be placed by either player.
 - Rejected by the owner:
   - An unbeatable first pick: hard to show visually.
   - A second tile next round: changed into the free tile from nowhere.
@@ -76,7 +78,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 ### Points and winning
 - Owner rule: points are gold coins drawn one by one, with no numbers. At the end, the players' coins are lined up side by side and the longer row wins.
 - Owner rule: coins come from jars and from the slot machine, and a slot reroll costs 1 coin.
-- Owner rule: the game ends when the tiles run out. Most points wins.
+- Owner rule: the game ends when no tile left can be placed by either player (so also when the tiles run out). Most points wins.
 - Note from the owner: each player places about 20 tiles per game. Anything earned per tile or per round must stay a real choice at that count.
 
 ## 3. Rejected ideas (and why)
@@ -119,7 +121,8 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - The colour split (see Tiles and land).
 - The PC counts every jar as worth the same and judges a move by the jars it earns this turn.
 - The PC counts a jar as about 0.7 coins (its coin contents only) and a good as a third of a jar; with these values the best slot play is to stop at once, so the PC never re-spins.
-- When no tile fits for either player, the round's tiles go back under the pile; when every tile left has had its turn and fits nowhere, the game ends.
+- Tiles nobody could place in a round go back under the pile.
+- The PC's hand: Fluent Emoji pictures; it points to tap, pinches to carry a tile, opens to let go, is raised when the PC passes.
 
 ## 7. Still open (all in one place)
 

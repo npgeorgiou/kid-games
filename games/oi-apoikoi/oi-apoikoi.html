@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Οι Άποικοι</title>
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #efe4cc; touch-action: none; user-select: none; }
+canvas { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// Οι Άποικοι: a prototype of the rules in design.md. Lands are colours only for now (owner 23 Nov).
+// The model, in plain words:
+// 1. A round: every square makes 1 good of its colour; 4 tiles are laid out; players pick in turn (the token holder first, else the kid).
+//    A tile you can't place is greyed for you; with nothing to pick your turn passes and the other plays again. The other may bid
+//    sets (5 goods, one of each) and they go on; a tie goes to the picker; the winner pays and places the tile.
+// 2. A tile fits on two free squares with at least one matching edge with your own land. Every matching edge, with any land, earns a jar,
+//    opened at once; at the end of the round each 3 of the same leftover good make a jar, the rest are lost.
+// 3. Jars hold 1 coin (half the time) or a bonus. The game ends when no tile left can be placed by either player; the longer row of coins wins.
+// The tile you win stays where it is until it snaps: tap it to turn it, drag it and leave it anywhere, as often as you like.
+// The PC plays through the same taps and drags as the kid, with a hand you can see (Fluent Emoji hands, MIT, src/hands/).
+
+// SECTION: SETUP -- colours, the board, the random source, speeds, test switches
+const COLOURS = ['#e8c547', '#3f86c8', '#8e5bb0', '#e27fb0', '#9a6a3a'];  // the five lands, most common first; what each land is comes later
+const HALVES = [19, 18, 16, 14, 13];  // the 80 halves of the 40 tiles: about 24/22/20/18/16% (built for now)
+const BORDER = ['#22a33a', '#d42a2a'];  // the kid's land green, the PC's red
+const BONUSES = ['slot', 'steal', 'first', 'tile', 'jar', 'set', 'coins2'];  // the other half of jars, equal shares
+const COLS = 20, ROWS = 13, STARTS = [[4, 6], [14, 6]];  // the start tiles sit at the centres of the board's two halves
+const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half is, by turn
+const params = new URLSearchParams(location.search);
+let fast = params.has('fast');  // tests: the PC moves without waiting
+const HAND_SPEED = 450;  // px per second: slow enough to follow
+let rnd = Math.random;
+function seeded(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const pause = ms => fast ? Promise.resolve() : new Promise(r => setTimeout(r, ms));
+
+// SECTION: MODEL -- the shared board, tiles, matches, goods and sets
+let G = null, tileNo = 1;
+function newPlayer(human) { return { human, goods: [0, 0, 0, 0, 0], coins: 0, jars: 0, got: 0, bid: 0, passes: 0 }; }
+const key = (x, y) => x + ',' + y;
+function halves(x, y, r) { const d = DIRS[r]; return [[x, y], [x + d[0], y + d[1]]]; }
+function put(t) { G.tiles.set(t.id, t); halves(t.x, t.y, t.r).forEach(([a, b], h) => G.cells.set(key(a, b), { x: a, y: b, c: t.cs[h], o: t.o, t: t.id })); }
+function lift(t) { halves(t.x, t.y, t.r).forEach(([a, b]) => G.cells.delete(key(a, b))); G.tiles.delete(t.id); }
+const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS && !G.cells.has(key(x, y));
+function matchesAt(cs, x, y, r, owner) {  // edges where a half meets the same colour (owner: only that player's land)
+  let m = 0;
+  halves(x, y, r).forEach(([hx, hy], i) => { for (const d of DIRS) { const s = G.cells.get(key(hx + d[0], hy + d[1])); if (s && s.c === cs[i] && (owner == null || s.o === owner)) m++; } });
+  return m;
+}
+function spots(cs, r, i) {  // where player i can place a tile: two free squares, at least one matching edge with his own land; m = the jars it earns
+  const out = [], seen = new Set(), d = DIRS[r];
+  for (const c of G.cells.values()) if (c.o === i) for (const [dx, dy] of DIRS) {  // only places with a half next to his land can match it
+    const nx = c.x + dx, ny = c.y + dy;
+    for (const [x, y] of [[nx, ny], [nx - d[0], ny - d[1]]]) {
+      const k = key(x, y); if (seen.has(k)) continue; seen.add(k);
+      if (halves(x, y, r).every(([a, b]) => free(a, b)) && matchesAt(cs, x, y, r, i)) out.push({ x, y, r, m: matchesAt(cs, x, y, r) });
+    }
+  }
+  return out.sort((a, b) => a.y - b.y || a.x - b.x);
+}
+function bestPlace(cs, i) { let best = null; for (let r = 0; r < 4; r++) for (const s of spots(cs, r, i)) if (!best || s.m > best.m) best = s; return best; }
+const fits = (cs, i) => !!cs && !!bestPlace(cs, i);
+const jarsFor = (cs, i) => { const b = cs && bestPlace(cs, i); return b ? b.m : 0; };
+const sets = p => Math.min(...p.goods);
+const leftoverJars = g => g.reduce((a, n) => a + Math.floor(Math.max(0, n) / 3), 0);
+function stealable(i) {  // the opponent's tiles that fit for you once lifted; whether his land stays connected does not matter
+  return [...G.tiles.values()].filter(t => t.o === 1 - i && !t.start).filter(t => { lift(t); const ok = fits(t.cs, i); put(t); return ok; }).map(t => t.id);
+}
+function randomColour() { let k = rnd() * 80; for (let c = 0; c < 5; c++) { k -= HALVES[c]; if (k < 0) return c; } return 4; }
+function freeTile(i) {  // a tile from nowhere, by the colour split, always one that fits
+  for (let k = 0; k < 400; k++) { const t = [randomColour(), randomColour()]; if (fits(t, i)) return t; }
+  return null;
+}
+function makeBag() {  // the 80 halves shuffled into 40 tiles; the first round's 4 meet a start colour, so each player can place them
+  const hs = HALVES.flatMap((n, c) => Array(n).fill(c));
+  for (let k = hs.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [hs[k], hs[j]] = [hs[j], hs[k]]; }
+  const tiles = []; for (let k = 0; k < hs.length; k += 2) tiles.push([hs[k], hs[k + 1]]);
+  const first = [], rest = [];
+  for (const t of tiles) (first.length < 4 && (t[0] < 2 || t[1] < 2) ? first : rest).push(t);
+  return first.concat(rest);
+}
+
+// SECTION: TURNS -- the game waits for a tap or a drag; the PC makes the same taps and drags with its hand
+let wait = null, press = null;
+function ask(kind, who, extra) {
+  if (G.players[who].human) handHome();
+  return new Promise(res => { wait = { kind, who, res, r: 0, ...extra }; });
+}
+function answer(v) { const w = wait; wait = null; press = null; w.res(v); }
+async function choose(kind, who, extra, pcMoves) {  // a human answers by tapping; the PC's hand makes its moves on the same screen
+  const my = G, chosen = ask(kind, who, extra);
+  if (!G.players[who].human) { await pause(500); if (G === my) await pcMoves(); }
+  return chosen;
+}
+function handTo(x, y, ms) {  // the hand glides to a point (eased), slow enough to follow
+  const h = G.hand, d = Math.hypot(x - h.x, y - h.y);
+  if (fast || d < 1) { h.x = x; h.y = y; return Promise.resolve(); }
+  const t0 = performance.now(), x0 = h.x, y0 = h.y, T = ms || Math.max(350, d / HAND_SPEED * 1000);
+  return new Promise(res => {
+    const step = () => { const k = Math.min(1, (performance.now() - t0) / T), e = k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k); h.x = x0 + (x - x0) * e; h.y = y0 + (y - y0) * e; k < 1 ? requestAnimationFrame(step) : res(); };
+    requestAnimationFrame(step);
+  });
+}
+function handHome() { G.hand.g = 'point'; const p = homeSpot(); if (G.hand.x !== p[0] || G.hand.y !== p[1]) handTo(p[0], p[1]); }
+async function handTap(x, y) { G.hand.g = 'point'; await handTo(x, y); G.hand.down = true; await pause(220); G.hand.down = false; }
+async function pcTap(id) {  // the hand goes to the button, presses it, and the game takes it like a tap
+  render(); const b = buttons.find(c => c.id === id); if (!b) return;
+  await handTap(b.x + b.w / 2, b.y + b.h / 2);
+  b.fn(); await pause(250);
+}
+async function pcPlace(sp) {  // tap the tile where it lies to turn it, then pinch it, drag it to its place and let go
+  while (wait && wait.r !== sp.r) { await handTap(wait.pos[0], wait.pos[1]); wait.r = (wait.r + 1) % 4; await pause(350); }
+  if (!wait) return;
+  await handTo(wait.pos[0], wait.pos[1]); G.hand.g = 'pinch'; await pause(250);
+  const [gx, gy] = tileCentre(sp.x, sp.y, sp.r), [sx, sy] = wait.pos, h = G.hand;
+  G.dragging = true; const follow = handTo(gx, gy, fast ? 0 : 1300);
+  const track = () => { if (wait && G.dragging) { wait.pos = [h.x, h.y]; requestAnimationFrame(track); } };
+  if (!fast) requestAnimationFrame(track); await follow;
+  if (wait) wait.pos = [gx, gy]; await pause(250);
+  G.dragging = false; G.hand.g = 'open'; drop(); await pause(400); G.hand.g = 'point';
+}
+function drop() { const s = snapSpot(); if (s) answer(s); }  // a tile left near a place it fits snaps in; anywhere else it stays where it was left
+
+// SECTION: ROUNDS -- start, picks and bids, passing, end of round, end of game
+async function play() {
+  const my = G;
+  while (G === my && G.bag.some(t => fits(t, 0) || fits(t, 1))) {  // the game ends when no tile left can be placed by either player
+    G.round++; G.phase = 'round';
+    for (const p of G.players) { p.goods = [0, 0, 0, 0, 0]; p.got = 0; }
+    for (const s of G.cells.values()) G.players[s.o].goods[s.c]++;
+    G.draft = G.bag.splice(0, 4);
+    let turn = G.first ?? 0, passes = 0, passed = null;
+    while (G === my && G.draft.some(t => t) && passes < 2) {
+      const other = 1 - turn, P = G.players;
+      if (P[turn].got >= 2 && P[other].got < 2 && passed !== other) turn = 1 - turn;  // 2 tiles each, unless the other has just passed
+      if (!G.draft.some(t => fits(t, turn))) { await pass(turn); passes++; passed = turn; turn = 1 - turn; continue; }
+      passes = 0; passed = null;
+      const k = await pick(turn); if (G !== my) return;
+      const tile = G.draft[k]; G.chosen = k;
+      const winner = await bidding(turn, tile); if (G !== my) return;
+      G.draft[k] = null; G.chosen = -1; P[winner].got++;
+      await place(winner, tile, draftSlot(k)); if (G !== my) return;
+      if (winner === turn) turn = 1 - turn;  // a picker who lost the bid picks again
+    }
+    if (G !== my) return;
+    G.bag.push(...G.draft.filter(t => t)); G.draft = [];  // tiles nobody could place are not thrown: they go back under the pile (built for now)
+    G.phase = 'end';
+    for (const p of G.players) { p.jars += leftoverJars(p.goods); p.goods = [0, 0, 0, 0, 0]; }
+    for (const i of [G.first ?? 0, 1 - (G.first ?? 0)]) { await openJars(i); if (G !== my) return; }
+  }
+  if (G !== my) return;
+  const [a, b] = G.players.map(p => p.coins);
+  G.over = true; G.winner = a > b ? 0 : b > a ? 1 : -1;
+}
+async function pass(i) { G.players[i].passes++; G.passing = i; if (!G.players[i].human) G.hand.g = 'raised'; await pause(2400); G.passing = null; G.hand.g = 'point'; }
+function pick(i) {
+  let best = -1, bm = -1; G.draft.forEach((t, k) => { if (fits(t, i) && jarsFor(t, i) > bm) { bm = jarsFor(t, i); best = k; } });
+  return choose('pick', i, {}, () => pcTap('draft-' + best));
+}
+async function bidding(picker, tile) {  // the opponent outbids by one; the picker only has to match (a tie is his)
+  const opp = 1 - picker, P = G.players;
+  P[0].bid = P[1].bid = 0;
+  let winner = picker;
+  if (P[opp].got < 2) for (;;) {
+    if (!await wantsBid(opp, tile, P[picker].bid + 1)) { winner = picker; break; }
+    P[opp].bid = P[picker].bid + 1;
+    if (!await wantsBid(picker, tile, P[opp].bid)) { winner = opp; break; }
+    P[picker].bid = P[opp].bid;
+  }
+  const n = P[winner].bid; P[winner].goods = P[winner].goods.map(g => g - n);
+  P[0].bid = P[1].bid = 0;
+  return winner;
+}
+function pcBids(i, tile, n) {  // worth it when the tile's jars beat the next best tile's by more than the leftover jars the sets would cost
+  const p = G.players[i], gain = jarsFor(tile, i) - Math.max(0, ...G.draft.filter(t => t && t !== tile).map(t => jarsFor(t, i)));
+  return gain > leftoverJars(p.goods) - leftoverJars(p.goods.map(g => g - n));
+}
+async function wantsBid(i, tile, n) {
+  if (sets(G.players[i]) < n || !fits(tile, i)) return false;
+  return choose('bid', i, { n }, () => pcTap(pcBids(i, tile, n) ? 'bid' : 'letgo'));
+}
+async function place(i, cs, pos) {  // the tile lies at pos until it snaps
+  const { x, y, r } = await choose('place', i, { tile: cs, pos }, () => pcPlace(bestPlace(cs, i)));
+  const m = matchesAt(cs, x, y, r);
+  put({ id: 't' + (tileNo++), cs, x, y, r, o: i });
+  G.players[i].jars += m;
+  await openJars(i);
+}
+
+// SECTION: JARS -- opening, coins and bonuses, the slot machine
+const jarQueue = [], slotQ = [];
+function rollJar() {
+  if (jarQueue.length) return jarQueue.shift();
+  if (rnd() < 0.5) return { k: 'coins' };
+  return { k: BONUSES[Math.floor(rnd() * BONUSES.length)] };
+}
+async function openJars(i) {
+  const p = G.players[i], my = G;
+  while (G === my && p.jars > 0) {
+    await choose('jar', i, {}, () => pcTap('jar-0')); if (G !== my) return;
+    p.jars--; const j = rollJar(); G.shown = { who: i, j }; await pause(1100); G.shown = null;
+    await bonus(i, j);
+  }
+}
+async function bonus(i, j) {
+  const p = G.players[i];
+  if (j.k === 'coins') p.coins += 1;
+  else if (j.k === 'coins2') p.coins += 2;
+  else if (j.k === 'first') G.first = i;
+  else if (j.k === 'jar') p.jars++;
+  else if (j.k === 'set') p.goods = p.goods.map(g => g + 1);
+  else if (j.k === 'tile') { const t = freeTile(i); if (t) await place(i, t, [W / 2, L().T / 2]); }
+  else if (j.k === 'steal') {
+    const ids = stealable(i); if (!ids.length) { await pause(900); return; }
+    const worthOf = id => { const t = G.tiles.get(id); lift(t); const m = jarsFor(t.cs, i); put(t); return m; };
+    const best = ids.reduce((a, b) => worthOf(b) > worthOf(a) ? b : a);
+    const id = await choose('steal', i, { ids }, () => pcTap('steal-' + best));
+    const t = G.tiles.get(id), pos = tileCentre(t.x, t.y, t.r); lift(t); await place(i, t.cs, pos);  // the stolen tile is lifted where it lay
+  }
+  else if (j.k === 'slot') await slot(i);
+}
+const SYMBOLS = 7;  // the 5 goods, coins, jars
+const spin = () => slotQ.length ? slotQ.shift() : Math.floor(rnd() * SYMBOLS);
+const JAR_WORTH = (0.5 + 2 / 14) / (1 - 1 / 14);  // what the PC counts a jar as, in coins: 1 coin half the time, 2 coins a fourteenth, another jar a fourteenth
+const worth = s => s === 5 ? 1 : s === 6 ? JAR_WORTH : JAR_WORTH / 3;  // a good: a third of a leftover jar
+function prize(w) { const c = w.map(s => w.filter(t => t === s).length), n = Math.max(...c); return n >= 2 ? n * worth(w[c.indexOf(n)]) : 0; }
+const slotMemo = new Map();  // the best choice depends only on the wheels and the coins, so it is worked out once
+function slotPlan(w0, coins) {  // the PC's best choice: stop, or pay 1 coin to spin the wheels that give the most expected coins
+  const memo = slotMemo;
+  const V = (w, c) => {
+    const k = w.join() + '|' + c; if (memo.has(k)) return memo.get(k).v;
+    let best = { v: prize(w), sel: null };
+    if (c > 0 && !(w[0] === w[1] && w[1] === w[2])) for (let m = 1; m < 8; m++) {
+      const idx = [0, 1, 2].filter(j => m >> j & 1); let e = 0, n = 0;
+      const all = (k2, ww) => { if (k2 === idx.length) { e += V(ww, c - 1); n++; return; } for (let s = 0; s < SYMBOLS; s++) { const w2 = ww.slice(); w2[idx[k2]] = s; all(k2 + 1, w2); } };
+      all(0, w); const v = e / n - 1; if (v > best.v + 1e-9) best = { v, sel: idx };
+    }
+    memo.set(k, best); return best.v;
+  };
+  const c = Math.min(coins, 4); V(w0, c); return memo.get(w0.join() + '|' + c).sel;
+}
+async function slot(i) {
+  const p = G.players[i];
+  G.slot = { who: i, w: [spin(), spin(), spin()], sel: [false, false, false] };
+  for (;;) {
+    const w = G.slot.w;
+    if (w[0] === w[1] && w[1] === w[2]) { await pause(900); break; }
+    const a = await choose('slot', i, {}, async () => {
+      const plan = slotPlan(w, p.coins);
+      if (!plan) return pcTap('collect');
+      for (const k of plan) await pcTap('wheel-' + k);
+      await pcTap('reroll');
+    });
+    if (a === 'collect') break;
+    p.coins--; G.slot.sel.forEach((s, k) => { if (s) w[k] = spin(); }); G.slot.sel = [false, false, false];
+  }
+  const w = G.slot.w, c = w.map(s => w.filter(t => t === s).length), best = c.indexOf(Math.max(...c)), n = c[best];
+  G.slot = null;
+  if (n >= 2) { const s = w[best]; if (s < 5) p.goods[s] += n; else if (s === 5) p.coins += n; else p.jars += n; }
+}
+
+// SECTION: START -- a new game, with a set table for tests
+function restart(o = {}) {
+  wait = null; press = null; tileNo = 1;
+  fast = o.fast ?? params.has('fast');
+  rnd = o.seed != null ? seeded(o.seed) : Math.random;
+  jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
+  slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
+  G = { round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, shown: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
+  (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
+  G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; });
+  G.bag = o.bag ? o.bag.map(t => t.slice()) : makeBag();
+  [G.hand.x, G.hand.y] = homeSpot();
+  play();
+}
+
+// SECTION: LAYOUT -- the draft on top, a player's panel each side (goods, sets, coins), the shared board between
+const cv = document.getElementById('c'), cx = cv.getContext('2d');
+let W = 0, H = 0, buttons = [], drawn = [];
+function btn(id, x, y, w, h, fn) { buttons.push({ id, x, y, w, h, fn }); }
+function resize() { const d = devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; cx.setTransform(d, 0, 0, d, 0, 0); }
+addEventListener('resize', resize); resize();
+function L() {
+  const T = Math.round(H * 0.16), P = Math.round(W * 0.13);
+  const s = Math.floor(Math.min((W - 2 * P - 16) / COLS, (H - T - 10) / ROWS));
+  return { T, P, s, ox: Math.round((W - s * COLS) / 2), oy: T + Math.round((H - T - s * ROWS) / 2), ds: Math.round(Math.min(T * 0.42, 60)) };
+}
+function draftSlot(k) { const { T, ds } = L(), gap = 2 * ds + 46; return [W / 2 + (k - 1.5) * gap, T / 2]; }  // the 4 places in the top row
+function tileCentre(x, y, r) { const { s, ox, oy } = L(), d = DIRS[r]; return [ox + (x + 0.5 + d[0] / 2) * s, oy + (y + 0.5 + d[1] / 2) * s]; }
+function tileBox(cxm, cym, s, r) { const d = DIRS[r]; const w = d[0] ? 2 * s : s, h = d[1] ? 2 * s : s; return { x: cxm - w / 2, y: cym - h / 2, w, h }; }
+function homeSpot() { const { P } = L(); return [W - P / 2, H * 0.72]; }  // the PC's hand rests in its panel
+function snapSpot() {  // the nearest place the tile in hand fits, if it lies close to it
+  if (!wait || wait.kind !== 'place') return null;
+  const { s } = L(); let best = null, bd = s * 0.9;
+  for (const sp of spots(wait.tile, wait.r, wait.who)) { const [x, y] = tileCentre(sp.x, sp.y, sp.r), d = Math.hypot(x - wait.pos[0], y - wait.pos[1]); if (d < bd) { bd = d; best = sp; } }
+  return best;
+}
+
+// SECTION: SHAPES -- tiles, jars, coins, sets, the token, the hand
+function rrect(x, y, w, h, r, fill, stroke, lw) {
+  cx.beginPath(); cx.roundRect(x, y, w, h, r);
+  if (fill) { cx.fillStyle = fill; cx.fill(); }
+  if (stroke) { cx.strokeStyle = stroke; cx.lineWidth = lw || 2; cx.stroke(); }
+}
+function dot(x, y, r, fill) { cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fillStyle = fill; cx.fill(); }
+function coin(x, y, r) { dot(x, y, r, '#b8860b'); dot(x, y, r * 0.78, '#f4cf4a'); dot(x - r * 0.25, y - r * 0.25, r * 0.22, '#fff3b0'); }
+function tileShape(x, y, s, cs, r, look, id) {  // one rectangle, half and half, centred at (x, y); look: 'grey' (can't be taken), 'ghost' (where it will snap)
+  const d = DIRS[r || 0], b = tileBox(x, y, s, r || 0);
+  drawn.push({ k: 'tile', id: id || null, cs: cs.slice(), look: look || null });
+  cx.save(); if (look === 'ghost') cx.globalAlpha = 0.5;
+  cx.beginPath(); cx.roundRect(b.x, b.y, b.w, b.h, s * 0.14); cx.save(); cx.clip();
+  [[-0.5, cs[0]], [0.5, cs[1]]].forEach(([k, c]) => { cx.fillStyle = COLOURS[c]; cx.fillRect(Math.round(x + d[0] * k * s - s / 2), Math.round(y + d[1] * k * s - s / 2), s, s); });
+  if (look === 'grey') { cx.fillStyle = 'rgba(240,240,240,0.55)'; cx.fillRect(b.x, b.y, b.w, b.h); }
+  cx.restore(); cx.strokeStyle = '#00000055'; cx.lineWidth = 1.5; cx.stroke(); cx.restore();
+}
+function jarShape(x, y, s) {  // an amphora: neck, handles, round body, a band
+  cx.fillStyle = '#c46a3c'; cx.strokeStyle = '#6e3418'; cx.lineWidth = Math.max(1.5, s * 0.04);
+  cx.beginPath(); cx.moveTo(x - s * 0.18, y - s * 0.5); cx.lineTo(x + s * 0.18, y - s * 0.5); cx.lineTo(x + s * 0.14, y - s * 0.28);
+  cx.bezierCurveTo(x + s * 0.55, y - s * 0.2, x + s * 0.45, y + s * 0.35, x, y + s * 0.5);
+  cx.bezierCurveTo(x - s * 0.45, y + s * 0.35, x - s * 0.55, y - s * 0.2, x - s * 0.14, y - s * 0.28); cx.closePath(); cx.fill(); cx.stroke();
+  cx.beginPath(); cx.arc(x - s * 0.24, y - s * 0.3, s * 0.1, 1.2, 4.6); cx.stroke(); cx.beginPath(); cx.arc(x + s * 0.24, y - s * 0.3, s * 0.1, -1.4, 1.9); cx.stroke();
+  cx.strokeStyle = '#2a1408'; cx.lineWidth = s * 0.05; cx.beginPath(); cx.moveTo(x - s * 0.36, y); cx.lineTo(x + s * 0.36, y); cx.stroke();
+}
+function setShape(x, y, r) { COLOURS.forEach((c, k) => { const a = -Math.PI / 2 + k * 2 * Math.PI / 5; dot(x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.6, r * 0.42, c); }); }  // a set: one of each good
+function symbol(s, x, y, r) { if (s < 5) dot(x, y, r * 0.8, COLOURS[s]); else if (s === 5) coin(x, y, r * 0.8); else jarShape(x, y, r * 1.6); }
+function star(x, y, r) {  // the first-player token
+  cx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r; cx.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); }
+  cx.closePath(); cx.fillStyle = '#f4cf4a'; cx.fill(); cx.strokeStyle = '#a07810'; cx.lineWidth = 2; cx.stroke();
+}
+function arrow(x0, y0, x1, y1, col, lw) { cx.strokeStyle = col; cx.lineWidth = lw; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(x1, y1); const a = Math.atan2(y1 - y0, x1 - x0), h = lw * 2.5; cx.moveTo(x1 - h * Math.cos(a - 0.6), y1 - h * Math.sin(a - 0.6)); cx.lineTo(x1, y1); cx.lineTo(x1 - h * Math.cos(a + 0.6), y1 - h * Math.sin(a + 0.6)); cx.stroke(); }
+function content(j, x, y, s) {  // what a jar held
+  if (j.k === 'coins') coin(x, y, s * 0.24);
+  else if (j.k === 'coins2') { coin(x - s * 0.16, y, s * 0.22); coin(x + s * 0.16, y, s * 0.22); }
+  else if (j.k === 'slot') { rrect(x - s * 0.42, y - s * 0.24, s * 0.84, s * 0.48, 8, '#7a2f2f'); for (let k = 0; k < 3; k++) rrect(x - s * 0.36 + k * s * 0.25, y - s * 0.17, s * 0.21, s * 0.34, 4, '#fff'); }
+  else if (j.k === 'steal') { tileShape(x - s * 0.05, y - s * 0.1, s * 0.22, [2, 3], 0); arrow(x + s * 0.35, y + s * 0.25, x - s * 0.35, y + s * 0.25, '#333', 5); }
+  else if (j.k === 'first') star(x, y, s * 0.3);
+  else if (j.k === 'tile') tileShape(x, y, s * 0.28, [0, 3], 0);
+  else if (j.k === 'jar') jarShape(x, y, s * 0.6);
+  else if (j.k === 'set') setShape(x, y, s * 0.3);
+}
+const HANDS = {"backhand_index_pointing_up": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTExLjQzNzUgMjQuMzEyNUM5LjcxMTM5IDIwLjA5NjggNS43MzQzNCAxOC40NzM3IDQuODU5MzQgMTcuNTY3NUMzLjk4NDM0IDE2LjY2MTIgMy44ODYxMyAxNC45NzMzIDQuODU5MzQgMTMuOTM3NUM2LjExNzE2IDEyLjU5ODcgNy40MjgzOSAxMi45NDI4IDguOTUzMTIgMTMuODQzN0M5LjQ2ODc1IDE0LjE0ODQgMTEuMTcxOSAxNS4yODEyIDExLjE3MTkgMTUuMjgxMlY1LjAzMTI0QzExLjE3MTkgMi45MjE4NyAxMi40MzM3IDEuOTg5OTkgMTMuNTkzNyAxLjk4OTk5QzE0Ljc1MzcgMS45ODk5OSAxNi4xNTYyIDMuMTU2MjQgMTYuMTU2MiA1LjAzMTI0TDE2LjE1NjIgOC45OTk5OUMxNi4xNTYyIDguOTk5OTkgMTYuNzY3NSA3LjY4NzQ5IDE4LjU2NDQgNy42ODc0OUMyMC4zNjEyIDcuNjg3NDkgMjAuODc1IDkuMzEyNDkgMjAuODc1IDkuMzEyNDlDMjAuODc1IDkuMzEyNDkgMjEuMjU3OCA4LjQ2MDk0IDIyLjkyOTcgOC40NjA5NEMyNC41MDc4IDguNDYwOTQgMjUuMTcxOSAxMC4xMDk0IDI1LjE3MTkgMTAuMTA5NEMyNS4xNzE5IDEwLjEwOTQgMjUuNzQyMiA5LjUwNzgxIDI3LjE0ODQgOS41MDc4MUMyOC4yMjY2IDkuNTA3ODEgMzAuMTI1IDExLjAzMTIgMzAuMTI1IDEyLjY3MTlDMzAuMTI1IDE5Ljc2MjQgMjkuNDIzMyAyOS45OSAyMC4wMyAyOS45OUMxNy41NCAzMCAxMy4xNjM2IDI4LjUyODIgMTEuNDM3NSAyNC4zMTI1WiIgZmlsbD0iI0ZGQzgzRCIvPgo8cGF0aCBkPSJNMTIuMTU2MyA1Ljk4NDM4QzEyLjE1NjMgMy43MjI1NSAxMi42NTU5IDIuNDY3MzEgMTMuMDc5NiAyLjA1MTI3QzEyLjA4OTggMi4yODk2MyAxMS4xNzE5IDMuMjMyMTYgMTEuMTcxOSA1LjAzMTI1VjEzLjkwNjNDMTEuMTgyMiAxNC40ODU1IDExLjE4NzUgMTUuMDAxMSAxMS4xODc1IDE1LjM5ODRDMTEuMTg3NSAxNi4xOTUzIDEyLjE1NjMgMTYuMjU3OCAxMi4xNTYzIDE1LjM5ODRMMTIuMTU2MyA1Ljk4NDM4WiIgZmlsbD0iI0Q2N0QwMCIvPgo8cGF0aCBkPSJNMTYuMTU2MiA4Ljk5OTk5TDE2LjE0ODQgMTIuNTE1NkMxNi4xNDg0IDEyLjc5MTggMTYuMzcyMyAxMy4wMTU2IDE2LjY0ODQgMTMuMDE1NkMxNi45MjQ2IDEzLjAxNTYgMTcuMTQ4NCAxMi43OTE4IDE3LjE0ODQgMTIuNTE1NkwxNy4xNDg0IDguMDIzOTZDMTYuNDI5NyA4LjQxMjg0IDE2LjE1NjIgOC45OTk5OSAxNi4xNTYyIDguOTk5OTlaIiBmaWxsPSIjRDY3RDAwIi8+CjxwYXRoIGQ9Ik0yMC44NzUgOS4zMTI1MkMyMC44NzUgOS4zMTI1MiAyMS4wODUzIDguODQ0NjggMjEuODc1IDguNjAyNTRWMTEuNTMxM0MyMS44NzUgMTEuODA3NCAyMS42NTExIDEyLjAzMTMgMjEuMzc1IDEyLjAzMTNDMjEuMDk4OSAxMi4wMzEzIDIwLjg3NSAxMS44MDc0IDIwLjg3NSAxMS41MzEzTDIwLjg3NSA5LjMxMjUyWiIgZmlsbD0iI0Q2N0QwMCIvPgo8cGF0aCBkPSJNMjUuMTcxOSAxMC4xMDk0QzI1LjE3MTkgMTAuMTA5NCAyNS4xNjkzIDEwLjEwMjkgMjUuMTY0MSAxMC4wOTA5VjEzLjVDMjUuMTY0MSAxMy43NzYxIDI1LjM4NzkgMTQgMjUuNjY0MSAxNEMyNS45NDAyIDE0IDI2LjE2NDEgMTMuNzc2MSAyNi4xNjQxIDEzLjVMMjYuMTY0MSA5LjYyMTM0QzI1LjQ2OTMgOS43OTU2NyAyNS4xNzE5IDEwLjEwOTQgMjUuMTcxOSAxMC4xMDk0WiIgZmlsbD0iI0Q2N0QwMCIvPgo8L3N2Zz4K", "hand_with_fingers_splayed": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTI4LjY4NzUgMTQuMzU5NEMyNy40NDM5IDEyLjg5MzcgMjYuMjAzMSAxMy40ODQ0IDI0Ljk1MzEgMTQuMjgxM0MyNC45NTMxIDE0LjI4MTMgMjIuNTQ2OSAxNi4yMzQ0IDIxLjU0NjkgMTYuNDIxOUMyMi4xMDk0IDE0LjE3MTkgMjQuMzIzMiA4LjU1MDM3IDI0LjU2MjUgNy40ODQzOEMyNC45MDYyIDUuOTUzMTMgMjQuMDAzNSA1LjA0NTI5IDIzLjAxNTYgNC42NDA2M0MyMS43MTg4IDQuMTA5MzggMjAuMjk3OCA1LjE5Mzg0IDE5Ljg3NSA2LjI5Njg4QzE4LjkzNSA4Ljc0OTM0IDE3Ljk0MTggMTEuNDU2NiAxNy45Njg4IDExLjE4NzVMMTguODU5NCA1LjI2NTYzQzE5LjEyNSAzLjY0MDYzIDE4LjA3NjMgMi4xMDE4OCAxNi43NjA4IDIuMDAyNTVDMTUuMzQ2NyAxLjg5NTc3IDE0LjI0NzMgMy4wMDE2MyAxNC4wNjI1IDQuNDcyNTRDMTMuNjcxOSA3LjU4MTkyIDEzLjIxODggMTAuOTQ1NSAxMy4yMTg4IDEwLjY1NjNMMTIuNzk2OSA2LjUzMTI2QzEyLjczNjkgNS4yMzEyNiAxMS42MzY5IDQuMTgwMDEgMTAuMzI2OSA0LjI0MDAxQzkuMDI2ODcgNC4zMDAwMSA4LjAwMjUgNS40NDAwMSA4LjA2MjUgNi43NTAwMUM4LjE4OTMzIDkuNjY0MDEgOC41MDAyMiAxMi4xNDE5IDguNDY4NzUgMTEuOTUzMUw3LjkwNjI1IDkuNTYyNTFDNy41NjI1IDguMjUwMDEgNi40NTM3NiA3LjM1NTAxIDUuMTMzNzYgNy41NDUwMUMzLjg2Mzc2IDcuNzM1MDEgMi45NzM3NCA4LjkxNTAxIDMuMTQzNzQgMTAuMTk1TDQuMzQzNzUgMTYuMjk2OUM0LjQ2OTQ0IDE3LjI1NzUgNC41NjI1IDIxLjcxODggNS42MDkzNyAyNC4yNjU2QzcuMzE0NzMgMjguNDE0NSAxMC4zNzUgMjkuODQzOCAxMy42NDA4IDMwLjAwMjVDMTYuMzQzOCAyOS45MjE5IDE5LjczNDQgMjguNDM3NSAyMS42NTYyIDI1LjEwOTRDMjMuNDg4OCAyMS45MzU5IDI1LjczNDQgMjAuMDQ2OSAyOC41NjI1IDE3LjcwMzFDMjkuMjA5NCAxNy4xNjcgMjkuOTMxMSAxNS44MjUgMjguNjg3NSAxNC4zNTk0WiIgZmlsbD0iI0ZGQzgzRCIvPgo8cGF0aCBkPSJNMTUuMDEzIDQuNDQyMDdDMTUuMDkzIDMuNjY4MzcgMTUuMzA5IDMuMDE0MDMgMTUuNjIxNiAyLjU3OTY4QzE1Ljg4NjcgMi4yMTEyMSAxNi4yMDgxIDIuMDExODIgMTYuNjAxOSAxLjk5NTU5QzE1LjI2NSAxLjk3OTkgMTQuMjQwMyAzLjA1NzIzIDE0LjA2MjUgNC40NzI1NEMxMy43NjA4IDYuODc0MTUgMTMuNDIxOCA5LjQyNzM4IDEzLjI4MzEgMTAuMzMyTDEzLjA5NzUgMTEuODQ1NEMxMy4wNjM5IDEyLjExOTUgMTMuMjU4OCAxMi4zNjg5IDEzLjUzMjkgMTIuNDAyNUMxMy44MDcgMTIuNDM2MiAxNC4wNTY1IDEyLjI0MTIgMTQuMDkwMSAxMS45NjcxTDE1LjAxMiA0LjQ1MTUxTDE1LjAxMyA0LjQ0MjA3WiIgZmlsbD0iI0Q2N0QwMCIvPgo8cGF0aCBkPSJNOC41NTA2NiAxMi4zNDhDOC41MTYxMiAxMi4xNDg0IDguNDgwMSAxMS45MzM1IDguNDQ1NDIgMTEuNzE0OUM4LjM3MjQgMTEuMDMxNiA4LjE2MTQgOS4wMjM1NSA4LjA2MjQ0IDYuNzUwMDFDOC4wMDkyMSA1LjU4Nzc2IDguODA5NTMgNC41NTkzNCA5Ljg5ODYyIDQuMzAwMjNMOS45MDU2NSA0LjMzMTc4QzkuNTU0NzcgNC40MSA5LjI4ODg3IDQuNzcxMjEgOS4xMzQzIDUuNDUyMzRDOC45ODgyNyA2LjA5NTgxIDguOTkzMzYgNi44MjE2NCA5LjAxMDc1IDcuMjM3MDRDOS4wMzQ2MiA3LjgwNzU2IDkuMDk5MDMgOC40OTA1NSA5LjE2Nzg5IDkuMjIwODRDOS4yMDAxIDkuNTYyMzQgOS4yMzMyOCA5LjkxNDMgOS4yNjM3NSAxMC4yNjk4QzkuMzA4NiAxMC43OTMzIDkuNDI2NTEgMTEuNTQ0NiA5LjUzNjAxIDEyLjE3NzVDOS41OTAzMSAxMi40OTEyIDkuNjQxNzQgMTIuNzcxMyA5LjY3OTU4IDEyLjk3MjlDOS42OTg1IDEzLjA3MzcgOS43MTQgMTMuMTU0NyA5LjcyNDc1IDEzLjIxMDVMOS43MzcxMyAxMy4yNzQzTDkuNzQxMzYgMTMuMjk1OUM5Ljc5NDc2IDEzLjU2NjggOS42MTg0MiAxMy44Mjk4IDkuMzQ3NDkgMTMuODgzMkM5LjA3NjU2IDEzLjkzNjYgOC44MTM2NCAxMy43NjAzIDguNzYwMjQgMTMuNDg5M0w4Ljc1NTY0IDEzLjQ2NThMOC43NDI4NSAxMy4zOTk4QzguNzMxODIgMTMuMzQyNyA4LjcxNjAxIDEzLjI2IDguNjk2NzUgMTMuMTU3NEM4LjY1ODI2IDEyLjk1MjQgOC42MDU5NSAxMi42Njc1IDguNTUwNjYgMTIuMzQ4WiIgZmlsbD0iI0Q2N0QwMCIvPgo8cGF0aCBkPSJNMTcuNTAwMyAxMi41OTA2TDE4LjQ3MDEgOS45OTU4OEMxOC42NDE3IDkuNTQ4MjYgMTguODQ2OCA5LjAwNTg0IDE5LjA2ODQgOC40MjAwOUMxOS4zMjQxIDcuNzQzOCAxOS42MDE4IDcuMDA5MzkgMTkuODc0OSA2LjI5Njg4QzIwLjI5NzcgNS4xOTM4NCAyMS43MTg3IDQuMTA5MzggMjMuMDE1NiA0LjY0MDYzTDIzLjAzNDEgNC42NDgyOUwyMy4wMjk2IDQuNjYxOTJDMjIuNTg4NyA0LjUxNTIyIDIyLjE5NjUgNC42MjA1NSAyMS44MTk2IDQuOTUxMjZDMjEuNDIyOCA1LjI5OTM2IDIxLjA2NTYgNS44ODYwOCAyMC43OTggNi42MjM2OEwyMC43OTYzIDYuNjI4MTlMMTguNDM3IDEyLjk0MDdDMTguMzQwMyAxMy4xOTkzIDE4LjA1MjMgMTMuMzMwNyAxNy43OTM2IDEzLjIzNEMxNy41MzQ5IDEzLjEzNzMgMTcuNDAzNiAxMi44NDkyIDE3LjUwMDMgMTIuNTkwNloiIGZpbGw9IiNENjdEMDAiLz4KPHBhdGggZD0iTTkuMDY2ODcgMTcuMzczN0MxMC4yMjkzIDE3LjI5MDcgMTIuMTIzNiAxNy4xNzY4IDE0LjAzODggMTcuMjU1OEMxNS4zNDYyIDE3LjMwOTggMTYuNjIxNCAxNy40NTI3IDE3LjY3MDQgMTcuNzM2M0MxNy4xNjMyIDE3LjkwNjcgMTYuNTU0NCAxOC4xMzgxIDE1Ljg5MTcgMTguNDQ0NkMxNC4wNzE2IDE5LjI4NjUgMTEuODE3NSAyMC43MDgyIDEwLjE1NjQgMjMuMDIwOEM5Ljk5NTMxIDIzLjI0NTEgMTAuMDQ2NSAyMy41NTc1IDEwLjI3MDggMjMuNzE4NkMxMC40OTUxIDIzLjg3OTcgMTAuODA3NSAyMy44Mjg1IDEwLjk2ODYgMjMuNjA0MkMxMi40OTUgMjEuNDc5MyAxNC41ODQ2IDIwLjE1MSAxNi4zMTE1IDE5LjM1MjNDMTcuMTcyNyAxOC45NTM5IDE3LjkzNjggMTguNjkwNCAxOC40ODQgMTguNTI2OUMxOC43NTczIDE4LjQ0NTMgMTguOTc1OSAxOC4zODg3IDE5LjEyNDUgMTguMzUyOUMxOS4xOTg4IDE4LjMzNSAxOS4yNTU2IDE4LjMyMjMgMTkuMjkzIDE4LjMxNDNMMTkuMzM0MiAxOC4zMDU2TDE5LjM0MzQgMTguMzAzN0wxOS4zNDQ4IDE4LjMwMzRDMTkuNTUxNSAxOC4yNjMzIDE5LjcxMTMgMTguMDk4IDE5Ljc0NCAxNy44OUMxOS43NzY2IDE3LjY4MTkgMTkuNjc1MyAxNy40NzU2IDE5LjQ5MDYgMTcuMzc0MkMxOC4xMDUyIDE2LjYxMzYgMTYuMDMwMiAxNi4zMzcxIDE0LjA4IDE2LjI1NjdDMTIuMTA2NiAxNi4xNzUzIDEwLjE2NjUgMTYuMjkyNiA4Ljk5NTYzIDE2LjM3NjNDOC43MjAxOSAxNi4zOTYgOC41MTI4NSAxNi42MzUyIDguNTMyNTIgMTYuOTEwNkM4LjU1MjE5IDE3LjE4NjEgOC43OTE0MyAxNy4zOTM0IDkuMDY2ODcgMTcuMzczN1oiIGZpbGw9IiNENjdEMDAiLz4KPC9zdmc+Cg==", "pinching_hand": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTI0LjEwOTQgMTQuNjA5NEMyNS40NTQ0IDEzLjYxNTYgMjcuMjAzOSAxMy44MTE5IDI4LjI5NjkgMTUuMjAzMkMzMC4yNDg4IDE3LjY4NzggMjcuNzUzOCAxOS44MTYzIDI1Ljg1IDIxLjQ0MDRDMjUuMzg4MSAyMS44MzQ0IDI0Ljk2MSAyMi4xOTg3IDI0LjY0MDYgMjIuNTMxM0MyMy43Njk2IDIzLjM0MTIgMjMuMDY1IDI0LjA0MjcgMjIuNDIxNiAyNC42ODM1QzIxLjc0OTIgMjUuMzUzIDIxLjE0MzUgMjUuOTU2MSAyMC40ODQ0IDI2LjU0NjlDMTguMDY5NSAyOC43MTE1IDE1LjYxNjMgMjkuOTM3NSAxMi40MDYyIDI5LjkzNzVDNi4wMzEyNSAyOS45Mzc1IDIuMjUgMjUuNTYyNSAyLjI1IDE4Ljk0NjNMMi4xNzYwMSAxNC45MDVDMi4xMzIzOCAxNC43MTgxIDIuMTA5MzggMTQuNTIzOSAyLjEwOTM4IDE0LjMyNDZWMTAuNjc1NEMyLjEwOTM4IDkuMjAwMDIgMy4zNzA4NyA4LjAwMDAyIDQuOTIxODggOC4wMDAwMkM1LjgwMzI2IDguMDAwMDIgNi41OTExNCA4LjM4NzUyIDcuMTA3MTcgOC45OTI4NkM3LjQzNTgzIDcuODYwMTcgOC40ODI2NSA3LjAzMDAxIDkuNzIgNy4wMzAwMUMxMC43NTI0IDcuMDMwMDEgMTEuNjUyMiA3LjYwMzIyIDEyLjExMjggOC40NDk2NUMxMi41OTc5IDcuNTg1NDcgMTMuNTIzNCA3LjAwMDAyIDE0LjU4MjYgNy4wMDAwMkMxNS44MTkgNy4wMDAwMiAxNi44NzMyIDcuNzkxNDkgMTcuMjU3NCA4LjkwMTQ5QzE5LjMwNjQgNS4zNTcxNCAyMi41NDA2IDMuOTQ3OTcgMjYuNSA1LjYwOTM5QzI4LjA3ODEgNi4zNTkzNyAyOC4wMzI1IDcuOTk3NDcgMjcuODI4MSA4Ljc1MDAzQzI3LjUzNjIgOS44MjUyNCAyNi40MDk5IDExLjI4OTkgMjQuNjc5NyAxMC44NTE2QzIzLjU3NCAxMC41NzE1IDIyLjQ0NTMgMTAuNTMxMyAyMi40NDUzIDExLjg1MTZMMjIuNDE0MSAxNC40OTIyQzIyLjQxNDEgMTYuMTYyNSAyMi45NjgxIDE1LjY0MzkgMjMuNTkzMSAxNS4wNTlDMjMuNzYzMiAxNC44OTk4IDIzLjkzODUgMTQuNzM1NiAyNC4xMDk0IDE0LjYwOTRaIiBmaWxsPSIjRkZDODNEIi8+CjxwYXRoIGQ9Ik0xNy4yNzAzIDguODc5MTlDMTcuNDA2MiA5LjI3NjIgMTcuNTE1NiA5LjgyNTU0IDE3LjUxNTYgMTAuNjg3NVYxMS44OTg0QzE3Ljg4NTQgMTAuMTMwMiAxOS4zMjUgNi4yOTM3NSAyMi4xMjUgNS4wOTM3NUgyMS44MzYzQzE5Ljk4OCA1LjU1MDQ5IDE4LjQzNzggNi44Njk1NyAxNy4yNzAzIDguODc5MTlaIiBmaWxsPSIjRDY3RDAwIi8+CjxwYXRoIGQ9Ik0yLjE1NzU5IDE0LjgxOTdDMi40MDIzNCAxNi4wNTkzIDMuNTQ4NjEgMTcgNC45MjE4MyAxN0M1LjU3Njc0IDE3IDYuMTgwMDMgMTYuNzg2MSA2LjY1ODUyIDE2LjQyNzhDNi4zMDY1MSAxNS44NTMyIDYgMTQuOTg0NSA2IDE0LjEwOTRWOS44MTI1MUM2IDkuMTY1OCA2LjE0MjM2IDguNjYwNzMgNi4yOTU2NSA4LjM0MTMxQzYuNjA5ODIgOC41MDkyNiA2Ljg4NjgzIDguNzMyOTYgNy4xMTE3NiA4Ljk5ODJMNy4xMDc5OCA5LjAxMDcxQzcuMDUgOS4yMDQ4IDcgOS40NzQzMiA3IDkuODEyNTFWMTQuMTA5NEM3IDE0LjY1NzMgNy4xNjM0NSAxNS4yMTkgNy4zNjg2NCAxNS42NDMxTDcuMzY3NjYgMTUuNjQ0OEM3Ljc4NjE0IDE2LjM2MzQgOC41MjQzOSAxNi44NzM3IDkuMzg2MTMgMTYuOTc5NkM5LjY2NjY3IDE2Ljk2NTkgOS45NjE4OSAxNi45NTM3IDEwLjI2OCAxNi45NDQ1QzEwLjY5ODMgMTYuODU2MiAxMS4wOTE5IDE2LjY2NTkgMTEuNDIyMyAxNi40MDAxQzExLjExNTcgMTUuODM2IDEwLjkwNjIgMTUuMDkzNSAxMC45MDYyIDE0LjMwNDdDMTAuOTA2MiAxMy43NDU1IDEwLjkyMDcgMTIuNjk0NyAxMC45MzUgMTEuNjkxN0wxMC45Mzg4IDExLjQyNkMxMC45NTE3IDEwLjUxOTIgMTAuOTYzNiA5LjY5Mjc0IDEwLjk2MzYgOS4zNDM3NkMxMC45NjM2IDguNTk1NzMgMTEuMTMzIDguMDI0NzggMTEuNDI1NSA3LjYyODQ4QzExLjcwMzYgNy44NTE2MiAxMS45MzY4IDguMTI4MjMgMTIuMTA5MiA4LjQ0MjgzQzEyLjAyNzQgOC42NDA2IDExLjk2MzYgOC45Mjk0OCAxMS45NjM2IDkuMzQzNzZDMTEuOTYzNiA5LjcwMDQ2IDExLjk1MTYgMTAuNTMzOSAxMS45Mzg3IDExLjQzNTRMMTEuOTM0OSAxMS43MDZDMTEuOTIwNSAxMi43MTI0IDExLjkwNjIgMTMuNzU0NSAxMS45MDYyIDE0LjMwNDdDMTEuOTA2MiAxNC43NTcyIDExLjk5NDkgMTUuMTg0NCAxMi4xMjg4IDE1LjU0MjZMMTIuMTI5OSAxNS41NDA1QzEyLjYxOTUgMTYuMzg4MSAxMy41MzU3IDE2Ljk2IDE0LjU4MjUgMTYuOTZDMTUuOTE4NSAxNi45NiAxNy4wNDE4IDE2LjAyODYgMTcuMzM2OCAxNC43ODEySDE3LjM3NUMxNy4zNzUgMTUuODEwMyAxNy4zMDM4IDE2LjgyODIgMTYuOTUgMTcuNjA5N0MxNy4zNDg3IDE3Ljc0MjYgMTcuNzIyNCAxNy44OTk5IDE4LjA2MDggMTguMDg1N0MxOC4yNDU1IDE4LjE4NyAxOC4zNDY4IDE4LjM5MzMgMTguMzE0MSAxOC42MDE0QzE4LjI4MTUgMTguODA5NSAxOC4xMjIxIDE4Ljk3NDcgMTcuOTE1NCAxOS4wMTQ4TDE3LjkxMzYgMTkuMDE1MUwxNy45MDQ0IDE5LjAxN0wxNy44NjMyIDE5LjAyNTdDMTcuODI1OCAxOS4wMzM4IDE3Ljc2OSAxOS4wNDY1IDE3LjY5NDcgMTkuMDY0NEMxNy41NDYxIDE5LjEwMDIgMTcuMzI3NSAxOS4xNTY3IDE3LjA1NDIgMTkuMjM4NEMxNi41MDcgMTkuNDAxOCAxNS43NDI5IDE5LjY2NTMgMTQuODgxNyAyMC4wNjM3QzEzLjE1NDggMjAuODYyNSAxMS4wNjUxIDIyLjE5MDcgOS41Mzg3OCAyNC4zMTU2QzkuMzc3NjggMjQuNTM5OSA5LjA2NTI3IDI0LjU5MTEgOC44NDA5OSAyNC40M0M4LjYxNjcxIDI0LjI2ODkgOC41NjU1IDIzLjk1NjUgOC43MjY2IDIzLjczMjJDMTAuMzg3NyAyMS40MTk3IDEyLjY0MTggMTkuOTk3OSAxNC40NjE4IDE5LjE1NjFDMTQuNTU5OSAxOS4xMTA3IDE0LjY1NjcgMTkuMDY3IDE0Ljc1MjMgMTkuMDI0OUMxNC42NzU2IDE5LjAyOTEgMTQuNTk2NyAxOS4wMzEyIDE0LjUxNTYgMTkuMDMxMkMxMy4wNzc4IDE5LjAzMTIgMTIuMzU4MiAxOC4zODI3IDEyLjEwMDQgMTcuOTMzM0MxMi4wNDYxIDE3LjkzMjEgMTEuOTkxOCAxNy45MzEyIDExLjkzNzcgMTcuOTMwM0MxMS42MjQxIDE4LjUwNTUgMTAuNzE2OSAxOS4wMzEyIDkuNzk2ODMgMTkuMDMxMkM4LjY0NjgzIDE5LjAzMTIgNy43MTg3IDE4LjMxMjUgNy40Njg3IDE3Ljc1QzcuMDc4MDggMTguMzEyNSA2LjM3NDk1IDE5LjAzMTIgNS4xMjQ5NSAxOS4wMzEyQzIuNzc5MDIgMTkuMDMxMiAyLjIwMTUgMTUuODgwNiAyLjE1NzU5IDE0LjgxOTdaIiBmaWxsPSIjRDY3RDAwIi8+Cjwvc3ZnPgo=", "raised_hand": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTcuMDE3MzUgNy4yOTAxNkM4LjMxMzUyIDcuMjkwMTYgOC43MDMxNSA3Ljk5OTk2IDguNzAzMTUgNy45OTk5Nkw4Ljc5NjkgNi4xNzE4NEM4Ljg3NTAzIDUuMjEyMDQgOS45OTc4MSA0LjI1ODkxIDExLjA0ODEgNC4yNTg5MUMxMi40ODQ0IDQuMjU4OTEgMTMuMDMxMyA1LjI5Njg0IDEzLjAzMTMgNS4yOTY4NEMxMi45Mzc1IDMuMDkzNzEgMTMuNzMzNiAxLjk5MzI5IDE1LjcxMTIgMS45OTMyOUMxNy4zMTI1IDIuMDkzNzEgMTcuOTcwMiAzLjYxNzE1IDE3Ljg0MzggNS4yOTY4NEMxNy44NDM4IDUuMjk2ODQgMTguNTE1NyAzLjk4NDM0IDIwLjM3NDMgNC4xNDk1NEMyMS40MjA1IDQuMjQyNTMgMjIuMjY1NyA1LjI5Njg0IDIyLjI2NTcgNy4wNjI0NkwyMi4wNzgyIDE0Ljc1QzIyLjA3ODIgMTQuNzUgMjMuMjY4NiAxMy4wMjcgMjQuMTU2MyAxMi41MTU2QzI1LjA0MzkgMTIuMDA0MiAyNi41MTAyIDEyLjAzNjEgMjcuMjM0NSAxMi44MDU4QzI4LjA4NjIgMTMuNzEwNiAyOC4yNDA5IDE1LjEyODcgMjcuNjI5OCAxNS45OTMzQzI1LjM0MzggMTguOTM3NSAyMy4xNTYzIDIyLjIxODcgMjIuNDg0NCAyMy41NzgxQzIwLjY5MTkgMjcuMjA0NyAxNy45NTMyIDMwLjAwNjYgMTQuMjg4NiAzMC4wMDY2QzkuODQzNzggMzAuMDA2NiA1LjczNTkzIDI2Ljc1IDUuMjUwMDMgMjAuODEyNUM0Ljc2NDEyIDE0Ljg3NSA0LjcwMTYyIDEwLjAwODkgNC43MDE2MiAxMC4wMDg5QzQuNjIyNTkgOC45NjIwNCA1LjQ0NDU1IDcuMjkwMTYgNy4wMTczNSA3LjI5MDE2WiIgZmlsbD0iI0ZGQzgzRCIvPgo8cGF0aCBkPSJNMTMuOTUyIDQuNDk4NjZMMTQuNDgzMiAxMi4yNzI0QzE0LjUwMiAxMi41NDc5IDE0LjI5MzkgMTIuNzg2NSAxNC4wMTg0IDEyLjgwNTNDMTMuNzQyOSAxMi44MjQyIDEzLjUwNDMgMTIuNjE2MSAxMy40ODU1IDEyLjM0MDZMMTMuMDAwNyA1LjI0NTUyQzEzLjAyMTQgNS4yNzgwOSAxMy4wMzEzIDUuMjk2OSAxMy4wMzEzIDUuMjk2OUMxMi45NDI5IDMuMjE4MzYgMTMuNjQ2NCAyLjEyMTMzIDE1LjM4NyAyLjAwMzkxTDE1LjM4NjkgMi4wMTU2NEMxNC45MTAzIDIuMDEyMDcgMTQuNTUyOSAyLjIzNjU0IDE0LjMwMyAyLjY1MDkyQzE0LjA0MTQgMy4wODQ3IDEzLjkwMiAzLjczMTU1IDEzLjk1MiA0LjQ5ODY2WiIgZmlsbD0iI0Q2N0QwMCIvPgo8cGF0aCBkPSJNMTcuODQzOCA1LjI5NjkxQzE3Ljg1MDQgNS4yMDk2NCAxNy44NTQ4IDUuMTIyNzkgMTcuODU3MSA1LjAzNjU0QzE3LjY5NzIgNS41MTQyNCAxNy42MTI4IDYuMDQ1OTUgMTcuNTk0IDYuNTkyMjZMMTcuNTkzOSA2LjU5OTIzTDE3LjQ2ODkgMTIuNzM5OUMxNy40NjMyIDEzLjAxNTkgMTcuNjgyNSAxMy4yNDQzIDE3Ljk1ODYgMTMuMjQ5OUMxOC4yMzQ3IDEzLjI1NTUgMTguNDYzIDEzLjAzNjMgMTguNDY4NiAxMi43NjAyTDE4LjU5MzYgNi42MjMxNEMxOC42MjA1IDUuODUxMyAxOC43OTc0IDUuMjAyNDggMTkuMDgyOCA0Ljc2NDE1QzE5LjMyIDQuMzk5NzIgMTkuNjI1NyA0LjE4NDAxIDIwLjAxNDggNC4xMzU0OEMxOC40MjgyIDQuMTU1MjMgMTcuODQzOCA1LjI5NjkxIDE3Ljg0MzggNS4yOTY5MVoiIGZpbGw9IiNENjdEMDAiLz4KPHBhdGggZD0iTTEwLjAzNTYgMTcuNjIzOEMxMS4xOTg3IDE3LjU0MDcgMTIuOTkxOSAxNy40MzIyIDE0LjgwNTcgMTcuNTE2MkMxNi4wMzggMTcuNTczMiAxNy4yNDMzIDE3LjcxODEgMTguMjU1OSAxOC4wMDJDMTcuNzQ1NiAxOC4xNzMgMTcuMTMxMiAxOC40MDU5IDE2LjQ2MTggMTguNzE1NUMxNC42NDE4IDE5LjU1NzQgMTIuMzg3NyAyMC45NzkxIDEwLjcyNjYgMjMuMjkxN0MxMC41NjU1IDIzLjUxNTkgMTAuNjE2NyAyMy44Mjg0IDEwLjg0MSAyMy45ODk1QzExLjA2NTMgMjQuMTUwNiAxMS4zNzc3IDI0LjA5OTMgMTEuNTM4OCAyMy44NzUxQzEzLjA2NTEgMjEuNzUwMSAxNS4xNTQ4IDIwLjQyMTkgMTYuODgxNyAxOS42MjMxQzE3Ljc0MjkgMTkuMjI0OCAxOC41MDcgMTguOTYxMyAxOS4wNTQyIDE4Ljc5NzhDMTkuMzI3NSAxOC43MTYxIDE5LjU0NjEgMTguNjU5NiAxOS42OTQ3IDE4LjYyMzhDMTkuNzY5IDE4LjYwNTkgMTkuODI1OCAxOC41OTMyIDE5Ljg2MzIgMTguNTg1MUwxOS45MDQ0IDE4LjU3NjRMMTkuOTEzNiAxOC41NzQ2TDE5LjkxNSAxOC41NzQzQzIwLjEyMTcgMTguNTM0MiAyMC4yODE1IDE4LjM2ODkgMjAuMzE0MSAxOC4xNjA5QzIwLjM0NjggMTcuOTUyNyAyMC4yNDU1IDE3Ljc0NjUgMjAuMDYwOCAxNy42NDUxQzE4LjY3OTIgMTYuODg2NSAxNi43MDg1IDE2LjYwMzIgMTQuODUyIDE2LjUxNzJDMTIuOTc2NSAxNi40MzA0IDExLjEzNDcgMTYuNTQyNyA5Ljk2NDM4IDE2LjYyNjNDOS42ODg5NCAxNi42NDYgOS40ODE2IDE2Ljg4NTIgOS41MDEyNyAxNy4xNjA3QzkuNTIwOTQgMTcuNDM2MSA5Ljc2MDE4IDE3LjY0MzQgMTAuMDM1NiAxNy42MjM4WiIgZmlsbD0iI0Q2N0QwMCIvPgo8cGF0aCBkPSJNOC43MDQxIDcuOTc5OTFMOC43OTY4MiA2LjE3MTlDOC44NzQxOCA1LjIyMTQ5IDkuOTc1ODUgNC4yNzc2MyAxMS4wMTcyIDQuMjU5MjVDMTAuNTY3NSA0LjMzMTg5IDEwLjI2NzcgNC40NjMzNSAxMC4wNjQ4IDQuNjE0NTZDOS44NjYxIDQuNzYyNjYgOS43MzU5NyA0Ljk0NzU3IDkuNjUwOTkgNS4xNzE1NEM5LjQ2OTcxIDUuNjQ5MzIgOS40OTUzMyA2LjI5MDQxIDkuNTg5NTYgNy4wNjEzNUwxMC40NTUgMTMuNDk1OUMxMC40OTE4IDEzLjc2OTYgMTAuMjk5OCAxNC4wMjEzIDEwLjAyNjEgMTQuMDU4MUM5Ljc1MjQyIDE0LjA5NDkgOS41MDA3MyAxMy45MDI5IDkuNDYzOTIgMTMuNjI5Mkw4LjcwNDEgNy45Nzk5MVoiIGZpbGw9IiNENjdEMDAiLz4KPHBhdGggZD0iTTEzLjk1MiA0LjQ5ODY2TDE0LjQ4MzIgMTIuMjcyNEMxNC41MDIgMTIuNTQ3OSAxNC4yOTM5IDEyLjc4NjUgMTQuMDE4NCAxMi44MDUzQzEzLjc0MjkgMTIuODI0MiAxMy41MDQzIDEyLjYxNjEgMTMuNDg1NSAxMi4zNDA2TDEzLjAwMDcgNS4yNDU1MkMxMy4wMjE0IDUuMjc4MDkgMTMuMDMxMyA1LjI5NjkgMTMuMDMxMyA1LjI5NjlDMTIuOTQyOSAzLjIxODM2IDEzLjY0NjQgMi4xMjEzMyAxNS4zODcgMi4wMDM5MUwxNS4zODY5IDIuMDE1NjRDMTQuOTEwMyAyLjAxMjA3IDE0LjU1MjkgMi4yMzY1NCAxNC4zMDMgMi42NTA5MkMxNC4wNDE0IDMuMDg0NyAxMy45MDIgMy43MzE1NSAxMy45NTIgNC40OTg2NloiIHN0cm9rZT0iI0Q2N0QwMCIvPgo8cGF0aCBkPSJNMTcuODQzOCA1LjI5NjkxQzE3Ljg1MDQgNS4yMDk2NCAxNy44NTQ4IDUuMTIyNzkgMTcuODU3MSA1LjAzNjU0QzE3LjY5NzIgNS41MTQyNCAxNy42MTI4IDYuMDQ1OTUgMTcuNTk0IDYuNTkyMjZMMTcuNTkzOSA2LjU5OTIzTDE3LjQ2ODkgMTIuNzM5OUMxNy40NjMyIDEzLjAxNTkgMTcuNjgyNSAxMy4yNDQzIDE3Ljk1ODYgMTMuMjQ5OUMxOC4yMzQ3IDEzLjI1NTUgMTguNDYzIDEzLjAzNjMgMTguNDY4NiAxMi43NjAyTDE4LjU5MzYgNi42MjMxNEMxOC42MjA1IDUuODUxMyAxOC43OTc0IDUuMjAyNDggMTkuMDgyOCA0Ljc2NDE1QzE5LjMyIDQuMzk5NzIgMTkuNjI1NyA0LjE4NDAxIDIwLjAxNDggNC4xMzU0OEMxOC40MjgyIDQuMTU1MjMgMTcuODQzOCA1LjI5NjkxIDE3Ljg0MzggNS4yOTY5MVoiIHN0cm9rZT0iI0Q2N0QwMCIvPgo8cGF0aCBkPSJNMTAuMDM1NiAxNy42MjM4QzExLjE5ODcgMTcuNTQwNyAxMi45OTE5IDE3LjQzMjIgMTQuODA1NyAxNy41MTYyQzE2LjAzOCAxNy41NzMyIDE3LjI0MzMgMTcuNzE4MSAxOC4yNTU5IDE4LjAwMkMxNy43NDU2IDE4LjE3MyAxNy4xMzEyIDE4LjQwNTkgMTYuNDYxOCAxOC43MTU1QzE0LjY0MTggMTkuNTU3NCAxMi4zODc3IDIwLjk3OTEgMTAuNzI2NiAyMy4yOTE3QzEwLjU2NTUgMjMuNTE1OSAxMC42MTY3IDIzLjgyODQgMTAuODQxIDIzLjk4OTVDMTEuMDY1MyAyNC4xNTA2IDExLjM3NzcgMjQuMDk5MyAxMS41Mzg4IDIzLjg3NTFDMTMuMDY1MSAyMS43NTAxIDE1LjE1NDggMjAuNDIxOSAxNi44ODE3IDE5LjYyMzFDMTcuNzQyOSAxOS4yMjQ4IDE4LjUwNyAxOC45NjEzIDE5LjA1NDIgMTguNzk3OEMxOS4zMjc1IDE4LjcxNjEgMTkuNTQ2MSAxOC42NTk2IDE5LjY5NDcgMTguNjIzOEMxOS43NjkgMTguNjA1OSAxOS44MjU4IDE4LjU5MzIgMTkuODYzMiAxOC41ODUxTDE5LjkwNDQgMTguNTc2NEwxOS45MTM2IDE4LjU3NDZMMTkuOTE1IDE4LjU3NDNDMjAuMTIxNyAxOC41MzQyIDIwLjI4MTUgMTguMzY4OSAyMC4zMTQxIDE4LjE2MDlDMjAuMzQ2OCAxNy45NTI3IDIwLjI0NTUgMTcuNzQ2NSAyMC4wNjA4IDE3LjY0NTFDMTguNjc5MiAxNi44ODY1IDE2LjcwODUgMTYuNjAzMiAxNC44NTIgMTYuNTE3MkMxMi45NzY1IDE2LjQzMDQgMTEuMTM0NyAxNi41NDI3IDkuOTY0MzggMTYuNjI2M0M5LjY4ODk0IDE2LjY0NiA5LjQ4MTYgMTYuODg1MiA5LjUwMTI3IDE3LjE2MDdDOS41MjA5NCAxNy40MzYxIDkuNzYwMTggMTcuNjQzNCAxMC4wMzU2IDE3LjYyMzhaIiBzdHJva2U9IiNENjdEMDAiLz4KPHBhdGggZD0iTTguNzA0MSA3Ljk3OTkxTDguNzk2ODIgNi4xNzE5QzguODc0MTggNS4yMjE0OSA5Ljk3NTg1IDQuMjc3NjMgMTEuMDE3MiA0LjI1OTI1QzEwLjU2NzUgNC4zMzE4OSAxMC4yNjc3IDQuNDYzMzUgMTAuMDY0OCA0LjYxNDU2QzkuODY2MSA0Ljc2MjY2IDkuNzM1OTcgNC45NDc1NyA5LjY1MDk5IDUuMTcxNTRDOS40Njk3MSA1LjY0OTMyIDkuNDk1MzMgNi4yOTA0MSA5LjU4OTU2IDcuMDYxMzVMMTAuNDU1IDEzLjQ5NTlDMTAuNDkxOCAxMy43Njk2IDEwLjI5OTggMTQuMDIxMyAxMC4wMjYxIDE0LjA1ODFDOS43NTI0MiAxNC4wOTQ5IDkuNTAwNzMgMTMuOTAyOSA5LjQ2MzkyIDEzLjYyOTJMOC43MDQxIDcuOTc5OTFaIiBzdHJva2U9IiNENjdEMDAiLz4KPC9zdmc+Cg=="};  // the hand pictures, put in by build.py
+const GESTURES = {  // picture and its active point (of 32): point to tap, pinch to hold a tile, open to let go, raised to pass
+  point: ['backhand_index_pointing_up', 14.5, 2.5], pinch: ['pinching_hand', 21, 9], open: ['hand_with_fingers_splayed', 16, 9], raised: ['raised_hand', 16, 9],
+};
+const handPics = Object.fromEntries(Object.entries(GESTURES).map(([g, [f]]) => {  // each picture drawn once onto its own canvas: a picture drawn every frame would be redrawn from its shapes each time
+  const c = document.createElement('canvas'); c.width = c.height = 256; const im = new Image();
+  im.onload = () => { c.getContext('2d').drawImage(im, 0, 0, 256, 256); c.ready = true; }; im.src = HANDS[f] || ''; return [g, c];
+}));
+function hand(h) {  // the PC's hand, the only hand drawn; a press shows a ring under the fingertip
+  const [, ax, ay] = GESTURES[h.g], im = handPics[h.g], z = h.down ? 84 : 92, k = z / 32;
+  if (h.down) { cx.strokeStyle = '#ffffffcc'; cx.lineWidth = 4; cx.beginPath(); cx.arc(h.x, h.y, 20, 0, 7); cx.stroke(); }
+  if (im.ready) cx.drawImage(im, h.x - ax * k, h.y - ay * k, z, z);
+}
+
+// SECTION: DRAWING -- each screen part
+function drawBoard() {
+  const { s, ox, oy } = L();
+  rrect(ox - 6, oy - 6, s * COLS + 12, s * ROWS + 12, 14, '#e2d3b0', '#c4b088', 2);
+  cx.strokeStyle = '#d6c49c'; cx.lineWidth = 1;
+  for (let x = 1; x < COLS; x++) { cx.beginPath(); cx.moveTo(ox + x * s, oy); cx.lineTo(ox + x * s, oy + ROWS * s); cx.stroke(); }
+  for (let y = 1; y < ROWS; y++) { cx.beginPath(); cx.moveTo(ox, oy + y * s); cx.lineTo(ox + COLS * s, oy + y * s); cx.stroke(); }
+  const thief = wait && wait.kind === 'steal' ? wait : null;
+  for (const t of G.tiles.values()) {
+    const [x, y] = tileCentre(t.x, t.y, t.r), mark = thief && t.o === 1 - thief.who && !t.start, b = tileBox(x, y, s, t.r);
+    tileShape(x, y, s, t.cs, t.r, mark && !thief.ids.includes(t.id) ? 'grey' : null, t.id);
+    if (mark && thief.ids.includes(t.id)) {
+      rrect(b.x - 4, b.y - 4, b.w + 8, b.h + 8, s * 0.2, null, BORDER[thief.who], 4 + 2 * Math.sin(performance.now() / 180));
+      btn('steal-' + t.id, b.x, b.y, b.w, b.h, () => answer(t.id));
+    }
+  }
+  cx.lineWidth = Math.max(4, s * 0.11); cx.lineCap = 'round';  // each land's border, all around its edges
+  for (const c of G.cells.values()) DIRS.forEach(([dx, dy]) => {
+    const n = G.cells.get(key(c.x + dx, c.y + dy)); if (n && n.o === c.o) return;
+    const x0 = ox + (c.x + (dx > 0 ? 1 : 0)) * s, y0 = oy + (c.y + (dy > 0 ? 1 : 0)) * s;
+    drawn.push({ k: 'border', o: c.o });
+    cx.strokeStyle = BORDER[c.o]; cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(x0 + (dx ? 0 : s), y0 + (dy ? 0 : s)); cx.stroke();
+  });
+  cx.lineCap = 'butt';
+}
+function drawDraft() {
+  const { T, P, ds } = L(), who = wait ? wait.who : 0;
+  G.draft.forEach((t, k) => {
+    const [x, y] = draftSlot(k), sel = k === G.chosen;
+    rrect(x - ds - 12, y - ds / 2 - 12, 2 * ds + 24, ds + 24, 14, sel ? '#ffe9a8' : '#fbf3e2', sel ? '#e0a020' : '#cdb991', sel ? 4 : 2);
+    if (!t) return;
+    const ok = fits(t, who);
+    tileShape(x, y, ds, t, 0, ok ? null : 'grey', 'draft-' + k);
+    if (ok && wait && wait.kind === 'pick') btn('draft-' + k, x - ds - 12, y - ds / 2 - 12, 2 * ds + 24, ds + 24, () => answer(k));
+  });
+  for (let k = 0; k < Math.ceil(G.bag.length / 4); k++) rrect(P + 14 + k * 16, T / 2 - ds / 2, 11, ds, 4, '#cdb991');  // rounds left
+}
+function drawPanel(i) {
+  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, cxm = x0 + P / 2, turn = wait && wait.who === i;
+  rrect(x0 + 6, 8, P - 12, H - 16, 16, turn ? '#fff8e8' : '#f6ecd6', BORDER[i], turn ? 6 : 3);
+  dot(cxm, 44, 24, BORDER[i]); if (G.first === i) star(cxm, 44, 18);
+  const r = Math.min(11, (P - 28) / 14), top = 92;  // goods: a row per colour; a long row squeezes together instead of wrapping
+  p.goods.forEach((n, c) => { const step = Math.min(r * 2.3, (P - 32 - 2 * r) / Math.max(1, n - 1)); for (let k = 0; k < n; k++) dot(x0 + 16 + r + k * step, top + c * r * 2.6, r, COLOURS[c]); });
+  const sy = top + 5 * r * 2.6 + 14, n = sets(p);
+  for (let k = 0; k < n; k++) setShape(x0 + 30 + (k % 3) * 44, sy + 6 + Math.floor(k / 3) * 44, 20);  // the sets you can bid
+  const cy0 = sy + Math.max(1, Math.ceil(n / 3)) * 44 + 14, cr = Math.min(12, (P - 24) / 11);
+  for (let k = 0; k < p.coins; k++) coin(x0 + 14 + cr + (k % 5) * cr * 2.15, cy0 + Math.floor(k / 5) * cr * 2.15, cr);
+  for (let k = 0; k < p.bid; k++) setShape(cxm + (k - (p.bid - 1) / 2) * 34, H - 60, 15);  // the sets bid now
+}
+function drawHeld() {  // the tile in hand where it lies, and the place it will snap to
+  const { s } = L(), sp = snapSpot(), [x, y] = wait.pos, b = tileBox(x, y, s, wait.r);
+  if (sp) { const [gx, gy] = tileCentre(sp.x, sp.y, sp.r), g = tileBox(gx, gy, s, sp.r); tileShape(gx, gy, s, wait.tile, sp.r, 'ghost'); cx.setLineDash([8, 6]); rrect(g.x - 3, g.y - 3, g.w + 6, g.h + 6, s * 0.2, null, '#ffffff', 4); cx.setLineDash([]); }
+  cx.save(); cx.shadowColor = '#00000055'; cx.shadowBlur = 14; cx.shadowOffsetY = 6; tileShape(x, y, s * 1.06, wait.tile, wait.r, null, 'held'); cx.restore();
+  rrect(b.x - 5, b.y - 5, b.w + 10, b.h + 10, s * 0.22, null, BORDER[wait.who], 4);
+  btn('held', b.x - 8, b.y - 8, b.w + 16, b.h + 16, e => { press = { x: e.clientX, y: e.clientY, dx: x - e.clientX, dy: y - e.clientY, moved: false }; });
+}
+function shade(a) { cx.fillStyle = 'rgba(40,25,10,' + a + ')'; cx.fillRect(0, 0, W, H); }
+function drawBid() {  // match the bid with your sets, or let the tile go
+  const x = W / 2, y = H * 0.5, me = wait.who, tile = G.draft[G.chosen];
+  shade(0.3); rrect(x - 240, y - 130, 480, 260, 26, '#fff8e8', BORDER[me], 6);
+  if (tile) tileShape(x, y - 70, 44, tile, 0);
+  for (let k = 0; k < wait.n; k++) setShape(x + (k - (wait.n - 1) / 2) * 44, y - 10, 18);
+  rrect(x - 210, y + 20, 190, 94, 20, '#d8f0c8', '#3a8a2a', 4);
+  cx.strokeStyle = '#3a8a2a'; cx.lineWidth = 10; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(x - 145, y + 66); cx.lineTo(x - 122, y + 88); cx.lineTo(x - 80, y + 44); cx.stroke();
+  btn('bid', x - 210, y + 20, 190, 94, () => answer(true));
+  rrect(x + 20, y + 20, 190, 94, 20, '#f6d6d0', '#a83a2a', 4);
+  cx.strokeStyle = '#a83a2a'; cx.beginPath(); cx.moveTo(x + 92, y + 44); cx.lineTo(x + 138, y + 90); cx.moveTo(x + 138, y + 44); cx.lineTo(x + 92, y + 90); cx.stroke(); cx.lineCap = 'butt';
+  btn('letgo', x + 20, y + 20, 190, 94, () => answer(false));
+}
+function drawJars() {  // big jars in a row; tap one to open it
+  const who = wait ? wait.who : G.shown.who, n = G.players[who].jars, s = Math.min(130, W * 0.7 / Math.max(1, n));
+  shade(0.35);
+  for (let k = 0; k < n; k++) {
+    const x = W / 2 + (k - (n - 1) / 2) * s, y = H * 0.6 + (wait ? Math.sin(performance.now() / 300 + k) * 4 : 0);
+    jarShape(x, y, s * 0.85);
+    if (wait && wait.kind === 'jar') btn('jar-' + k, x - s / 2, y - s / 2, s, s, () => answer());
+  }
+  if (G.shown) { rrect(W / 2 - 130, H * 0.2, 260, 160, 24, '#fff8e8', BORDER[who], 6); content(G.shown.j, W / 2, H * 0.2 + 80, 170); }
+}
+function drawSlot() {
+  const S = G.slot, x = W / 2, y = H / 2, ww = 140, live = wait && wait.kind === 'slot';
+  shade(0.4); rrect(x - 260, y - 180, 520, 360, 30, '#7a2f2f', BORDER[S.who], 6);
+  S.w.forEach((s, k) => {
+    const wx = x - 225 + k * (ww + 15);
+    rrect(wx, y - 140, ww, 170, 16, '#fff', S.sel[k] ? '#2f7de1' : '#555', S.sel[k] ? 8 : 3);
+    symbol(s, wx + ww / 2, y - 55, 46);
+    if (live) btn('wheel-' + k, wx, y - 140, ww, 170, () => { S.sel[k] = !S.sel[k]; });
+  });
+  if (live) {
+    const can = G.players[S.who].coins > 0 && S.sel.some(v => v);
+    rrect(x - 225, y + 50, 215, 100, 18, can ? '#d8f0c8' : '#ccc', '#3a8a2a', 4); coin(x - 160, y + 100, 22);
+    cx.strokeStyle = '#333'; cx.lineWidth = 6; cx.beginPath(); cx.arc(x - 80, y + 100, 22, 0.5, 5.6); cx.stroke();  // pay a coin, spin again
+    if (can) btn('reroll', x - 225, y + 50, 215, 100, () => answer('reroll'));
+    rrect(x + 10, y + 50, 215, 100, 18, '#ffe9a8', '#e0a020', 4);
+    cx.fillStyle = '#e0a020'; cx.beginPath(); cx.moveTo(x + 95, y + 72); cx.lineTo(x + 150, y + 100); cx.lineTo(x + 95, y + 128); cx.fill();  // take what you have
+    btn('collect', x + 10, y + 50, 215, 100, () => answer('collect'));
+  }
+}
+function drawPass() {  // nothing fits: this turn passes to the other player
+  const i = G.passing, x = W / 2, y = H * 0.5, k = Math.min(1, (performance.now() % 1200) / 900);
+  shade(0.3); rrect(x - 260, y - 110, 520, 220, 30, '#fff8e8', BORDER[i], 6);
+  dot(i ? x + 170 : x - 170, y, 46, BORDER[i]); dot(i ? x - 170 : x + 170, y, 46, BORDER[1 - i]);
+  const a = i ? x + 110 : x - 110, b = i ? x - 110 : x + 110; arrow(a, y, a + (b - a) * k, y, '#555', 12);
+}
+function drawEnd() {  // the two rows of coins side by side; the longer one wins
+  shade(0.4); rrect(W * 0.08, H * 0.28, W * 0.84, H * 0.44, 30, '#fff8e8', '#e0a020', 6);
+  G.players.forEach((p, i) => {
+    const y = H * 0.4 + i * H * 0.16, r = Math.min(16, W * 0.66 / Math.max(1, p.coins) / 2.2);
+    dot(W * 0.13, y, 22, BORDER[i]); if (G.winner === i) star(W * 0.13, y, 18);
+    for (let k = 0; k < p.coins; k++) coin(W * 0.18 + r + k * r * 2.2, y, r);
+  });
+  rrect(W * 0.86, H * 0.3, 64, 64, 16, '#d8f0c8', '#3a8a2a', 3);
+  cx.strokeStyle = '#3a8a2a'; cx.lineWidth = 6; cx.beginPath(); cx.arc(W * 0.86 + 32, H * 0.3 + 32, 17, 0.5, 5.6); cx.stroke();
+  btn('again', W * 0.86, H * 0.3, 64, 64, () => restart());
+}
+function render() {  // one picture of the game; it also lays out the buttons the taps (and the PC's hand) press
+  buttons = []; drawn = []; cx.clearRect(0, 0, W, H);
+  if (!G) return;
+  drawBoard(); drawDraft(); drawPanel(0); drawPanel(1);
+  if (wait && wait.kind === 'place') drawHeld();
+  if (wait && wait.kind === 'bid') drawBid();
+  if ((wait && wait.kind === 'jar') || G.shown) drawJars();
+  if (G.slot) drawSlot();
+  if (G.passing != null) drawPass();
+  if (G.over) drawEnd();
+  hand(G.hand);
+}
+function frame() { render(); requestAnimationFrame(frame); }
+
+// SECTION: INPUT -- taps press buttons at once; the tile in hand turns on a tap, moves on a drag, and stays where it is left
+const human = () => wait && G.players[wait.who].human;
+cv.addEventListener('pointerdown', e => {
+  if (!e.isPrimary || !human()) return;
+  for (let k = buttons.length - 1; k >= 0; k--) { const b = buttons[k]; if (e.clientX >= b.x && e.clientX <= b.x + b.w && e.clientY >= b.y && e.clientY <= b.y + b.h) { b.fn(e); return; } }
+});
+cv.addEventListener('pointermove', e => {
+  if (!press || !human() || wait.kind !== 'place') return;
+  if (!press.moved && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 12) press.moved = true;
+  if (press.moved) wait.pos = [e.clientX + press.dx, e.clientY + press.dy];
+});
+cv.addEventListener('pointerup', () => {
+  if (!press || !human() || wait.kind !== 'place') { press = null; return; }
+  const moved = press.moved; press = null;
+  if (moved) drop(); else wait.r = (wait.r + 1) % 4;
+});
+
+// SECTION: TEST HOOKS -- what the flows read and set
+window.__dg = {
+  ready: false, restart,
+  btn(id) { const b = buttons.find(b => b.id === id); return b ? [b.x + b.w / 2, b.y + b.h / 2] : null; },
+  buttons() { return buttons.map(b => b.id); },
+  drawn() { return drawn; },
+  held() { return wait && wait.kind === 'place' ? wait.pos.slice() : null; },
+  tileAt: tileCentre,
+  edge(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; },
+  pixel(x, y) { const d = devicePixelRatio || 1; return [...cx.getImageData(Math.floor(x * d), Math.floor(y * d), 1, 1).data]; },
+  sampleJars(n) { const m = {}; for (let k = 0; k < n; k++) { const j = rollJar(); m[j.k] = (m[j.k] || 0) + 1; } return m; },
+  wait() { return wait && { kind: wait.kind, who: wait.who, human: G.players[wait.who].human, n: wait.n, ids: wait.ids, spots: wait.kind === 'place' ? [0, 1, 2, 3].flatMap(r => spots(wait.tile, r, wait.who)) : null }; },
+  answer(v) { if (wait && wait.kind === 'place') wait.r = v.r; answer(v); },
+  state() {
+    return {
+      round: G.round, phase: G.phase, first: G.first, over: G.over, winner: G.winner, passing: G.passing, slot: G.slot ? { w: G.slot.w.slice(), sel: G.slot.sel.slice() } : null,
+      wait: wait ? { kind: wait.kind, who: wait.who, r: wait.r } : null, draft: G.draft.map(t => t && t.slice()), fits: G.draft.map(t => fits(t, 0)),
+      spots: wait && wait.kind === 'place' ? [0, 1, 2, 3].flatMap(r => spots(wait.tile, r, wait.who)) : [], snap: (s => s && { x: s.x, y: s.y, r: s.r })(snapSpot()),
+      halves: [0, 1, 2, 3, 4].map(c => G.bag.concat(G.draft.filter(t => t)).flat().filter(v => v === c).length), left: G.bag.length + G.draft.filter(t => t).length,
+      tiles: [...G.tiles.values()].map(t => [t.x, t.y, t.r, t.cs[0], t.cs[1], t.o, t.id]), passes: G.players.map(p => p.passes),
+      hand: { x: G.hand.x, y: G.hand.y, g: G.hand.g }, handDrag: G.dragging,
+      players: G.players.map(p => ({ goods: p.goods.slice(), coins: p.coins, jars: p.jars, got: p.got, bid: p.bid })),
+    };
+  },
+};
+restart(params.has('seed') ? { seed: +params.get('seed') } : {});
+frame();
+__dg.ready = true;
+</script>
+</body>
+</html>

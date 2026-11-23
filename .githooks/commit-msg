@@ -7,7 +7,12 @@ import subprocess, sys, re, os, tempfile, shutil
 from concurrent.futures import ThreadPoolExecutor
 msg = open(sys.argv[1], encoding='utf-8').read()
 files = subprocess.run(['git', 'diff', '--cached', '--name-only'], capture_output=True, text=True).stdout.split()
-games = sorted({f.split('/')[1] for f in files if f.startswith('games/') and f.count('/') >= 2 and (f.endswith('.html') or '/src/' in f or '/lib/' in f)})  # the game itself: its page, its source, its libraries (not tests, tools or notes)
+root = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True).stdout.strip()
+renamed = {}  # a game folder renamed in this commit: new name -> old name, so its old code is still found
+for l in subprocess.run(['git', 'diff', '--cached', '-M', '--name-status'], capture_output=True, text=True).stdout.splitlines():
+    p = l.split('\t')
+    if p[0].startswith('R') and p[1].startswith('games/') and p[2].startswith('games/') and p[1].split('/')[1] != p[2].split('/')[1]: renamed[p[2].split('/')[1]] = p[1].split('/')[1]
+games = sorted({f.split('/')[1] for f in files if f.startswith('games/') and f.count('/') >= 2 and (f.endswith('.html') or '/src/' in f or '/lib/' in f)} - set(renamed.values()))  # the game itself: its page, its source, its libraries (not tests, tools or notes)
 for f in files:  # owner 23 Nov 20:11: a README's "Now" says what the game is now: never a list of what was done, never dates (history lives in git)
     if not re.match(r'games/[^/]+/README\.md$', f): continue
     txt = subprocess.run(['git', 'show', ':' + f], capture_output=True, text=True).stdout
@@ -20,22 +25,33 @@ named = {}
 for g, rest in re.findall(r'^Flow:\s*(\S+)\s+(.+)$', msg, re.M): named.setdefault(g, []).extend(rest.split())
 missing = [g for g in games if g not in named]
 if missing: sys.exit('commit refused: code of %s changed, but no "Flow: <game> <flow>" line names the flow that failed before and passes now' % ', '.join(missing))
-root = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True).stdout.strip()
 def run(gamedir, flow):  # (passed, failed, tail): passed when it printed PASS lines and no FAIL; failed only when it printed a FAIL line (a run that never started proves nothing)
     env = dict(os.environ, TMPDIR=tempfile.mkdtemp(), GIT_DIR=os.path.join(root, '.git'))  # own temp files, so old and new run at once; GIT_DIR so a harness outside the repo still sees the gate is on
     out = subprocess.run([sys.executable, os.path.join(gamedir, 'tools', 'harness.py'), 'flows', flow], capture_output=True, text=True, cwd=gamedir, timeout=600, env=env).stdout
     lines = [l for l in out.splitlines() if l.startswith(('PASS', 'FAIL'))]
     shutil.rmtree(env['TMPDIR'], ignore_errors=True)
     return bool(lines) and all(l.startswith('PASS') for l in lines), any(l.startswith('FAIL') for l in lines), out.strip()[-400:]
+def run_all(gamedir, flows):  # one harness run for all the flows: a harness that tags its lines "PASS [flow] ..." gives each flow its verdict; any other runs one flow at a time
+    env = dict(os.environ, TMPDIR=tempfile.mkdtemp(), GIT_DIR=os.path.join(root, '.git'))
+    out = subprocess.run([sys.executable, os.path.join(gamedir, 'tools', 'harness.py'), 'flows'] + flows, capture_output=True, text=True, cwd=gamedir, timeout=600, env=env).stdout
+    shutil.rmtree(env['TMPDIR'], ignore_errors=True)
+    seen = {}
+    for l in out.splitlines():
+        m = re.match(r'(PASS|FAIL)\s+\[(\S+)\]', l)
+        if m: seen.setdefault(m.group(2), []).append(m.group(1))
+    if all(f in seen for f in flows): return {f: (all(v == 'PASS' for v in seen[f]), 'FAIL' in seen[f], '\n'.join(l for l in out.splitlines() if '[%s]' % f in l)) for f in flows}
+    return {f: run(gamedir, f) for f in flows}
 bad = []
 for g in games:
-    old = tempfile.mkdtemp()
-    subprocess.run('git archive HEAD games/%s | tar -x -C %s' % (g, old), shell=True, check=True, cwd=root)
+    old = tempfile.mkdtemp(); src = renamed.get(g, g)
+    subprocess.run('git archive HEAD games/%s | tar -x -C %s' % (src, old), shell=True, check=True, cwd=root)
+    if src != g: os.rename(os.path.join(old, 'games', src), os.path.join(old, 'games', g))
     shutil.copy(os.path.join(root, 'games', g, 'tools', 'flows.py'), os.path.join(old, 'games', g, 'tools', 'flows.py'))
+    with ThreadPoolExecutor(2) as ex:  # owner 21 Nov: the old and the new code run at the same time
+        new, prev = ex.submit(run_all, os.path.join(root, 'games', g), named[g]), ex.submit(run_all, os.path.join(old, 'games', g), named[g])
+        new, prev = new.result(), prev.result()
     for f in named[g]:
-        with ThreadPoolExecutor(2) as ex:  # owner 21 Nov: the old and the new code run at the same time
-            new, prev = ex.submit(run, os.path.join(root, 'games', g), f), ex.submit(run, os.path.join(old, 'games', g), f)
-            (ok_new, _, out_new), (_, failed_old, out_old) = new.result(), prev.result()
+        (ok_new, _, out_new), (_, failed_old, out_old) = new[f], prev[f]
         if not ok_new: bad.append('%s %s does not pass on the new code:\n%s' % (g, f, out_new))
         if not failed_old: bad.append('%s %s did not fail on the code before the change, so it does not prove the change:\n%s' % (g, f, out_old))
     shutil.rmtree(old, ignore_errors=True)

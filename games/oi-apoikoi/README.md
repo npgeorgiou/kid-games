@@ -1,23 +1,24 @@
-# Dragomino (working name)
+# Οι Άποικοι (Oi Apoikoi, "The Settlers")
 
-A two-player tile-drafting game based on the board game Dragomino: each player builds his own land from two-half terrain tiles, bids sets of goods for tiles, and opens jars for gold coins and bonuses. A rough prototype with colours only; the full design is in `design.md`.
+A two-player tile-drafting game built on the loop of the board game Dragomino: each player builds his own land from two-half terrain tiles, bids sets of goods for tiles, and opens jars for gold coins and bonuses. A rough prototype with colours only; the full design is in `design.md`.
 
 ## How to play
 
-- Open `dragomino.html` in a browser (one self-contained file). You are green (left panel), the PC is red (right panel); you share one board.
-- Top: the 4 tiles of this round; the bars are the rounds left. Tap a tile to pick it. Greyed tiles fit nowhere and can't be picked; if none fits, the turn passes.
+- Open `oi-apoikoi.html` in a browser (one self-contained file). You are green (left panel), the PC is red (right panel); you share one board.
+- Top: the 4 tiles of this round; the bars are the rounds left. Tap a tile to pick it. Tiles you can't place are greyed; if none fits you, your turn passes and the PC plays again.
 - If the other player wants your tile, a panel shows the sets needed (a set is one of each of the 5 goods): green takes it (a tie is the picker's), red lets it go.
-- Your tile waits in the box at the bottom of your panel: tap it to turn it, drag it onto the board; the place it will snap to is shown. It must meet the same colour on at least one edge, in anyone's land.
-- Every matching edge earns a jar; tap the big jars to open them. Slot machine: tap wheels to choose, the green button pays a coin and spins them again, the yellow button takes what you have.
-- Each panel: goods (a row per colour), sets, gold coins; the star is the first-player token. The PC's hand does every PC move.
-- At the end the two rows of coins are shown; the star marks the winner. The round arrow starts again.
+- The tile you win stays where it is: tap it to turn it, drag it and leave it anywhere, as often as you like. It is placed when you leave it near a place it fits (the place is shown first): two free squares with a matching edge with your own land.
+- Every matching edge, with any land, earns a jar; tap the big jars to open them. Slot machine: tap wheels to choose, the green button pays a coin and spins them again, the yellow button takes what you have.
+- Each panel: goods (a row per colour), sets, gold coins; the star is the first-player token. A hand does every PC move: it points to tap, pinches to carry a tile, opens to let go, and is raised when the PC passes.
+- The game ends when no tile left can be placed by either player. The two rows of coins are shown; the star marks the winner. The round arrow starts again.
 
 ## Where things are
 
 - `design.md`: the full design (draft): rules, jars, slot machine, points, rejected ideas, tensions, sheet rows, everything open.
 - `WARNINGS.md`: traps found in this game.
-- `src/index.html`: the game source; `build.py` makes `dragomino.html` from it.
-- `tools/flows.py`: flow tests, one per owner rule; `tools/harness.py` builds and runs them.
+- `src/index.html`: the game source; `build.py` makes `oi-apoikoi.html` from it, with the hand pictures put in.
+- `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
+- `tools/flows.py`: flow tests, one per owner rule, plus a random-play check; `tools/harness.py` builds and runs them, all in one browser.
 
 ## Running the checks
 
