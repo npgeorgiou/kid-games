@@ -65,15 +65,16 @@ Every check passes. A commit that changes the game must name a flow that failed 
 
 ## Now
 
-Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words: "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape inside one drawing tool; "colour button" = a paint bucket filled to the paint amount. Palettes are stripe bars in four columns of 12 with dividers, Basic among the extras; buckets level, the chosen one ringed, white and black always first; brushes turn with the stroke (switch in the brush popup); speed acts as pressure, and a fast hand lifts the brush (the mark narrows smoothly to a point); strokes can start beside the paper.
+Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words: "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape inside one drawing tool; "colour button" = a paint bucket filled to the paint amount. Palettes are stripe bars in four columns of 12 with dividers, Basic among the extras, extras ordered by how much neighbouring stripes differ; buckets level, the chosen one a little bigger and ringed, white and black always first; brushes turn with the stroke (switch in the brush popup); speed acts as pressure, and a fast hand lifts the brush (the mark narrows smoothly to a point); spray is an airbrush; shapes grow with speed; ink is fine strands with a splash setting; strokes can start beside the paper. Tests include every brush's look (tools/looks) and every brush picture.
 
 ## Open
 
-Owner 23 Nov 10:27 (task list, verbatim). Do next, in this order:
+Do next, in this order (his words are in the Task list):
 - 15: he cannot make the turn switch work; a flow doing it with every drawing tool's flat brush, by mouse and by finger, shows it turning. Waiting for his answer: which drawing tool and brush, and what he saw.
-- 3: spray must look like real painting apps' spray. 4: shapes like the Squares Brush at https://av01d.github.io/fabric-brushes/index.html, size from speed. 5: ink like that page's ink, with a setting for how many splash dots. 26: pencil needs work.
-- p5.brush (https://p5-brush.cargo.site/, MIT): an add-on to p5.js (a free browser drawing library), so the game would carry both. Its page says it is meant for high-resolution generated pictures, not live painting. Owner 23 Nov 10:48: include it and use it. First step: build it into the game for one brush, measure stroke delay on a full paper, show him, and let him decide.
-- Batches 4-6 as before: acrylic (11-14, 25), watercolour (17-21), crayon (22, his oil pastel pictures owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23).
+- Spray, shapes and ink were redone to match other software and the fabric-brushes page: waiting for his look.
+- 26: pencil needs work (his pencil pictures owner-shots/2026-11-23-pencil-*).
+- p5.brush (https://p5-brush.cargo.site/, MIT): its page says it is meant for high-resolution artworks, maybe not live painting. Try it on one brush, measure stroke delay on a full paper at his screen size, show him, let him decide.
+- Batches 4-6: acrylic (11-14, 25), watercolour (17-21), crayon (22, his oil pastel pictures owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23).
 - Drying times; outline pictures later.
 
 ## Task list

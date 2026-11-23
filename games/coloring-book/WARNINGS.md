@@ -29,3 +29,7 @@
 - The test browser sends far fewer pointer moves than his screen: anything smoothed over moves (direction, pressure) must be smoothed over distance, never per move.
 - Anything read from the finger's speed must be tested with moves that carry their own times (flick in flows.py, CDP timestamps): the test browser sends few, late moves, so wall-clock drags give it wrong speeds.
 - A stroke's state that changes with speed (lifting) changes evenly along each move, dab by dab; set once per move, a long move paints all of it with the end value.
+- The test browser reads back black past the paper's edge: anything that paints test strokes (previews, looks) must keep them on the paper.
+- Random marks (spray drops, ink hairs) differ every stroke: a test on them measures many places or a band, never one row.
+- Ink splash drops fly far (about 4 brush widths): keep them off other test rows (splash-0).
+- A check piped through cut always exits 0: commit only after grepping the results for FAIL.
