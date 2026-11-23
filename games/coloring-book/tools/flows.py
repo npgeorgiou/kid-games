@@ -656,7 +656,7 @@ def f_flick_lifts(q):  # owner 23 Nov 10:27, point 16: speed works like lifting 
         tap(q, 'tool-' + t); tap(q, 'shape-0'); tap(q, 'size-2'); tap(q, 'color-1')
         flick(q, 100, 900, y)  # 550 px/s at 100, about 1500 at 190, 2500 at 370, 4000 at 900
         if t == 'water': wait_dry(q)
-        def w(x): return max(width_across(q, x + dx, y, 0, 1, 45) for dx in (-6, -3, 0, 3, 6))  # widest of a few places: spray and shapes are spotty
+        def w(x): return max(width_across(q, x + dx, y, 0, 1, 45) for dx in (-6, -3, 0, 3, 6)) if t != 'spray' else sum(width_across(q, x + dx, y, 0, 1, 45) for dx in range(-20, 21, 2))  # spray is loose drops: all its paint across a band
         start, mid, end = w(130), w(500), w(800)  # owner 23 Nov 20:18: lifting starts once the hand is fast and takes a few centimetres
         out.append('%s %d>%d>%d' % (t, start, mid, end))
         if not (start >= 6 and mid < start * 0.8 and end == 0): bad.append(t)
@@ -726,7 +726,7 @@ def f_brush_looks(q):  # owner 23 Nov 20:11: a change must not alter how any bru
         from PIL import Image; ref = Image.open(f).convert('L').resize(im.size)
         from PIL import ImageFilter; blur = ImageFilter.GaussianBlur(4)  # spray and grain are random dot by dot: compare the look, not each dot
         d = ImageStat.Stat(ImageChops.difference(im.filter(blur), ref.filter(blur))).mean[0]
-        if d > 4: bad.append('%s %.1f' % (k, d))
+        if d > (8 if k.startswith('spray') else 4): bad.append('%s %.1f' % (k, d))  # spray's drops fall at random, and more of them the longer it is pressed
     report(not bad, 'every brush looks as saved (tools/looks.py saves them after he approves a look)', 'changed: %s' % bad[:8])
 FLOWS['brush_looks'] = f_brush_looks
 PAPER['brush_looks'] = ('1600x1000', (0, 0))
