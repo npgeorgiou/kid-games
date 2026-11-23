@@ -13,7 +13,7 @@ Design discussion. The engine (what land produces and what it buys) is not decid
 
 ## Open
 
-- Whether matching edges still earn jars.
+- Game end, win condition, when jars are opened, players, unbid tiles, land size.
 - What the jar bonuses are.
 - Period and region.
 
@@ -29,3 +29,4 @@ Owner's points (23 Nov 2026):
 6. Bidding: veto the opponent's choice with sets, he can outbid, and so on; the winner's tile is locked for him. But with goods lost at the end of the round there is no reason not to bid.
 7. Jars: keep thinking.
 8. Leftover goods: 3 of the same good become a jar (not sets). Jars are opened for points, and sometimes crazy bonuses.
+9. Matching edges get jars too. Bonuses: first understand the game elements, the game loop and the win condition.
