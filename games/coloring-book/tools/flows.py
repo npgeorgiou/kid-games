@@ -763,3 +763,11 @@ def f_spray_real(q):  # owner 23 Nov 10:27, point 3: spray must work like other 
     report(ok, 'spray: random droplets of many sizes, thinning outwards, building up while held', 'held 0.25 s %.2f, 1.25 s %.2f; middle ring %.2f, outer %.2f; droplets %d, size spread %.2f' % (early, late, mid, outer, len(sizes), sd / max(m, 1e-6)))
 FLOWS['spray_real'] = f_spray_real
 PAPER['spray_real'] = ('500x300', (250, 150))
+
+def f_shapes_speed(q):  # owner 23 Nov 10:27, point 4: shapes work like the Squares Brush (av01d fabric-brushes): moving speed sets the size, faster is bigger, turned with the motion
+    tap(q, 'tool-shapes'); tap(q, 'shape-0'); tap(q, 'size-2'); tap(q, 'color-1')
+    jerk(q, 30, 370, 60, 200); jerk(q, 30, 370, 180, 900)
+    def size(y): return sum(width_across(q, x, y, 0, 1, 55) for x in range(80, 330, 5)) / 50
+    slow, fast = size(60), size(180)
+    report(fast > slow * 1.6 and slow > 3, 'shapes: faster is bigger', 'average size slow %.0f, fast %.0f' % (slow, fast))
+FLOWS['shapes_speed'] = f_shapes_speed
