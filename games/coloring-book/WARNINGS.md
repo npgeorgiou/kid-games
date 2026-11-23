@@ -27,3 +27,5 @@
 - The test browser stalls each mouse move while heavy paint is drawn: drags put the pointer where the finger would be by now (drag); only frame-time flows send one fixed move after another (per_move).
 - The commit gate runs the old code outside the repo and at the same time as the new: harnesses and flows use only their own folder and tempfile.gettempdir(), never fixed /tmp paths.
 - The test browser sends far fewer pointer moves than his screen: anything smoothed over moves (direction, pressure) must be smoothed over distance, never per move.
+- Anything read from the finger's speed must be tested with moves that carry their own times (flick in flows.py, CDP timestamps): the test browser sends few, late moves, so wall-clock drags give it wrong speeds.
+- A stroke's state that changes with speed (lifting) changes evenly along each move, dab by dab; set once per move, a long move paints all of it with the end value.

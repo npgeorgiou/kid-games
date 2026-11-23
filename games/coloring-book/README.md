@@ -63,17 +63,12 @@ Every check passes. A commit that changes the game must name a flow that failed 
 
 ## Now
 
-Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words (owner 23 Nov): "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape inside one drawing tool; "colour button" = a paint bucket filled to the paint amount. Palettes are stripe bars in four columns with dividers; white and black buckets; brushes turn with the stroke (switch in the brush popup); speed acts as pressure; strokes can start beside the paper.
+Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words (owner 23 Nov): "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape inside one drawing tool; "colour button" = a paint bucket filled to the paint amount. Palettes are stripe bars in four columns of 12 with dividers, Basic among the extras; buckets level, the chosen one ringed, white and black always first; brushes turn with the stroke (switch in the brush popup); speed acts as pressure, and a quick flick lifts the brush (the mark thins and fades); strokes can start beside the paper.
 
 ## Open
 
-Owner 23 Nov 10:27 (task list, verbatim) reopens 1, 3, 4, 5, 6, 15, 16, 26, 28, 29 and asks to judge p5.brush. Do next, in this order:
-- 1: simple tool, blurry brush, ONE stroke that crosses itself: the crossing spoils the line (his exact steps; the old flow drew separate strokes).
-- 15: he cannot make the turn switch work; the flow tests only the flat marker. Find what he did (which drawing tool and brush) with a flow that does it.
-- 16: speed must work like lifting the brush: a quick flick starts normal and thins until it disappears, for every brush (a bit less colour too).
-- 6: column 1 gets Payne's grey (his hex) and a grey scale; every column 12; Basic moves from the top section into the extras (top section removed); swap the weaker green-red extra for the better green-red two-colour one; a few more good extras; reorder simple to busy properly; dividers must not push palettes down (rows aligned across columns).
-- 28: no raised bucket; buckets a bit bigger, chosen one with a ring that stands out on the brown.
-- 29: white and black always the first two buckets, even when the palette has them elsewhere.
+Owner 23 Nov 10:27 (task list, verbatim). Do next, in this order:
+- 15: he cannot make the turn switch work; a flow doing it with every drawing tool's flat brush, by mouse and by finger, shows it turning. Waiting for his answer: which drawing tool and brush, and what he saw.
 - 3: spray must look like real painting apps' spray. 4: shapes like the Squares Brush at https://av01d.github.io/fabric-brushes/index.html, size from speed. 5: ink like that page's ink, with a setting for how many splash dots. 26: pencil needs work.
 - p5.brush (https://p5-brush.cargo.site/, MIT): an add-on to p5.js (a free browser drawing library), so the game would carry both. Its page says it is meant for high-resolution generated pictures, not live painting. Owner 23 Nov 10:48: include it and use it. First step: build it into the game for one brush, measure stroke delay on a full paper, show him, and let him decide.
 - Batches 4-6 as before: acrylic (11-14, 25), watercolour (17-21), crayon (22, his oil pastel pictures owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23).
