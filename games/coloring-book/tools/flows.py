@@ -398,20 +398,21 @@ def f_marker_real(q):  # owner 21 Nov 18:29: he does not see a marker's crossing
     report(ok, 'marker: crossings clearly darker and the edge darker, in every colour', '; '.join('%s crossing -%.0f edge -%.0f' % (c[0], c[5], c[6]) for c in out))
 FLOWS['marker_real'] = f_marker_real
 
-def f_palettes(q):  # owner 22 Nov 00:21: his palettes (lib/owner-palettes): column 1 the monochromes (he left out Payne's grey), column 2 the 5 rainbows then the first 5 extras,
-    # columns 3 and 4 the other 20 extras; Basic stays on top; his Red and Pink stay though alike (22 Nov: "none alike" is only for palettes we choose). Owner 21 Nov: 10 each, the popup most of the screen
+def f_palettes(q):  # owner 22 Nov 00:21, changed by him 23 Nov 10:27: four columns of 12; column 1 his monochromes, then Payne's grey (his hex), then a grey scale
+    # in the same steps; column 2 the 5 rainbows, then extras; no row above the columns (Basic is one of the extras); the popup most of the screen
     import csv
     def his(name): return [[[int(h[k:k + 2], 16) for k in (1, 3, 5)] for h in r[1:11]] for r in list(csv.reader(open(GAME.parent / 'lib' / 'owner-palettes' / name)))[1:] if r and "Payne" not in r[0]]
-    mono, rainbow, extra = his('monochromatic.csv'), his('rainbow.csv'), his('extra.csv')
-    want = [mono, rainbow + extra[:5], extra[5:15], extra[15:25]]
-    tap(q, 'palette'); time.sleep(0.3)
-    cols = q.evaluate("()=>[...document.querySelectorAll('.palcol')].filter(c=>c.closest('.palcols')).map(c=>[...c.querySelectorAll('.pal')].map(p=>[...p.querySelectorAll('u')].map(u=>getComputedStyle(u).backgroundColor.match(/\\d+/g).map(Number))))")
-    basic = q.evaluate("()=>document.querySelectorAll('.palpic .pal').length")
+    mono, rainbow = his('monochromatic.csv'), his('rainbow.csv')
+    payne = [[int(h[k:k + 2], 16) for k in (1, 3, 5)] for h in "#15283C,#253A4E,#364C62,#495F75,#5D728A,#70879F,#859CB4,#9AB2CA,#AFC7E1,#C5DDF8".split(',')]
+    tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)
+    c = [[p['cols'] for p in col] for col in cols]
+    grey = c[0][11] if len(c[0]) > 11 else []
+    grey_ok = len(grey) == 10 and all(max(g) - min(g) <= 2 for g in grey) and all(grey[i][0] < grey[i + 1][0] for i in range(9))
+    above = q.evaluate("()=>document.querySelectorAll('.palpic .pal').length")
     box = q.evaluate("()=>{const r=document.querySelector('.popbox').getBoundingClientRect();return [r.width/innerWidth,r.height/innerHeight]}")
-    wrong = [(c + 1, i + 1) for c in range(4) for i in range(10) if c >= len(cols) or i >= len(cols[c]) or cols[c][i] != want[c][i]]
-    report(not wrong and len(cols) == 4 and basic == 1 and box[0] > 0.8 and box[1] > 0.75,
-           'palettes: his four columns of 10 in his order, Basic on top, popup most of the screen',
-           'columns %s, not his (column, row) %s, Basic %d, popup %.0f%% x %.0f%%' % ([len(c) for c in cols], wrong[:4], basic, box[0] * 100, box[1] * 100))
+    ok = [len(x) for x in c] == [12] * 4 and c[0][:10] == mono and c[0][10] == payne and grey_ok and c[1][:5] == rainbow and above == 0 and box[0] > 0.8 and box[1] > 0.75
+    report(ok, 'palettes: four columns of 12, monochromes then Payne\'s grey and a grey scale, nothing above',
+           'columns %s, monochromes his %s, Payne %s, grey scale %s, rainbows %s, above %d, popup %.0f%% x %.0f%%' % ([len(x) for x in c], c[0][:10] == mono, len(c[0]) > 10 and c[0][10] == payne, grey_ok, c[1][:5] == rainbow, above, box[0] * 100, box[1] * 100))
 FLOWS['palettes'] = f_palettes
 
 def f_acrylic_scrub(q):  # owner 21 Nov 18:29: a 3rd acrylic brush like the Brusheezy acrylic packs (broad scrubbed strokes breaking into dry streaks), clearly unlike the flat
@@ -446,13 +447,26 @@ def f_pal_dividers(q):  # owner 23 Nov: a vertical divider between column 1 (mon
     horiz = [l for l in lines if l[2] - l[0] > 5 * (l[3] - l[1]) and r5[3] <= l[1] and l[3] <= r6[1] and l[0] < r5[2] and l[2] > r5[0]]
     report(len(vert) == 1 and len(horiz) == 1, 'palettes: divider after column 1, divider after the 5 rainbows', 'vertical %d, horizontal %d' % (len(vert), len(horiz)))
 
-DUAL_ORDER = ['023047', '901447', '67001F', '543005', '40004B', '76451D', 'A3151A', '797D62', 'A85633', '532A09', '7400B8', '380D61', '03071E', 'D9ED92', 'EB5E28',
-              '52A1A3', 'C4594C', 'A85918', 'EDFFAD', '001219', 'CC4400', 'CD0D58', '0450B4', '264653', '669900']
-def f_pal_order(q):  # owner 23 Nov: the new two-colour palettes (ColorBrewer BrBG, PRGn, RdBu; answer A), and the 25 ordered from simple to busy after the rainbows
-    tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)
-    got = ['%02X%02X%02X' % tuple(p['cols'][0]) for p in cols[1][5:] + cols[2] + cols[3]]
-    wrong = [(i + 1, g, w) for i, (g, w) in enumerate(zip(got, DUAL_ORDER)) if g != w]
-    report(len(got) == 25 and not wrong, 'palettes: the 25 after the rainbows in his new order', 'first wrong (place, shown, wanted) %s of %d' % (wrong[:3], len(got)))
+def busy(cols):  # how busy a palette's colours are: the narrowest arc of hues that holds all its colourful ones, plus 20 for each 45-degree hue range used
+    import math
+    def lab(c):
+        v = [x / 255 for x in c]; v = [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in v]
+        X, Y, Z = (0.4124 * v[0] + 0.3576 * v[1] + 0.1805 * v[2]) / 0.95047, 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2], (0.0193 * v[0] + 0.1192 * v[1] + 0.9505 * v[2]) / 1.08883
+        f = lambda t: t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+        return 116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))
+    hs = [math.degrees(math.atan2(b, a)) % 360 for L, a, b in map(lab, cols) if math.hypot(a, b) > 15]
+    if len(hs) < 2: return 0
+    s = sorted(hs); arc = 360 - max((s[(i + 1) % len(s)] - s[i]) % 360 for i in range(len(s)))
+    return round(arc + 20 * len({int(x // 45) for x in hs}))
+
+def f_pal_order(q):  # owner 23 Nov 10:27: the extras (after the rainbows, down column 2, then 3, then 4) run from simple to busy; Basic is one of them;
+    tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)  # the green-red Red, Yellow and Green replaces Coral, Citrus and Olive; every row level across the columns
+    ex = cols[1][5:] + cols[2] + cols[3]; hexes = ['%02X%02X%02X' % tuple(p['cols'][0]) for p in ex]; b = [busy(p['cols']) for p in ex]
+    back = [(i + 1, b[i], b[i + 1]) for i in range(len(b) - 1) if b[i + 1] < b[i]]
+    tops = [[round(p['box'][1]) for p in col] for col in cols]; level = all(abs(tops[k][r] - tops[0][r]) <= 1 for k in range(1, len(tops)) for r in range(min(map(len, tops))))
+    ok = len(ex) == 31 and not back and 'F7F7F2' in hexes and 'A50026' in hexes and 'EB5E28' not in hexes and level
+    report(ok, 'palettes: extras simple to busy, Basic among them, rows level', 'extras %d, busier before simpler (place, busy, next) %s, Basic %s, red-yellow-green %s, coral gone %s, rows level %s'
+           % (len(ex), back[:3], 'F7F7F2' in hexes, 'A50026' in hexes, 'EB5E28' not in hexes, level))
 
 def f_pal_picture_only(q):  # owner 23 Nov: a guide picture gives only its own palette, no closest saved palette
     pt = q.evaluate("()=>__cb.btn('guide')")
