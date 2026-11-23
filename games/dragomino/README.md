@@ -13,7 +13,7 @@ Design discussion. The engine (what land produces and what it buys) is not decid
 
 ## Open
 
-- Game end, win condition, when jars are opened, players, unbid tiles, land size.
+- Number of players.
 - What the jar bonuses are.
 - Period and region.
 
@@ -30,3 +30,4 @@ Owner's points (23 Nov 2026):
 7. Jars: keep thinking.
 8. Leftover goods: 3 of the same good become a jar (not sets). Jars are opened for points, and sometimes crazy bonuses.
 9. Matching edges get jars too. Bonuses: first understand the game elements, the game loop and the win condition.
+10. Game ends when tiles run out. Most points wins. Jars opened at end of round, by the kid tapping big lined-up jars. A tile nobody bids on: normal turn order. No land size limit.

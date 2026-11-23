@@ -10,7 +10,7 @@ Draft, not approved. Not in the brief, so every row is "new". Based on the board
 | Seconds loop | Pick a tile from the draft and place it in your land. |
 | Minutes loop | open |
 | Days loop | open |
-| Mechanics | Tiles have two halves, each half one terrain. Tiles are picked in turn from a draft. A land is all the connected squares of one terrain. Owner rule: every land is the same value, whatever its terrain, shape or size. Each square makes 1 good of its terrain each round (fish, bread, oil, wine, stone); all goods are worth the same; a set is 3 different goods. Agreed (owner, 23 Nov): goods not spent are lost at the end of the round, except that 3 of the same good (for example 3 grain) become a jar. Matching edges also earn jars (owner, 23 Nov). Jars are opened for points, and sometimes a big bonus (bonuses open). Proposal: sets are bid against the opponent for a pick; he can outbid, and so on; the winner's tile is locked for him. Problem (owner): goods are lost anyway, so there is no reason not to bid everything. Matching edges earn jars (Dragomino's eggs), kept as points. Proposal (not decided): coins cannot buy draft tiles; coins buy the first pick or a second tile that round. Engine: open (see Open questions). |
+| Mechanics | Tiles have two halves, each half one terrain. Tiles are picked in turn from a draft. A land is all the connected squares of one terrain. Owner rule: every land is the same value, whatever its terrain, shape or size. Each square makes 1 good of its terrain each round (fish, bread, oil, wine, stone); all goods are worth the same; a set is 3 different goods. Agreed (owner, 23 Nov): goods not spent are lost at the end of the round, except that 3 of the same good (for example 3 grain) become a jar. Matching edges also earn jars (owner, 23 Nov). The game ends when the tiles run out; most points wins. Jars are opened at the end of each round, by tapping the big jars lined up. A tile nobody bids on goes by normal turn order. No size limit on the land. Jars are opened for points, and sometimes a big bonus (bonuses open). Proposal: sets are bid against the opponent for a pick; he can outbid, and so on; the winner's tile is locked for him. Problem (owner): goods are lost anyway, so there is no reason not to bid everything. Matching edges earn jars (Dragomino's eggs), kept as points. Proposal (not decided): coins cannot buy draft tiles; coins buy the first pick or a second tile that round. Engine: open (see Open questions). |
 | Dynamics | Proposal (not decided): placing one half well forces the other half somewhere. |
 | Kinds of fun | open |
 | Competence | open |
@@ -27,6 +27,6 @@ Draft, not approved. Not in the brief, so every row is "new". Based on the board
 
 ## Open questions
 
-- How the game ends; win condition; when jars are opened; number of players; what happens to a tile nobody bids on; land size limit.
+- Number of players.
 - What the jar bonuses are.
 - Greek period and region (one per game): open.
