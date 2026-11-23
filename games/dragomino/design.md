@@ -20,24 +20,22 @@ Two players each build their own land from tiles with two terrain halves. Each r
 
 ### Tiles and land
 - Owner rule: each tile has two halves, and each half is one terrain.
-- Owner rule: there are 5 terrains, and each makes its own good. The names are a proposal: fish, grain or bread, oil, wine, stone. The owner has used "grain".
+- Owner rule: there are 5 terrains, and each makes its own good. For now terrains are only colours, and each good has its terrain's colour; what each land is comes later (not fish: fish does not come from land).
 - Owner rule: a land is all the connected squares of one terrain.
 - Owner rule: every land is the same value, whatever its terrain, shape or size. No terrain, symbol or multiplier makes one land worth more than another.
 - Owner rule: there is no size limit on a player's land.
-- Open: placement rules (must a new tile touch the land? must a half match?). Also open: how many tiles are laid out per round.
+- Owner rule: a new tile must touch your land; a half need not match. Each player starts with one start square.
+- Owner rule: 4 tiles are laid out per round, 2 for each player; 10 rounds, 20 tiles each.
 
 ### A round
 1. **Tiles laid out** (a draft). Owner rule: tiles are picked in turn.
-2. **Bidding** (owner idea). You can veto your opponent's choice of a tile by bidding sets. He can outbid you, and so on. The winner's tile is locked for him. A set is 3 different goods.
-   - Owner rule: a tile nobody bids on goes by normal turn order.
-   - Proposal: if bids tie, the tile goes to whoever picked later last round.
+2. **Picking and bidding** (owner rule). A set is 3 different goods. The player whose turn it is picks a tile. The opponent may bid sets on it; then the bidding goes back and forth. On a tie, the player whose turn it was wins. The winner's tile is locked for him. A tile nobody bids on goes to the picker.
 3. **Placing.** Each player places his tiles in his own land.
    - Owner rule: matching edges (a half next to the same terrain) earn a jar, and it is opened at once, during the round.
+0. **Start of round.** Owner rule: each square of land makes 1 good of its terrain. All goods are worth the same.
 4. **End of round.**
-   - Owner rule: each square of land makes 1 good of its terrain. All goods are worth the same.
    - Owner rule: goods not spent are lost at the end of the round, but 3 of the same good (for example 3 grain) become a jar. Sets don't become jars.
    - Owner rule: jars from leftover goods are opened at the end of the round.
-   - Open: the timing. Goods are made at the end of a round. Are they used to bid in the next round and lost at the end of that round, or are they lost right away?
 
 ### Jars
 - Owner rule: the child opens jars by tapping big jars lined up on screen. Opening one yourself is the fun, so a jar never just gives another jar.
@@ -45,7 +43,8 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Owner rule, contents:
   - Points (gold coins): 50% of the time.
   - The other 50%: the slot machine, stealing a tile from the opponent, the first-player token, or a free extra tile "from nowhere" (not from the draft).
-- Open: the share of each bonus within the other 50%. Also open: what stealing takes (a tile he picked this round, or one already in his land).
+- Owner rule: stealing takes a tile already in the opponent's land; you place it in yours.
+- Open: the other jar bonuses the owner says were agreed (more than these four), and the share of each.
 - Rejected by the owner:
   - A free set: its benefit came the next round.
   - An unbeatable first pick: hard to show visually.
@@ -65,7 +64,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Proposals, not chosen:
   - Each machine shows only 3 of the 7 kinds (a 1 in 3 chance per reroll).
   - The first reroll is free.
-- Open: what winning goods means when goods are lost at the end of the round.
+- Owner rule (for now): 7 pictures, each worth 1; 2 the same wins 2, 3 the same wins 3; you can stop at any time.
 
 ### Points and winning
 - Owner rule: points are gold coins drawn one by one, with no numbers. At the end, the players' coins are lined up side by side and the longer row wins.
@@ -110,13 +109,10 @@ Two players each build their own land from tiles with two terrain halves. Each r
 
 ## 6. Still open (all in one place)
 
-- Placement rules, and the number of tiles laid out per round.
-- When goods are spent and lost (the timing question in the round).
-- The bid tie-break (proposal waiting).
-- The bonus shares, and what stealing takes.
-- The slot machine: win 2 for 2 and 3 for 3, pictures with amounts, the odds fix, and goods won from it.
+- The other agreed jar bonuses, and the bonus shares.
+- The slot machine: pictures with amounts, later.
 - More than 2 players.
 - Greek period and region (one per game, `docs/design-rules.md`).
-- Terrain and good names.
-- How the PC opponent plays.
+- What each land and good is (colours only for now).
+- Owner rule: the PC picks the tile that gives it the most matches and bids only when that tile would give it a match.
 - The design sheet rows marked "Open".
