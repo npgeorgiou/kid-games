@@ -448,19 +448,16 @@ def f_pal_dividers(q):  # owner 23 Nov: a vertical divider between column 1 (mon
     horiz = [l for l in lines if l[2] - l[0] > 5 * (l[3] - l[1]) and r5[3] <= l[1] and l[3] <= r6[1] and l[0] < r5[2] and l[2] > r5[0]]
     report(len(vert) == 1 and len(horiz) == 1, 'palettes: divider after column 1, divider after the 5 rainbows', 'vertical %d, horizontal %d' % (len(vert), len(horiz)))
 
-def busy(cols):  # how busy a palette's colours are: the narrowest arc of hues that holds all its colourful ones, plus 20 for each 45-degree hue range used
+def busy(cols):  # how busy a palette's stripe bar looks (owner 23 Nov 20:18): how much each stripe's colour differs from the next, added up (CIELAB distance)
     import math
     def lab(c):
         v = [x / 255 for x in c]; v = [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in v]
         X, Y, Z = (0.4124 * v[0] + 0.3576 * v[1] + 0.1805 * v[2]) / 0.95047, 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2], (0.0193 * v[0] + 0.1192 * v[1] + 0.9505 * v[2]) / 1.08883
         f = lambda t: t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
         return 116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))
-    hs = [math.degrees(math.atan2(b, a)) % 360 for L, a, b in map(lab, cols) if math.hypot(a, b) > 15]
-    if len(hs) < 2: return 0
-    s = sorted(hs); arc = 360 - max((s[(i + 1) % len(s)] - s[i]) % 360 for i in range(len(s)))
-    return round(arc + 20 * len({int(x // 45) for x in hs}))
+    c = [lab(x) for x in cols]; return round(sum(math.dist(c[i], c[i + 1]) for i in range(len(c) - 1)))
 
-def f_pal_order(q):  # owner 23 Nov 10:27: the extras (after the rainbows, down column 2, then 3, then 4) run from simple to busy; Basic is one of them;
+def f_pal_order(q):  # owner 23 Nov 10:27 and 20:18 (other measure): the extras (after the rainbows, down column 2, then 3, then 4) run from simple to busy; Basic is one of them;
     tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)  # the green-red Red, Yellow and Green replaces Coral, Citrus and Olive; every row level across the columns
     ex = cols[1][5:] + cols[2] + cols[3]; hexes = ['%02X%02X%02X' % tuple(p['cols'][0]) for p in ex]; b = [busy(p['cols']) for p in ex]
     back = [(i + 1, b[i], b[i + 1]) for i in range(len(b) - 1) if b[i + 1] < b[i]]
@@ -504,12 +501,24 @@ def contrast(a, b):  # WCAG contrast ratio of two colours (r, g, b 0-255)
 
 def f_pot_selected(q):  # owner 23 Nov 10:27 (point 28, replacing "raised"): the chosen bucket is not raised; buckets a bit bigger; the chosen one ringed in a colour that stands out on the brown
     tap(q, 'color-3'); time.sleep(0.2)
-    r = q.evaluate("()=>[...document.querySelectorAll('#bottom .pot')].map(e=>{const k=e.getBoundingClientRect(),s=getComputedStyle(e);return [e.classList.contains('on'),k.top,k.height,s.outlineColor.match(/\\d+/g).map(Number),parseFloat(s.outlineWidth),s.outlineStyle]})")
+    r = q.evaluate("()=>[...document.querySelectorAll('#bottom .pot')].map(e=>{const k=e.getBoundingClientRect(),s=getComputedStyle(e);return [e.classList.contains('on'),k.top+k.height/2,k.height,s.outlineColor.match(/\\d+/g).map(Number),parseFloat(s.outlineWidth),s.outlineStyle]})")
     bar = q.evaluate("()=>getComputedStyle(document.body).backgroundColor.match(/\\d+/g).map(Number)"); b = q.evaluate("()=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--b'))")
     on = [x for x in r if x[0]][0]; others = [x for x in r if not x[0]]
-    flat = all(abs(x[1] - on[1]) <= 1 for x in others); c = contrast(on[3], bar)
+    flat = all(abs(x[1] - on[1]) <= 1 for x in others); c = contrast(on[3], bar)  # centres level: not raised
     report(flat and on[2] >= 0.95 * b and on[5] == 'solid' and on[4] >= 4 and c >= 4.5, 'buckets: chosen one level with the rest, bigger, ringed to stand out on the brown',
            'level %s, bucket %d px (tool button %d), ring %s %.0fpx, contrast with the brown %.1f' % (flat, on[2], b, on[3], on[4], c))
+
+def f_pot_on_top(q):  # owner 23 Nov 20:18: the chosen bucket a tiny bit bigger than the others, and its ring overlaps them, never hidden under them
+    tap(q, 'color-3'); time.sleep(0.3)
+    r = q.evaluate("()=>[...document.querySelectorAll('#bottom .pot')].map(e=>{const k=e.getBoundingClientRect();return [e.classList.contains('on'),k.left,k.right,k.top,k.bottom]})")
+    on = [x for x in r if x[0]][0]; other = [x for x in r if not x[0]][0]
+    from PIL import Image; import io
+    im = Image.open(io.BytesIO(q.screenshot())).convert('RGB'); my = int((on[3] + on[4]) / 2)
+    ring = [im.getpixel((int(on[2]) + dx, my)) for dx in range(1, 12)]  # just right of the chosen bucket, towards its neighbour
+    shows = sum(1 for c in ring if min(c) > 225)
+    bigger = (on[4] - on[3]) / (other[4] - other[3])
+    report(1.04 <= bigger <= 1.15 and shows >= 3, 'buckets: chosen one a little bigger, its ring on top of the neighbours', 'size %.2f of the others, ring pixels showing %d' % (bigger, shows))
+FLOWS['pot_on_top'] = f_pot_on_top
 
 def f_pots_bw_first(q):  # owner 23 Nov 10:27, point 29: white and black are always the first two buckets, even when the palette has them in another place
     out = []
