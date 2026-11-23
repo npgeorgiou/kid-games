@@ -10,7 +10,7 @@ Everything is spoken (Greek voice recordings, no reading needed). The first site
 
 - **Start:** open `arxitektones-tou-arxaiou-kosmou.html` in a browser (it is one self-contained file). Press the glowing site on the map.
 - **On the map:** tap a site to go there (a site opens when the one before it is built). Taps make ripples in the water; on the mountains a finger grabs stones that can be dropped or thrown (they splash in the sea, pile up on land and knock boats); a finger draws in the sand. Boats can be picked up, put down or thrown; travellers left on land carry their boat back to the sea. Map buttons in the top right: free play, textures, restart (press twice to erase everything), and the settings gear.
-- **At a site:** drag pieces from the pile on the right into the dotted outline. Two fingers carry and turn a piece. Three quick taps send a piece back to the pile, as does dragging it there. Buttons: undo (top left), shovel (everything back to the pile), map, and the test button (red until the shape is filled, then green).
+- **At a site:** drag pieces from the pile on the right into the dotted outline. Two fingers carry and turn a piece. Three quick taps send a piece back to the pile, as does dragging it there. Buttons: undo (top left), shovel (everything back to the pile), map, and the test button (red until the shape is filled, then green; grey once the building has passed, until it is changed).
 - **Settings gear:** helper videos (a short demo at sites that teach something new), teaching (the first site's steps and the lines that explain the controls), music.
 - **Parent key:** holding Ctrl opens every site and offers a quick build. The green button pressed within 3 s of letting go of Ctrl runs a 10x fast test.
 
@@ -77,7 +77,7 @@ Every check passes; a commit that changes the game must name a play-through test
 
 ## Now
 
-Done (owner, 18 Nov 2026). On 21 Nov: the tutorial no longer stops, whatever the child does and however fast; every cue has a level (tutorial, intro, explanation, flavour) and the first site's steps are a named tutorial; the cue engine knows the game only through its hooks (`tools/cues/README.md`); a failed test's red stays until its lines are said; no piece sticks in the pile's wall; voice line 80 re-recorded; all checks brought to the current game.
+Done (owner, 18 Nov 2026). On 21 Nov: the tutorial no longer stops, whatever the child does and however fast; every cue has a level (tutorial, intro, explanation, flavour) and the first site's steps are a named tutorial; the cue engine knows the game only through its hooks (`tools/cues/README.md`); a failed test's red stays until its lines are said; no piece sticks in the pile's wall; voice line 80 re-recorded; all checks brought to the current game. On 23 Nov: the test button is grey (cannot be pressed) while the building stands as it passed its test, at the pass and at a finished site, until a piece is picked up or the pieces are cleared; the headpiece-dots line plays only at the first site; the map's outermost cells are land or sea as just inside them, so boats no longer sail along the map's edge.
 
 ## Open
 

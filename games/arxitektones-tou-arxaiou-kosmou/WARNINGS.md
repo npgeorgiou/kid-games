@@ -33,5 +33,7 @@ Traps found while working on this game, as instructions. Add a line whenever a n
 - A rule naming several things ("breaks under four mudbricks and three stones") means separate cases unless the owner says combined; state the reading in one line.
 - Every place in a level that matters gets a tempting wrong piece from the pile that fails the test.
 
+- The map picture has a frame: its outermost cells are neither land nor sea. The land maker copies what lies just inside them; clearing them to water let boats sail round the map's edge (owner 23 Nov).
+
 ## Speed
 - The map's time goes into filling screen pixels, not into calculations: measure with a flush after each part of the frame before changing anything. The two water layers are the biggest cost.

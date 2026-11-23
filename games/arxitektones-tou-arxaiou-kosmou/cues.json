@@ -195,6 +195,7 @@
    "site-finished": "the site is won and not damaged",
    "site-won-before": "the site was won once (standing or damaged since)",
    "tutorial-pending": "this place has a tutorial the child has not finished (built into the engine)",
+   "tutorial-place": "this place has a tutorial, finished or not (built into the engine): the first site",
    "demo-pending": "the site has a demo and is not finished",
    "has-openings": "the plan has an opening (door, arch, space between columns)",
    "has-damaged": "a site on the map is damaged (red)",
@@ -713,10 +714,10 @@
    "on": "placed-in-plan",
    "say": 137,
    "topic": "Building",
-   "if": ["load-covered", "not testing"],
+   "if": ["tutorial-place", "load-covered", "not testing"],
    "once": "visit",
    "points": ["plan:load"],
-   "note": "A piece let go inside the dotted outline, once per visit."
+   "note": "A piece let go inside the dotted outline, once per visit. Owner 23 Nov: only at the first site (the place with the tutorial)."
   },
   {
    "id": "pick-mudbrick",

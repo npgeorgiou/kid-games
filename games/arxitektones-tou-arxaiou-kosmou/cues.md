@@ -64,7 +64,7 @@ Each cue: when it fires, what it says, what it shows, what it waits for. Its nam
 
 ### Building
 
-- `load-covered` — **Level EXPLANATION. When the child lets go of a piece over the building (`placed-in-plan`) (only if a piece lies inside the dotted outline; not: a test is running), once per visit: Teaching: silent when ΔΙΔΑΣΚΑΛΙΑ is unticked. Says line 137 (queued). Points at the dotted outline where the headpiece comes down in the test. *A piece let go inside the dotted outline, once per visit.***<br>«Οι τελείες μένουν άδειες! Εκεί θα κατέβει η κορωνίδα.»
+- `load-covered` — **Level EXPLANATION. When the child lets go of a piece over the building (`placed-in-plan`) (only if this place has a tutorial, finished or not (built into the engine): the first site; a piece lies inside the dotted outline; not: a test is running), once per visit: Teaching: silent when ΔΙΔΑΣΚΑΛΙΑ is unticked. Says line 137 (queued). Points at the dotted outline where the headpiece comes down in the test. *A piece let go inside the dotted outline, once per visit. Owner 23 Nov: only at the first site (the place with the tutorial).***<br>«Οι τελείες μένουν άδειες! Εκεί θα κατέβει η κορωνίδα.»
 - `pick-mudbrick` — **Level FLAVOUR. When the child picks up a piece (`pickup`) (only if the piece is mudbrick), once ever: says line 78 (queued).**<br>«Πλίνθοι από λάσπη: ελαφριοί, μα δεν αντέχουν μεγάλο βάρος.»
 - `pick-stone` — **Level FLAVOUR. When the child picks up a piece (`pickup`) (only if the piece is stone), once ever: says line 79 (queued).**<br>«Η πέτρα είναι βαριά, μα αιώνια.»
 - `pick-wood` — **Level FLAVOUR. When the child picks up a piece (`pickup`) (only if the piece is wood), once ever: says line 80 (queued). *The Mastaba pile already has wood (its wrong choice), so it can first play there.***<br>«Το ξύλο γεφυρώνει κενά, μα σπάει αν το φορτώσεις πολύ.»
@@ -317,6 +317,7 @@ Recordings: `sounds/voice/NN.mp3`, NN = the line number. Until one exists, its t
 - `site-finished`: the site is won and not damaged
 - `site-won-before`: the site was won once (standing or damaged since)
 - `tutorial-pending`: this place has a tutorial the child has not finished (built into the engine)
+- `tutorial-place`: this place has a tutorial, finished or not (built into the engine): the first site
 - `demo-pending`: the site has a demo and is not finished
 - `has-openings`: the plan has an opening (door, arch, space between columns)
 - `has-damaged`: a site on the map is damaged (red)

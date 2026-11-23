@@ -376,11 +376,11 @@
       }
       ctx.restore();
     },
-    button(ctx, name, x, y, size, pressed) {
+    button(ctx, name, x, y, size, pressed, look) { // look: the test button's colour (green, red, grey)
       const r = size * (pressed ? 0.46 : 0.5);
       ctx.save();
       ctx.translate(x, y);
-      ctx.fillStyle = name === "test" ? (pressed ? "#c0392b" : "#4f8a3c") : name === "confirm" ? "#c0392b" : pressed ? "#5f5042" : "#6e5d4a";
+      ctx.fillStyle = name === "test" ? { green: "#4f8a3c", red: "#c0392b", grey: "#8a8a8a" }[look] : name === "confirm" ? "#c0392b" : pressed ? "#5f5042" : "#6e5d4a";
       ctx.strokeStyle = "#3c3226";
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -799,7 +799,12 @@
     world.destroyBody(piece.body);
   }
 
+  // The building as it stands has passed its test (owner 23 Nov): the test button is grey and cannot be pressed, from the
+  // pass (or from opening a finished site that stands) until the building changes: a pick-up, or its pieces cleared
+  // (the shovel, undo, the quick build).
+  let standsTested = false;
   function clearAllPieces() {
+    standsTested = false;
     // Destroy drag joints before destroying their bodies; this also clears
     // pointer ownership cleanly if the broom is used during a multi-touch drag.
     for (const pointerId of Array.from(pointers.keys())) releaseHold(pointerId);
@@ -955,7 +960,7 @@
     const busy = !!(test || auto), ub = undoButton();
     circ("undo", ub.x, ub.y, ub.size / 2, undo, !busy);
     for (const m of materialLayout()) out.push({ id: "mat:" + m.key, rect: { x: m.x, y: m.y, w: m.w, h: m.h }, act: () => { selectedMaterial = m.key; }, enabled: true });
-    for (const b of buttonLayout()) circ(b.def.kind, b.x, b.y, b.size / 2, () => pressButton(b.def.kind), !busy || b.def.kind === "home");
+    for (const b of buttonLayout()) circ(b.def.kind, b.x, b.y, b.size / 2, () => pressButton(b.def.kind), b.def.kind === "home" || (!busy && !(b.def.kind === "test" && testLook() === "grey")));
     const ab = currentLevel != null ? autoBuildButton() : null;
     if (ab) circ("autobuild", ab.x, ab.y, ab.size / 2, startAutoBuild, !busy);
     return out;
@@ -1022,7 +1027,7 @@
     return { pieces: pieces.filter((p) => !p.ghost).map((p) => { const q = p.body.getPosition(); return [p.defKey, p.material, q.x, q.y, p.body.getAngle(), p.seed]; }),
              pile: currentLevel != null ? pileItems().map((it) => ({ ...it })) : null };
   }
-  function commitSnap() { if (pendingSnap) { undoStack.push(pendingSnap); if (undoStack.length > 40) undoStack.shift(); pendingSnap = null; } }
+  function commitSnap() { standsTested = false; if (pendingSnap) { undoStack.push(pendingSnap); if (undoStack.length > 40) undoStack.shift(); pendingSnap = null; } }
   function undo() {
     const snap = undoStack.pop();
     if (!snap || test || auto) return;
@@ -1454,7 +1459,7 @@
     const ab = currentLevel != null ? autoBuildButton() : null;
     if (ab) SKIN.button(ctx, "autobuild", ab.x, ab.y, ab.size, false);
     for (const b of buttonLayout()) {
-      SKIN.button(ctx, b.def.icon, b.x, b.y, b.size, b.def.kind === "test" && !testReady() && !tabHeldNow());
+      SKIN.button(ctx, b.def.icon, b.x, b.y, b.size, b.def.kind === "test" && testLook() !== "green", b.def.kind === "test" ? testLook() : null);
       if (b.def.kind === "test" && (tabHeldNow() || (test && test.fast))) SKIN.fastBadge(ctx, b.x, b.y, b.size);
     }
   }
@@ -2283,6 +2288,7 @@
   // so a piece still settling cannot flash the button green.
   const READY_HOLD = 0.5;
   let readySince = null;
+  function testLook() { return tabHeldNow() ? "green" : standsTested ? "grey" : testReady() ? "green" : "red"; }
   function piecesAtRest() {
     for (const p of pieces) {
       const v = p.body.getLinearVelocity();
@@ -2291,7 +2297,7 @@
     return true;
   }
   function testReady() {
-    return currentLevel != null && !test && !auto && pointers.size === 0 && readySince != null && gameNow() - readySince >= READY_HOLD * 1000;
+    return currentLevel != null && !test && !auto && !standsTested && pointers.size === 0 && readySince != null && gameNow() - readySince >= READY_HOLD * 1000;
   }
   // A finished site whose headpiece is no longer in its place (taken off, fallen, shovelled away) is not finished:
   // the map shows it red and see-through, as it is now, and nobody visits it. Fixing it means passing the test again.
@@ -2334,6 +2340,7 @@
     currentLevel = i;
     levelTop = grid.top; levelWidth = grid.width;
     check = null; checkTimer = 0; failShow = null; readySince = null;
+    standsTested = !!progress.done[LEVELS[i].key] && !progress.done[LEVELS[i].key].broken;
     cancelAuto();
     mode = "build";
     layout();
@@ -2688,7 +2695,8 @@
     }
   }
 
-  function saveMonument() {
+  function saveMonument() { // the test passed: the building stands tested
+    standsTested = true;
     const r3 = (n) => Math.round(n * 1000) / 1000;
     progress.done[grid.L.key] = {
       pieces: pieces.map((p) => { const q = p.body.getPosition(); return [p.defKey, p.material, r3(q.x), r3(q.y), r3(p.body.getAngle()), p.seed]; }),

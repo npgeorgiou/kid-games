@@ -105,6 +105,7 @@
     const [k, v] = name.split(":");
     if (k === "done") return isMarked("ever:" + v); // the engine's own: that cue has played
     if (name === "tutorial-pending") { const t = tutorialOf(x.place); return !!t && tutorialAt(t) !== "done"; } // this place has a tutorial not finished
+    if (name === "tutorial-place") return !!tutorialOf(x.place); // this place has a tutorial (finished or not)
     if (CUE_CONDITIONS[name]) return !!CUE_CONDITIONS[name](x);
     if (v != null && CUE_CONDITIONS[k]) return !!CUE_CONDITIONS[k](x, v); // a game condition with a value ("placed:3")
     return v != null && CUE_FIELDS.includes(k) && x[k] === v; // a field the moment carries ("material:wood")
@@ -379,7 +380,7 @@
   // the table names only what the code knows: every event fired, condition, point and line used (the harness prints this)
   const CUE_LEVELS = ["tutorial", "intro", "explanation", "flavour"];
   function cueCheckTable() {
-    const bad = [], conds = (n) => { const b = n.replace(/^not /, ""), [k, v] = b.split(":"); if (!(k === "done" || b === "tutorial-pending" || CUE_CONDITIONS[b] || (v != null && (CUE_CONDITIONS[k] || CUE_FIELDS.includes(k))))) bad.push("condition " + n); };
+    const bad = [], conds = (n) => { const b = n.replace(/^not /, ""), [k, v] = b.split(":"); if (!(k === "done" || b === "tutorial-pending" || b === "tutorial-place" || CUE_CONDITIONS[b] || (v != null && (CUE_CONDITIONS[k] || CUE_FIELDS.includes(k))))) bad.push("condition " + n); };
     const steps = Object.values(CUE_TABLE.tutorials).flatMap((t) => t.steps);
     for (const c of CUE_TABLE.cues) {
       if (!CUE_LEVELS.includes(c.level)) bad.push("level of " + c.id); // every cue has one of the four levels

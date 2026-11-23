@@ -43,7 +43,9 @@ seaC = coarse(sea)
 distC = ndimage.distance_transform_edt(seaC) * S
 boat_cost = np.where(distC < 3, 1e6, 1 + 40 * np.clip((30 - distC) / 30, 0, 1) ** 2)
 land = ~coarse(wet | sea)  # the straits too: nobody walks or stands on water
-land[[0, -1], :] = False; land[:, [0, -1]] = False
+# the picture's frame is neither land nor sea: the outermost cells are what lies just inside them (owner 23 Nov: the map's
+# edges were all water, and boats sailed along them)
+land[0, :] = land[1, :]; land[-1, :] = land[-2, :]; land[:, 0] = land[:, 1]; land[:, -1] = land[:, -2]
 coast = ndimage.distance_transform_edt(land) * S
 walk_cost = np.where(land, 1 + 3 * (coast < 8), 1e6)
 

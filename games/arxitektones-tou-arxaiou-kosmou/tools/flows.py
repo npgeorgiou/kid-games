@@ -911,10 +911,84 @@ def boat_on_boat(b):
     ok = 'map-boat-boat' in snd and vol[0] and vol[0][0][0] == vol[2][0][0] and vol[0][0][1] == vol[1][0][1]
     return bool(ok), dict(sounds=snd, boats=pos, same_file=vol[0][0][0] == vol[2][0][0], gains=[vol[0][0][1], vol[1][0][1]])
 
+def test_button_grey_after_pass(b):
+    # owner 23 Nov: "when a level is successfully passed, the TEST button should become grey, unless the kid presses the shovel, or
+    # moves an item. the same should be when reentering a finished level": the first site quick-built and passed; the button's
+    # colour after the pass, after a piece is moved, after leaving and coming back, after the shovel
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); untick_all(q)
+    click(q, 'site:mastaba'); time.sleep(0.3); quiet(q)
+    r = quick_build_and_test(q, hold=True)
+    until(q, "()=>!__tb.test", 15); time.sleep(3.5); quiet(q)
+    def colour():  # the button's own colour, beside its picture
+        p = button(q, 'test'); sz = q.evaluate("()=>{const b=__tb.screenButtons().find((x)=>x.id==='test'); return b.r;}")
+        return q.evaluate("(p)=>{const c=document.querySelector('canvas'), d=window.devicePixelRatio||1, v=c.getContext('2d').getImageData(Math.round(p[0]*d),Math.round(p[1]*d),1,1).data; return v[0]>v[1]+40?'red':v[1]>v[0]+30?'green':Math.abs(v[0]-v[1])<12&&Math.abs(v[1]-v[2])<12?'grey':[v[0],v[1],v[2]].join(' ');}", [p[0] + sz * 0.75, p[1]])
+    seen = dict(after_pass=colour())
+    top = q.evaluate("()=>{const T=__tb; const p=T.pieces.filter((x)=>!x.load).sort((a,c)=>c.body.getPosition().y-a.body.getPosition().y)[0], c=p.body.getPosition(), s=T.worldToScreen(c.x,c.y); return [s.x,s.y];}")
+    drag(q, top, (top[0], top[1] - 4), steps=4, hold=0.3); time.sleep(1.5)
+    seen['after_moving_a_piece'] = colour()
+    q.keyboard.down('Control'); time.sleep(0.1); click(q, 'autobuild'); until(q, "()=>!__tb.auto", 30); q.keyboard.up('Control'); time.sleep(3.3)
+    click(q, 'test'); until(q, "()=>!!__tb.test", 3); until(q, "()=>!__tb.test", 40); time.sleep(1); quiet(q)
+    click(q, 'home'); until(q, "()=>__tb.mode==='map'", 3); time.sleep(0.3); quiet(q)
+    click(q, 'site:mastaba'); until(q, "()=>__tb.mode==='build'", 3); time.sleep(1.5); quiet(q)
+    seen['back_at_the_finished_site'] = colour()
+    click(q, 'test'); time.sleep(0.3); seen['grey_pressed_starts_test'] = q.evaluate("()=>!!__tb.test")
+    click(q, 'broom'); time.sleep(1.5)
+    seen['after_shovel'] = colour()
+    q.close()
+    r.update(seen)
+    ok = seen['after_pass'] == 'grey' and seen['after_moving_a_piece'] == 'green' and seen['back_at_the_finished_site'] == 'grey' and not seen['grey_pressed_starts_test'] and seen['after_shovel'] == 'red'
+    return ok, r
+
+def headpiece_line_first_site_only(b):
+    # owner 23 Nov: "the 'this space is for the headpiece, leave it empty' plays on every level the first time a block goes in that
+    # space ... make it play only at the first tutorial level": teaching on, the first site's steps done; a piece dragged into the
+    # dotted outline at the second site (no line) and at the first site (the line)
+    def into_dots(q):  # a pile piece lifted, carried over the building into the dotted outline, let go there
+        tgt = q.evaluate("()=>{const T=__tb, r=T.grid.load[0], cx=r.reduce((a,p)=>a+p[0],0)/r.length, cy=r.reduce((a,p)=>a+p[1],0)/r.length, s=T.worldToScreen(cx,cy); return [s.x,s.y];}")
+        a0 = pile_piece_inside(q, 'mudbrick') or pile_piece_inside(q, 'stone'); up = (a0[0], tgt[1] - 60)
+        q.mouse.move(*a0); q.mouse.down(); time.sleep(0.05)
+        for (x0, y0), (x1, y1) in ((a0, up), (up, tgt)):
+            for k in range(1, 31): q.mouse.move(x0 + (x1 - x0) * k / 30, y0 + (y1 - y0) * k / 30); time.sleep(0.015)
+            time.sleep(0.4)
+        q.evaluate("()=>{window.addEventListener('pointerup',()=>{window.__inDots=__tb.runCheck().load;},{once:true});}")
+        q.mouse.up(); time.sleep(3)
+    said = {}
+    for site in ('djoser', 'mastaba'):
+        q = page(b)
+        q.mouse.click(640, 400); quiet(q); later_launch(q)
+        q.evaluate("()=>{const T=__tb; T.progress.done.mastaba={pieces:[],loads:[]}; T.cueMem().seq['first-site']='done'; T.setDemos(false);}")
+        if site == 'mastaba': q.evaluate("()=>{delete __tb.progress.done.mastaba}")
+        click(q, 'site:' + site); until(q, "()=>__tb.mode==='build'", 3); time.sleep(0.3); quiet(q, 6)
+        record(q); into_dots(q)
+        said[site] = q.evaluate("()=>[__rec.said, window.__inDots]")
+        q.close()
+    return 137 not in said['djoser'][0] and said['djoser'][1] > 0 and 137 in said['mastaba'][0], said
+
+def boat_not_on_map_edge(b):
+    # owner 23 Nov: "The borders of the land, the edges, are considered navigable by boats. change that.": a boat with its
+    # travellers carried onto the land at the map's left edge and let go there: it is on land, and its way back never sails
+    # along the map's edge
+    q = page(b)
+    q.mouse.click(640, 400); quiet(q); later_launch(q)
+    q.evaluate("()=>{__tb.progress.done.mastaba={pieces:[],loads:[]}}"); until(q, "()=>__tb.boats.length>0&&!!__tb.crewOf(__tb.boats[0])", 4)
+    sea = map_point(q, "T.groundAt(mx,my)==='water'&&!T.isLand(mx,my)&&mx<700")
+    q.evaluate("(p)=>{const T=__tb, v=T.mapView(), b=T.boats[0]; b.back=b.drop=null; b.ox=b.oy=b.ovx=b.ovy=0; b.x=(p[0]-v.ox)/v.k; b.y=(p[1]-v.oy)/v.k;}", sea)
+    quiet(q); q.evaluate("()=>{__tb.active.length=0}")
+    edge = q.evaluate("()=>{const T=__tb, v=T.mapView(); for(let y=760;y>100;y-=10){const my=(y-v.oy)/v.k; if(T.isLand(6,my)) return [Math.max(0.5,v.ox+1*v.k),y];} return null;}")
+    a = q.evaluate("()=>{const T=__tb, p=T.mapView().pt(T.boats[0].x,T.boats[0].y); return [p.x,p.y];}")
+    q.mouse.move(*a); q.mouse.down()
+    for k in range(1, 31): q.mouse.move(a[0] + (edge[0] - a[0]) * k / 30, a[1] + (edge[1] - a[1]) * k / 30); time.sleep(0.02)
+    time.sleep(0.4); q.mouse.up(); time.sleep(0.5)
+    st = q.evaluate("""()=>{const T=__tb, b=T.boats[0], W=b.back; const sail=W?W.runs.filter((r)=>r.mode==='sail').flatMap((r)=>r.pts):[];
+      return {at:[Math.round(b.x),Math.round(b.y)], on_land:T.isLand(b.x,b.y), first_run:W&&W.runs[0].mode, sailed_on_edge:sail.filter(([x,y])=>x<8||y<8||x>2168||y>1400).length};}""")
+    q.close()
+    return st['on_land'] and st['first_run'] == 'carry' and st['sailed_on_edge'] == 0, dict(let_go_at=edge, **st)
+
 # --------------------------------------------------------------------
 # SECTION: RUNNER -- the list of flows and running them
 # --------------------------------------------------------------------
-FLOWS = {'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick, 'tutorial-no-mudbrick-line': tutorial_no_mudbrick_line, 'tutorial-test-before-red-step': tutorial_test_before_red_step, 'tutorial-test-before-undo-step': tutorial_test_before_undo_step, 'red-during-fail-lines': red_during_fail_lines, 'tutorial-put-right-after-dragback': tutorial_put_right_after_dragback, 'pile-piece-not-in-wall': pile_piece_not_in_wall, 'tutorial-piece-in-before-dragback': tutorial_piece_in_before_dragback, 'tutorial-piece-in-during-dragback': tutorial_piece_in_during_dragback, 'tutorial-piece-in-after-dragback': tutorial_piece_in_after_dragback, 'boat-on-boat': boat_on_boat, 'sidebar-icons-spread': sidebar_icons_spread, 'button-click-sound': button_click_sound, 'music-tick': music_tick}  # middle_grab_bump: waits for the owner's answer on the lever
+FLOWS = {'test-button-grey-after-pass': test_button_grey_after_pass, 'headpiece-line-first-site-only': headpiece_line_first_site_only, 'boat-not-on-map-edge': boat_not_on_map_edge, 'restart-load-screen': restart_load_screen, 'child-action-cuts-line': child_action_cuts_line, 'ticks-off-lines-play': ticks_off_lines_play, 'test-end-sounds': test_end_sounds, 'first-site-ticks-off': first_site_ticks_off, 'first-site-ticks-on': first_site_ticks_on, 'ticks-off-first-win': ticks_off_first_win, 'red-outside': red_outside, 'map-water': map_water, 'map-stones': map_stones, 'test-fail-sounds': test_fail_sounds, 'red-headpiece-place': red_headpiece_place, 'owner-first-site-build': owner_first_site_build, 'headpiece-in-hand': headpiece_in_hand, 'damaged-voice-once-per-session': damaged_voice_once_per_session, 'sand-draw-sound': sand_draw_sound, 'ishtar-planks': ishtar_planks, 'two-finger-turn': two_finger_turn, 'two-fingers-on-pile-piece': two_fingers_on_pile_piece, 'esc-leaves-site': esc_leaves_site, 'esc-during-demo': esc_during_demo, 'explanations-do-not-pause-test': explanations_do_not_pause_test, 'home-line-repeat': home_line_repeat, 'boat-thrown': boat_thrown, 'sand-draw-quieter': sand_draw_quieter, 'test-lines-start-with-parts': test_lines_start_with_parts, 'test-result-line-before-site-line': test_result_line_before_site_line, 'tutorial-early-brick': tutorial_early_brick, 'tutorial-no-mudbrick-line': tutorial_no_mudbrick_line, 'tutorial-test-before-red-step': tutorial_test_before_red_step, 'tutorial-test-before-undo-step': tutorial_test_before_undo_step, 'red-during-fail-lines': red_during_fail_lines, 'tutorial-put-right-after-dragback': tutorial_put_right_after_dragback, 'pile-piece-not-in-wall': pile_piece_not_in_wall, 'tutorial-piece-in-before-dragback': tutorial_piece_in_before_dragback, 'tutorial-piece-in-during-dragback': tutorial_piece_in_during_dragback, 'tutorial-piece-in-after-dragback': tutorial_piece_in_after_dragback, 'boat-on-boat': boat_on_boat, 'sidebar-icons-spread': sidebar_icons_spread, 'button-click-sound': button_click_sound, 'music-tick': music_tick}  # middle_grab_bump: waits for the owner's answer on the lever
 
 def run(b, names):
     for n, f in FLOWS.items():
