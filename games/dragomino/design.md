@@ -106,7 +106,20 @@ Two players each build their own land from tiles with two terrain halves. Each r
 | What would kill the fun | Rewards that pile up over about 20 tiles; ties with nothing to break them; a resource with no job, or two scoring systems with no clear job each; slot machine wins costing more than they give; bidding with nothing to lose. |
 | Prototype must answer | Open |
 
-## 6. Still open (all in one place)
+## 6. Built for now (not decided by the owner; to check)
+
+- The start square is brown, makes no good and matches nothing.
+- Tiles: 40, each half a random colour (a half may match its own tile's other half in colour).
+- One jar per matching edge.
+- A coins jar holds 1 to 3 coins.
+- A bid's sets are taken from the kinds you have most of. Only the winner pays.
+- A picker who loses the bid picks again.
+- The first-player token stays with its holder until a jar moves it. The kid starts with it.
+- At the end of a round, the token holder opens his jars first.
+- The PC never rerolls the slot machine.
+- A free set is 3 random different goods. A free tile has 2 random colours.
+
+## 7. Still open (all in one place)
 
 - The bonus shares (equal for now).
 - The slot machine: pictures with amounts, later.
