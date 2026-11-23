@@ -63,7 +63,7 @@ Every check passes. A commit that changes the game must name a flow that failed 
 
 ## Now
 
-Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words (owner 23 Nov): "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape inside one drawing tool; "colour button" = a paint bucket filled to the paint amount. Palettes are stripe bars in four columns of 12 with dividers, Basic among the extras; buckets level, the chosen one ringed, white and black always first; brushes turn with the stroke (switch in the brush popup); speed acts as pressure, and a quick flick lifts the brush (the mark thins and fades); strokes can start beside the paper.
+Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words: "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape inside one drawing tool; "colour button" = a paint bucket filled to the paint amount. Palettes are stripe bars in four columns of 12 with dividers, Basic among the extras; buckets level, the chosen one ringed, white and black always first; brushes turn with the stroke (switch in the brush popup); speed acts as pressure, and a fast hand lifts the brush (the mark narrows smoothly to a point); strokes can start beside the paper.
 
 ## Open
 

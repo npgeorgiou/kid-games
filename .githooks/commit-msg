@@ -8,6 +8,13 @@ from concurrent.futures import ThreadPoolExecutor
 msg = open(sys.argv[1], encoding='utf-8').read()
 files = subprocess.run(['git', 'diff', '--cached', '--name-only'], capture_output=True, text=True).stdout.split()
 games = sorted({f.split('/')[1] for f in files if f.startswith('games/') and f.count('/') >= 2 and (f.endswith('.html') or '/src/' in f or '/lib/' in f)})  # the game itself: its page, its source, its libraries (not tests, tools or notes)
+for f in files:  # owner 23 Nov 20:11: a README's "Now" says what the game is now: never a list of what was done, never dates (history lives in git)
+    if not re.match(r'games/[^/]+/README\.md$', f): continue
+    txt = subprocess.run(['git', 'show', ':' + f], capture_output=True, text=True).stdout
+    m = re.search(r'^## Now\s*$(.*?)(?=^## |\Z)', txt, re.M | re.S)
+    if not m: continue
+    hits = re.findall(r'\b(?:done|fixed|finished|added|batch \d+|\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}|\d{4}-\d{2}-\d{2})\b', m.group(1), re.I)
+    if hits: sys.exit('commit refused: %s "Now" reads like a log (%s); say what the game is now, no done lists or dates' % (f, ', '.join(sorted(set(hits))[:5])))
 if not games: sys.exit(0)
 named = {}
 for g, rest in re.findall(r'^Flow:\s*(\S+)\s+(.+)$', msg, re.M): named.setdefault(g, []).extend(rest.split())
