@@ -272,6 +272,108 @@ def f_test_paper(q):  # owner 21 Nov: tests on a smaller paper: the page takes i
     report(size == [400, 250] and on < 80 and off > 200, 'test paper: 400x250 from the address, strokes land where drawn', 'paper %s, on the stroke %d, beside it %d' % (size, on, off))
 FLOWS['test_paper'] = f_test_paper
 
+def glide(q, at, L, v0, v1, v2=None):  # a stroke along a path: at(d) is the paper point d pixels along it, L its length; speed goes evenly (in time) from v0 to v1, then to v2 over the second half if given.
+    cdp = q.context.new_cdp_session(q); t0 = time.time(); d, t, n = 0.0, 0.0, 0  # moves 16 ms apart with their own times, as his screen sends them
+    def v(d): return v0 + (v1 - v0) * min(1, d / (L if v2 is None else L / 2)) if v2 is None or d < L / 2 else v1 + (v2 - v1) * (d - L / 2) / (L / 2)
+    def ev(typ, t, d, extra={}):
+        X, Y = scr(q, *at(d)); cdp.send('Input.dispatchMouseEvent', dict({'type': typ, 'x': X, 'y': Y, 'button': 'left', 'buttons': 1, 'timestamp': t0 + t}, **extra))
+    ev('mousePressed', 0, 0, {'clickCount': 1})
+    while d < L: d = min(L, d + v(d) * 0.016); t += 0.016; ev('mouseMoved', t, d)
+    ev('mouseReleased', t, d, {'clickCount': 1}); cdp.detach(); time.sleep(0.15)
+
+def f_lift_control(q):  # owner 23 Nov 22:37, point 1: once off the paper the brush stays off until a new touch; the biggest brush's tail has no sudden size changes; speeding up round a circle thins it evenly to the end, as on a line
+    import math
+    tap(q, 'tool-acrylic'); tap(q, 'shape-0'); tap(q, 'size-4'); tap(q, 'color-1'); bad = []
+    glide(q, lambda d: (100 + d, 150), 1400, 550, 4500, 300)  # speeds up to a flick, then slows down while still pressed
+    ws = [width_across(q, x, 150, 0, 1, 110) for x in range(110, 1500, 4)]
+    off = next((j for j in range(len(ws)) if j > 10 and max(ws[j:j + 6]) == 0), len(ws))
+    back = sum(1 for w in ws[off:] if w > 0); grows = [j for j in range(8, off) if ws[j] > max(ws[j - 8:j]) + 4]
+    if back or grows: bad.append('biggest: back on the paper %d places, widens %d times in the tail' % (back, len(grows)))
+    tap(q, 'size-2'); tap(q, 'color-1'); R, L = 200, 2 * math.pi * 200
+    glide(q, lambda d: (800 + R * math.cos(d / R), 700 + R * math.sin(d / R)), L * 0.97, 700, 2400)  # one turn, speeding up evenly
+    glide(q, lambda d: (150 + d, 330), L * 0.97, 700, 2400)  # the same on a line
+    def circ(f): a = f * 0.97 * 2 * math.pi; return max(width_across(q, 800 + R * math.cos(a + e), 700 + R * math.sin(a + e), math.cos(a + e), math.sin(a + e), 45) for e in (-0.02, 0, 0.02))
+    def line(f): x = 150 + f * L * 0.97; return max(width_across(q, x + e, 330, 0, 1, 45) for e in (-4, 0, 4))
+    c, l = [circ(f) for f in (0.1, 0.5, 0.9)], [line(f) for f in (0.1, 0.5, 0.9)]
+    if not (c[0] > c[2] * 1.25 and c[2] > 0): bad.append('circle does not thin evenly to its end %s' % c)
+    if any(abs(a - b) > 0.25 * max(a, b, 1) for a, b in zip(c, l)): bad.append('circle %s and line %s differ' % (c, l))
+    report(not bad, 'lifting: stays off, smooth tail, thins on circles as on lines', '; '.join(bad) or 'circle %s line %s' % (c, l))
+FLOWS['lift_control'] = f_lift_control
+PAPER['lift_control'] = ('1600x1000', (0, 0))
+
+def f_pal_keep_colours(q):  # owner 23 Nov 22:37, point 2: no palette colour disappears; a palette's own near-white or near-black is its white or black bucket
+    bad = []
+    for name in ('Basic', 'Scandi Brick and Slate', 'Earth, Sage and Sky', 'Red', 'Standard rainbow'):
+        i = q.evaluate("(n)=>__cb.palIndex(n)", name); own = q.evaluate("(i)=>__cb.pal(i).map(c=>c.map(v=>Math.round(v*255)))", i)
+        tap(q, 'palette'); time.sleep(0.3); tap(q, 'pal-%d' % i); time.sleep(0.1); got = []
+        for c in pots_shown(q): tap(q, c); got.append(q.evaluate("()=>__cb.color()"))
+        lost = [c for c in own if c not in got]
+        if lost or lum(got[0]) < 235 or lum(got[1]) > 25: bad.append('%s: lost %s, first two %s %s' % (name, lost, got[0], got[1]))
+    report(not bad, 'buckets: every palette colour shown, white and black first', '; '.join(bad))
+FLOWS['pal_keep_colours'] = f_pal_keep_colours
+
+def f_pot_ring_inside(q):  # owner 23 Nov 22:37, point 3: the chosen bucket's ring never goes off the screen at the bottom or under the paper at the top
+    bad = []
+    for w, h in ((1280, 800), (1920, 1080), (1366, 768)):
+        q.set_viewport_size({'width': w, 'height': h}); time.sleep(0.3)
+        for c in pots_shown(q):
+            tap(q, c); time.sleep(0.25)
+            r = q.evaluate("()=>{const e=document.querySelector('#bottom .pot.on'),k=e.getBoundingClientRect(),s=getComputedStyle(e),sc=k.width/e.offsetWidth,o=(parseFloat(s.outlineOffset)+parseFloat(s.outlineWidth))*sc,p=document.getElementById('paper').getBoundingClientRect();return [k.top-o,k.bottom+o,p.bottom,innerHeight]}")
+            if r[1] > r[3] or r[0] < r[2]: bad.append('%dx%d %s: ring %d..%d, paper ends %d, screen ends %d' % (w, h, c, r[0], r[1], r[2], r[3]))
+    report(not bad, 'buckets: chosen ring stays between the paper and the screen edge', '%d wrong: %s' % (len(bad), bad[:3]))
+FLOWS['pot_ring_inside'] = f_pot_ring_inside
+
+def f_spray_speed(q):  # owner 23 Nov 22:37, point 4: a faster spray stroke leaves its drops further apart; spraying in place makes no ring at the edge
+    tap(q, 'tool-spray'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-1')
+    def cover(y): return sum(width_across(q, x, y, 0, 1, 60) for x in range(200, 700, 5))
+    jerk(q, 100, 800, 80, 300); jerk(q, 100, 800, 230, 1200); slow, fast = cover(80), cover(230)
+    x, y = scr(q, 400, 420); q.mouse.move(x, y); q.mouse.down(); time.sleep(1.5); q.mouse.up(); time.sleep(0.1)
+    import math
+    pts = q.evaluate("()=>{const o=[];for(let dy=-60;dy<=60;dy++)for(let dx=-60;dx<=60;dx++){const c=S(400+dx,420+dy);o.push(0.3*c[0]+0.59*c[1]+0.11*c[2]<150?1:0)}return o}")
+    def share(r0, r1):
+        v = [pts[(dy + 60) * 121 + dx + 60] for dy in range(-60, 61) for dx in range(-60, 61) if r0 <= math.hypot(dx, dy) < r1]; return sum(v) / len(v)
+    inner, edge = share(40, 45), share(46, 51)  # the size has radius 48: just inside it, and at it
+    report(fast < slow * 0.4 and edge < inner * 0.8, 'spray: faster is sparser, no ring when held still', 'paint along slow %d, fast %d; held: %.2f inside, %.2f at the edge' % (slow, fast, inner, edge))
+FLOWS['spray_speed'] = f_spray_speed
+PAPER['spray_speed'] = ('900x500', (0, 0))
+
+def f_shapes_close(q):  # owner 23 Nov 22:37, point 5: shapes as the Squares Brush (av01d fabric-brushes): each shape touches the next, along the whole stroke
+    tap(q, 'tool-shapes'); tap(q, 'shape-0'); tap(q, 'size-2'); tap(q, 'color-1'); out = []
+    for k, v in enumerate((400, 900)):
+        y = 80 + k * 160; jerk(q, 60, 820, y, v)
+        line = q.evaluate("(y)=>{const o=[];for(let x=120;x<760;x++){const c=S(x,y);o.push(0.3*c[0]+0.59*c[1]+0.11*c[2]<235?1:0)}return o}", y)
+        out.append(round(sum(line) / len(line), 2))
+    report(min(out) >= 0.9, 'shapes: each touches the next', 'share of the stroke line covered at 400 and 900 px/s: %s' % out)
+FLOWS['shapes_close'] = f_shapes_close
+PAPER['shapes_close'] = ('900x400', (0, 0))
+
+def f_ink_splash_drawing(q):  # owner 23 Nov 22:37, point 6: ink as in the fabric-brushes page: a solid body, and splashes while it still paints, not only as it lifts off
+    tap(q, 'tool-ink'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-1'); tap(q, 'splash-2')
+    jerk(q, 60, 840, 120, 600); body = q.evaluate("()=>{let n=0,k=0;for(let x=150;x<750;x+=3)for(let dy=-12;dy<=12;dy+=3){const c=S(x,120+dy);k++;if(0.3*c[0]+0.59*c[1]+0.11*c[2]<150)n++}return n/k}")
+    jerk(q, 60, 840, 330, 1200)  # quick, still on the paper
+    still = width_across(q, 700, 330, 0, 1, 40) > 0
+    spl = q.evaluate("()=>{let n=0;for(let x=100;x<800;x+=3)for(const dy of [-80,-65,65,80]){const c=S(x,330+dy);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<150)n++}return n}")
+    report(body >= 0.85 and still and spl >= 3, 'ink: solid body, splashes while still painting', 'body %.2f covered, still painting %s, splash spots %d' % (body, still, spl))
+FLOWS['ink_splash_drawing'] = f_ink_splash_drawing
+PAPER['ink_splash_drawing'] = ('900x480', (0, 0))
+
+def f_cursor_turns(q):  # owner 23 Nov 22:37, point 7: going round in circles, the pointer (the brush shown at the pointer) turns with the brush
+    import math
+    tap(q, 'tool-acrylic')
+    for b in ('brush', 'turn'): p = q.evaluate("(id)=>__cb.btn(id)", b); q.mouse.click(p[0], p[1]); time.sleep(0.15)
+    tap(q, 'shape-1'); tap(q, 'size-3'); tap(q, 'color-1')
+    cdp = q.context.new_cdp_session(q); t0 = time.time(); seen = set()
+    def ev(typ, t, a, extra={}):
+        X, Y = scr(q, 450 + 150 * math.cos(a), 300 + 150 * math.sin(a)); cdp.send('Input.dispatchMouseEvent', dict({'type': typ, 'x': X, 'y': Y, 'button': 'left', 'buttons': 1, 'timestamp': t0 + t}, **extra))
+    ev('mousePressed', 0, 0, {'clickCount': 1}); t = 0
+    for i in range(1, 61):
+        t += 0.016; ev('mouseMoved', t, i / 60 * 2 * math.pi)
+        if i % 15 == 0: seen.add(q.evaluate("()=>document.getElementById('paper').style.cursor.slice(0,200)"))
+    ev('mouseReleased', t, 2 * math.pi, {'clickCount': 1}); cdp.detach()
+    report(len(seen) >= 3, 'pointer turns with the brush going round', '%d different pointers in 4 quarter turns' % len(seen))
+FLOWS['cursor_turns'] = f_cursor_turns
+PAPER['cursor_turns'] = ('900x600', (0, 0))
+
 def run(names):
     with sync_playwright() as p:
         b = p.chromium.launch()
@@ -399,7 +501,7 @@ def f_marker_real(q):  # owner 21 Nov 18:29: he does not see a marker's crossing
     report(ok, 'marker: crossings clearly darker and the edge darker, in every colour', '; '.join('%s crossing -%.0f edge -%.0f' % (c[0], c[5], c[6]) for c in out))
 FLOWS['marker_real'] = f_marker_real
 
-def f_palettes(q):  # owner 22 Nov 00:21, changed by him 23 Nov 10:27: four columns of 12; column 1 his monochromes, then Payne's grey (his hex), then a grey scale
+def f_palettes(q):  # owner 22 Nov 00:21, changed by him 23 Nov 10:27 and 22:37: four columns of 12; column 1 his monochromes with Payne's grey (his hex) between Blue and Purple, then a grey scale
     # in the same steps; column 2 the 5 rainbows, then extras; no row above the columns (Basic is one of the extras); the popup most of the screen
     import csv
     def his(name): return [[[int(h[k:k + 2], 16) for k in (1, 3, 5)] for h in r[1:11]] for r in list(csv.reader(open(GAME.parent / 'lib' / 'owner-palettes' / name)))[1:] if r and "Payne" not in r[0]]
@@ -411,9 +513,9 @@ def f_palettes(q):  # owner 22 Nov 00:21, changed by him 23 Nov 10:27: four colu
     grey_ok = len(grey) == 10 and all(max(g) - min(g) <= 2 for g in grey) and all(grey[i][0] < grey[i + 1][0] for i in range(9))
     above = q.evaluate("()=>document.querySelectorAll('.palpic .pal').length")
     box = q.evaluate("()=>{const r=document.querySelector('.popbox').getBoundingClientRect();return [r.width/innerWidth,r.height/innerHeight]}")
-    ok = [len(x) for x in c] == [12] * 4 and c[0][:10] == mono and c[0][10] == payne and grey_ok and c[1][:5] == rainbow and above == 0 and box[0] > 0.8 and box[1] > 0.75
+    ok = [len(x) for x in c] == [12] * 4 and c[0][:7] + c[0][8:11] == mono and c[0][7] == payne and grey_ok  # owner 23 Nov 22:37: Payne's grey between Blue and Purple and c[1][:5] == rainbow and above == 0 and box[0] > 0.8 and box[1] > 0.75
     report(ok, 'palettes: four columns of 12, monochromes then Payne\'s grey and a grey scale, nothing above',
-           'columns %s, monochromes his %s, Payne %s, grey scale %s, rainbows %s, above %d, popup %.0f%% x %.0f%%' % ([len(x) for x in c], c[0][:10] == mono, len(c[0]) > 10 and c[0][10] == payne, grey_ok, c[1][:5] == rainbow, above, box[0] * 100, box[1] * 100))
+           'columns %s, monochromes his %s, Payne %s, grey scale %s, rainbows %s, above %d, popup %.0f%% x %.0f%%' % ([len(x) for x in c], c[0][:7] + c[0][8:11] == mono, len(c[0]) > 7 and c[0][7] == payne, grey_ok, c[1][:5] == rainbow, above, box[0] * 100, box[1] * 100))
 FLOWS['palettes'] = f_palettes
 
 def f_acrylic_scrub(q):  # owner 21 Nov 18:29: a 3rd acrylic brush like the Brusheezy acrylic packs (broad scrubbed strokes breaking into dry streaks), clearly unlike the flat
@@ -448,22 +550,28 @@ def f_pal_dividers(q):  # owner 23 Nov: a vertical divider between column 1 (mon
     horiz = [l for l in lines if l[2] - l[0] > 5 * (l[3] - l[1]) and r5[3] <= l[1] and l[3] <= r6[1] and l[0] < r5[2] and l[2] > r5[0]]
     report(len(vert) == 1 and len(horiz) == 1, 'palettes: divider after column 1, divider after the 5 rainbows', 'vertical %d, horizontal %d' % (len(vert), len(horiz)))
 
-def busy(cols):  # how busy a palette's stripe bar looks (owner 23 Nov 20:18): how much each stripe's colour differs from the next, added up (CIELAB distance)
+def hue_count(cols, W=60):  # how many hues a palette has (owner 23 Nov 22:37): the fewest 60-degree slices of the colour wheel (OKLab hue) that hold all its coloured stripes; greys count none
     import math
     def lab(c):
-        v = [x / 255 for x in c]; v = [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in v]
-        X, Y, Z = (0.4124 * v[0] + 0.3576 * v[1] + 0.1805 * v[2]) / 0.95047, 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2], (0.0193 * v[0] + 0.1192 * v[1] + 0.9505 * v[2]) / 1.08883
-        f = lambda t: t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
-        return 116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))
-    c = [lab(x) for x in cols]; return round(sum(math.dist(c[i], c[i + 1]) for i in range(len(c) - 1)))
+        v = [x / 255 for x in c]; r, g, b = [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in v]
+        l, m, s = [x ** (1 / 3) for x in (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b, 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b, 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)]
+        return 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+    hs = [math.degrees(math.atan2(b, a)) % 360 for a, b in map(lab, cols) if math.hypot(a, b) > 0.04]; best = 99
+    for h0 in hs:
+        rot, k, i = sorted((h - h0) % 360 for h in hs), 0, 0
+        while i < len(rot):
+            k += 1; end = rot[i] + W
+            while i < len(rot) and rot[i] <= end: i += 1
+        best = min(best, k)
+    return 0 if not hs else best
 
-def f_pal_order(q):  # owner 23 Nov 10:27 and 20:18 (other measure): the extras (after the rainbows, down column 2, then 3, then 4) run from simple to busy; Basic is one of them;
+def f_pal_order(q):  # owner 23 Nov 22:37 (replacing simple-to-busy): the extras (after the rainbows, down column 2, then 3, then 4): one hue, then two, then three, then more; Basic is one of them;
     tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)  # the green-red Red, Yellow and Green replaces Coral, Citrus and Olive; every row level across the columns
-    ex = cols[1][5:] + cols[2] + cols[3]; hexes = ['%02X%02X%02X' % tuple(p['cols'][0]) for p in ex]; b = [busy(p['cols']) for p in ex]
-    back = [(i + 1, b[i], b[i + 1]) for i in range(len(b) - 1) if b[i + 1] < b[i]]
+    ex = cols[1][5:] + cols[2] + cols[3]; hexes = ['%02X%02X%02X' % tuple(p['cols'][0]) for p in ex]; h = [min(4, hue_count(p['cols'])) for p in ex]
+    back = [(i + 1, h[i], h[i + 1]) for i in range(len(h) - 1) if h[i + 1] < h[i]]
     tops = [[round(p['box'][1]) for p in col] for col in cols]; level = all(abs(tops[k][r] - tops[0][r]) <= 1 for k in range(1, len(tops)) for r in range(min(map(len, tops))))
     ok = len(ex) == 31 and not back and 'F7F7F2' in hexes and 'A50026' in hexes and 'EB5E28' not in hexes and level
-    report(ok, 'palettes: extras simple to busy, Basic among them, rows level', 'extras %d, busier before simpler (place, busy, next) %s, Basic %s, red-yellow-green %s, coral gone %s, rows level %s'
+    report(ok, 'palettes: extras by number of hues, Basic among them, rows level', 'extras %d, more hues before fewer (place, hues, next) %s, Basic %s, red-yellow-green %s, coral gone %s, rows level %s'
            % (len(ex), back[:3], 'F7F7F2' in hexes, 'A50026' in hexes, 'EB5E28' not in hexes, level))
 
 def f_pal_picture_only(q):  # owner 23 Nov: a guide picture gives only its own palette, no closest saved palette
