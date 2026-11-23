@@ -87,8 +87,9 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
  7. Spray and shape stamps (owner 23 Nov): each dab is laid over what is there. Spray is an airbrush: while pressed it puffs, many times a second, drops of different sizes scattered round its aim,
     most near the middle (a bell curve), each a little see-through, so they build up the longer it stays. Shapes (as the Squares Brush of av01d fabric-brushes): one shape after
     another, edge to edge, turned with the stroke, bigger the faster the hand moves (a pen: the harder it presses), each a slightly different colour from the one chosen.
- 8. Ink and pencil (owner 23 Nov): one coat per stroke as in part 5. Ink is opaque with a sharp, slightly ragged edge where
-    the paper's grain takes it, wider when the pen moves slowly. Pencil leaves its colour only where the paper's raised grain
+ 8. Ink and pencil (owner 23 Nov). Ink (as the av01d fabric-brushes ink): many fine opaque strands, one per hair of the tip,
+    each drawn from where it was to where it is, thinner the faster the hand; a fast stroke throws drops off the tip, as
+    many as the splash setting says. Pencil (one coat per stroke as in part 5) leaves its colour only where the paper's raised grain
     touches the lead; pressing harder (pressure and the bucket level) reaches lower into the grain.
  Pressure: a pen's pressure, or for a finger or the mouse its speed (slower is harder), gives more paint and a wider mark.
  Lifting: a hand moving faster than a normal line lifts the brush, a little more each moment, the faster the sooner: the mark
@@ -138,7 +139,8 @@ const K = {
   CF: 0.4, DEEP: 0.3, KP: 0.015, MAXF: 0.5, // flow: speed, how deep water pushes onto dry paper, pull of the paper's dips, most water leaving a pixel per step
   EV: 0.15, EDGE: 25, W0: 0.02, SETTLE: 30, DEP0: 0.05, GRAN: 0.35, LIFT: 0.3, DAMPW: 2, DAMPE: 2, FIX: 4, // drying, edge drying, settling, granulation, lifting, damp paper, fixing
   PASTEL_GIVE: 1 / 2500, PASTEL_TAKE: 0.06, PASTEL_STICK: 8, PASTEL_REACH: [0.45, 0.65, 0.82], PASTEL_FILL: 1.2, PASTEL_LUMP: 0.004, // oil pastel: lays thick, picks up and smears soft paint, a stick lasts (8 brushfuls); how far into the grain each bucket level (pressure) reaches; laid paint fills the dips; lumps
-  PENCIL_WAX: 0.75, PENCIL_PRESS: [0.35, 0.55, 0.8], STAMP_LIGHT: 0.25, STAMP_HUE: 0.1, SHAPE_V: 550, SPRAY_DROPS: 24, SPRAY_HOLD: 60, // owner 23 Nov: pencil (lead pressure per bucket level), shapes (colour spread), spray
+  PENCIL_WAX: 0.75, PENCIL_PRESS: [0.35, 0.55, 0.8], STAMP_LIGHT: 0.25, STAMP_HUE: 0.1, SHAPE_V: 550, INK_AMOUNT: 7, INK_SPLASH: [0, 0.5, 1, 2], // ink (av01d fabric-brushes): how much ink the strands carry; splash drops: none, few, some, many
+  SPRAY_DROPS: 24, SPRAY_HOLD: 60, // owner 23 Nov: pencil (lead pressure per bucket level), shapes (colour spread), spray
   MARK_INK: 0.6, MARK_RIM: 1.5, // one layer of ink is lighter than the colour, so layers build up darker; owner 21 Nov: a real marker: see-through ink, crossing strokes darker, ink gathers at the edge
   LIFT_FROM: 1100, LIFT_FAST: 3600, LIFT_TIME: 0.05, // owner 23 Nov: a hand finishing a line fast lifts the brush. Paper pixels a second (his screen about 36 a cm): from 1100 (30 cm/s) it
   // lifts; at 3600 (1 m/s, a fast flick) it is off the paper in LIFT_TIME seconds, about 5 cm of tail; a smaller jerk lifts more slowly, so its tail is longer
@@ -305,10 +307,10 @@ const PR = {
     ivec2 o[4] = ivec2[4](ivec2(1, 0), ivec2(-1, 0), ivec2(0, 1), ivec2(0, -1));
     for (int k = 0; k < 4; k++) z += .1 * mixbox_rgb_to_latent(rgbOf(texelFetch(T, clamp(p + o[k], ivec2(0), n), 0).rgb));
     o0 = vec4(abOf(mixbox_latent_to_rgb(z)), c.a); }`),
-  simple: program(`uniform sampler2D P, M, B, U, G; uniform ivec2 C; uniform float R, HD, ID, LO, GLAZE, INK, LEAD, FL; uniform vec3 CA, PA; ${OUT4} void main(){
+  simple: program(`uniform sampler2D P, M, B, U, G; uniform ivec2 C; uniform float R, HD, ID, LO, GLAZE, LEAD, FL; uniform vec3 CA, PA; ${OUT4} void main(){
     ivec2 p = ivec2(gl_FragCoord.xy); vec4 pic = texelFetch(P, p, 0), mis = texelFetch(M, p, 0), b0 = texelFetch(B, p, 0), u = texelFetch(U, p, 0); float g = texelFetch(G, p, 0).r;
     bool mine = mis.b == ID; if (!mine) b0 = vec4(visOf(pic, u, mis.a), pic.a); float mo = mine ? mis.g : 0.;
-    float rr = foot(vec2(p - C), R) + INK * (g - .5) * .14; // ink: the paper's grain makes the edge a little ragged
+    float rr = foot(vec2(p - C), R);
     float m = (rr > 1. ? 0. : rr <= HD ? 1. : 1. - sm(HD, 1., rr)) * LO;
     if (LEAD > 0.) { vec2 bu = brushUV(vec2(p - C), R); float lines = fract(sin(floor(bu.y * R * SSC * .8) * 91.7 + ID * 3.1) * 43758.5453); // pencil: only the raised grain touches the lead,
       m *= sm(1.05 - LEAD - .35, 1.05 - LEAD + .35, g + (lines - .5) * .3); } // fine lines along the stroke where the lead is uneven
@@ -316,7 +318,14 @@ const PR = {
     if (FL > 0. && LO > mo) { float src = m / max(LO, 1e-4); m = mo + (LO - mo) * (src >= 1. ? 1. : 1. - pow(1. - src, FL)); } // simple brush: each dab adds its soft edge towards the coat (standard technique: Krita's wash mode, alpha darken),
     if (m > mo) { mis.g = m; mis.b = ID; pic.rgb = GLAZE > 0. ? b0.rgb + max(CA - PA, 0.) * m : abOf(mix(rgbOf(b0.rgb), rgbOf(CA), m)); u.rgb = pic.rgb; } // marker: see-through ink, crossing lines get darker
     o0 = pic; o1 = mis; o2 = b0; o3 = u; }`),
-  stamp: program(`uniform sampler2D P, M, B, U; uniform ivec2 C; uniform float R, DR[144]; uniform int SK, ND; uniform vec3 CA; ${OUT4}
+  seg: program(`uniform sampler2D P, M, B, U; uniform float SG[160]; uniform int NS; uniform vec3 CA; ${OUT4} // ink strands: round-ended lines (x0, y0, x1, y1, half width)
+  void main(){ ivec2 p = ivec2(gl_FragCoord.xy); vec4 pic = texelFetch(P, p, 0), mis = texelFetch(M, p, 0), b0 = texelFetch(B, p, 0), u = texelFetch(U, p, 0);
+    vec2 x = vec2(p) + .5; float m = 0.;
+    for (int i = 0; i < 32; i++) { if (i >= NS) break; vec2 a = vec2(SG[i * 5], SG[i * 5 + 1]), ba = vec2(SG[i * 5 + 2], SG[i * 5 + 3]) - a, pa = x - a;
+      float e = length(pa - ba * clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0., 1.)) - SG[i * 5 + 4]; m = max(m, clamp(.5 - e, 0., 1.)); }
+    if (m > 0.) { vec3 v = mix(rgbOf(visOf(pic, u, mis.a)), rgbOf(CA), m); pic.rgb = abOf(v); u.rgb = pic.rgb; }
+    o0 = pic; o1 = mis; o2 = b0; o3 = u; }`),
+  stamp: program(`uniform sampler2D P, M, B, U; uniform ivec2 C; uniform float R, DA, DR[144]; uniform int SK, ND; uniform vec3 CA; ${OUT4}
   float h2(vec2 v) { return fract(sin(dot(v, vec2(127.1, 311.7))) * 43758.5453); }
   float shapeD(vec2 u) { // the shape's outline: below 0 inside (u in brush radii, turned with the stroke)
     if (SK == 0) { vec2 a = abs(u); return max(a.x, a.y) - .7; }
@@ -328,7 +337,7 @@ const PR = {
     ivec2 p = ivec2(gl_FragCoord.xy); vec4 pic = texelFetch(P, p, 0), mis = texelFetch(M, p, 0), b0 = texelFetch(B, p, 0), u = texelFetch(U, p, 0);
     vec2 d = vec2(p - C); float m = 0.;
     if (SK < 0) { float keep = 1.; for (int i = 0; i < 48; i++) { if (i >= ND) break; vec3 dr = vec3(DR[i * 3], DR[i * 3 + 1], DR[i * 3 + 2]); // spray: this puff's droplets,
-        keep *= 1. - .8 * clamp(dr.z - length(vec2(p) + .5 - dr.xy) + .5, 0., 1.); } m = 1. - keep; } // each a small round drop, partly see-through; drops on drops build up
+        keep *= 1. - DA * clamp(dr.z - length(vec2(p) + .5 - dr.xy) + .5, 0., 1.); } m = 1. - keep; } // each a small round drop, partly see-through; drops on drops build up
     else { vec2 uv = vec2(dot(d, D), -d.x * D.y + d.y * D.x) / R; float e = shapeD(uv); m = clamp(.5 - e / max(fwidth(e), 1e-4), 0., 1.); } // one shape, smooth edged
     if (m > 0.) { vec3 v = mix(rgbOf(visOf(pic, u, mis.a)), rgbOf(CA), m); pic.rgb = abOf(v); u.rgb = pic.rgb; }
     o0 = pic; o1 = mis; o2 = b0; o3 = u; }`),
@@ -488,7 +497,7 @@ async function undoOne() {
 }
 
 // SECTION: TOOLS -- one dab of each medium (the model's parts 2-5)
-const st = { tool: 'acrylic', palette: 0, color: 4, load: 3, size: 1, soft: 0, turn: false, shape: { oil: 0, acrylic: 0, water: 0, crayon: 1, marker: 0, simple: 0, spray: 0, shapes: 0, ink: 0, pencil: 0 }, canvas: 'wc' };
+const st = { tool: 'acrylic', palette: 0, color: 4, load: 3, size: 1, soft: 0, turn: false, splash: 1, shape: { oil: 0, acrylic: 0, water: 0, crayon: 1, marker: 0, simple: 0, spray: 0, shapes: 0, ink: 0, pencil: 0 }, canvas: 'wc' };
 const colorOf = (i) => (i === 'pick' ? st.picked : colorsNow()[Math.min(i, colorsNow().length - 1)]); // 'pick': the colour taken from the painting
 let stroke = null, clockShift = 0;
 const paintNow = () => performance.now() / 1000 + clockShift;
@@ -497,7 +506,7 @@ const MED = { // acrylic and oil pastel: same brush model, different paint (mode
   crayon: { UGIVE: K.PASTEL_GIVE, UTAKE: K.PASTEL_TAKE, URIDGE: 0, UEDGE: 0.7, MAT: 0 }, // oil pastel (model part 4)
   acrylic: { UGIVE: K.ACR_GIVE, UTAKE: K.ACR_TAKE, URIDGE: K.ACR_RIDGE, UEDGE: K.ACR_EDGE, MAT: 1 },
 };
-function shapeUni(s) { return { D: st.turn ? s.dir : s.shape.upright ? [1, 0] : s.shape.fixed ? FIXED : s.dir, SHK: s.shape.k, SAL: s.shape.al, SSC: (s.shape.sc || 1) * (s.tool === 'ink' ? 0.35 + 0.65 * Math.min(1, Math.max(0, (s.pres - 0.5) / 0.6)) : 0.7 + 0.3 * Math.min(1, s.pres)) * liftWide(s) }; } // a lighter touch makes a narrower mark
+function shapeUni(s) { return { D: st.turn ? s.dir : s.shape.upright ? [1, 0] : s.shape.fixed ? FIXED : s.dir, SHK: s.shape.k, SAL: s.shape.al, SSC: (s.shape.sc || 1) * (0.7 + 0.3 * Math.min(1, s.pres)) * liftWide(s) }; } // a lighter touch makes a narrower mark
 function bristles(s, n, lo, seed) { // strengths across the tip: soft grooves (oil, acrylic) or the crayon's uneven tip
   const r = rng(seed), b = new Float32Array(n);
   for (let i = 0; i < n; i++) b[i] = r() * r();
@@ -535,10 +544,10 @@ function waterDab(s, cx, cy) {
 const liftPaint = (s) => 0.5 + 0.5 * s.lift; // a lifting brush leaves a little less paint
 const liftWide = (s) => 1 - (1 - s.lift) ** 2; // how wide a lifting brush still touches: it narrows gently at first, then to a point
 function simpleDab(s, cx, cy) { // the simple brush, the marker (see-through ink, model part 6), ink and pencil (part 8)
-  const R = s.r, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]), t = s.tool, mk = t === 'marker', sharp = mk || t === 'ink';
+  const R = s.r, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]), t = s.tool, mk = t === 'marker', sharp = mk;
   const lo = t === 'simple' ? [1 / 3, 2 / 3, 1][st.load - 1] : mk ? s.load * K.MARK_INK : t === 'pencil' ? K.PENCIL_WAX : 1;
   capture(r); pass(PR.simple, r, [PIC, MISC, B0, UNDER], Object.assign({ P: PIC, M: MISC, B: B0, U: UNDER, G: GRAIN, C: [X, Y], R, HD: sharp ? 1 - 1.5 / (R * (s.shape.sc || 1)) : t === 'pencil' ? 0.8 : SOFT[st.soft], ID: s.id,
-    LO: lo * (t === 'ink' ? 1 : Math.min(1, s.pres)) * liftPaint(s), CA: s.ca, GLAZE: mk ? 1 : 0, PA: CANVASES[st.canvas].paper.map(ab), INK: t === 'ink' ? 1 : 0,
+    LO: lo * Math.min(1, s.pres) * liftPaint(s), CA: s.ca, GLAZE: mk ? 1 : 0, PA: CANVASES[st.canvas].paper.map(ab),
     LEAD: t === 'pencil' ? Math.min(1, K.PENCIL_PRESS[st.load - 1] * s.pres) : 0, FL: t === 'simple' ? K.SIMPLE_FLOW * s.sp / (2 * R) : 0 }, shapeUni(s))); markDirty(r);
 }
 const shapeGrow = (s) => (s.pen ? 0.45 + 0.55 * Math.min(1.2, s.pres) : Math.min(2.2, Math.max(0.3, s.v / K.SHAPE_V))); // owner 23 Nov 10:27: as the Squares Brush (av01d
@@ -549,10 +558,30 @@ function stampDab(s, cx, cy) { // spray droplets, or one shape stamp (model part
   const drops = []; if (spray) { const n = Math.min(48, Math.round(K.SPRAY_DROPS * 2.5 / (s.shape.drop || 1) * s.load / 3 * Math.min(1.2, s.pres) * liftPaint(s))); // finer drops, more of them // a puff: droplets scattered round the nozzle's aim,
     for (let i = 0; i < n; i++) { const a = Math.random() * 2 * Math.PI, d = Math.min(1, Math.sqrt(-2 * Math.log(1 - Math.random() * 0.999)) * 0.42) * R; // most near the middle (a bell curve)
       drops.push(cx + Math.cos(a) * d, cy + Math.sin(a) * d, (s.shape.drop || 1) * (0.35 + 1.3 * Math.random() ** 3)); } } // mostly fine drops, a few big ones
+  if (spray) return dropsPass(s, drops, r);
   capture(r); pass(PR.stamp, r, [PIC, MISC, B0, UNDER], { P: PIC, M: MISC, B: B0, U: UNDER, C: [X, Y], R, CA: ca, SK: spray ? -1 : s.shape.sk, ND: spray ? drops.length / 3 : 0, DR: spray ? Float32Array.from(drops.concat(new Array(144 - drops.length).fill(0))) : new Float32Array(144),
     D: s.dir, SHK: 0, SAL: 1, SSC: 1 }); markDirty(r);
 }
-const DAB = { acrylic: oilDab, water: waterDab, crayon: oilDab, marker: simpleDab, simple: simpleDab, ink: simpleDab, pencil: simpleDab, spray: stampDab, shapes: stampDab };
+function dropsPass(s, drops, r) { // round drops (x, y, radius), at most 48 a pass, laid over what is there
+  for (let k = 0; k < drops.length; k += 144) { const d = drops.slice(k, k + 144);
+    capture(r); pass(PR.stamp, r, [PIC, MISC, B0, UNDER], { P: PIC, M: MISC, B: B0, U: UNDER, C: [0, 0], R: 1, CA: s.ca, SK: -1, DA: s.tool === 'ink' ? 1 : 0.8, ND: d.length / 3, DR: Float32Array.from(d.concat(new Array(144 - d.length).fill(0))), D: s.dir, SHK: 0, SAL: 1, SSC: 1 }); markDirty(r); } }
+function inkStart(s) { // owner 23 Nov 10:27: ink as the av01d fabric-brushes ink: many fine strands, each where one hair of the tip touches, spread round the tip (a flat nib: in a thin line)
+  const n = Math.round(12 + s.r * 0.5), rg = s.r * 0.55, flat = s.shape.fixed; s.strands = [];
+  for (let i = 0; i < n; i++) { const rx = Math.random() * rg, c0 = Math.random() * 2 * Math.PI, x0 = rx * Math.sin(c0), y0 = rx * (flat ? 0.12 : 0.5) * Math.cos(c0), c = flat ? -Math.PI / 4 : Math.random() * 2 * Math.PI;
+    s.strands.push([x0 * Math.cos(c) - y0 * Math.sin(c), x0 * Math.sin(c) + y0 * Math.cos(c)]); } }
+function inkLines(s, a, b) { // every strand draws from where it was to where it is now: thinner the faster the hand (less ink reaches the paper), thinner as it lifts
+  if (s.lift <= 0.02) return; const step = s.v * 0.016, w = s.r * Math.min(0.2, K.INK_AMOUNT / (step + 1)) * liftWide(s) / 2, segs = [];
+  const k0 = s.inkSpread ?? liftWide(s), k1 = liftWide(s); s.inkSpread = k1; // a lifting tip draws its hairs together
+  for (const [ox, oy] of s.strands) segs.push(a.x + ox * k0, a.y + oy * k0, b.x + ox * k1, b.y + oy * k1, Math.max(0.35, w));
+  const pad = s.r * 0.6 + w + 2, r = clip([Math.floor(Math.min(a.x, b.x) - pad), Math.floor(Math.min(a.y, b.y) - pad), Math.ceil(Math.max(a.x, b.x) + pad), Math.ceil(Math.max(a.y, b.y) + pad)]);
+  for (let k = 0; k < segs.length; k += 160) { const g = segs.slice(k, k + 160);
+    capture(r); pass(PR.seg, r, [PIC, MISC, B0, UNDER], { P: PIC, M: MISC, B: B0, U: UNDER, SG: Float32Array.from(g.concat(new Array(160 - g.length).fill(0))), NS: g.length / 5, CA: s.ca }); markDirty(r); }
+  const lv = K.INK_SPLASH[st.splash]; if (step > 30 && lv > 0) { // a fast flick throws drops off the tip
+    const n = Math.floor(Math.random() * 12 * lv), reach = K.INK_AMOUNT * 10 * s.r / 15, drops = [];
+    for (let i = 0; i < n; i++) { const d = 1 + Math.random() * reach, c = Math.random() * 2 * Math.PI; drops.push(b.x + d * Math.sin(c), b.y + d * Math.cos(c), Math.max(0.6, Math.random() * K.INK_AMOUNT * s.r / 15 / 2)); }
+    if (drops.length) dropsPass(s, drops, clip([Math.floor(b.x - reach - 8), Math.floor(b.y - reach - 8), Math.ceil(b.x + reach + 8), Math.ceil(b.y + reach + 8)])); } }
+function inkDab(s, x, y) { inkLines(s, { x, y }, { x, y }); } // touching down: a dot for every strand
+const DAB = { acrylic: oilDab, water: waterDab, crayon: oilDab, marker: simpleDab, simple: simpleDab, ink: inkDab, pencil: simpleDab, spray: stampDab, shapes: stampDab };
 const SPACING = { acrylic: 0.1, water: 0.2, crayon: 0.1, marker: 0.1, simple: 0.1, ink: 0.1, pencil: 0.1, spray: 0.12, shapes: 1.7 };
 
 // SECTION: WATER -- wet paint keeps moving after the stroke, only inside the wet area; it is checked now and then, and fixed when dry
@@ -610,6 +639,7 @@ function startStroke(p, pr, at) {
   newEntry();
   if (t === 'water') { water.stroking = true; stroke.wl = stroke.load; }
   else if (t === 'acrylic' || t === 'crayon') oilStart(stroke);
+  else if (t === 'ink') inkStart(stroke);
   else if (t === 'spray') { const s = stroke; s.hold = setInterval(() => { if (stroke === s) dab(s, s.last.x, s.last.y); }, 1000 / K.SPRAY_HOLD); } // an airbrush sprays as long as it is pressed, moving or not
   dab(stroke, p.x, p.y);
 }
@@ -626,6 +656,7 @@ function moveStroke(p, pr, at) { // at: the event's time in ms, for the speed
   const p0 = s.pres, p1 = p0 + (pr - p0) * turnBy, l0 = s.lift; // pressure changes over the same short distance; pressure and lifting go evenly along the move, dab by dab
   let vx = s.dir[0] * (1 - turnBy) + ux * turnBy, vy = s.dir[1] * (1 - turnBy) + uy * turnBy; const vl = Math.hypot(vx, vy) || 1; s.dir = [vx / vl, vy / vl];
   const sp = s.sp;
+  if (s.tool === 'ink') { s.lift = l1; s.pres = p1; inkLines(s, s.last, p); s.last = p; return; } // ink's strands follow the hand move by move
   let t = s.next || sp; // the next dab's distance; a lifting brush is smaller, so its dabs come closer, and the mark stays smooth
   while (t <= d) { s.lift = l0 + (l1 - l0) * t / d; s.pres = p0 + (p1 - p0) * t / d; dab(s, s.last.x + ux * t, s.last.y + uy * t); t += sp * Math.max(0.1, liftWide(s)) * (s.tool === 'shapes' ? shapeGrow(s) : 1); } // shapes follow each other edge to edge, whatever their size
   s.lift = l1; s.pres = p1; s.next = t - d; s.last = p;
@@ -758,6 +789,9 @@ const brushBtn = makeBtn(right, 'brush', (c) => { if (SHAPES[st.tool]) brushDraw
     SHAPES[t].forEach((s, i) => makeBtn(r, (blur ? 'blur-' : 'shape-') + i, brushDraw(t, i, blur ? 0.05 : undefined), () => { st.shape[t] = i; if (simple) st.soft = blur; closePop(); refresh(); },
       i === st.shape[t] && (!simple || st.soft === blur) ? 'on' : ''));
   }
+  if (t === 'ink') { const r = row(box); K.INK_SPLASH.forEach((v, i) => makeBtn(r, 'splash-' + i, (c) => { c.fillStyle = '#3a2a1a'; // owner 23 Nov 10:27: how many drops a fast ink stroke throws
+    for (let k = 0; k < [0, 3, 6, 12][i]; k++) { const a = k * 2.4, d = 12 + (k * 13) % 30; c.beginPath(); c.arc(50 + Math.cos(a) * d, 50 + Math.sin(a) * d, 2 + (k % 3), 0, 2 * Math.PI); c.fill(); }
+    c.beginPath(); c.arc(50, 50, 8, 0, 2 * Math.PI); c.fill(); }, () => { st.splash = i; closePop(); refresh(); }, i === st.splash ? 'on' : '')); }
   makeBtn(row(box), 'turn', icon('arrows-clockwise', '#3a2a1a'), () => { st.turn = !st.turn; closePop(); refresh(); }, st.turn ? 'on' : ''); // owner 23 Nov: brushes turn with the stroke, or stay at one angle
 }));
 const sizeBtn = makeBtn(right, 'size', tipDraw(st.tool, 0, 1), () => openPop(sizeBtn, (box) => { // the same 5 sizes for every brush (owner 21 Nov)

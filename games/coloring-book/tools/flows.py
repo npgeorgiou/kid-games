@@ -20,7 +20,7 @@ def reload(q):  # S(x, y): what the paper shows at a full-paper point, for check
 def scr(q, x, y): return q.evaluate("([x,y])=>__cb.screenOf(x,y)", [x - q.ox, y - q.oy])
 
 def tap(q, bid):
-    opener = {'size': 'size', 'shape': 'brush', 'blur': 'brush'}.get(bid.split('-')[0])  # owner 21 Nov: sizes and brushes are chosen in a popup
+    opener = {'size': 'size', 'shape': 'brush', 'blur': 'brush', 'splash': 'brush'}.get(bid.split('-')[0])  # owner 21 Nov: sizes and brushes are chosen in a popup
     if opener: p = q.evaluate("(id)=>__cb.btn(id)", opener); q.mouse.click(p[0], p[1]); time.sleep(0.1)
     p = q.evaluate("(id)=>__cb.btn(id)", bid); q.mouse.click(p[0], p[1]); time.sleep(0.05)
 
@@ -676,6 +676,7 @@ def f_jerk_tail(q):  # owner 23 Nov 20:18: a jerk lifts the brush fast and leave
     out, bad = [], []
     for i, t in enumerate(['acrylic', 'water', 'crayon', 'marker', 'simple', 'ink', 'pencil']):
         tap(q, 'tool-' + t); tap(q, 'shape-0'); tap(q, 'size-2'); tap(q, 'color-1')
+        if t == 'ink': tap(q, 'splash-0')  # its splash drops would land on the next rows
         lens = []
         for k, v in enumerate((3600, 2000)):  # a hand finishing a line fast: about 1 m/s, a smaller jerk about half that (his screen about 36 px a cm)
             y = 70 + i * 130 + k * 60
@@ -726,7 +727,7 @@ def f_brush_looks(q):  # owner 23 Nov 20:11: a change must not alter how any bru
         from PIL import Image; ref = Image.open(f).convert('L').resize(im.size)
         from PIL import ImageFilter; blur = ImageFilter.GaussianBlur(4)  # spray and grain are random dot by dot: compare the look, not each dot
         d = ImageStat.Stat(ImageChops.difference(im.filter(blur), ref.filter(blur))).mean[0]
-        if d > (8 if k.startswith('spray') else 4): bad.append('%s %.1f' % (k, d))  # spray's drops fall at random, and more of them the longer it is pressed
+        if d > (8 if k.startswith(('spray', 'ink')) else 4): bad.append('%s %.1f' % (k, d))  # spray's drops and ink's hairs fall at random
     report(not bad, 'every brush looks as saved (tools/looks.py saves them after he approves a look)', 'changed: %s' % bad[:8])
 FLOWS['brush_looks'] = f_brush_looks
 PAPER['brush_looks'] = ('1600x1000', (0, 0))
@@ -771,3 +772,14 @@ def f_shapes_speed(q):  # owner 23 Nov 10:27, point 4: shapes work like the Squa
     slow, fast = size(60), size(180)
     report(fast > slow * 1.6 and slow > 3, 'shapes: faster is bigger', 'average size slow %.0f, fast %.0f' % (slow, fast))
 FLOWS['shapes_speed'] = f_shapes_speed
+
+def f_ink_strands(q):  # owner 23 Nov 10:27, point 5: ink like the av01d fabric-brushes ink: a fast stroke throws splash drops; how many is a setting (none, few, some, many)
+    tap(q, 'tool-ink'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-1')
+    def splashes(y0):  # dark spots well away from the stroke's middle line
+        return q.evaluate("(y0)=>{let n=0;for(let x=60;x<540;x+=3)for(const dy of [-55,-45,45,55]){const c=S(x,y0+dy);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<150)n++}return n}", y0)
+    tap(q, 'splash-0'); jerk(q, 40, 560, 80, 2600); none = splashes(80)
+    tap(q, 'splash-1'); jerk(q, 40, 560, 220, 2600); few = splashes(220)
+    tap(q, 'splash-3'); jerk(q, 40, 560, 360, 2600); many = splashes(360)
+    report(none == 0 and many >= 4 and many > few, 'ink: fast strokes splash, as many as the setting says', 'splash spots with none %d, few %d, many %d' % (none, few, many))
+FLOWS['ink_strands'] = f_ink_strands
+PAPER['ink_strands'] = ('600x450', (0, 0))
