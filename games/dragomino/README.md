@@ -31,3 +31,4 @@ Owner's points (23 Nov 2026):
 8. Leftover goods: 3 of the same good become a jar (not sets). Jars are opened for points, and sometimes crazy bonuses.
 9. Matching edges get jars too. Bonuses: first understand the game elements, the game loop and the win condition.
 10. Game ends when tiles run out. Most points wins. Jars opened at end of round, by the kid tapping big lined-up jars. A tile nobody bids on: normal turn order. No land size limit.
+11. Bonuses: benefit must be immediate, this round (jars open in the round or at its end). Free set: no. Unbeatable first pick: hard to show. Second tile: better as a free tile. Double next jar, keep goods: no, nothing "next". Ideas: steal a tile from the opponent, get the first-player token, get another jar, get points. What are points? Not discussed yet.

@@ -28,5 +28,7 @@ Draft, not approved. Not in the brief, so every row is "new". Based on the board
 ## Open questions
 
 - Number of players.
-- What the jar bonuses are.
+- What the jar bonuses are (owner: immediate benefit only, this round).
+- What points are.
+- Whether jars can be opened during the round or only at its end.
 - Greek period and region (one per game): open.
