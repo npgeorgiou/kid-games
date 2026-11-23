@@ -334,9 +334,10 @@ def f_keep_amount(q):  # owner 21 Nov 17:26: with a paint amount chosen, choosin
 
 def f_simple_over(q):  # owner 21 Nov 17:26: the simple brush lays its colour over what is there by opacity; a soft edge never lightens the colour under it
     tap(q, 'tool-simple'); tap(q, 'size-3'); tap(q, 'color-6'); drag(q, [(300, 400), (900, 400)])
-    under = shown(q, 600, 400); tap(q, 'blur-0'); tap(q, 'color-4'); drag(q, [(600, 250), (600, 550)])
-    edge = [shown(q, 600 + dx, 400) for dx in range(30, 80, 5)]
-    report(all(lum(e) >= lum(under) - 6 and e[2] <= under[2] + 6 for e in edge), 'simple brush: a soft yellow edge over blue only adds yellow', 'blue %s, across the edge %s' % (under, edge[::3]))
+    dxs = range(30, 80, 5); unders = [shown(q, 600 + dx, 400) for dx in dxs]; under = unders[0]  # the blue at each place before the yellow (the blue line varies a little with the finger's speed)
+    tap(q, 'blur-0'); tap(q, 'color-4'); drag(q, [(600, 250), (600, 550)])
+    edge = [shown(q, 600 + dx, 400) for dx in dxs]
+    report(all(lum(e) >= lum(u) - 6 and e[2] <= u[2] + 6 for e, u in zip(edge, unders)), 'simple brush: a soft yellow edge over blue only adds yellow', 'blue %s, across the edge %s' % (under, edge[::3]))
 FLOWS.update({'picker': f_picker, 'keep_amount': f_keep_amount, 'simple_over': f_simple_over})
 
 def f_water_no_hitch(q):  # owner 21 Nov 18:29: after a few strokes on dry paper, new strokes lag and show late: no frame may hang while he paints on (the undo room filling up)
