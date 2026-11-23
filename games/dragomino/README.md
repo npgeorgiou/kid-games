@@ -13,7 +13,7 @@ Design discussion. The engine (what land produces and what it buys) is not decid
 
 ## Open
 
-- Engine: shape (bigger connected land worth more) or luck (jars), or something else. See `design.md`.
+- Bidding: why not bid everything, when goods are lost anyway.
 - What jars are for.
 - Period and region.
 
@@ -25,3 +25,6 @@ Owner's points (23 Nov 2026):
 2. What if both players have sets of 3?
 3. What would jars serve?
 4. By the end of the game each player would easily make many sets, because every player places maybe 20 tiles.
+5. Goods lost at the end of the round: agreed.
+6. Bidding: veto the opponent's choice with sets, he can outbid, and so on; the winner's tile is locked for him. But with goods lost at the end of the round there is no reason not to bid.
+7. Jars: keep thinking.
