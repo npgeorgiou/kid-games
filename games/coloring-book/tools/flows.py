@@ -683,3 +683,11 @@ def f_jerk_tail(q):  # owner 23 Nov 20:18: a jerk lifts the brush fast and leave
     report(not bad, 'a jerk leaves a smooth thinning tail, shorter for a bigger jerk', '%s; tail lengths %s' % (bad[:4], ', '.join(out)))
 FLOWS['jerk_tail'] = f_jerk_tail
 PAPER['jerk_tail'] = ('1600x1000', (0, 0))
+
+def f_previews_drawn(q):  # owner 23 Nov 20:18: some brush pictures in the brush popup are black boxes: every brush picture, on every canvas, shows paper with a stroke on it
+    bad = q.evaluate("""async()=>{const out=[];for(const [cv,m] of Object.entries(__cb.previews))for(const [k,src] of Object.entries(m)){
+      const im=new Image();im.src=src;await im.decode();const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const x=c.getContext('2d');x.drawImage(im,0,0);
+      const d=x.getImageData(0,0,c.width,c.height).data;let lo=255,hi=0,sum=0;for(let i=0;i<d.length;i+=4){const l=(d[i]+d[i+1]+d[i+2])/3;lo=Math.min(lo,l);hi=Math.max(hi,l);sum+=l}
+      const mean=sum/(d.length/4);if(mean<150||hi-lo<60)out.push(cv+':'+k)}return out}""")
+    report(not bad, 'brush pictures: paper with a stroke, none black or empty', 'bad: %d %s' % (len(bad), bad[:8]))
+FLOWS['previews_drawn'] = f_previews_drawn
