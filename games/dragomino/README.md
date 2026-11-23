@@ -1,24 +1,22 @@
 # Dragomino (working name)
 
-A tile-drafting game based on the board game Dragomino: players pick two-half terrain tiles in turn and build their own land. Only design so far; nothing is built.
+A two-player tile-drafting game based on the board game Dragomino: each player builds his own land from two-half terrain tiles, bids sets of goods for tiles, and opens jars for gold coins and bonuses. Only design so far; nothing is built. The full design is in `design.md`.
 
 ## Where things are
 
-- `design.md`: the design sheet (draft), rejected engines and open questions.
+- `design.md`: the full design (draft): rules, jars, slot machine, points, rejected ideas, tensions, sheet rows, everything open.
 - `WARNINGS.md`: traps found in this game.
 
 ## Now
 
-Design discussion. The engine (what land produces and what it buys) is not decided.
+Design stage, draft sheet not approved. All rules decided so far, the owner's ideas and the open points are in `design.md`. Next: settle the points in `design.md` section 6, then the owner approves the sheet.
 
 ## Open
 
-- More than 2 players (screen size).
-- Slot machine odds.
-- What the jar bonuses are.
-- Period and region.
+See `design.md` section 6.
 
 ## Task list
+
 
 Owner's points (23 Nov 2026):
 
@@ -35,3 +33,4 @@ Owner's points (23 Nov 2026):
 11. Bonuses: benefit must be immediate, this round (jars open in the round or at its end). Free set: no. Unbeatable first pick: hard to show. Second tile: better as a free tile. Double next jar, keep goods: no, nothing "next". Ideas: steal a tile from the opponent, get the first-player token, get another jar, get points. What are points? Not discussed yet.
 12. Jars from connections are opened during the round, at once. Points: gold coins drawn one by one, rows compared, agreed. Bonuses: free tile from the draft no; another jar no (you must open it yourself); empty jar no; points yes, 50% of the time. Slot machine bonus: 3 wheels showing all game resources (the 5 goods, points, jars); it spins once, then you pay 1 coin to reroll the wheels you choose, as many times as you want; when all 3 show the same, you win it.
 13. Slot machine: suggest simple changes so a win does not cost about 7 coins. Steal: keep. First-player token: keep. The other 50% of jars: slot machine plus the bonuses kept. Free tile: an extra tile from nowhere. Players: 2; default against the PC, can be another human; more players unknown (screen size).
+14. Slot machine: 2 the same win 2, 3 the same win 3? Wheel pictures can show amounts (2 grain, 3 coins), later. Write a clean design doc with everything another chat needs.
