@@ -26,3 +26,4 @@
 - A test paper must differ from the full paper only in size: its canvas grain is the full paper's grain at that place (paperGrain). If a flow's numbers change on its test paper, run it on the full paper to compare.
 - The test browser stalls each mouse move while heavy paint is drawn: drags put the pointer where the finger would be by now (drag); only frame-time flows send one fixed move after another (per_move).
 - The commit gate runs the old code outside the repo and at the same time as the new: harnesses and flows use only their own folder and tempfile.gettempdir(), never fixed /tmp paths.
+- The test browser sends far fewer pointer moves than his screen: anything smoothed over moves (direction, pressure) must be smoothed over distance, never per move.

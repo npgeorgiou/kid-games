@@ -537,3 +537,30 @@ def f_speed_pressure(q):  # owner 23 Nov: with a finger or the mouse, a slower s
     fast, slow = [round(lum(across(q, 300, y, 6))) for y in (70, 180)]
     report(slow < fast - 8, 'slower strokes press harder', 'brightness in the middle of the line: fast %d, slow %d' % (fast, slow))
 FLOWS.update({'start_outside': f_start_outside, 'turn': f_turn, 'speed_pressure': f_speed_pressure})
+
+def f_new_tools(q):  # owner 23 Nov: new drawing tools: spray, shapes, ink, pencil; each paints where it is drawn
+    got = {}
+    for k, t in enumerate(('spray', 'shapes', 'ink', 'pencil')):
+        tap(q, 'tool-' + t); tap(q, 'size-2'); tap(q, 'color-6'); y = 35 + 60 * k
+        drag(q, [(40, y), (360, y)]); got[t] = round(lum(across(q, 200, y, 10)))
+    report(all(v < 200 for v in got.values()), 'new drawing tools paint', 'brightness on each stroke %s' % got)
+
+def f_shapes_vary(q):  # owner 23 Nov: shape stamps along the stroke, each a slightly different colour from the chosen one
+    tap(q, 'tool-shapes'); tap(q, 'shape-1'); tap(q, 'size-2'); tap(q, 'color-2'); drag(q, [(30, 125), (370, 125)])
+    cols = q.evaluate("()=>{const o=[];for(let x=30;x<370;x+=2){const c=S(x,125);if(c[0]>120&&c[1]<120)o.push(c)}return o}")
+    reds = sorted(set(c[0] for c in cols)); spread = (reds[-1] - reds[0]) if reds else 0
+    report(len(cols) > 40 and spread >= 12, 'shapes: stamps vary a little in colour', 'red stamp pixels %d, red channel from %s to %s' % (len(cols), reds[:1], reds[-1:]))
+
+def f_pencil_grain(q):  # owner 23 Nov: a drawing pencil: colour only on the paper's raised grain, so paper shows through; harder (fuller bucket) is darker
+    tap(q, 'tool-pencil'); tap(q, 'shape-1'); tap(q, 'size-3'); tap(q, 'color-6'); hold(q, 'color-6', 0.6)
+    drag(q, [(30, 70), (370, 70)]); tap(q, 'color-6'); drag(q, [(30, 180), (370, 180)])
+    def light(y): return q.evaluate("(y)=>{let n=0,t=0;for(let x=60;x<340;x+=2)for(let j=-4;j<=4;j+=2){const c=S(x,y+j);t++;if(0.3*c[0]+0.59*c[1]+0.11*c[2]>200)n++}return n/t}", y)
+    soft, hard = light(70), light(180)
+    report(0.15 < soft < 0.9 and hard < soft - 0.1, 'pencil: paper shows through, pressing harder covers more', 'paper showing: light %.0f%%, hard %.0f%%' % (soft * 100, hard * 100))
+
+def f_ink_speed(q):  # owner 23 Nov: an ink pen: a slow line is wider than a fast one
+    tap(q, 'tool-ink'); tap(q, 'size-3'); tap(q, 'color-1')
+    drag(q, [(40, 70), (360, 70)], step=400, per_move=True); drag(q, [(40, 180), (360, 180)], step=2, per_move=True)
+    fast, slow = width_across(q, 300, 70, 0, 1, 50), width_across(q, 300, 180, 0, 1, 50)
+    report(slow > fast * 1.5, 'ink: slow lines wider than fast', 'width fast %d, slow %d' % (fast, slow))
+FLOWS.update({'new_tools': f_new_tools, 'shapes_vary': f_shapes_vary, 'pencil_grain': f_pencil_grain, 'ink_speed': f_ink_speed})

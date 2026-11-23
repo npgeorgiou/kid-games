@@ -15,7 +15,7 @@ with sync_playwright() as p:
     for cv in ('wc', 'smooth', 'cotton'):
         if cv != 'wc': tap(q, 'canvas'); tap(q, 'canvas-' + cv); time.sleep(0.5)
         shapes = q.evaluate("()=>Object.fromEntries(Object.entries(__cb.shapes).map(([t,v])=>[t,v.length]))")
-        jobs = [(t, i, 0) for t in ('acrylic', 'water', 'crayon', 'marker', 'simple') for i in range(shapes[t])] + [('simple', i, 1) for i in range(shapes['simple'])]
+        jobs = [(t, i, 0) for t in ('acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil') for i in range(shapes[t])] + [('simple', i, 1) for i in range(shapes['simple'])]
         for k, (t, i, blur) in enumerate(jobs):
             x, y = (k % 4) * W, (k // 4) * H
             q.evaluate("([t,i,blur,pts])=>{const s=__cb.st;s.tool=t;s.shape[t]=i;s.soft=blur;s.size=1;s.color=6;s.load=3;__cb.paint(pts)}",

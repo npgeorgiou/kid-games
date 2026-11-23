@@ -6,7 +6,7 @@ A painting game for a curious four-year-old, on a touchscreen PC. Not a workshee
 
 - **Start:** open `coloring-book.html` in a browser (one self-contained file). The newest picture opens.
 - **Paint:** one finger (or the mouse, or a pen with pressure) paints; other fingers are ignored. A finger or the mouse presses harder the slower it moves. A stroke may start beside the paper and come in. Ctrl+Z takes back the last stroke.
-- **Left side, tools:** acrylic, watercolour, crayon (oil pastel), marker, simple brush, stickers. The tool buttons take the colour chosen.
+- **Left side, drawing tools:** acrylic, watercolour, crayon (oil pastel), marker, simple brush, spray, shapes, ink, pencil, stickers. The buttons take the colour chosen.
 - **Bottom, colours:** the colour buttons are paint buckets. A tap fills the bucket (a full brush); holding goes round a third, two thirds, full, every half second. Choosing another colour keeps the amount. The palette button opens the palettes (Basic and a guide picture's own palette on top, then four columns of 10, each palette a bar of stripes: monochromes, a line, rainbows, a line, then the rest from simple to busy); white and black buckets are added when a palette has none; the pipette picks a colour from the painting (its own pointer, with a big swatch of the colour under it). With the sticker tool the bottom shows the stickers: drag one onto the paper, drag it off to remove it.
 - **Right side:** brush (the brush shape, shown as the brush and as a real stroke of it), size (5 sizes, the same for every brush), canvas (a new picture on watercolour paper, smooth paper or cotton), guide picture (choose, show or hide, remove), undo (all the way back), new picture, gallery (every kept picture, with delete), delete (press twice within a few seconds; a touch anywhere else takes the first press back).
 - **Esc** closes the gallery and other views.
@@ -20,6 +20,10 @@ A painting game for a curious four-year-old, on a touchscreen PC. Not a workshee
 | Crayon (oil pastel) | tip, side | thick and opaque in the paper's raised grain; the bucket level is how hard it presses; passes build up, smear and blend, small lumps |
 | Marker | bullet, chisel | see-through ink: each layer darker, crossings and the edge darker |
 | Simple | round, square, each sharp or soft | plain digital paint: opacity is the bucket level, the soft row has blurred edges |
+| Spray | fine, coarse (droplet size) | droplets scattered over a round area, thinner at its edge; more with more paint and pressure |
+| Shapes | square, circle, triangle, star, heart | one shape stamped at intervals, turned with the stroke, bigger with more pressure, each a slightly different colour |
+| Ink | round, nib | opaque ink, a sharp edge a little ragged by the paper's grain, wider when drawn slowly |
+| Pencil | sharp, blunt, side | coloured lead only on the paper's raised grain; the bucket level is how hard it presses |
 
 Flat brushes are held at one fixed angle, unless the turn switch in the brush popup is on: then every brush turns with the stroke. The brush popup shows real strokes of each brush on the chosen canvas (`lib/previews`).
 
@@ -59,7 +63,7 @@ Every check passes. A commit that changes the game must name a flow that failed 
 
 ## Now
 
-Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words: "tool" = acrylic, watercolour, crayon (oil pastel), marker, simple; "brush" = the brush shape; "colour button" = a paint bucket filled to the paint amount. On 21 Nov: brought to the readme, file-section and testing standards; the tests run on small test papers at a finger's speed. On 22 Nov: the owner's own 40 palettes in four columns.
+Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words: "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape; "colour button" = a paint bucket filled to the paint amount. On 21 Nov: brought to the readme, file-section and testing standards; the tests run on small test papers at a finger's speed. On 22 Nov: the owner's own 40 palettes in four columns.
 
 ## Open
 
