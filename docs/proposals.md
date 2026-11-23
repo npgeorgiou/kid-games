@@ -310,6 +310,17 @@ Columns: **Theme** (from brief) · **System** (standard game type it is) · **Br
   > Εδώ και 400 χρόνια, το έθνος των Ελλήνων είναι υπόδουλο στους Τούρκους. Οι Τούρκοι κατέλαβαν την Κωνσταντινούπολη, και χάλασαν το Κράτος μας. Εδώ και 400 χρόνια βιώνουμε λεηλασίες, καταπίεση και θάνατο. Όμως το έθνος δεν έπαψε ποτέ να ζητάει την επανόρθωσή του. Εξεγείρεται ξανά και ξανά, μα οι εξεγέρσεις του πνίγονται στο αίμα. Μα δεν σταματά. Το 1821, το ολιγάριθμο, άοπλο, και δούλο έθνος επαναστατεί ξανά. Αυτή η φορά όμως είναι διαφορετική: Στον πυρήνα της επανάστασης είναι οι Κλέφτες, αντάρτες που αιώνες τώρα πολεμούν τους Τούρκους από τα βουνά. Και μια μυστική οργάνωση, η Φιλική Εταιρεία, έχει οργανώσει τους κλέφτες, τους αρχηγούς των κοινοτήτων, και τους εκκλησιαστικούς ηγέτες. Και κάτι ακόμα: Αυτή η φορά θα είναι η τελευταία: Είμαστε αποφασισμένοι να νικήσουμε ή να πεθάνουμε όλοι για πάντα. Ελευθερία ή Θάνατος!
 - Open: game style, system and mechanics.
 
+### 51. Dragomino-like land game (owner, 23 Nov; next game, mechanics open)
+- Base: the Dragomino loop (tiles drafted in turn from a market, matching edges earn jars). Game mechanics are not protected; name, art and rule text must be our own.
+- Owner: tiles snap in place as if magnetic.
+- Owner: the board looks alive, and you build an actual land, not just tiles for connection points.
+- Owner: placing tiles is the only way the land is made; no building.
+- Owner: visuals and mechanics are separate; no goods travelling; lands do not feed villages.
+- Owner: every land has the same value, whatever its terrain; no touching rules for value.
+- Owner: jars decide the differences between players.
+- Owner wanted the land to be an engine for the game; still open, since equal-value land makes every player's land produce the same.
+- Rejected by owner: coins per land, symbols that multiply a land, sets of goods, stone as a currency or for building, village prices.
+
 ## Real-game mechanics matched to our list
 
 Proposals only. Each line: mechanic (real games that use it) → where it could fit.
