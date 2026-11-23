@@ -16,7 +16,8 @@ Two players each build their own land from tiles with two terrain halves. Each r
 
 ### Players
 - Owner rule: 2 players. By default you play against the PC; another human can play instead.
-- Owner rule: the PC picks the tile that gives it the most matches and bids only when that tile would give it a match.
+- Owner rule: the PC always does what is mathematically optimal, in every choice (pick, bid, place, jars, slot machine). For now (owner yes): the best expected result for this turn, not planning whole rounds ahead. To improve later.
+- Owner rule: every PC (or second player) action is fully visible, done slowly by a moving hand, as if a person were doing it.
 - Open: more than 2 players (the owner doesn't know if the screen is big enough).
 
 ### Tiles and land
@@ -25,27 +26,34 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Owner rule: a land is all the connected squares of one terrain.
 - Owner rule: every land is the same value, whatever its terrain, shape or size. No terrain, symbol or multiplier makes one land worth more than another.
 - Owner rule: there is no size limit on a player's land.
-- Owner rule: a new tile must touch your land; a half need not match. Each player starts with one start square.
+- Owner rule: a new tile must touch your land and must have at least one matching edge; a tile with no matching edge can't be placed.
+- Owner rule: each player starts with the same start tile, two halves in the two most common colours.
+- Owner rule: one shared board that fits the screen. The start tiles are at the centres of its two halves. Each player's own land has a border all around its edges.
+- Owner rule: the colours are scarce in a fixed ratio; tiles are random by that ratio (except the start tile). Built for now: 24/22/20/18/16% (the owner asked for scarcity based on the math and did not pick between equal and this). Note from the owner: if sets don't form easily, the split may need rethinking, or sets may get a bigger job in the game.
+- Owner rule: in the first round the tiles are not random: they are made so that each player has at least one tile he can place.
 - Owner rule: 4 tiles are laid out per round, 2 for each player; 10 rounds, 20 tiles each.
 
 ### A round
 1. **Tiles laid out** (a draft). Owner rule: tiles are picked in turn.
-2. **Picking and bidding** (owner rule). A set is 3 different goods. The player whose turn it is picks a tile. The opponent may bid sets on it; then the bidding goes back and forth. On a tie, the player whose turn it was wins. The winner's tile is locked for him. A tile nobody bids on goes to the picker.
+2. **Picking and bidding** (owner rule). A set is 5 goods, one of each. Only the winner pays. The player whose turn it is picks a tile. The opponent may bid sets on it; then the bidding goes back and forth. On a tie, the player whose turn it was wins. The winner's tile is locked for him. A tile nobody bids on goes to the picker.
 3. **Placing.** Each player places his tiles in his own land.
-   - Owner rule: matching edges (a half next to the same terrain) earn a jar, and it is opened at once, during the round.
+   - Owner rule: one jar per matching edge, so one tile can earn several, and edges with the opponent's land count too. They are opened at once, during the round.
+   - Owner rule: a tile is one rectangle, coloured half and half. You drag it onto the board, tap it to turn it, and it snaps into place; before it snaps, the place is shown.
 0. **Start of round.** Owner rule: each square of land makes 1 good of its terrain. All goods are worth the same.
 4. **End of round.**
-   - Owner rule: goods not spent are lost at the end of the round, but 3 of the same good (for example 3 grain) become a jar. Sets don't become jars.
+   - Owner rule: goods not spent are lost at the end of the round, but each 3 of the same good (for example 3 grain) become a jar (6 make 2). Sets don't become jars.
    - Owner rule: jars from leftover goods are opened at the end of the round.
 
 ### Jars
 - Owner rule: the child opens jars by tapping big jars lined up on screen. Opening one yourself is the fun.
 - Owner rule: a jar's benefit is immediate, in this round. Nothing carries to a "next" round.
 - Owner rule, contents:
-  - Points (gold coins): 50% of the time.
-  - The other 50%: the slot machine, stealing a tile from the opponent, the first-player token, a free extra tile "from nowhere" (not from the draft), another jar, a free set.
-  - Proposal (built for now): the other 50% split equally between them.
-- Owner rule: stealing takes a tile already in the opponent's land; you place it in yours.
+  - Points: 1 gold coin, 50% of the time.
+  - The other 50%, split equally (owner yes): the slot machine, stealing a tile from the opponent, the first-player token, a free extra tile "from nowhere" (not from the draft), another jar, a free set, 2 coins.
+- Owner rule: stealing takes a tile already in the opponent's land; you place it in yours. A tile with no place in your land can't be stolen. Whether the opponent's land stays connected does not matter.
+- Owner rule: a free tile is always one that can be placed.
+- Owner rule: nobody starts with the first-player token; a jar sometimes gives it. Without it, the human player goes first (with two humans, one of them). The holder opens his end-of-round jars first.
+- Owner rule: a picker who loses the bid picks again.
 - Rejected by the owner:
   - An unbeatable first pick: hard to show visually.
   - A second tile next round: changed into the free tile from nowhere.
@@ -108,20 +116,11 @@ Two players each build their own land from tiles with two terrain halves. Each r
 
 ## 6. Built for now (not decided by the owner; to check)
 
-- The start square is brown, makes no good and matches nothing.
-- Tiles: 40, each half a random colour (a half may match its own tile's other half in colour).
-- One jar per matching edge.
-- A coins jar holds 1 to 3 coins.
-- A bid's sets are taken from the kinds you have most of. Only the winner pays.
-- A picker who loses the bid picks again.
-- The first-player token stays with its holder until a jar moves it. The kid starts with it.
-- At the end of a round, the token holder opens his jars first.
-- The PC never rerolls the slot machine.
-- A free set is 3 random different goods. A free tile has 2 random colours.
+- The colour split (see Tiles and land).
+- The PC counts every jar as worth the same and judges a move by the jars it earns this turn.
 
 ## 7. Still open (all in one place)
 
-- The bonus shares (equal for now).
 - The slot machine: pictures with amounts, later.
 - More than 2 players.
 - Greek period and region (one per game, `docs/design-rules.md`).
