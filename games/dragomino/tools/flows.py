@@ -61,9 +61,8 @@ def f_bid_tie_picker(q):  # the picker picks, the opponent may bid sets, they go
     report(pc_bid == 1 and s['players'][0]['goods'] == [0, 0, 0, 0, 0] and s['players'][1]['goods'] == [0, 0, 1, 1, 1], 'bid: tie goes to the picker, winner pays', 'pc bid %d, kid goods %s, pc goods %s' % (pc_bid, s['players'][0]['goods'], s['players'][1]['goods']))
 
 def f_pc_most_matches(q):  # the PC picks the tile that gives it the most matches
-    table(q, bag=[[0, 0], [1, 1], [3, 3], [4, 4]], land=[[], [[1, 0, 3], [2, 0, 3]]])
-    tap(q, 'draft-0'); waiting(q, 'place'); tap(q, spot(q, False))
-    q.wait_for_function("()=>__dg.state().players[1].land.length===5", timeout=3000)
+    table(q, bag=[[0, 0], [1, 1], [3, 3], [4, 4]], land=[[], [[1, 0, 3], [2, 0, 3]]], jarQueue=[{'k': 'coins', 'n': 1}] * 8)  # set jars: a random bonus could change the land
+    tap(q, 'draft-0'); waiting(q, 'place'); tap(q, spot(q, False)); waiting(q, 'pick')
     cs = sorted(c[2] for c in st(q)['players'][1]['land'])
     report(cs.count(3) == 4, 'pc: picks the tile with most matches', str(cs))
 
