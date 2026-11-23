@@ -1,19 +1,35 @@
 # Dragomino (working name)
 
-A two-player tile-drafting game based on the board game Dragomino: each player builds his own land from two-half terrain tiles, bids sets of goods for tiles, and opens jars for gold coins and bonuses. Only design so far; nothing is built. The full design is in `design.md`.
+A two-player tile-drafting game based on the board game Dragomino: each player builds his own land from two-half terrain tiles, bids sets of goods for tiles, and opens jars for gold coins and bonuses. A rough prototype with colours only; the full design is in `design.md`.
+
+## How to play
+
+- Open `dragomino.html` in a browser (one self-contained file). You play on the left, the PC on the right.
+- Top: the 4 tiles of this round; the bars on the left are the rounds left. Tap a tile to pick it.
+- If the other player wants it, a panel shows the sets needed: green takes it (a tie is yours), red lets it go.
+- Your tile in hand is bottom-left on your land; tap it to turn it. Tap a blue square to place it there.
+- Jars: tap the big jars to open them. Slot machine: tap wheels to choose, the green button pays a coin and spins them again, the yellow button takes what you have.
+- Under each land: goods (a row per colour) and gold coins. The star is the first-player token.
+- At the end the two rows of coins are shown; the star marks the winner. The round arrow starts again.
 
 ## Where things are
 
 - `design.md`: the full design (draft): rules, jars, slot machine, points, rejected ideas, tensions, sheet rows, everything open.
 - `WARNINGS.md`: traps found in this game.
+- `src/index.html`: the game source; `build.py` makes `dragomino.html` from it.
+- `tools/flows.py`: flow tests, one per owner rule; `tools/harness.py` builds and runs them.
+
+## Running the checks
+
+`python3 tools/harness.py flows` (all) or `python3 tools/harness.py flows <name>`; each prints PASS or FAIL.
 
 ## Now
 
-Design stage, draft sheet not approved. All rules decided so far, the owner's ideas and the open points are in `design.md`. Next: settle the points in `design.md` section 6, then the owner approves the sheet.
+A rough playable prototype against the PC, colours only. Rules and what was built without an owner decision are in `design.md` sections 2 and 6.
 
 ## Open
 
-See `design.md` section 6.
+See `design.md` sections 6 and 7.
 
 ## Task list
 
@@ -36,3 +52,4 @@ Owner's points (23 Nov 2026):
 14. Slot machine: 2 the same win 2, 3 the same win 3? Wheel pictures can show amounts (2 grain, 3 coins), later. Write a clean design doc with everything another chat needs.
 15. Build defaults: 1 yes, 2 yes, 3 goods made at the start of the round, become jars at the end, 4 picker picks, maybe the enemy bids, then the bidders go on, tie goes to the picker, 5 no: many more jar bonuses were mentioned and agreed, 6 yes, 7 yes for now, 8 yes, 9 no fish (not from land); colours only for now, lands and matching resource colours; what each land is, later.
 16. Jar bonuses: yes also to another jar and free set.
+17. Build it.
