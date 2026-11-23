@@ -3,7 +3,7 @@
 # PAPER names the size and where that part starts (ox, oy), and the page gives it that part's canvas grain; flows keep full-paper coordinates and the helpers shift them. Speed and undo-room flows keep the full paper.
 # Colours are picked by their place in the Basic palette: 0 white, 1 black, 2 red, 3 orange, 4 yellow, 5 green, 6 blue, 7 purple, 8 pink, 9 brown (owner 21 Nov: every palette 10 colours).
 # Each flow starts from a fresh page with no saved pictures and prints PASS or FAIL, its name, and what was seen.
-import time, json, pathlib
+import time, json, pathlib, math
 from playwright.sync_api import sync_playwright
 GAME = pathlib.Path(__file__).resolve().parent.parent / 'coloring-book.html'  # this copy's own build, so old and new code can be tested at once
 
@@ -730,3 +730,36 @@ def f_brush_looks(q):  # owner 23 Nov 20:11: a change must not alter how any bru
     report(not bad, 'every brush looks as saved (tools/looks.py saves them after he approves a look)', 'changed: %s' % bad[:8])
 FLOWS['brush_looks'] = f_brush_looks
 PAPER['brush_looks'] = ('1600x1000', (0, 0))
+
+def f_spray_real(q):  # owner 23 Nov 10:27, point 3: spray must work like other painting software's spray (airbrush): droplets scattered at random, of different sizes,
+    tap(q, 'tool-spray'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-1')  # thickest in the middle and thinning out, and building up while held still
+    from PIL import Image; import io
+    def cov(cx, cy, r0, r1):  # share of paper darkened between two distances from a point
+        a, b = scr(q, cx - 70, cy - 70), scr(q, cx + 70, cy + 70); im = Image.open(io.BytesIO(q.screenshot(clip={'x': a[0], 'y': a[1], 'width': b[0] - a[0], 'height': b[1] - a[1]}))).convert('L')
+        sx = im.width / 140; n = k = 0
+        for y in range(im.height):
+            for x in range(im.width):
+                d = math.hypot(x / sx - 70, y / sx - 70)
+                if r0 <= d < r1: n += 1; k += im.getpixel((x, y)) < 150
+        return k / max(1, n)
+    x, y = scr(q, 400, 300); q.mouse.move(x, y); q.mouse.down(); time.sleep(0.25); early = cov(400, 300, 0, 15); time.sleep(1.0); late = cov(400, 300, 0, 15); q.mouse.up()
+    mid, outer = cov(400, 300, 15, 30), cov(400, 300, 40, 55)
+    a, b = scr(q, 600, 250), scr(q, 640, 350)  # droplets of different sizes: a short stroke, its dark spots measured one by one
+    drag(q, [(620, 230), (620, 370)], step=30)
+    im = Image.open(io.BytesIO(q.screenshot(clip={'x': a[0], 'y': a[1], 'width': b[0] - a[0], 'height': b[1] - a[1]}))).convert('L')
+    px = im.load(); seen = set(); sizes = []
+    for yy in range(im.height):
+        for xx in range(im.width):
+            if px[xx, yy] < 150 and (xx, yy) not in seen:
+                st_, n = [(xx, yy)], 0; seen.add((xx, yy))
+                while st_:
+                    u, v = st_.pop(); n += 1
+                    for du, dv in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        w = (u + du, v + dv)
+                        if 0 <= w[0] < im.width and 0 <= w[1] < im.height and w not in seen and px[w] < 150: seen.add(w); st_.append(w)
+                sizes.append(n)
+    sizes = [s for s in sizes if s < 60] or [0]; m = sum(sizes) / len(sizes); sd = (sum((s - m) ** 2 for s in sizes) / len(sizes)) ** 0.5
+    ok = late > early * 1.3 and early > 0.02 and mid < late and outer < mid * 0.7 and len(sizes) > 10 and sd / max(m, 1e-6) > 0.5
+    report(ok, 'spray: random droplets of many sizes, thinning outwards, building up while held', 'held 0.25 s %.2f, 1.25 s %.2f; middle ring %.2f, outer %.2f; droplets %d, size spread %.2f' % (early, late, mid, outer, len(sizes), sd / max(m, 1e-6)))
+FLOWS['spray_real'] = f_spray_real
+PAPER['spray_real'] = ('500x300', (250, 150))
