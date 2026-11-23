@@ -35,6 +35,9 @@ Owner's yes (24 Nov 00:55), to do before the list in Task list, one point per co
 - The same checks run on GitHub on every push, and the owner is the required reviewer of the commit check and the GitHub check (CODEOWNERS). The owner turns on branch protection for main himself.
 - Random play acts only through the screen and checks after every move: the stockpile shown equals the land shown; jars shown equal matching edges.
 
+- Every owner bug report becomes a flow named after his report, repeating his steps on screen; it fails before the fix and stays forever.
+- Mutation testing (owner yes, 00:58): a script breaks the game in small ways one at a time and runs the flows; every break no flow catches is listed as a hole. It runs once a day and its list of holes is sent to the owner.
+
 Also see `design.md` sections 6 and 7.
 
 ## Task list
