@@ -13,8 +13,8 @@ Design discussion. The engine (what land produces and what it buys) is not decid
 
 ## Open
 
-- Bidding: why not bid everything, when goods are lost anyway.
-- What jars are for.
+- Whether matching edges still earn jars.
+- What the jar bonuses are.
 - Period and region.
 
 ## Task list
@@ -28,3 +28,4 @@ Owner's points (23 Nov 2026):
 5. Goods lost at the end of the round: agreed.
 6. Bidding: veto the opponent's choice with sets, he can outbid, and so on; the winner's tile is locked for him. But with goods lost at the end of the round there is no reason not to bid.
 7. Jars: keep thinking.
+8. Leftover goods: 3 of the same good become a jar (not sets). Jars are opened for points, and sometimes crazy bonuses.
