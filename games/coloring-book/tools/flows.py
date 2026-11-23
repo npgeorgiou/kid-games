@@ -648,9 +648,38 @@ def f_flick_lifts(q):  # owner 23 Nov 10:27, point 16: speed works like lifting 
         flick(q, 100, 900, y)  # 550 px/s at 100, about 1500 at 190, 2500 at 370, 4000 at 900
         if t == 'water': wait_dry(q)
         def w(x): return max(width_across(q, x + dx, y, 0, 1, 45) for dx in (-6, -3, 0, 3, 6))  # widest of a few places: spray and shapes are spotty
-        start, mid, end = w(130), w(260), w(700)
+        start, mid, end = w(130), w(500), w(800)  # owner 23 Nov 20:18: lifting starts once the hand is fast and takes a few centimetres
         out.append('%s %d>%d>%d' % (t, start, mid, end))
         if not (start >= 6 and mid < start * 0.8 and end == 0): bad.append(t)
     report(not bad, 'a quick flick thins out and disappears, every drawing tool', 'wrong: %s; widths start>middle>end: %s' % (bad, ', '.join(out)))
 FLOWS['flick_lifts'] = f_flick_lifts
 PAPER['flick_lifts'] = ('1000x1000', (0, 0))
+
+def jerk(q, x0, x1, y, v):  # a jerk: from rest straight to speed v (paper pixels a second), moves 16 ms apart with their own times, let go while moving
+    cdp = q.context.new_cdp_session(q); t0 = time.time()
+    def ev(typ, t, x, extra={}):
+        X, Y = scr(q, x, y); cdp.send('Input.dispatchMouseEvent', dict({'type': typ, 'x': X, 'y': Y, 'button': 'left', 'buttons': 1, 'timestamp': t0 + t}, **extra))
+    ev('mousePressed', 0, x0, {'clickCount': 1}); t = 0.016
+    while x0 + v * t < x1: ev('mouseMoved', t, x0 + v * t); t += 0.016
+    ev('mouseReleased', t - 0.016, x0 + v * (t - 0.016), {'clickCount': 1}); cdp.detach(); time.sleep(0.15)
+
+def f_jerk_tail(q):  # owner 23 Nov 20:18: a jerk lifts the brush fast and leaves a smoothly thinned line (no beads, no rings); a smaller jerk leaves a longer line
+    out, bad = [], []
+    for i, t in enumerate(['acrylic', 'water', 'crayon', 'marker', 'simple', 'ink', 'pencil']):
+        tap(q, 'tool-' + t); tap(q, 'shape-0'); tap(q, 'size-2'); tap(q, 'color-1')
+        lens = []
+        for k, v in enumerate((3600, 2000)):  # a hand finishing a line fast: about 1 m/s, a smaller jerk about half that (his screen about 36 px a cm)
+            y = 70 + i * 130 + k * 60
+            jerk(q, 100, 1500, y, v)
+            if t == 'water': wait_dry(q)
+            ws = [width_across(q, x, y, 0, 1, 30) for x in range(110, 1500, 4)]
+            end = max([j for j, w in enumerate(ws) if w > 0] or [0])
+            gaps = [j for j in range(1, int(end * 0.9)) if max(ws[j - 1:j + 2]) == 0]  # a stretch with nothing, before the tip (grain alone leaves no 12 px hole)
+            grows = [j for j in range(8, end) if ws[j] > max(ws[j - 8:j]) + 3]
+            lens.append(end * 4)
+            if gaps or grows or end * 4 > 1300: bad.append('%s %d: gaps %d, widens %d, length %d' % (t, v, len(gaps), len(grows), end * 4))
+        if not lens[0] < lens[1]: bad.append('%s: bigger jerk not shorter %s' % (t, lens))
+        out.append('%s %s' % (t, lens))
+    report(not bad, 'a jerk leaves a smooth thinning tail, shorter for a bigger jerk', '%s; tail lengths %s' % (bad[:4], ', '.join(out)))
+FLOWS['jerk_tail'] = f_jerk_tail
+PAPER['jerk_tail'] = ('1600x1000', (0, 0))

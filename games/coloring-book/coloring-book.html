@@ -91,7 +91,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
     the paper's grain takes it, wider when the pen moves slowly. Pencil leaves its colour only where the paper's raised grain
     touches the lead; pressing harder (pressure and the bucket level) reaches lower into the grain.
  Pressure: a pen's pressure, or for a finger or the mouse its speed (slower is harder), gives more paint and a wider mark.
- Lifting: a finger or the mouse moving fast lifts the brush off the paper: the mark thins and fades, and is gone at a flick's speed.
+ Lifting: a hand moving faster than a normal line lifts the brush, a little more each moment, the faster the sooner: the mark
+    narrows smoothly to a point (its dabs come closer as it narrows); slowing down sets it down again.
  Light: paint thickness and the canvas grain are lit from the top left (bump shading); damp paper looks a little darker. */
 
 // SECTION: SETUP -- picture size, canvases, colours, brush shapes, tuning
@@ -139,7 +140,8 @@ const K = {
   PASTEL_GIVE: 1 / 2500, PASTEL_TAKE: 0.06, PASTEL_STICK: 8, PASTEL_REACH: [0.45, 0.65, 0.82], PASTEL_FILL: 1.2, PASTEL_LUMP: 0.004, // oil pastel: lays thick, picks up and smears soft paint, a stick lasts (8 brushfuls); how far into the grain each bucket level (pressure) reaches; laid paint fills the dips; lumps
   PENCIL_WAX: 0.75, PENCIL_PRESS: [0.35, 0.55, 0.8], STAMP_LIGHT: 0.25, STAMP_HUE: 0.1, SPRAY_DENS: 0.16, // owner 23 Nov: pencil (lead pressure per bucket level), shapes (colour spread), spray
   MARK_INK: 0.6, MARK_RIM: 1.5, // one layer of ink is lighter than the colour, so layers build up darker; owner 21 Nov: a real marker: see-through ink, crossing strokes darker, ink gathers at the edge
-  LIFT_FROM: 900, LIFT_GONE: 2500, // owner 23 Nov: a stroke faster than LIFT_FROM paper pixels a second starts lifting off; at LIFT_GONE it is off the paper
+  LIFT_FROM: 1100, LIFT_FAST: 3600, LIFT_TIME: 0.05, // owner 23 Nov: a hand finishing a line fast lifts the brush. Paper pixels a second (his screen about 36 a cm): from 1100 (30 cm/s) it
+  // lifts; at 3600 (1 m/s, a fast flick) it is off the paper in LIFT_TIME seconds, about 5 cm of tail; a smaller jerk lifts more slowly, so its tail is longer
   SIMPLE_FLOW: 3, // simple brush: how much of its soft edge one dab adds over a brush width of dabs (owner 23 Nov: a stroke crossing itself has no crease)
 };
 const SIM_DT = 1 / 60, MAX_STEPS = 2, CHECK_EVERY = 6, W_EPS = 1e-4, DAMP_EPS = 0.01;
@@ -495,7 +497,7 @@ const MED = { // acrylic and oil pastel: same brush model, different paint (mode
   crayon: { UGIVE: K.PASTEL_GIVE, UTAKE: K.PASTEL_TAKE, URIDGE: 0, UEDGE: 0.7, MAT: 0 }, // oil pastel (model part 4)
   acrylic: { UGIVE: K.ACR_GIVE, UTAKE: K.ACR_TAKE, URIDGE: K.ACR_RIDGE, UEDGE: K.ACR_EDGE, MAT: 1 },
 };
-function shapeUni(s) { return { D: st.turn ? s.dir : s.shape.upright ? [1, 0] : s.shape.fixed ? FIXED : s.dir, SHK: s.shape.k, SAL: s.shape.al, SSC: (s.shape.sc || 1) * (s.tool === 'ink' ? 0.35 + 0.65 * Math.min(1, Math.max(0, (s.pres - 0.5) / 0.6)) : 0.7 + 0.3 * Math.min(1, s.pres)) * s.lift }; } // a lighter touch makes a narrower mark
+function shapeUni(s) { return { D: st.turn ? s.dir : s.shape.upright ? [1, 0] : s.shape.fixed ? FIXED : s.dir, SHK: s.shape.k, SAL: s.shape.al, SSC: (s.shape.sc || 1) * (s.tool === 'ink' ? 0.35 + 0.65 * Math.min(1, Math.max(0, (s.pres - 0.5) / 0.6)) : 0.7 + 0.3 * Math.min(1, s.pres)) * liftWide(s) }; } // a lighter touch makes a narrower mark
 function bristles(s, n, lo, seed) { // strengths across the tip: soft grooves (oil, acrylic) or the crayon's uneven tip
   const r = rng(seed), b = new Float32Array(n);
   for (let i = 0; i < n; i++) b[i] = r() * r();
@@ -531,6 +533,7 @@ function waterDab(s, cx, cy) {
   wakeWater(r); markDirty(r);
 }
 const liftPaint = (s) => 0.5 + 0.5 * s.lift; // a lifting brush leaves a little less paint
+const liftWide = (s) => 1 - (1 - s.lift) ** 2; // how wide a lifting brush still touches: it narrows gently at first, then to a point
 function simpleDab(s, cx, cy) { // the simple brush, the marker (see-through ink, model part 6), ink and pencil (part 8)
   const R = s.r, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]), t = s.tool, mk = t === 'marker', sharp = mk || t === 'ink';
   const lo = t === 'simple' ? [1 / 3, 2 / 3, 1][st.load - 1] : mk ? s.load * K.MARK_INK : t === 'pencil' ? K.PENCIL_WAX : 1;
@@ -539,7 +542,7 @@ function simpleDab(s, cx, cy) { // the simple brush, the marker (see-through ink
     LEAD: t === 'pencil' ? Math.min(1, K.PENCIL_PRESS[st.load - 1] * s.pres) : 0, FL: t === 'simple' ? K.SIMPLE_FLOW * s.sp / (2 * R) : 0 }, shapeUni(s))); markDirty(r);
 }
 function stampDab(s, cx, cy) { // spray droplets, or one shape stamp (model part 7)
-  const spray = s.tool === 'spray', R = (spray ? s.r : s.r * (0.45 + 0.55 * Math.min(1.2, s.pres))) * s.lift, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R - 2, Y - R - 2, X + R + 2, Y + R + 2]);
+  const spray = s.tool === 'spray', R = (spray ? s.r : s.r * (0.45 + 0.55 * Math.min(1.2, s.pres))) * liftWide(s), X = Math.round(cx), Y = Math.round(cy), r = clip([X - R - 2, Y - R - 2, X + R + 2, Y + R + 2]);
   let ca = s.ca; if (!spray) { const c = ca.map((a) => Math.exp(-a)), l = 1 + (Math.random() - 0.5) * K.STAMP_LIGHT; ca = c.map((v) => ab(Math.min(1, Math.max(0.01, v * l + (Math.random() - 0.5) * K.STAMP_HUE)))); } // each shape a slightly different colour
   capture(r); pass(PR.stamp, r, [PIC, MISC, B0, UNDER], { P: PIC, M: MISC, B: B0, U: UNDER, C: [X, Y], R, CA: ca, SK: spray ? -1 : s.shape.sk, DENS: spray ? K.SPRAY_DENS * s.load * Math.min(1.2, s.pres) : 0,
     DROP: s.shape.drop || 1, SEED: Math.random() * 1000, D: s.dir, SHK: 0, SAL: 1, SSC: 1 }); markDirty(r);
@@ -591,13 +594,14 @@ function pressureOf(e) { // a pen's own pressure; a finger or the mouse: none (o
   return e.pointerType === 'pen' ? Math.min(1.2, Math.max(0.3, e.pressure * 1.6)) : null;
 }
 const speedPress = (v) => 0.5 + 0.7 * Math.exp(-v / 1500); // paper pixels a second to pressure: still 1.2, a finger's usual 550 about 1, very fast 0.6 (as painting apps do for a mouse)
-const speedLift = (v) => { const t = Math.min(1, Math.max(0, (v - K.LIFT_FROM) / (K.LIFT_GONE - K.LIFT_FROM))); return 1 - t * t * (3 - 2 * t); }; // owner 23 Nov: moving fast is lifting the brush: 1 on the paper, 0 off it
+function liftBy(s, dt) { // how much the brush lifts (minus: lands again) over dt seconds at the hand's speed now
+  const v = s.v; return dt * (v > K.LIFT_FROM ? -(v - K.LIFT_FROM) / (K.LIFT_FAST - K.LIFT_FROM) : (K.LIFT_FROM - v) / K.LIFT_FROM) / K.LIFT_TIME; }
 function startStroke(p, pr, at) {
   if (undoing) return;
   const r = SIZES[st.size], t = st.tool;
   const sh0 = SHAPES[t] ? SHAPES[t][st.shape[t]] : { al: 1 }; // a thin brush steps closer, so its mark is smooth
-  stroke = { tool: t, r, sp: Math.max(1, r * SPACING[t] * Math.min(1, Math.max(0.4, 2 * sh0.al))), last: p, carry: 0, dir: [1, 0], ca: colorOf(st.color).map(ab), id: ++strokeNo,
-    shape: SHAPES[t][st.shape[t]], load: LOADS[st.load - 1], pres: pr ?? 1, lift: 1, at };
+  stroke = { tool: t, r, sp: Math.max(1, r * SPACING[t] * Math.min(1, Math.max(0.4, 2 * sh0.al))), last: p, next: 0, dir: [1, 0], ca: colorOf(st.color).map(ab), id: ++strokeNo,
+    shape: SHAPES[t][st.shape[t]], load: LOADS[st.load - 1], pres: pr ?? 1, lift: 1, v: 0, hist: [{ p, at }], at };
   newEntry();
   if (t === 'water') { water.stroking = true; stroke.wl = stroke.load; }
   else if (t === 'acrylic' || t === 'crayon') oilStart(stroke);
@@ -606,16 +610,19 @@ function startStroke(p, pr, at) {
 function dab(s, x, y) { const R = s.r * 2; if (s.lift > 0.02 && x > -R && y > -R && x < CW + R && y < CH + R) DAB[s.tool](s, x, y); } // lifted off the paper: nothing // owner 23 Nov: off the paper the brush moves on, touching nothing
 function moveStroke(p, pr, at) { // at: the event's time in ms, for the speed
   const s = stroke, dx = p.x - s.last.x, dy = p.y - s.last.y, d = Math.hypot(dx, dy); if (d < 0.01) return;
-  let lf = 1; if (pr == null) { const v = at != null && s.at != null && at > s.at ? d / ((at - s.at) / 1000) : null; pr = v == null ? s.pres : speedPress(v); lf = v == null ? s.lift : speedLift(v); s.at = at; }
+  let l1 = s.lift; if (pr == null && at != null) { // a finger or the mouse: speed over the last 24 ms (one move alone is too noisy), then lifting over this move's time
+    const h = s.hist; h.push({ p, at }); while (h.length > 2 && at - h[1].at >= 24) h.shift();
+    if (at > h[0].at) s.v = Math.hypot(p.x - h[0].p.x, p.y - h[0].p.y) / ((at - h[0].at) / 1000);
+    if (s.at != null && at > s.at) l1 = Math.min(1, Math.max(0, s.lift + liftBy(s, (at - s.at) / 1000)));
+    pr = speedPress(s.v); s.at = at; } else if (pr == null) pr = s.pres;
   const ux = dx / d, uy = dy / d;
   const turnBy = 1 - Math.exp(-d / Math.max(4, s.r * 0.5)); // the brush follows the stroke over a short distance, the same however often the finger is read
-  s.pres += (pr - s.pres) * turnBy; const l0 = s.lift, l1 = l0 + (lf - l0) * turnBy; // pressure and lifting change over the same short distance; lifting goes evenly along the move, dab by dab
+  const p0 = s.pres, p1 = p0 + (pr - p0) * turnBy, l0 = s.lift; // pressure changes over the same short distance; pressure and lifting go evenly along the move, dab by dab
   let vx = s.dir[0] * (1 - turnBy) + ux * turnBy, vy = s.dir[1] * (1 - turnBy) + uy * turnBy; const vl = Math.hypot(vx, vy) || 1; s.dir = [vx / vl, vy / vl];
   const sp = s.sp;
-  let t = sp - s.carry;
-  while (t <= d) { s.lift = l0 + (l1 - l0) * t / d; dab(s, s.last.x + ux * t, s.last.y + uy * t); t += sp; }
-  s.lift = l1;
-  s.carry = d - (t - sp); s.last = p;
+  let t = s.next || sp; // the next dab's distance; a lifting brush is smaller, so its dabs come closer, and the mark stays smooth
+  while (t <= d) { s.lift = l0 + (l1 - l0) * t / d; s.pres = p0 + (p1 - p0) * t / d; dab(s, s.last.x + ux * t, s.last.y + uy * t); t += sp * Math.max(0.1, liftWide(s)); }
+  s.lift = l1; s.pres = p1; s.next = t - d; s.last = p;
 }
 function endStroke() {
   if (!stroke) return;
