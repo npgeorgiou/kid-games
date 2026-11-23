@@ -75,7 +75,7 @@ Owner 23 Nov 10:27 (task list, verbatim) reopens 1, 3, 4, 5, 6, 15, 16, 26, 28, 
 - 28: no raised bucket; buckets a bit bigger, chosen one with a ring that stands out on the brown.
 - 29: white and black always the first two buckets, even when the palette has them elsewhere.
 - 3: spray must look like real painting apps' spray. 4: shapes like the Squares Brush at https://av01d.github.io/fabric-brushes/index.html, size from speed. 5: ink like that page's ink, with a setting for how many splash dots. 26: pencil needs work.
-- p5.brush (https://p5-brush.cargo.site/): its page says it is for high-resolution generative art, not real-time interactive painting; MIT; needs p5.js. Answered as not usable for live finger painting; its brush ideas (field-directed strokes, hatching) can be borrowed.
+- p5.brush (https://p5-brush.cargo.site/, MIT): an add-on to p5.js (a free browser drawing library), so the game would carry both. Its page says it is meant for high-resolution generated pictures, not live painting. Owner 23 Nov 10:48: include it and use it. First step: build it into the game for one brush, measure stroke delay on a full paper, show him, and let him decide.
 - Batches 4-6 as before: acrylic (11-14, 25), watercolour (17-21), crayon (22, his oil pastel pictures owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23).
 - Drying times; outline pictures later.
 
