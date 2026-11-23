@@ -578,3 +578,19 @@ def f_simple_self_cross(q):  # owner 23 Nov 10:27, point 1: simple tool, blurry 
     ok = rows and all(c >= l + l * (1 - l) / 3 for _, l, c in rows)  # a crease: the corner no darker than the line; round: at least a third of what a second line adds there
     report(ok, 'simple soft brush: a stroke crossing itself has round corners', '(offset, line, corner) %s' % ([r for r in rows if r[2] < r[1] + r[1] * (1 - r[1]) / 3][:4] or rows[:3]))
 FLOWS['simple_self_cross'] = f_simple_self_cross
+
+def f_turn_every(q):  # owner 23 Nov 10:27, point 15: he cannot make the turn switch work: switched on, every drawing tool's flat brush turns with the stroke, so a line is as wide going down-right as up-right
+    tools = [('acrylic', 1), ('water', 1), ('crayon', 1), ('marker', 1), ('simple', 1), ('ink', 1), ('pencil', 2)]
+    tap(q, 'tool-marker'); tap(q, 'brush'); time.sleep(0.1); tap(q, 'turn')  # his steps: open the brush popup, press the turn switch
+    out, bad = [], []
+    for i, (t, sh) in enumerate(tools):
+        x0, y0 = 60 + (i % 4) * 380, 60 + (i // 4) * 420
+        tap(q, 'tool-' + t); tap(q, 'shape-%d' % sh); tap(q, 'size-2'); tap(q, 'color-1')
+        drag(q, [(x0, y0), (x0 + 200, y0 + 200)]); drag(q, [(x0, y0 + 360), (x0 + 200, y0 + 160)])
+        if t == 'water': wait_dry(q)
+        a, b = width_across(q, x0 + 100, y0 + 100, 0.7071, -0.7071, 60), width_across(q, x0 + 100, y0 + 260, 0.7071, 0.7071, 60)
+        out.append('%s %d/%d' % (t, a, b))
+        if not (a > 2 and b > 2 and max(a, b) / min(a, b) < 1.3): bad.append(t)
+    report(not bad and q.evaluate("()=>__cb.st.turn"), 'turn switch: every flat brush turns with the stroke', 'not turning: %s; widths down-right/up-right: %s' % (bad, ', '.join(out)))
+FLOWS['turn_every'] = f_turn_every
+PAPER['turn_every'] = ('1600x1000', (0, 0))
