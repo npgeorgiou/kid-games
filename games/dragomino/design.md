@@ -16,6 +16,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 
 ### Players
 - Owner rule: 2 players. By default you play against the PC; another human can play instead.
+- Owner rule: the PC picks the tile that gives it the most matches and bids only when that tile would give it a match.
 - Open: more than 2 players (the owner doesn't know if the screen is big enough).
 
 ### Tiles and land
@@ -38,21 +39,19 @@ Two players each build their own land from tiles with two terrain halves. Each r
    - Owner rule: jars from leftover goods are opened at the end of the round.
 
 ### Jars
-- Owner rule: the child opens jars by tapping big jars lined up on screen. Opening one yourself is the fun, so a jar never just gives another jar.
+- Owner rule: the child opens jars by tapping big jars lined up on screen. Opening one yourself is the fun.
 - Owner rule: a jar's benefit is immediate, in this round. Nothing carries to a "next" round.
 - Owner rule, contents:
   - Points (gold coins): 50% of the time.
-  - The other 50%: the slot machine, stealing a tile from the opponent, the first-player token, or a free extra tile "from nowhere" (not from the draft).
+  - The other 50%: the slot machine, stealing a tile from the opponent, the first-player token, a free extra tile "from nowhere" (not from the draft), another jar, a free set.
+  - Proposal (built for now): the other 50% split equally between them.
 - Owner rule: stealing takes a tile already in the opponent's land; you place it in yours.
-- Open: the other jar bonuses the owner says were agreed (more than these four), and the share of each.
 - Rejected by the owner:
-  - A free set: its benefit came the next round.
   - An unbeatable first pick: hard to show visually.
   - A second tile next round: changed into the free tile from nowhere.
   - Double the next jar: it's a "next" thing.
   - Keeping your goods: the same reason.
   - A free tile from the draft.
-  - Another jar: you must open jars yourself.
   - An empty jar.
 
 ### Slot machine (a jar bonus)
@@ -109,10 +108,9 @@ Two players each build their own land from tiles with two terrain halves. Each r
 
 ## 6. Still open (all in one place)
 
-- The other agreed jar bonuses, and the bonus shares.
+- The bonus shares (equal for now).
 - The slot machine: pictures with amounts, later.
 - More than 2 players.
 - Greek period and region (one per game, `docs/design-rules.md`).
 - What each land and good is (colours only for now).
-- Owner rule: the PC picks the tile that gives it the most matches and bids only when that tile would give it a match.
 - The design sheet rows marked "Open".
