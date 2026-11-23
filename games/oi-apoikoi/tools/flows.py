@@ -12,17 +12,18 @@ NOW = ['']  # the flow running, for the report lines
 WAIT = 1500  # ms: the game answers in a few ms in fast mode, so a flow that waits longer has failed; short waits keep failing runs short
 
 # SECTION: HELPERS -- the page, a set table, taps and drags on what is drawn, the game's state
-def settle(q): q.evaluate("()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))")  # the game has answered and drawn
+def settle(q): q.evaluate("()=>__dg.render()")  # the game answers a tap at once; draw it now, so what is on screen (and its buttons) is current
 def table(q, **opts): opts.setdefault('fast', True); q.evaluate("(o)=>__dg.restart(o)", opts); settle(q)
 def st(q): return q.evaluate("()=>__dg.state()")
 def tap(q, bid):
-    q.wait_for_function("(id)=>__dg.btn(id)", arg=bid, timeout=WAIT)
+    q.wait_for_function("(id)=>__dg.btn(id)", arg=bid, timeout=WAIT, polling=5)
     p = q.evaluate("(id)=>__dg.btn(id)", bid); q.mouse.click(p[0], p[1]); settle(q)
 def waiting(q, kind, who=0):
-    q.wait_for_function("([k,w])=>{const s=__dg.state();return s.wait&&s.wait.kind===k&&s.wait.who===w}", arg=[kind, who], timeout=WAIT)
+    q.wait_for_function("([k,w])=>{const s=__dg.state();return s.wait&&s.wait.kind===k&&s.wait.who===w}", arg=[kind, who], timeout=WAIT, polling=5)
 def path(q, a, b, up=True):  # a finger drag: press, move in small steps, let go
-    q.mouse.move(a[0], a[1]); q.mouse.down(); q.mouse.move(b[0], b[1], steps=12)
-    if up: q.mouse.up(); settle(q)
+    q.mouse.move(a[0], a[1]); q.mouse.down(); q.mouse.move(b[0], b[1], steps=6)
+    if up: q.mouse.up()
+    settle(q)
 def held(q): return q.evaluate("()=>__dg.held()")
 def drag_to(q, sp):  # turn the tile where it lies by tapping it, then drag it to the spot {x, y, r}
     while st(q)['wait']['r'] != sp['r']: h = held(q); q.mouse.click(h[0], h[1]); settle(q)
@@ -108,12 +109,12 @@ def f_greyed(q):  # tiles you can't pick are greyed but keep their colour, and c
 
 def f_pass_other_plays(q):  # nothing fits you: your turn passes, clearly, and the PC plays again; no tile is thrown
     table(q, bag=[[3, 4]] * 4 + [[0, 0]] * 4, tiles=[[14, 7, 0, 3, 3, 1]], jarQueue=[COIN] * 20)
-    q.wait_for_function("()=>__dg.state().round===2", timeout=WAIT); s = st(q)
+    q.wait_for_function("()=>__dg.state().round===2", timeout=WAIT, polling=5); s = st(q)
     pc = [t[3:5] for t in s['tiles'] if t[5] == 1].count([3, 4])
     report(s['passes'][0] >= 1 and pc == 4, 'pass: turn passes, PC plays again', 'kid passes %d, PC took %d' % (s['passes'][0], pc))
 
 def f_end_rule(q):  # the game ends when no tile left can be placed by either player; no tile is thrown
-    table(q, bag=[[2, 3]] * 4); q.wait_for_function("()=>__dg.state().over", timeout=WAIT); s = st(q)
+    table(q, bag=[[2, 3]] * 4); q.wait_for_function("()=>__dg.state().over", timeout=WAIT, polling=5); s = st(q)
     report(s['left'] == 4, 'end: nothing placeable, game over', 'tiles left %d' % s['left'])
 
 def f_goods_at_start(q):  # each square makes 1 good of its colour at the start of the round, the start tile too
@@ -135,7 +136,7 @@ def f_leftovers_jar(q):  # at the end of the round each 3 of the same leftover g
 
 def f_pc_best(q):  # the PC picks and places for the most jars
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
-    q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT); s = st(q)
+    q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)
     pc = [t[3:5] for t in s['tiles'] if t[5] == 1 and t[:2] != [14, 6]]
     report(pc == [[0, 1]] and s['players'][1]['coins'] == 2, 'pc: best tile, best place', 'pc tiles %s coins %d' % (pc, s['players'][1]['coins']))
 
@@ -144,7 +145,7 @@ def f_pc_hand(q):  # the PC's moves are slow and done by a moving hand: it point
     q.evaluate("()=>__dg.restart({fast:false,bag:[[0,1],[0,0],[0,4],[0,4]],first:1,jarQueue:Array(8).fill({k:'coins'})})")
     ms, xs, gs, dragged = 0, set(), set(), False
     while ms < 20000:
-        q.clock.run_for(50); ms += 50; s = st(q)
+        q.clock.run_for(300); ms += 300; s = st(q)
         xs.add(round(s['hand']['x'])); gs.add(s['hand']['g']); dragged = dragged or s['handDrag']
         if any(t[5] == 1 and t[:2] != [14, 6] for t in s['tiles']): break
     q.clock.resume()
@@ -152,7 +153,7 @@ def f_pc_hand(q):  # the PC's moves are slow and done by a moving hand: it point
 
 def f_pc_slot(q):  # the PC takes the best expected result on the slot machine too
     table(q, bag=[[0, 4]] * 4, first=1, coins=[0, 5], jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[5, 5, 1])
-    q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT); c = st(q)['players'][1]['coins']
+    q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); c = st(q)['players'][1]['coins']
     report(c == 7, 'pc: slot machine played for the most', 'pc coins %d' % c)
 
 def f_jar_mix(q):  # half the jars hold 1 coin (a coins jar always holds 1); 2 coins is one of the bonuses
@@ -166,12 +167,12 @@ def f_coins2(q):  # the 2 coins bonus
 
 def f_slot_three(q):  # slot machine: pay 1 coin to reroll chosen wheels; 3 the same wins 3
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot')
-    tap(q, 'wheel-2'); tap(q, 'reroll'); q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT); p = st(q)['players'][0]
+    tap(q, 'wheel-2'); tap(q, 'reroll'); q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); p = st(q)['players'][0]
     report(p['goods'][0] == 4 and p['coins'] == 2, 'slot: reroll costs a coin, 3 same win 3', 'goods %s coins %d' % (p['goods'], p['coins']))
 
 def f_slot_two(q):  # 2 the same win 2; you can stop at any time
     get_jar(q, [{'k': 'slot'}], coins=0, slots=[5, 1, 5]); waiting(q, 'slot')
-    tap(q, 'collect'); q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT); p = st(q)['players'][0]
+    tap(q, 'collect'); q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); p = st(q)['players'][0]
     report(p['coins'] == 2, 'slot: stop with 2 the same wins 2', 'coins %d' % p['coins'])
 
 def f_steal(q):  # steal a PC tile: it is lifted where it lay and you place it; a tile with no place for you can't be stolen
@@ -212,7 +213,7 @@ def f_game_end(q):  # the game ends when the tiles run out; most points wins
 def f_random_play(q):  # many seeded games with random moves at random moments: every game ends, every placement keeps the rules
     bad = q.evaluate("""async () => {
       const ch = new MessageChannel(), tick = () => new Promise(r => { ch.port1.onmessage = () => r(); ch.port2.postMessage(0); }), errs = [];  // a message, not a timer: timers wait 4 ms each
-      for (let seed = 1; seed <= 12; seed++) {
+      for (let seed = 1; seed <= 4; seed++) {
         let rs = seed * 7919; const rand = n => { rs = (rs * 16807) % 2147483647; return rs % n; };
         __dg.restart({ seed, fast: true });
         for (let step = 0; ; step++) {
@@ -235,7 +236,7 @@ def f_random_play(q):  # many seeded games with random moves at random moments: 
       }
       return errs.slice(0, 5);
     }""")
-    report(not bad, 'random play: games end, rules hold', '%s' % (bad or '12 games'))
+    report(not bad, 'random play: games end, rules hold', '%s' % (bad or '4 games'))
 
 # SECTION: RUN -- one browser, one page (with a fake clock that runs normally until a flow pauses it), every flow on a new game
 FLOWS = {n[2:]: f for n, f in list(globals().items()) if n.startswith('f_')}

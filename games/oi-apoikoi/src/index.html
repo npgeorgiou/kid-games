@@ -42,15 +42,21 @@ let G = null, tileNo = 1;
 function newPlayer(human) { return { human, goods: [0, 0, 0, 0, 0], coins: 0, jars: 0, got: 0, bid: 0, passes: 0 }; }
 const key = (x, y) => x + ',' + y;
 function halves(x, y, r) { const d = DIRS[r]; return [[x, y], [x + d[0], y + d[1]]]; }
-function put(t) { G.tiles.set(t.id, t); halves(t.x, t.y, t.r).forEach(([a, b], h) => G.cells.set(key(a, b), { x: a, y: b, c: t.cs[h], o: t.o, t: t.id })); }
-function lift(t) { halves(t.x, t.y, t.r).forEach(([a, b]) => G.cells.delete(key(a, b))); G.tiles.delete(t.id); }
+const cellMark = (x, y, c, o) => Math.imul((((x * 31 + y) * 7 + c) * 2 + o) + 1, 2654435761) ^ (x * 0x9E3779B1 + y);  // a number per square, colour and owner
+function mark(t) { halves(t.x, t.y, t.r).forEach(([a, b], h) => { G.board ^= cellMark(a, b, t.cs[h], t.o); }); }  // the board's mark: the same board always has the same mark (lifting a tile and putting it back restores it)
+function put(t) { mark(t); G.tiles.set(t.id, t); halves(t.x, t.y, t.r).forEach(([a, b], h) => G.cells.set(key(a, b), { x: a, y: b, c: t.cs[h], o: t.o, t: t.id })); }
+function lift(t) { mark(t); halves(t.x, t.y, t.r).forEach(([a, b]) => G.cells.delete(key(a, b))); G.tiles.delete(t.id); }
 const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS && !G.cells.has(key(x, y));
 function matchesAt(cs, x, y, r, owner) {  // edges where a half meets the same colour (owner: only that player's land)
   let m = 0;
   halves(x, y, r).forEach(([hx, hy], i) => { for (const d of DIRS) { const s = G.cells.get(key(hx + d[0], hy + d[1])); if (s && s.c === cs[i] && (owner == null || s.o === owner)) m++; } });
   return m;
 }
+const spotMemo = new Map();  // the places for a tile only change when the board does: worked out once per board
 function spots(cs, r, i) {  // where player i can place a tile: two free squares, at least one matching edge with his own land; m = the jars it earns
+  const mk = G.board + '|' + cs + '|' + r + '|' + i;
+  if (spotMemo.has(mk)) return spotMemo.get(mk);
+  if (spotMemo.size > 5000) spotMemo.clear();
   const out = [], seen = new Set(), d = DIRS[r];
   for (const c of G.cells.values()) if (c.o === i) for (const [dx, dy] of DIRS) {  // only places with a half next to his land can match it
     const nx = c.x + dx, ny = c.y + dy;
@@ -59,7 +65,7 @@ function spots(cs, r, i) {  // where player i can place a tile: two free squares
       if (halves(x, y, r).every(([a, b]) => free(a, b)) && matchesAt(cs, x, y, r, i)) out.push({ x, y, r, m: matchesAt(cs, x, y, r) });
     }
   }
-  return out.sort((a, b) => a.y - b.y || a.x - b.x);
+  out.sort((a, b) => a.y - b.y || a.x - b.x); spotMemo.set(mk, out); return out;
 }
 function bestPlace(cs, i) { let best = null; for (let r = 0; r < 4; r++) for (const s of spots(cs, r, i)) if (!best || s.m > best.m) best = s; return best; }
 const fits = (cs, i) => !!cs && !!bestPlace(cs, i);
@@ -269,7 +275,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  G = { round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, shown: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); G = { board: 0, round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, shown: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; });
@@ -360,9 +366,10 @@ function hand(h) {  // the PC's hand, the only hand drawn; a press shows a ring 
 function drawBoard() {
   const { s, ox, oy } = L();
   rrect(ox - 6, oy - 6, s * COLS + 12, s * ROWS + 12, 14, '#e2d3b0', '#c4b088', 2);
-  cx.strokeStyle = '#d6c49c'; cx.lineWidth = 1;
-  for (let x = 1; x < COLS; x++) { cx.beginPath(); cx.moveTo(ox + x * s, oy); cx.lineTo(ox + x * s, oy + ROWS * s); cx.stroke(); }
-  for (let y = 1; y < ROWS; y++) { cx.beginPath(); cx.moveTo(ox, oy + y * s); cx.lineTo(ox + COLS * s, oy + y * s); cx.stroke(); }
+  cx.strokeStyle = '#d6c49c'; cx.lineWidth = 1; cx.beginPath();  // the grid, as one path
+  for (let x = 1; x < COLS; x++) { cx.moveTo(ox + x * s, oy); cx.lineTo(ox + x * s, oy + ROWS * s); }
+  for (let y = 1; y < ROWS; y++) { cx.moveTo(ox, oy + y * s); cx.lineTo(ox + COLS * s, oy + y * s); }
+  cx.stroke();
   const thief = wait && wait.kind === 'steal' ? wait : null;
   for (const t of G.tiles.values()) {
     const [x, y] = tileCentre(t.x, t.y, t.r), mark = thief && t.o === 1 - thief.who && !t.start, b = tileBox(x, y, s, t.r);
@@ -372,13 +379,16 @@ function drawBoard() {
       btn('steal-' + t.id, b.x, b.y, b.w, b.h, () => answer(t.id));
     }
   }
-  cx.lineWidth = Math.max(4, s * 0.11); cx.lineCap = 'round';  // each land's border, all around its edges
-  for (const c of G.cells.values()) DIRS.forEach(([dx, dy]) => {
-    const n = G.cells.get(key(c.x + dx, c.y + dy)); if (n && n.o === c.o) return;
-    const x0 = ox + (c.x + (dx > 0 ? 1 : 0)) * s, y0 = oy + (c.y + (dy > 0 ? 1 : 0)) * s;
-    drawn.push({ k: 'border', o: c.o });
-    cx.strokeStyle = BORDER[c.o]; cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(x0 + (dx ? 0 : s), y0 + (dy ? 0 : s)); cx.stroke();
-  });
+  cx.lineWidth = Math.max(4, s * 0.11); cx.lineCap = 'round';  // each land's border, all around its edges: one path per player
+  for (const o of [0, 1]) {
+    cx.beginPath();
+    for (const c of G.cells.values()) if (c.o === o) DIRS.forEach(([dx, dy]) => {
+      const n = G.cells.get(key(c.x + dx, c.y + dy)); if (n && n.o === o) return;
+      const x0 = ox + (c.x + (dx > 0 ? 1 : 0)) * s, y0 = oy + (c.y + (dy > 0 ? 1 : 0)) * s;
+      drawn.push({ k: 'border', o }); cx.moveTo(x0, y0); cx.lineTo(x0 + (dx ? 0 : s), y0 + (dy ? 0 : s));
+    });
+    cx.strokeStyle = BORDER[o]; cx.stroke();
+  }
   cx.lineCap = 'butt';
 }
 function drawDraft() {
@@ -504,7 +514,7 @@ cv.addEventListener('pointerup', () => {
 
 // SECTION: TEST HOOKS -- what the flows read and set
 window.__dg = {
-  ready: false, restart,
+  ready: false, restart, render,
   btn(id) { const b = buttons.find(b => b.id === id); return b ? [b.x + b.w / 2, b.y + b.h / 2] : null; },
   buttons() { return buttons.map(b => b.id); },
   drawn() { return drawn; },
