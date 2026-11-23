@@ -493,16 +493,35 @@ def f_pots_bw(q):  # owner 23 Nov: white and black buckets always in the bottom 
     basic = len(pots_shown(q))
     tap(q, 'palette'); time.sleep(0.3); p = q.evaluate("()=>{const e=document.querySelectorAll('.palcols .palcol')[1].querySelector('.pal').getBoundingClientRect();return [e.left+e.width/2,e.top+e.height/2]}")
     q.mouse.click(*p); time.sleep(0.3); ids = pots_shown(q)
-    tap(q, ids[-1]); last = q.evaluate("()=>__cb.color()"); tap(q, ids[-2]); before = q.evaluate("()=>__cb.color()")
+    tap(q, ids[1]); last = q.evaluate("()=>__cb.color()"); tap(q, ids[0]); before = q.evaluate("()=>__cb.color()")  # owner 23 Nov 10:27: they are the first two
     report(basic == 10 and len(ids) == 12 and lum(last) < 25 and lum(before) > 235, 'buckets: white and black added to a palette without them',
-           'Basic %d buckets, a rainbow %d, the last two %s %s' % (basic, len(ids), before, last))
+           'Basic %d buckets, a rainbow %d, the first two %s %s' % (basic, len(ids), before, last))
 
-def f_pot_selected(q):  # owner 23 Nov: the chosen bucket is plainly visible: raised and ringed in the tool buttons' orange
+def contrast(a, b):  # WCAG contrast ratio of two colours (r, g, b 0-255)
+    def L(c): c = [v / 255 for v in c]; c = [v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4 for v in c]; return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    x, y = sorted([L(a), L(b)]); return (y + 0.05) / (x + 0.05)
+
+def f_pot_selected(q):  # owner 23 Nov 10:27 (point 28, replacing "raised"): the chosen bucket is not raised; buckets a bit bigger; the chosen one ringed in a colour that stands out on the brown
     tap(q, 'color-3'); time.sleep(0.2)
-    r = q.evaluate("()=>[...document.querySelectorAll('#bottom .pot')].map(e=>{const k=e.getBoundingClientRect(),s=getComputedStyle(e);return [e.classList.contains('on'),k.top+k.height/2,k.height,s.outlineColor,parseFloat(s.outlineWidth)]})")
+    r = q.evaluate("()=>[...document.querySelectorAll('#bottom .pot')].map(e=>{const k=e.getBoundingClientRect(),s=getComputedStyle(e);return [e.classList.contains('on'),k.top,k.height,s.outlineColor.match(/\\d+/g).map(Number),parseFloat(s.outlineWidth),s.outlineStyle]})")
+    bar = q.evaluate("()=>getComputedStyle(document.body).backgroundColor.match(/\\d+/g).map(Number)"); b = q.evaluate("()=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--b'))")
     on = [x for x in r if x[0]][0]; others = [x for x in r if not x[0]]
-    rise = (others[0][1] - on[1]) / others[0][2]
-    report(rise > 0.15 and on[3] == 'rgb(244, 180, 58)' and on[4] >= 4, 'buckets: the chosen one raised and ringed orange', 'raised %.0f%% of a bucket, ring %s %.0fpx' % (rise * 100, on[3], on[4]))
+    flat = all(abs(x[1] - on[1]) <= 1 for x in others); c = contrast(on[3], bar)
+    report(flat and on[2] >= 0.95 * b and on[5] == 'solid' and on[4] >= 4 and c >= 4.5, 'buckets: chosen one level with the rest, bigger, ringed to stand out on the brown',
+           'level %s, bucket %d px (tool button %d), ring %s %.0fpx, contrast with the brown %.1f' % (flat, on[2], b, on[3], on[4], c))
+
+def f_pots_bw_first(q):  # owner 23 Nov 10:27, point 29: white and black are always the first two buckets, even when the palette has them in another place
+    out = []
+    for name in ('Basic', 'Standard rainbow', 'Scandi Brick and Slate', 'Teal, Sand and Ember'):
+        i = q.evaluate("(n)=>__cb.palIndex(n)", name); tap(q, 'palette'); time.sleep(0.3); tap(q, 'pal-%d' % i); time.sleep(0.1)
+        cols = q.evaluate("()=>[...document.querySelectorAll('#bottom .pot')].filter(e=>!e.classList.contains('hide')).map(e=>e.dataset.id)")
+        tap(q, cols[0]); w = q.evaluate("()=>__cb.color()"); tap(q, cols[1]); k = q.evaluate("()=>__cb.color()")
+        rest = []
+        for c in cols[2:]: tap(q, c); rest.append(q.evaluate("()=>__cb.color()"))
+        near = [c for c in rest if min(c) > 225 or max(c) < 30]
+        out.append((name, lum(w) > 235 and lum(k) < 25 and not near))
+    report(all(o for _, o in out), 'buckets: white then black first, never again further on', '%s' % out)
+FLOWS.update({'pots_bw_first': f_pots_bw_first})
 
 def f_gallery_guide_hidden(q):  # owner 23 Nov: opening a kept picture that has a guide picture keeps the guide, hidden (the eye shows it)
     pt = q.evaluate("()=>__cb.btn('guide')")

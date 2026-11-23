@@ -28,7 +28,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
 .btn.on{background:#fff8ea;outline:calc(var(--b)*0.07) solid #f4b43a}
 .pot{border-radius:50%}
 #bottom .btn{width:var(--pb);height:var(--pb)}
-.pot.on{transform:translateY(-18%) scale(1.08)} /* owner 23 Nov: the chosen bucket raised and ringed like the chosen tool */
+.pot.on{outline-color:#fffdf6;outline-offset:calc(var(--b)*0.05);background:#eadfcb} /* owner 23 Nov 10:27: the chosen bucket stays level, ringed in near-white, which stands out on the brown */
 .hide{display:none!important}
 #pickpeek{position:fixed;width:96px;height:96px;border-radius:50%;border:5px solid #f4ecdc;box-shadow:0 0 0 2px #3a2a1a,0 4px 12px rgba(0,0,0,.4);pointer-events:none;z-index:6}
 #gal,#cv{position:fixed;inset:0;background:rgba(40,30,22,.94);overflow:auto;padding:calc(var(--b)*0.4);box-sizing:border-box;display:flex;flex-wrap:wrap;gap:calc(var(--b)*0.4);align-content:flex-start;touch-action:pan-y}
@@ -790,8 +790,8 @@ function makePots() {
   bottom.appendChild(palBtn); bottom.appendChild(pickBtn); for (const b of trayBtns) bottom.appendChild(b);
 }
 const WHITE = PALETTES[0].colors[0], BLACK = PALETTES[0].colors[1]; // Basic's white and black
-const colorsNow = () => { const c = PALETTES[st.palette].colors, has = (w) => c.some((k) => Math.hypot(...k.map((v, i) => v - w[i])) < 0.08); // owner 23 Nov: white and black always there, after the palette's own
-  return c.concat([WHITE, BLACK].filter((w) => !has(w))); };
+const colorsNow = () => { const near = (k, w) => Math.hypot(...k.map((v, i) => v - w[i])) < 0.08; // owner 23 Nov 10:27: white and black always the first two; the palette's own white or black is not shown again
+  return [WHITE, BLACK].concat(PALETTES[st.palette].colors.filter((k) => !near(k, WHITE) && !near(k, BLACK))); };
 addEventListener('pointerup', () => { clearInterval(potHold); potHold = null; });
 addEventListener('pointercancel', () => { clearInterval(potHold); potHold = null; });
 const palBtn = makeBtn(bottom, 'palette', icon('palette', '#3a2a1a'), () => openPop(palBtn, (box) => { // on top only a guide picture's palette, beside a copy of the picture; below four columns of 12, his own palettes (owner 22 Nov, 23 Nov 10:27)
@@ -852,11 +852,11 @@ function sizePots() { // all the palette's colours fit in the bottom row
   const s = Math.min(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pb')) || b, (w / n) * 0.84); for (const p of pots) Object.assign(p.style, { width: s + 'px', height: s + 'px' });
 }
 function layout() {
-  const vw = innerWidth, vh = innerHeight, b = Math.round(Math.min(vh * 0.085, vw * 0.06)), g = Math.round(b * 0.1), pb = Math.round(b * 0.82); // owner 23 Nov: smaller gaps and buckets, a bigger paper
+  const vw = innerWidth, vh = innerHeight, b = Math.round(Math.min(vh * 0.085, vw * 0.06)), g = Math.round(b * 0.1), pb = b; // owner 23 Nov: smaller gaps, a bigger paper; 10:27: buckets level, as big as the room the raised one needed
   const root = document.documentElement.style; root.setProperty('--b', b + 'px'); root.setProperty('--g', g + 'px'); root.setProperty('--pb', pb + 'px');
   left.style.left = g + 'px'; right.style.right = g + 'px';
   Object.assign(bottom.style, { left: (2 * g + b) + 'px', right: (2 * g + b) + 'px', bottom: g + 'px', height: pb + 'px' });
-  const x0 = 2 * g + b, x1 = vw - 2 * g - b, y0 = g, y1 = vh - 2 * g - pb * 1.22, s = Math.min((x1 - x0) / CW, (y1 - y0) / CH);
+  const x0 = 2 * g + b, x1 = vw - 2 * g - b, y0 = g, y1 = vh - 2 * g - pb, s = Math.min((x1 - x0) / CW, (y1 - y0) / CH);
   const w = CW * s, h = CH * s, L = x0 + (x1 - x0 - w) / 2, T = y0 + (y1 - y0 - h) / 2;
   for (const el of [view, document.getElementById('stick'), guideImg]) Object.assign(el.style, { left: L + 'px', top: T + 'px', width: w + 'px', height: h + 'px' });
   closePop(); refresh();
@@ -1054,7 +1054,7 @@ window.__cb = { CW, CH, st, shapes: SHAPES, get freeTiles() { return freeSlots.l
   shown(x, y) { render(); const d = new Uint8Array(4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.readPixels(Math.round(x), CH - 1 - Math.round(y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, d); return [d[0], d[1], d[2]]; },
   cell(x, y, w, h) { render(); const d = new Uint8Array(w * h * 4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.readPixels(x, CH - y - h, w, h, gl.RGBA, gl.UNSIGNED_BYTE, d); const c = document.createElement('canvas'); c.width = w; c.height = h; const x2 = c.getContext('2d'), im = x2.createImageData(w, h); for (let j = 0; j < h; j++) im.data.set(d.subarray((h - 1 - j) * w * 4, (h - j) * w * 4), j * w * 4); x2.putImageData(im, 0, 0); return c.toDataURL('image/png'); }, // tools/previews.py: a part of the picture as it shows
   paint(pts) { startStroke({ x: pts[0][0], y: pts[0][1] }, 1); for (let k = 1; k < pts.length; k++) { const [a, b] = [pts[k - 1], pts[k]], n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 4); for (let i = 1; i <= n; i++) moveStroke({ x: a[0] + (b[0] - a[0]) * i / n, y: a[1] + (b[1] - a[1]) * i / n }, 1); } endStroke(); }, // tools/previews.py: a stroke without waiting for a finger
-  age(s) { clockShift += s; }, color() { return colorOf(st.color).map((v) => Math.round(v * 255)); }, pal(i) { return PALETTES[i] && PALETTES[i].colors; },
+  age(s) { clockShift += s; }, palIndex(n) { return PALETTES.findIndex((p) => p.name === n); }, color() { return colorOf(st.color).map((v) => Math.round(v * 255)); }, pal(i) { return PALETTES[i] && PALETTES[i].colors; },
   fast(sec) { for (let i = 0; i < sec / SIM_DT && water.active; i++) { simStep(SIM_DT); if (i % 24 === 0) { water.frames = CHECK_EVERY - 1; checkWater(); gl.finish(); checkWater(); } } render(); }, // debug: let the wet paint run on
 
   sum(T, r) { const t = { W: WAT, D: DEP, P: PIC }[T], w = r[2] - r[0], h = r[3] - r[1], f = new Float32Array(w * h * 4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, t.fb); gl.readPixels(r[0], r[1], w, h, gl.RGBA, gl.FLOAT, f); const s = [0, 0, 0, 0]; for (let i = 0; i < f.length; i++) s[i & 3] += f[i]; return s.map((v) => +v.toFixed(1)); },
