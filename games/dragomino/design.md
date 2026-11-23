@@ -118,6 +118,8 @@ Two players each build their own land from tiles with two terrain halves. Each r
 
 - The colour split (see Tiles and land).
 - The PC counts every jar as worth the same and judges a move by the jars it earns this turn.
+- The PC counts a jar as about 0.7 coins (its coin contents only) and a good as a third of a jar; with these values the best slot play is to stop at once, so the PC never re-spins.
+- When no tile fits for either player, the round's tiles go back under the pile; when every tile left has had its turn and fits nowhere, the game ends.
 
 ## 7. Still open (all in one place)
 

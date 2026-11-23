@@ -5,123 +5,157 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>Dragomino</title>
 <style>
-html, body { margin: 0; height: 100%; overflow: hidden; background: #f3ead8; touch-action: none; user-select: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #efe4cc; touch-action: none; user-select: none; }
 canvas { display: block; width: 100vw; height: 100vh; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <script>
-// Dragomino (working name): rough prototype of the rules in design.md. Lands are colours only for now (owner 23 Nov).
+// Dragomino (working name): a prototype of the rules in design.md. Lands are colours only for now (owner 23 Nov).
 // The model, in plain words:
-// 1. A round: every land square makes 1 good of its colour; 4 tiles are laid out; players pick in turn (the first-player token holder first),
-//    the other may bid sets (3 different goods) and they go on, a tie goes to the picker, the winner pays and places the tile at once.
-// 2. Matching edges (a half next to the same colour) earn jars, opened at once by tapping; at the end of the round 3 of the same
-//    leftover good make a jar, the rest are lost.
-// 3. Jars hold coins (half the time) or a bonus; the game ends when the tiles run out, and the longer row of coins wins.
+// 1. A round: every square makes 1 good of its colour; 4 tiles are laid out; players pick in turn (the token holder first, else the kid).
+//    A tile that fits nowhere is greyed and can't be picked; with nothing to pick the turn passes. The other may bid sets (5 goods, one
+//    of each) and they go on; a tie goes to the picker; the winner pays and drags the tile onto the shared board.
+// 2. A tile fits where both its squares are free and at least one edge meets the same colour, in anyone's land. Each matching edge
+//    earns a jar, opened at once; at the end of the round each 3 of the same leftover good make a jar, the rest are lost.
+// 3. Jars hold 1 coin (half the time) or a bonus. The game ends when the tiles run out; the longer row of coins wins.
+// The PC plays through the same buttons and drags as the kid, with a hand you can see (the architect game's demo hand is the model).
 
-// SECTION: SETUP -- colours, the random source, test switches
-const COLOURS = ['#e2b43c', '#5c9a3a', '#8c5aa8', '#d0643a', '#8a919c'];  // the five lands; what each land is comes later
-const START = '#6b4a2b';
+// SECTION: SETUP -- colours, the board, the random source, speeds, test switches
+const COLOURS = ['#e8c547', '#3f86c8', '#8e5bb0', '#e27fb0', '#9a6a3a'];  // the five lands, most common first; what each land is comes later
+const HALVES = [19, 18, 16, 14, 13];  // the 80 halves of the 40 tiles: about 24/22/20/18/16% (built for now)
+const BORDER = ['#22a33a', '#d42a2a'];  // the kid's land green, the PC's red
+const BONUSES = ['slot', 'steal', 'first', 'tile', 'jar', 'set', 'coins2'];  // the other half of jars, equal shares
+const COLS = 20, ROWS = 13, STARTS = [[4, 6], [14, 6]];  // the start tiles sit at the centres of the board's two halves
+const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half is, by turn
 const params = new URLSearchParams(location.search);
-const FAST = params.has('fast');  // tests: the PC moves without waiting
-const BONUSES = ['slot', 'steal', 'first', 'tile', 'jar', 'set'];  // the other half of jars, equal shares for now
-const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+const FAST = params.has('fast');  // tests: the PC's hand moves without waiting
+const HAND_SPEED = 450;  // px per second: slow enough to follow
 let rnd = Math.random;
 function seeded(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const pause = ms => new Promise(r => setTimeout(r, FAST ? 0 : ms));
+const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
 
-// SECTION: MODEL -- lands, tiles, matches, goods and sets
-let G = null, tileNo = 100;
-function newPlayer(human) { return { human, land: new Map(), goods: [0, 0, 0, 0, 0], coins: 0, jars: 0, got: 0, bid: 0 }; }
+// SECTION: MODEL -- the shared board, tiles, matches, goods and sets
+let G = null, tileNo = 1;
+function newPlayer(human) { return { human, goods: [0, 0, 0, 0, 0], coins: 0, jars: 0, got: 0, bid: 0, passes: 0 }; }
 const key = (x, y) => x + ',' + y;
-function putSquare(p, x, y, c, t, h) { p.land.set(key(x, y), { x, y, c, t, h }); }
 function halves(x, y, r) { const d = DIRS[r]; return [[x, y], [x + d[0], y + d[1]]]; }
-function touches(p, x, y) { return DIRS.some(d => p.land.has(key(x + d[0], y + d[1]))); }
-function bounds(p) {
-  let x0 = 0, x1 = 0, y0 = 0, y1 = 0;
-  for (const s of p.land.values()) { x0 = Math.min(x0, s.x); x1 = Math.max(x1, s.x); y0 = Math.min(y0, s.y); y1 = Math.max(y1, s.y); }
-  return { x0, x1, y0, y1 };
-}
-function matchesAt(p, tile, x, y, r) {  // one jar per matching edge between a new half and the land
+function put(t) { G.tiles.set(t.id, t); halves(t.x, t.y, t.r).forEach(([a, b], h) => G.cells.set(key(a, b), { x: a, y: b, c: t.cs[h], o: t.o, t: t.id })); }
+function lift(t) { halves(t.x, t.y, t.r).forEach(([a, b]) => G.cells.delete(key(a, b))); G.tiles.delete(t.id); }
+const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS && !G.cells.has(key(x, y));
+function matchesAt(cs, x, y, r) {  // one jar per edge where a half meets the same colour (not its own other half)
   const hs = halves(x, y, r); let m = 0;
-  hs.forEach(([hx, hy], i) => {
-    for (const d of DIRS) {
-      const nx = hx + d[0], ny = hy + d[1], o = hs[1 - i];
-      if (nx === o[0] && ny === o[1]) continue;
-      const s = p.land.get(key(nx, ny)); if (s && s.c === tile[i]) m++;
-    }
-  });
+  hs.forEach(([hx, hy], i) => { for (const d of DIRS) { const s = G.cells.get(key(hx + d[0], hy + d[1])); if (s && s.c === cs[i]) m++; } });
   return m;
 }
-function spots(p, tile, r) {  // every place the tile can go: both squares free, touching the land
-  const b = bounds(p), out = [];
-  for (let y = b.y0 - 2; y <= b.y1 + 2; y++) for (let x = b.x0 - 2; x <= b.x1 + 2; x++) {
-    const hs = halves(x, y, r);
-    if (hs.some(([a, c]) => p.land.has(key(a, c)))) continue;
-    if (!hs.some(([a, c]) => touches(p, a, c))) continue;
-    out.push({ x, y, m: matchesAt(p, tile, x, y, r) });
+function spots(cs, r) {  // every place a tile fits: both squares free, at least one matching edge
+  const out = [];
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    if (!halves(x, y, r).every(([a, b]) => free(a, b))) continue;
+    const m = matchesAt(cs, x, y, r); if (m > 0) out.push({ x, y, r, m });
   }
   return out;
 }
-function bestPlace(p, tile) {
-  let best = null;
-  for (let r = 0; r < 4; r++) for (const s of spots(p, tile, r)) if (!best || s.m > best.m) best = { ...s, r };
-  return best;
+function bestPlace(cs) { let best = null; for (let r = 0; r < 4; r++) for (const s of spots(cs, r)) if (!best || s.m > best.m) best = s; return best; }
+const fits = cs => !!bestPlace(cs);
+const sets = p => Math.min(...p.goods);
+const leftoverJars = g => g.reduce((a, n) => a + Math.floor(Math.max(0, n) / 3), 0);
+function stealable(i) {  // the opponent's tiles that fit somewhere once lifted; whether his land stays connected does not matter
+  return [...G.tiles.values()].filter(t => t.o === 1 - i && !t.start).filter(t => { lift(t); const ok = fits(t.cs); put(t); return ok; }).map(t => t.id);
 }
-function sets(p) { return takeSets(p.goods.slice(), Infinity); }
-function takeSets(g, n) {  // a set is 3 different goods, taken from the kinds you have most of
-  let k = 0;
-  while (k < n) {
-    const kinds = [0, 1, 2, 3, 4].filter(i => g[i] > 0).sort((a, b) => g[b] - g[a] || a - b);
-    if (kinds.length < 3) break;
-    for (const i of kinds.slice(0, 3)) g[i]--; k++;
-  }
-  return k;
+function randomColour() { let k = rnd() * 80; for (let c = 0; c < 5; c++) { k -= HALVES[c]; if (k < 0) return c; } return 4; }
+function freeTile() {  // a tile from nowhere, by the colour split, always one that fits
+  for (let k = 0; k < 400; k++) { const t = [randomColour(), randomColour()]; if (fits(t)) return t; }
+  return null;
 }
-function paySets(p, n) { takeSets(p.goods, n); }
-function tilesIn(p) {  // the tiles in a land (not the start square), as {id, a, b}
-  const t = {};
-  for (const s of p.land.values()) if (s.t !== 'start' && s.t !== 'set') (t[s.t] = t[s.t] || { id: s.t, cs: [] }).cs[s.h] = s.c;
-  return Object.values(t).map(o => ({ id: o.id, tile: o.cs }));
+function makeBag() {  // the 80 halves shuffled into 40 tiles; the first round's 4 are ones that meet a start colour, so they fit
+  const hs = HALVES.flatMap((n, c) => Array(n).fill(c));
+  for (let k = hs.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [hs[k], hs[j]] = [hs[j], hs[k]]; }
+  const tiles = []; for (let k = 0; k < hs.length; k += 2) tiles.push([hs[k], hs[k + 1]]);
+  const first = [], rest = [];
+  for (const t of tiles) (first.length < 4 && (t[0] < 2 || t[1] < 2) ? first : rest).push(t);
+  return first.concat(rest);
 }
 
-// SECTION: INPUT WAITS -- the game waits for the kid's tap; the PC answers at once
-let wait = null;
-function ask(kind, who, extra) { return new Promise(res => { wait = { kind, who, res, ...extra }; }); }
-function answer(v) { const w = wait; wait = null; w.res(v); }
+// SECTION: TURNS -- the game waits for a tap or a drag; the PC makes the same taps and drags with its hand
+let wait = null, drag = null, press = null;
+function ask(kind, who, extra) {
+  if (G.players[who].human) handHome();
+  return new Promise(res => { wait = { kind, who, res, r: 0, ...extra }; });
+}
+function answer(v) { const w = wait; wait = null; drag = null; w.res(v); }
+async function choose(kind, who, extra, pcMoves) {  // a human answers by tapping; the PC's hand makes its moves on the same screen
+  const my = G, chosen = ask(kind, who, extra);
+  if (!G.players[who].human) { await pause(500); if (G === my) await pcMoves(); }
+  return chosen;
+}
+function handTo(x, y, ms) {  // the hand glides to a point (eased), slow enough to follow
+  const h = G.hand, d = Math.hypot(x - h.x, y - h.y);
+  if (FAST || d < 1) { h.x = x; h.y = y; return Promise.resolve(); }
+  const t0 = performance.now(), x0 = h.x, y0 = h.y, T = ms || Math.max(350, d / HAND_SPEED * 1000);
+  return new Promise(res => {
+    const step = () => { const k = Math.min(1, (performance.now() - t0) / T), e = k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k); h.x = x0 + (x - x0) * e; h.y = y0 + (y - y0) * e; k < 1 ? requestAnimationFrame(step) : res(); };
+    requestAnimationFrame(step);
+  });
+}
+function handHome() { const p = homeSpot(); if (G.hand.x !== p[0] || G.hand.y !== p[1]) handTo(p[0], p[1]); }
+async function findBtn(id) { for (let k = 0; k < 30; k++) { const b = buttons.find(b => b.id === id); if (b) return b; await nextFrame(); } return null; }
+async function pcTap(id) {  // the hand goes to the button, presses it, and the game takes it like a tap
+  const b = await findBtn(id); if (!b) return;
+  await handTo(b.x + b.w / 2, b.y + b.h / 2); G.hand.down = true; await pause(220); G.hand.down = false;
+  const now = buttons.find(c => c.id === id); if (now) now.fn(); await pause(250);
+}
+async function pcPlace(sp) {  // turn the tile in the tray by tapping it, then drag it to its place
+  const t = await findBtn('tray'); if (!t) return;
+  while (wait && wait.r !== sp.r) { await handTo(t.x + t.w / 2, t.y + t.h / 2); G.hand.down = true; await pause(220); G.hand.down = false; wait.r = (wait.r + 1) % 4; await pause(350); }  // a tap turns it
+  await handTo(t.x + t.w / 2, t.y + t.h / 2); G.hand.down = true; await pause(200);
+  drag = { byHand: true, px: G.hand.x, py: G.hand.y };
+  const [gx, gy] = tileCentre(sp.x, sp.y, sp.r); await handTo(gx, gy, FAST ? 0 : 1300); await pause(250);
+  G.hand.down = false; if (drag) { drag.px = gx; drag.py = gy; drop(); }
+}
+function drop() {  // a drop snaps into the place shown; anywhere else the tile goes back to the tray
+  const s = snapSpot(); drag = null; if (s && wait && wait.kind === 'place') answer(s);
+}
 
-// SECTION: ROUNDS -- start, picks and bids, end of round, end of game
+// SECTION: ROUNDS -- start, picks and bids, passing, end of round, end of game
 async function play() {
   const my = G;
-  while (G === my && (G.bag.length || G.draft.length)) {
+  while (G === my && G.bag.length) {
     G.round++; G.phase = 'round';
-    for (const p of G.players) { p.goods = [0, 0, 0, 0, 0]; p.got = 0; for (const s of p.land.values()) if (s.c >= 0) p.goods[s.c]++; }
+    for (const p of G.players) { p.goods = [0, 0, 0, 0, 0]; p.got = 0; }
+    for (const s of G.cells.values()) G.players[s.o].goods[s.c]++;
     G.draft = G.bag.splice(0, 4);
-    let picker = G.first;
-    while (G === my && G.draft.length) {
+    let picker = G.first ?? 0, passes = 0, placed = false;
+    while (G === my && G.draft.length && passes < 2) {
       if (G.players[picker].got >= 2) picker = 1 - picker;
+      if (!G.draft.some(fits)) { await pass(picker); passes++; picker = 1 - picker; continue; }  // nothing fits: the turn passes, slowly and clearly
+      passes = 0;
       const i = await pick(picker); if (G !== my) return;
       const tile = G.draft[i]; G.chosen = i;
       const winner = await bidding(picker, tile); if (G !== my) return;
       G.draft.splice(i, 1); G.chosen = -1; G.players[winner].got++;
-      await place(winner, tile); if (G !== my) return;
+      await place(winner, tile); placed = true; if (G !== my) return;
       if (winner === picker) picker = 1 - picker;  // a picker who lost the bid picks again
     }
     if (G !== my) return;
+    if (G.draft.length) { G.bag.push(...G.draft); G.draft = []; }  // nobody could place them: no tile is thrown, they go back under the pile (built for now)
+    G.stuck = placed ? 0 : G.stuck + 1;
     G.phase = 'end';
-    for (const p of G.players) { p.goods.forEach(n => p.jars += Math.floor(n / 3)); p.goods = [0, 0, 0, 0, 0]; }
-    for (const i of [G.first, 1 - G.first]) { await openJars(i); if (G !== my) return; }
+    for (const p of G.players) { p.jars += leftoverJars(p.goods); p.goods = [0, 0, 0, 0, 0]; }
+    for (const i of [G.first ?? 0, 1 - (G.first ?? 0)]) { await openJars(i); if (G !== my) return; }
+    if (G.stuck * 4 >= G.bag.length) break;  // every tile left has had its turn and fits nowhere: the game ends (built for now)
   }
   if (G !== my) return;
   const [a, b] = G.players.map(p => p.coins);
   G.over = true; G.winner = a > b ? 0 : b > a ? 1 : -1;
 }
-async function pick(i) {
-  if (G.players[i].human) return ask('pick', i);
-  await pause(500); let best = 0, bm = -1;
-  G.draft.forEach((t, k) => { const m = bestPlace(G.players[i], t).m; if (m > bm) { bm = m; best = k; } });
-  return best;
+async function pass(i) { G.players[i].passes++; G.passing = i; await pause(2400); G.passing = null; }
+function jarsFor(cs) { const b = bestPlace(cs); return b ? b.m : 0; }
+function pick(i) {
+  let best = -1, bm = -1; G.draft.forEach((t, k) => { const m = jarsFor(t); if (fits(t) && m > bm) { bm = m; best = k; } });
+  return choose('pick', i, {}, () => pcTap('draft-' + best));
 }
 async function bidding(picker, tile) {  // the opponent outbids by one; the picker only has to match (a tie is his)
   const opp = 1 - picker, P = G.players;
@@ -133,68 +167,89 @@ async function bidding(picker, tile) {  // the opponent outbids by one; the pick
     if (!await wantsBid(picker, tile, P[opp].bid)) { winner = opp; break; }
     P[picker].bid = P[opp].bid;
   }
-  paySets(P[winner], P[winner].bid);
+  const n = P[winner].bid; P[winner].goods = P[winner].goods.map(g => g - n);
   P[0].bid = P[1].bid = 0;
   return winner;
 }
-async function wantsBid(i, tile, n) {
-  const p = G.players[i];
-  if (sets(p) < n) return false;
-  if (p.human) return ask('bid', i, { n });
-  await pause(500); return bestPlace(p, tile).m > 0;  // the PC bids only when the tile would give it a match
+function pcBids(i, tile, n) {  // worth it when the tile's jars beat the next best tile's by more than the leftover jars the sets would cost
+  const p = G.players[i], gain = jarsFor(tile) - Math.max(0, ...G.draft.filter(t => t !== tile).map(jarsFor));
+  return gain > leftoverJars(p.goods) - leftoverJars(p.goods.map(g => g - n));
 }
-async function place(i, tile) {
-  const p = G.players[i]; let x, y, r;
-  if (p.human) ({ x, y, r } = await ask('place', i, { tile, r: 0 }));
-  else { await pause(500); ({ x, y, r } = bestPlace(p, tile)); }
-  const m = matchesAt(p, tile, x, y, r), id = 't' + (tileNo++);
-  halves(x, y, r).forEach(([a, c], h) => putSquare(p, a, c, tile[h], id, h));
-  p.jars += m;
-  await openJars(i);
+async function wantsBid(i, tile, n) {
+  if (sets(G.players[i]) < n || !fits(tile)) return false;
+  return choose('bid', i, { n }, () => pcTap(pcBids(i, tile, n) ? 'bid' : 'letgo'));
+}
+function place(i, cs) {
+  return choose('place', i, { tile: cs }, () => pcPlace(bestPlace(cs))).then(async ({ x, y, r }) => {
+    const m = matchesAt(cs, x, y, r);
+    put({ id: 't' + (tileNo++), cs, x, y, r, o: i });
+    G.players[i].jars += m;
+    await openJars(i);
+  });
 }
 
 // SECTION: JARS -- opening, coins and bonuses, the slot machine
 const jarQueue = [], slotQ = [];
 function rollJar() {
   if (jarQueue.length) return jarQueue.shift();
-  if (rnd() < 0.5) return { k: 'coins', n: 1 + Math.floor(rnd() * 3) };
+  if (rnd() < 0.5) return { k: 'coins' };
   return { k: BONUSES[Math.floor(rnd() * BONUSES.length)] };
 }
 async function openJars(i) {
   const p = G.players[i], my = G;
   while (G === my && p.jars > 0) {
-    if (p.human) await ask('jar', i); else await pause(400);
-    p.jars--; const j = rollJar(); G.shown = { who: i, j }; await pause(700); G.shown = null;
+    await choose('jar', i, {}, () => pcTap('jar-0')); if (G !== my) return;
+    p.jars--; const j = rollJar(); G.shown = { who: i, j }; await pause(1100); G.shown = null;
     await bonus(i, j);
   }
 }
 async function bonus(i, j) {
-  const p = G.players[i], o = G.players[1 - i];
-  if (j.k === 'coins') p.coins += j.n;
+  const p = G.players[i];
+  if (j.k === 'coins') p.coins += 1;
+  else if (j.k === 'coins2') p.coins += 2;
   else if (j.k === 'first') G.first = i;
   else if (j.k === 'jar') p.jars++;
-  else if (j.k === 'set') { const ks = [0, 1, 2, 3, 4].sort(() => rnd() - 0.5).slice(0, 3); for (const k of ks) p.goods[k]++; }
-  else if (j.k === 'tile') { const t = [Math.floor(rnd() * 5), Math.floor(rnd() * 5)]; await place(i, t); }
+  else if (j.k === 'set') p.goods = p.goods.map(g => g + 1);
+  else if (j.k === 'tile') { const t = freeTile(); if (t) await place(i, t); }
   else if (j.k === 'steal') {
-    const ts = tilesIn(o); if (!ts.length) return;
-    let id;
-    if (p.human) id = await ask('steal', i);
-    else { await pause(500); id = ts.reduce((a, b) => bestPlace(p, b.tile).m > bestPlace(p, a.tile).m ? b : a).id; }
-    const t = ts.find(t => t.id === id).tile;
-    for (const [k, s] of [...o.land]) if (s.t === id) o.land.delete(k);
-    await place(i, t);
+    const ids = stealable(i); if (!ids.length) { await pause(900); return; }
+    const best = ids.reduce((a, b) => { const ta = G.tiles.get(a), tb = G.tiles.get(b); lift(ta); const ma = jarsFor(ta.cs); put(ta); lift(tb); const mb = jarsFor(tb.cs); put(tb); return mb > ma ? b : a; });
+    const id = await choose('steal', i, { ids }, () => pcTap('steal-' + best));
+    const t = G.tiles.get(id); lift(t); await place(i, t.cs);
   }
   else if (j.k === 'slot') await slot(i);
 }
 const SYMBOLS = 7;  // the 5 goods, coins, jars
 const spin = () => slotQ.length ? slotQ.shift() : Math.floor(rnd() * SYMBOLS);
+const JAR_WORTH = (0.5 + 2 / 14) / (1 - 1 / 14);  // what the PC counts a jar as, in coins: 1 coin half the time, 2 coins a fourteenth, another jar a fourteenth
+const worth = s => s === 5 ? 1 : s === 6 ? JAR_WORTH : JAR_WORTH / 3;  // a good: a third of a leftover jar
+function prize(w) { const c = w.map(s => w.filter(t => t === s).length), n = Math.max(...c); return n >= 2 ? n * worth(w[c.indexOf(n)]) : 0; }
+function slotPlan(w0, coins) {  // the PC's best choice: stop, or pay 1 coin to spin the wheels that give the most expected coins
+  const memo = new Map();
+  const V = (w, c) => {
+    const k = w.join() + '|' + c; if (memo.has(k)) return memo.get(k).v;
+    let best = { v: prize(w), sel: null };
+    if (c > 0 && !(w[0] === w[1] && w[1] === w[2])) for (let m = 1; m < 8; m++) {
+      const idx = [0, 1, 2].filter(j => m >> j & 1); let e = 0, n = 0;
+      const all = (k2, ww) => { if (k2 === idx.length) { e += V(ww, c - 1); n++; return; } for (let s = 0; s < SYMBOLS; s++) { const w2 = ww.slice(); w2[idx[k2]] = s; all(k2 + 1, w2); } };
+      all(0, w); const v = e / n - 1; if (v > best.v + 1e-9) best = { v, sel: idx };
+    }
+    memo.set(k, best); return best.v;
+  };
+  const c = Math.min(coins, 4); V(w0, c); return memo.get(w0.join() + '|' + c).sel;
+}
 async function slot(i) {
   const p = G.players[i];
   G.slot = { who: i, w: [spin(), spin(), spin()], sel: [false, false, false] };
   for (;;) {
     const w = G.slot.w;
-    if (w[0] === w[1] && w[1] === w[2]) { await pause(600); break; }
-    const a = p.human ? await ask('slot', i) : 'collect';
+    if (w[0] === w[1] && w[1] === w[2]) { await pause(900); break; }
+    const a = await choose('slot', i, {}, async () => {
+      const plan = slotPlan(w, p.coins);
+      if (!plan) return pcTap('collect');
+      for (const k of plan) await pcTap('wheel-' + k);
+      await pcTap('reroll');
+    });
     if (a === 'collect') break;
     p.coins--; G.slot.sel.forEach((s, k) => { if (s) w[k] = spin(); }); G.slot.sel = [false, false, false];
   }
@@ -205,171 +260,244 @@ async function slot(i) {
 
 // SECTION: START -- a new game, with a set table for tests
 function restart(o = {}) {
-  if (wait) wait = null;
+  wait = null; drag = null; press = null; tileNo = 1;
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
-  G = { round: 0, phase: 'round', first: o.first || 0, players: [newPlayer(true), newPlayer(false)], draft: [], chosen: -1, over: false, winner: null, slot: null, shown: null, view: [null, null] };
-  G.players.forEach((p, k) => {
-    putSquare(p, 0, 0, -1, 'start', 0);
-    ((o.land || [])[k] || []).forEach(([x, y, c], n) => putSquare(p, x, y, c, 'set', 0));  // a test table's own squares: not tiles, so never stolen
-    p.coins = (o.coins || [0, 0])[k];
-  });
-  (o.tiles1 || []).forEach(([x, y, a, b], n) => { putSquare(G.players[1], x, y, a, 't' + (n + 1), 0); putSquare(G.players[1], x + 1, y, b, 't' + (n + 1), 1); });
-  G.bag = o.bag ? o.bag.map(t => t.slice()) : Array.from({ length: 40 }, () => [Math.floor(rnd() * 5), Math.floor(rnd() * 5)]);
+  G = { round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, shown: null, passing: null, stuck: 0, hand: { x: 0, y: 0, down: false } };
+  STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
+  (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
+  G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; });
+  G.bag = o.bag ? o.bag.map(t => t.slice()) : makeBag();
+  [G.hand.x, G.hand.y] = homeSpot();
   play();
 }
 
-// SECTION: LAYOUT AND DRAWING -- the draft on top, the two lands, goods and coins under each, jars and the slot machine on top of all
+// SECTION: LAYOUT -- the draft on top, a player's panel each side (goods, sets, coins, the tile in hand), the shared board between
 const cv = document.getElementById('c'), cx = cv.getContext('2d');
 let W = 0, H = 0, buttons = [];
 function btn(id, x, y, w, h, fn) { buttons.push({ id, x, y, w, h, fn }); }
 function resize() { const d = devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; cx.setTransform(d, 0, 0, d, 0, 0); }
 addEventListener('resize', resize); resize();
+function L() {
+  const T = Math.round(H * 0.16), P = Math.round(W * 0.13);
+  const s = Math.floor(Math.min((W - 2 * P - 16) / COLS, (H - T - 10) / ROWS));
+  return { T, P, s, ox: Math.round((W - s * COLS) / 2), oy: T + Math.round((H - T - s * ROWS) / 2) };
+}
+function tileCentre(x, y, r) { const { s, ox, oy } = L(), d = DIRS[r]; return [ox + (x + 0.5 + d[0] / 2) * s, oy + (y + 0.5 + d[1] / 2) * s]; }
+function trayBox(i) { const { P, s } = L(), z = Math.max(2.3 * s, 100); return { x: (i ? W - P : 0) + P / 2 - z / 2, y: H - z - 14, w: z, h: z }; }
+function homeSpot() { const b = trayBox(1); return [b.x + b.w / 2 - 25, b.y - 110]; }  // the PC's hand rests above its tray
+function snapSpot() {  // the nearest place the dragged tile fits, if it is close
+  if (!drag || !wait || wait.kind !== 'place') return null;
+  const { s } = L(); let best = null, bd = s * 0.9;
+  for (const sp of spots(wait.tile, wait.r)) { const [x, y] = tileCentre(sp.x, sp.y, sp.r), d = Math.hypot(x - drag.px, y - drag.py); if (d < bd) { bd = d; best = sp; } }
+  return best;
+}
+
+// SECTION: SHAPES -- tiles, jars, coins, sets, the token, the hand
 function rrect(x, y, w, h, r, fill, stroke, lw) {
   cx.beginPath(); cx.roundRect(x, y, w, h, r);
   if (fill) { cx.fillStyle = fill; cx.fill(); }
   if (stroke) { cx.strokeStyle = stroke; cx.lineWidth = lw || 2; cx.stroke(); }
 }
 function dot(x, y, r, fill) { cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fillStyle = fill; cx.fill(); }
-function coin(x, y, r) { dot(x, y, r, '#c99a1a'); dot(x, y, r * 0.75, '#f4cf4a'); }
-function jarShape(x, y, s, fill) {  // an amphora: neck, handles, round body
-  cx.fillStyle = fill || '#b8643a'; cx.strokeStyle = '#6e3418'; cx.lineWidth = Math.max(1, s * 0.05);
+function coin(x, y, r) { dot(x, y, r, '#b8860b'); dot(x, y, r * 0.78, '#f4cf4a'); dot(x - r * 0.25, y - r * 0.25, r * 0.22, '#fff3b0'); }
+function tileShape(x, y, s, cs, r, look) {  // one rectangle, half and half, centred at (x, y); look: 'grey' (can't pick), 'ghost' (where it will snap)
+  const d = DIRS[r || 0], w = d[0] ? 2 * s : s, h = d[1] ? 2 * s : s, x0 = x - w / 2, y0 = y - h / 2, rad = s * 0.14;
+  cx.save(); if (look === 'ghost') cx.globalAlpha = 0.5;
+  cx.beginPath(); cx.roundRect(x0, y0, w, h, rad); cx.save(); cx.clip();
+  [[-0.5, cs[0]], [0.5, cs[1]]].forEach(([k, c]) => { const hx = x + d[0] * k * s - s / 2, hy = y + d[1] * k * s - s / 2; cx.fillStyle = COLOURS[c]; cx.fillRect(Math.round(hx), Math.round(hy), s, s); });
+  if (look === 'grey') { cx.fillStyle = 'rgba(240,240,240,0.55)'; cx.fillRect(x0, y0, w, h); }
+  cx.restore(); cx.strokeStyle = '#00000055'; cx.lineWidth = 1.5; cx.stroke(); cx.restore();
+}
+function jarShape(x, y, s) {  // an amphora: neck, handles, round body, a band
+  cx.fillStyle = '#c46a3c'; cx.strokeStyle = '#6e3418'; cx.lineWidth = Math.max(1.5, s * 0.04);
   cx.beginPath(); cx.moveTo(x - s * 0.18, y - s * 0.5); cx.lineTo(x + s * 0.18, y - s * 0.5); cx.lineTo(x + s * 0.14, y - s * 0.28);
   cx.bezierCurveTo(x + s * 0.55, y - s * 0.2, x + s * 0.45, y + s * 0.35, x, y + s * 0.5);
   cx.bezierCurveTo(x - s * 0.45, y + s * 0.35, x - s * 0.55, y - s * 0.2, x - s * 0.14, y - s * 0.28); cx.closePath(); cx.fill(); cx.stroke();
   cx.beginPath(); cx.arc(x - s * 0.24, y - s * 0.3, s * 0.1, 1.2, 4.6); cx.stroke(); cx.beginPath(); cx.arc(x + s * 0.24, y - s * 0.3, s * 0.1, -1.4, 1.9); cx.stroke();
+  cx.strokeStyle = '#2a1408'; cx.lineWidth = s * 0.05; cx.beginPath(); cx.moveTo(x - s * 0.36, y); cx.lineTo(x + s * 0.36, y); cx.stroke();
 }
-function tileShape(x, y, s, t, r) {  // a tile drawn with its first half at (x, y)
-  const d = DIRS[r || 0];
-  [[0, 0], d].forEach(([a, b], h) => rrect(x + a * s + 2, y + b * s + 2, s - 4, s - 4, s * 0.12, COLOURS[t[h]], '#00000055', 1.5));
-}
-function setShape(x, y, r) { COLOURS.slice(0, 3).forEach((c, k) => dot(x + (k - 1) * r * 1.1, y, r * 0.55, c)); }
+function setShape(x, y, r) { COLOURS.forEach((c, k) => { const a = -Math.PI / 2 + k * 2 * Math.PI / 5; dot(x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.6, r * 0.42, c); }); }  // a set: one of each good
 function symbol(s, x, y, r) { if (s < 5) dot(x, y, r * 0.8, COLOURS[s]); else if (s === 5) coin(x, y, r * 0.8); else jarShape(x, y, r * 1.6); }
-function content(j, x, y, s) {  // what a jar held
-  if (j.k === 'coins') { for (let k = 0; k < j.n; k++) coin(x + (k - (j.n - 1) / 2) * s * 0.45, y, s * 0.2); }
-  else if (j.k === 'slot') { rrect(x - s * 0.4, y - s * 0.22, s * 0.8, s * 0.44, 8, '#555'); for (let k = 0; k < 3; k++) rrect(x - s * 0.34 + k * s * 0.24, y - s * 0.16, s * 0.2, s * 0.32, 4, '#fff'); }
-  else if (j.k === 'steal') { tileShape(x - s * 0.2, y - s * 0.12, s * 0.24, [2, 2], 0); arrow(x + s * 0.3, y + s * 0.25, x - s * 0.3, y + s * 0.25); }
-  else if (j.k === 'first') firstToken(x, y, s * 0.3);
-  else if (j.k === 'tile') { tileShape(x - s * 0.25, y - s * 0.12, s * 0.25, [0, 3], 0); }
-  else if (j.k === 'jar') jarShape(x, y, s * 0.6);
-  else if (j.k === 'set') setShape(x, y, s * 0.2);
-}
-function arrow(x0, y0, x1, y1) { cx.strokeStyle = '#333'; cx.lineWidth = 4; cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(x1, y1); const a = Math.atan2(y1 - y0, x1 - x0); cx.lineTo(x1 - 12 * Math.cos(a - 0.5), y1 - 12 * Math.sin(a - 0.5)); cx.moveTo(x1, y1); cx.lineTo(x1 - 12 * Math.cos(a + 0.5), y1 - 12 * Math.sin(a + 0.5)); cx.stroke(); }
-function firstToken(x, y, r) {  // a gold star: who picks first
+function star(x, y, r) {  // the first-player token
   cx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r; cx.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); }
   cx.closePath(); cx.fillStyle = '#f4cf4a'; cx.fill(); cx.strokeStyle = '#a07810'; cx.lineWidth = 2; cx.stroke();
 }
-function boardRect(i) { return { x: i ? W * 0.51 : W * 0.02, y: H * 0.2, w: W * 0.47, h: H * 0.56 }; }
-function drawBoard(i) {
-  const p = G.players[i], R = boardRect(i), b = bounds(p), mine = wait && wait.who === i;
-  const active = wait ? wait.who === i : false;
-  rrect(R.x, R.y, R.w, R.h, 18, '#e8dcc0', active ? '#2f7de1' : '#c9b893', active ? 6 : 3);
-  const cols = b.x1 - b.x0 + 7, rows = b.y1 - b.y0 + 7, s = Math.min(70, R.w / cols, R.h / rows);
-  const ox = R.x + R.w / 2 - ((b.x0 + b.x1) / 2 + 0.5) * s, oy = R.y + R.h / 2 - ((b.y0 + b.y1) / 2 + 0.5) * s;
-  for (const q of p.land.values()) rrect(ox + q.x * s + 1, oy + q.y * s + 1, s - 2, s - 2, s * 0.1, q.c < 0 ? START : COLOURS[q.c], '#00000040', 1);
-  if (mine && wait.kind === 'place') {
-    for (const sp of spots(p, wait.tile, wait.r)) {
-      const [[ax, ay]] = halves(sp.x, sp.y, wait.r);
-      rrect(ox + ax * s + 4, oy + ay * s + 4, s - 8, s - 8, s * 0.15, COLOURS[wait.tile[0]] + '55', '#2f7de1', 2);
-      btn('spot-' + sp.x + ',' + sp.y, ox + ax * s, oy + ay * s, s, s, () => answer({ x: sp.x, y: sp.y, r: wait.r }));
+function arrow(x0, y0, x1, y1, col, lw) { cx.strokeStyle = col; cx.lineWidth = lw; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(x1, y1); const a = Math.atan2(y1 - y0, x1 - x0), h = lw * 2.5; cx.moveTo(x1 - h * Math.cos(a - 0.6), y1 - h * Math.sin(a - 0.6)); cx.lineTo(x1, y1); cx.lineTo(x1 - h * Math.cos(a + 0.6), y1 - h * Math.sin(a + 0.6)); cx.stroke(); }
+function content(j, x, y, s) {  // what a jar held
+  if (j.k === 'coins') coin(x, y, s * 0.24);
+  else if (j.k === 'coins2') { coin(x - s * 0.16, y, s * 0.22); coin(x + s * 0.16, y, s * 0.22); }
+  else if (j.k === 'slot') { rrect(x - s * 0.42, y - s * 0.24, s * 0.84, s * 0.48, 8, '#7a2f2f'); for (let k = 0; k < 3; k++) rrect(x - s * 0.36 + k * s * 0.25, y - s * 0.17, s * 0.21, s * 0.34, 4, '#fff'); }
+  else if (j.k === 'steal') { tileShape(x - s * 0.05, y - s * 0.1, s * 0.22, [2, 3], 0); arrow(x + s * 0.35, y + s * 0.25, x - s * 0.35, y + s * 0.25, '#333', 5); }
+  else if (j.k === 'first') star(x, y, s * 0.3);
+  else if (j.k === 'tile') tileShape(x, y, s * 0.28, [0, 3], 0);
+  else if (j.k === 'jar') jarShape(x, y, s * 0.6);
+  else if (j.k === 'set') setShape(x, y, s * 0.3);
+}
+function hand(x, y, down, sleeve) {  // a pointing hand; its fingertip is at (x, y)
+  cx.save(); cx.translate(x, y); cx.rotate(-0.3); const k = down ? 0.9 : 1; cx.scale(k * 1.15, k * 1.15);
+  if (down) { cx.strokeStyle = '#ffffffcc'; cx.lineWidth = 3; cx.beginPath(); cx.arc(0, 0, 18, 0, 7); cx.stroke(); }
+  cx.fillStyle = '#00000022'; cx.beginPath(); cx.ellipse(10, 60, 30, 34, 0, 0, 7); cx.fill();  // shadow
+  cx.fillStyle = '#f6d2b4'; cx.strokeStyle = '#7a4a2e'; cx.lineWidth = 2.4; cx.lineJoin = 'round';
+  const part = f => { cx.beginPath(); f(); cx.fill(); cx.stroke(); };
+  part(() => cx.roundRect(8, 30, 15, 26, 7.5)); part(() => cx.roundRect(21, 34, 14, 24, 7)); part(() => cx.roundRect(32, 39, 12, 21, 6));  // curled fingers
+  part(() => cx.roundRect(-14, 44, 58, 44, 18));  // palm
+  part(() => cx.ellipse(-14, 62, 9, 19, -0.7, 0, 7));  // thumb
+  part(() => cx.roundRect(-9, 0, 18, 60, 9));  // pointing finger
+  cx.fillStyle = '#fde7d6'; cx.beginPath(); cx.roundRect(-5.5, 3, 11, 12, 5); cx.fill();  // nail
+  cx.strokeStyle = '#c08a6a'; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(-5, 26); cx.lineTo(5, 26); cx.moveTo(-5, 40); cx.lineTo(5, 40); cx.stroke();  // knuckles
+  cx.fillStyle = sleeve; cx.strokeStyle = '#00000066'; cx.lineWidth = 2.4; cx.beginPath(); cx.roundRect(-12, 84, 58, 26, 8); cx.fill(); cx.stroke();  // sleeve
+  cx.restore();
+}
+
+// SECTION: DRAWING -- each screen part
+function drawBoard() {
+  const { s, ox, oy } = L();
+  rrect(ox - 6, oy - 6, s * COLS + 12, s * ROWS + 12, 14, '#e2d3b0', '#c4b088', 2);
+  cx.strokeStyle = '#d6c49c'; cx.lineWidth = 1;
+  for (let x = 1; x < COLS; x++) { cx.beginPath(); cx.moveTo(ox + x * s, oy); cx.lineTo(ox + x * s, oy + ROWS * s); cx.stroke(); }
+  for (let y = 1; y < ROWS; y++) { cx.beginPath(); cx.moveTo(ox, oy + y * s); cx.lineTo(ox + COLS * s, oy + y * s); cx.stroke(); }
+  const thief = wait && wait.kind === 'steal' ? wait : null;
+  for (const t of G.tiles.values()) {
+    const [x, y] = tileCentre(t.x, t.y, t.r), mark = thief && t.o === 1 - thief.who && !t.start;
+    tileShape(x, y, s, t.cs, t.r, mark && !thief.ids.includes(t.id) ? 'grey' : null);
+    if (mark && thief.ids.includes(t.id)) {
+      const pulse = 4 + 2 * Math.sin(performance.now() / 180), d = DIRS[t.r];
+      rrect(x - (d[0] ? s : s / 2) - 4, y - (d[1] ? s : s / 2) - 4, (d[0] ? 2 : 1) * s + 8, (d[1] ? 2 : 1) * s + 8, s * 0.2, null, BORDER[thief.who], pulse);
+      btn('steal-' + t.id, x - (d[0] ? s : s / 2), y - (d[1] ? s : s / 2), (d[0] ? 2 : 1) * s, (d[1] ? 2 : 1) * s, () => answer(t.id));
     }
   }
-  if (wait && wait.kind === 'steal' && wait.who === 1 - i) {
-    for (const q of p.land.values()) if (q.t !== 'start' && q.t !== 'set') {
-      rrect(ox + q.x * s + 3, oy + q.y * s + 3, s - 6, s - 6, s * 0.1, null, '#d02020', 3);
-      btn('steal-' + q.t, ox + q.x * s, oy + q.y * s, s, s, () => answer(q.t));
-    }
-  }
-  if (G.first === i) firstToken(R.x + 30, R.y + 30, 18);
-  // goods: one row per colour; coins: one row; unopened jars and bids beside them
-  const gy = H * 0.78, gx = R.x + 10, r = Math.min(9, H * 0.011);
-  p.goods.forEach((n, c) => { for (let k = 0; k < n; k++) dot(gx + r + k * r * 2.3, gy + r + c * r * 2.3, r, COLOURS[c]); });
-  for (let k = 0; k < p.coins; k++) coin(R.x + R.w * 0.45 + (k % 20) * r * 2.1, gy + r + Math.floor(k / 20) * r * 2.3, r);
-  for (let k = 0; k < p.bid; k++) setShape(R.x + R.w - 40 - k * 50, R.y + 30, 12);
+  cx.lineWidth = Math.max(4, s * 0.11); cx.lineCap = 'round';  // each land's border, all around its edges
+  for (const c of G.cells.values()) DIRS.forEach(([dx, dy], k) => {
+    const n = G.cells.get(key(c.x + dx, c.y + dy)); if (n && n.o === c.o) return;
+    const x0 = ox + (c.x + (dx > 0 ? 1 : 0)) * s, y0 = oy + (c.y + (dy > 0 ? 1 : 0)) * s;
+    cx.strokeStyle = BORDER[c.o]; cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(x0 + (dx ? 0 : s), y0 + (dy ? 0 : s)); cx.stroke();
+  });
+  cx.lineCap = 'butt';
 }
 function drawDraft() {
-  const s = Math.min(H * 0.07, 60), y = H * 0.04, w = s * 2 + 30, x0 = W / 2 - (G.draft.length * w) / 2;
+  const { T, P } = L(), s = Math.round(Math.min(T * 0.42, 60)), y = T / 2, gap = 2 * s + 46, x0 = W / 2 - (G.draft.length - 1) * gap / 2;
   G.draft.forEach((t, k) => {
-    const x = x0 + k * w + 15;
-    rrect(x - 8, y - 8, s * 2 + 16, s + 16, 12, k === G.chosen ? '#ffe9a8' : '#fff8e8', k === G.chosen ? '#e0a020' : '#c9b893', 3);
-    tileShape(x, y, s, t, 0);
-    if (wait && wait.kind === 'pick') btn('draft-' + k, x - 8, y - 8, s * 2 + 16, s + 16, () => answer(k));
+    const x = x0 + k * gap, ok = fits(t), sel = k === G.chosen;
+    rrect(x - s - 12, y - s / 2 - 12, 2 * s + 24, s + 24, 14, sel ? '#ffe9a8' : '#fbf3e2', sel ? '#e0a020' : '#cdb991', sel ? 4 : 2);
+    tileShape(x, y, s, t, 0, ok ? null : 'grey');
+    if (ok && wait && wait.kind === 'pick') btn('draft-' + k, x - s - 12, y - s / 2 - 12, 2 * s + 24, s + 24, () => answer(k));
   });
-  for (let k = 0; k < Math.ceil(G.bag.length / 4); k++) rrect(20 + k * 14, y, 10, s, 3, '#c9b893');  // rounds left
+  for (let k = 0; k < Math.ceil(G.bag.length / 4); k++) rrect(P + 14 + k * 16, y - s / 2, 11, s, 4, '#cdb991');  // rounds left
 }
-function drawPlaceTools() {  // the tile in hand and the turn button
-  const R = boardRect(0), s = 46, x = R.x + 20, y = R.y + R.h - s * 2 - 20;
-  rrect(x - 8, y - 8, s * 2 + 30, s * 2 + 16, 12, '#fff8e8', '#2f7de1', 3);
-  tileShape(x + (wait.r === 2 ? s : 0), y + (wait.r === 3 ? s : 0), s, wait.tile, wait.r);
-  btn('turn', x - 8, y - 8, s * 2 + 30, s * 2 + 16, () => { wait.r = (wait.r + 1) % 4; });
+function drawPanel(i) {
+  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, cxm = x0 + P / 2, turn = wait && wait.who === i;
+  rrect(x0 + 6, 8, P - 12, H - 16, 16, turn ? '#fff8e8' : '#f6ecd6', BORDER[i], turn ? 6 : 3);
+  dot(cxm, 44, 24, BORDER[i]); if (G.first === i) star(cxm, 44, 18);
+  const r = Math.min(11, (P - 28) / 14), top = 92;  // goods: a row per colour; a long row squeezes together instead of wrapping
+  p.goods.forEach((n, c) => { const step = Math.min(r * 2.3, (P - 32 - 2 * r) / Math.max(1, n - 1)); for (let k = 0; k < n; k++) dot(x0 + 16 + r + k * step, top + c * r * 2.6, r, COLOURS[c]); });
+  const sy = top + 5 * r * 2.6 + 14, n = sets(p);
+  for (let k = 0; k < n; k++) setShape(x0 + 30 + (k % 3) * 44, sy + 6 + Math.floor(k / 3) * 44, 20);  // the sets you can bid
+  const cy0 = sy + Math.max(1, Math.ceil(n / 3)) * 44 + 14, cr = Math.min(12, (P - 24) / 11);
+  for (let k = 0; k < p.coins; k++) coin(x0 + 14 + cr + (k % 5) * cr * 2.15, cy0 + Math.floor(k / 5) * cr * 2.15, cr);
+  for (let k = 0; k < p.bid; k++) setShape(cxm + (k - (p.bid - 1) / 2) * 34, trayBox(i).y - 30, 15);  // the sets bid now
+  if (wait && wait.kind === 'place' && wait.who === i) drawTray(i);
 }
+function drawTray(i) {  // the tile in hand: tap to turn, drag onto the board
+  const b = trayBox(i), { s } = L();
+  rrect(b.x, b.y, b.w, b.h, 16, '#ffffff', BORDER[i], 4);
+  if (!drag) tileShape(b.x + b.w / 2, b.y + b.h / 2, s, wait.tile, wait.r);
+  btn('tray', b.x, b.y, b.w, b.h, e => { press = { x: e.clientX, y: e.clientY }; });
+}
+function drawDrag() {
+  if (drag && drag.byHand) { drag.px = G.hand.x; drag.py = G.hand.y; }
+  const { s } = L(), sp = snapSpot();
+  if (sp) { const [x, y] = tileCentre(sp.x, sp.y, sp.r), d = DIRS[sp.r]; tileShape(x, y, s, wait.tile, sp.r, 'ghost'); cx.setLineDash([8, 6]); rrect(x - (d[0] ? s : s / 2) - 3, y - (d[1] ? s : s / 2) - 3, (d[0] ? 2 : 1) * s + 6, (d[1] ? 2 : 1) * s + 6, s * 0.2, null, '#ffffff', 4); cx.setLineDash([]); }
+  cx.save(); cx.shadowColor = '#00000055'; cx.shadowBlur = 14; cx.shadowOffsetY = 6; tileShape(drag.px, drag.py, s * 1.06, wait.tile, wait.r); cx.restore();
+}
+function shade(a) { cx.fillStyle = 'rgba(40,25,10,' + a + ')'; cx.fillRect(0, 0, W, H); }
 function drawBid() {  // match the bid with your sets, or let the tile go
-  const x = W / 2, y = H * 0.48;
-  rrect(x - 170, y - 60, 340, 120, 20, '#fff8e8ee', '#2f7de1', 4);
-  rrect(x - 150, y - 45, 140, 90, 16, '#d8f0c8', '#3a8a2a', 3);
-  for (let k = 0; k < wait.n; k++) setShape(x - 80, y - 20 + k * 22 - (wait.n - 1) * 11 + 20, 12);
-  btn('bid', x - 150, y - 45, 140, 90, () => answer(true));
-  rrect(x + 10, y - 45, 140, 90, 16, '#f6d6d0', '#a83a2a', 3);
-  cx.strokeStyle = '#a83a2a'; cx.lineWidth = 8; cx.beginPath(); cx.moveTo(x + 55, y - 20); cx.lineTo(x + 105, y + 20); cx.moveTo(x + 105, y - 20); cx.lineTo(x + 55, y + 20); cx.stroke();
-  btn('letgo', x + 10, y - 45, 140, 90, () => answer(false));
+  const x = W / 2, y = H * 0.5, me = wait.who, tile = G.draft[G.chosen];
+  shade(0.3); rrect(x - 240, y - 130, 480, 260, 26, '#fff8e8', BORDER[me], 6);
+  if (tile) tileShape(x, y - 70, 44, tile, 0);
+  for (let k = 0; k < wait.n; k++) setShape(x + (k - (wait.n - 1) / 2) * 44, y - 10, 18);
+  rrect(x - 210, y + 20, 190, 94, 20, '#d8f0c8', '#3a8a2a', 4);
+  cx.strokeStyle = '#3a8a2a'; cx.lineWidth = 10; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(x - 145, y + 66); cx.lineTo(x - 122, y + 88); cx.lineTo(x - 80, y + 44); cx.stroke();
+  btn('bid', x - 210, y + 20, 190, 94, () => answer(true));
+  rrect(x + 20, y + 20, 190, 94, 20, '#f6d6d0', '#a83a2a', 4);
+  cx.strokeStyle = '#a83a2a'; cx.beginPath(); cx.moveTo(x + 92, y + 44); cx.lineTo(x + 138, y + 90); cx.moveTo(x + 138, y + 44); cx.lineTo(x + 92, y + 90); cx.stroke(); cx.lineCap = 'butt';
+  btn('letgo', x + 20, y + 20, 190, 94, () => answer(false));
 }
 function drawJars() {  // big jars in a row; tap one to open it
-  const p = G.players[wait ? wait.who : G.shown.who], n = p.jars, s = Math.min(110, W * 0.8 / Math.max(1, n));
-  cx.fillStyle = '#00000044'; cx.fillRect(0, 0, W, H);
+  const who = wait ? wait.who : G.shown.who, n = G.players[who].jars, s = Math.min(130, W * 0.7 / Math.max(1, n));
+  shade(0.35);
   for (let k = 0; k < n; k++) {
-    const x = W / 2 + (k - (n - 1) / 2) * s, y = H / 2;
+    const x = W / 2 + (k - (n - 1) / 2) * s, y = H * 0.6 + (wait ? Math.sin(performance.now() / 300 + k) * 4 : 0);
     jarShape(x, y, s * 0.85);
     if (wait && wait.kind === 'jar') btn('jar-' + k, x - s / 2, y - s / 2, s, s, () => answer());
   }
-  if (G.shown) { rrect(W / 2 - 110, H / 2 - 160, 220, 120, 20, '#fff8e8', '#e0a020', 4); content(G.shown.j, W / 2, H / 2 - 100, 140); }
+  if (G.shown) { rrect(W / 2 - 130, H * 0.2, 260, 160, 24, '#fff8e8', BORDER[who], 6); content(G.shown.j, W / 2, H * 0.2 + 80, 170); }
 }
 function drawSlot() {
-  const S = G.slot, x = W / 2, y = H / 2, ww = 120, human = G.players[S.who].human;
-  cx.fillStyle = '#00000055'; cx.fillRect(0, 0, W, H);
-  rrect(x - 230, y - 150, 460, 300, 26, '#7a2f2f', '#3a1010', 5);
+  const S = G.slot, x = W / 2, y = H / 2, ww = 140, live = wait && wait.kind === 'slot';
+  shade(0.4); rrect(x - 260, y - 180, 520, 360, 30, '#7a2f2f', BORDER[S.who], 6);
   S.w.forEach((s, k) => {
-    const wx = x - 190 + k * (ww + 10);
-    rrect(wx, y - 110, ww, 150, 14, '#fff', S.sel[k] ? '#2f7de1' : '#555', S.sel[k] ? 7 : 3);
-    symbol(s, wx + ww / 2, y - 35, 40);
-    if (human && wait && wait.kind === 'slot') btn('wheel-' + k, wx, y - 110, ww, 150, () => { S.sel[k] = !S.sel[k]; });
+    const wx = x - 225 + k * (ww + 15);
+    rrect(wx, y - 140, ww, 170, 16, '#fff', S.sel[k] ? '#2f7de1' : '#555', S.sel[k] ? 8 : 3);
+    symbol(s, wx + ww / 2, y - 55, 46);
+    if (live) btn('wheel-' + k, wx, y - 140, ww, 170, () => { S.sel[k] = !S.sel[k]; });
   });
-  if (human && wait && wait.kind === 'slot') {
+  if (live) {
     const can = G.players[S.who].coins > 0 && S.sel.some(v => v);
-    rrect(x - 190, y + 55, 180, 80, 16, can ? '#d8f0c8' : '#ccc', '#3a8a2a', 3); coin(x - 130, y + 95, 18);
-    cx.strokeStyle = '#333'; cx.lineWidth = 5; cx.beginPath(); cx.arc(x - 65, y + 95, 18, 0.5, 5.6); cx.stroke();  // pay a coin, spin again
-    if (can) btn('reroll', x - 190, y + 55, 180, 80, () => answer('reroll'));
-    rrect(x + 10, y + 55, 180, 80, 16, '#ffe9a8', '#e0a020', 3);
-    cx.fillStyle = '#e0a020'; cx.beginPath(); cx.moveTo(x + 75, y + 75); cx.lineTo(x + 125, y + 95); cx.lineTo(x + 75, y + 115); cx.fill();  // take what you have
-    btn('collect', x + 10, y + 55, 180, 80, () => answer('collect'));
+    rrect(x - 225, y + 50, 215, 100, 18, can ? '#d8f0c8' : '#ccc', '#3a8a2a', 4); coin(x - 160, y + 100, 22);
+    cx.strokeStyle = '#333'; cx.lineWidth = 6; cx.beginPath(); cx.arc(x - 80, y + 100, 22, 0.5, 5.6); cx.stroke();  // pay a coin, spin again
+    if (can) btn('reroll', x - 225, y + 50, 215, 100, () => answer('reroll'));
+    rrect(x + 10, y + 50, 215, 100, 18, '#ffe9a8', '#e0a020', 4);
+    cx.fillStyle = '#e0a020'; cx.beginPath(); cx.moveTo(x + 95, y + 72); cx.lineTo(x + 150, y + 100); cx.lineTo(x + 95, y + 128); cx.fill();  // take what you have
+    btn('collect', x + 10, y + 50, 215, 100, () => answer('collect'));
   }
 }
+function drawPass() {  // nothing fits: this turn passes to the other player
+  const i = G.passing, x = W / 2, y = H * 0.5, k = Math.min(1, (performance.now() % 1200) / 900);
+  shade(0.3); rrect(x - 260, y - 110, 520, 220, 30, '#fff8e8', BORDER[i], 6);
+  dot(i ? x + 170 : x - 170, y, 46, BORDER[i]); dot(i ? x - 170 : x + 170, y, 46, BORDER[1 - i]);
+  const a = i ? x + 110 : x - 110, b = i ? x - 110 : x + 110; arrow(a, y, a + (b - a) * k, y, '#555', 12);
+}
 function drawEnd() {  // the two rows of coins side by side; the longer one wins
-  cx.fillStyle = '#00000055'; cx.fillRect(0, 0, W, H);
-  rrect(W * 0.1, H * 0.3, W * 0.8, H * 0.4, 26, '#fff8e8', '#e0a020', 5);
+  shade(0.4); rrect(W * 0.08, H * 0.28, W * 0.84, H * 0.44, 30, '#fff8e8', '#e0a020', 6);
   G.players.forEach((p, i) => {
-    const y = H * 0.42 + i * H * 0.14, r = Math.min(14, W * 0.7 / Math.max(1, p.coins) / 2.2);
-    if (G.winner === i) firstToken(W * 0.14, y, 22);
-    for (let k = 0; k < p.coins; k++) coin(W * 0.18 + k * r * 2.2, y, r);
+    const y = H * 0.4 + i * H * 0.16, r = Math.min(16, W * 0.66 / Math.max(1, p.coins) / 2.2);
+    dot(W * 0.13, y, 22, BORDER[i]); if (G.winner === i) star(W * 0.13, y, 18);
+    for (let k = 0; k < p.coins; k++) coin(W * 0.18 + r + k * r * 2.2, y, r);
   });
-  rrect(W * 0.86, H * 0.32, 60, 60, 14, '#d8f0c8', '#3a8a2a', 3);
-  cx.strokeStyle = '#3a8a2a'; cx.lineWidth = 5; cx.beginPath(); cx.arc(W * 0.86 + 30, H * 0.32 + 30, 16, 0.5, 5.6); cx.stroke();
-  btn('again', W * 0.86, H * 0.32, 60, 60, () => restart());
+  rrect(W * 0.86, H * 0.3, 64, 64, 16, '#d8f0c8', '#3a8a2a', 3);
+  cx.strokeStyle = '#3a8a2a'; cx.lineWidth = 6; cx.beginPath(); cx.arc(W * 0.86 + 32, H * 0.3 + 32, 17, 0.5, 5.6); cx.stroke();
+  btn('again', W * 0.86, H * 0.3, 64, 64, () => restart());
 }
 function frame() {
   buttons = []; cx.clearRect(0, 0, W, H);
   if (G) {
-    drawDraft(); drawBoard(0); drawBoard(1);
-    if (wait && wait.kind === 'place' && wait.who === 0) drawPlaceTools();
+    drawBoard(); drawDraft(); drawPanel(0); drawPanel(1);
+    if (drag && wait && wait.kind === 'place') drawDrag();
     if (wait && wait.kind === 'bid') drawBid();
     if ((wait && wait.kind === 'jar') || G.shown) drawJars();
     if (G.slot) drawSlot();
+    if (G.passing != null) drawPass();
     if (G.over) drawEnd();
+    hand(G.hand.x, G.hand.y, G.hand.down, BORDER[1]);
   }
   requestAnimationFrame(frame);
 }
+
+// SECTION: INPUT -- taps press buttons at once; the tile in the tray turns on a tap and moves on a drag
+const human = () => wait && G.players[wait.who].human;
 cv.addEventListener('pointerdown', e => {
-  if (!e.isPrimary) return;
-  for (let k = buttons.length - 1; k >= 0; k--) { const b = buttons[k]; if (e.clientX >= b.x && e.clientX <= b.x + b.w && e.clientY >= b.y && e.clientY <= b.y + b.h) { b.fn(); return; } }
+  if (!e.isPrimary || !human()) return;
+  for (let k = buttons.length - 1; k >= 0; k--) { const b = buttons[k]; if (e.clientX >= b.x && e.clientX <= b.x + b.w && e.clientY >= b.y && e.clientY <= b.y + b.h) { b.fn(e); return; } }
+});
+cv.addEventListener('pointermove', e => {
+  if (!press || !human()) return;
+  if (!drag && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 12) drag = { px: e.clientX, py: e.clientY };
+  if (drag) { drag.px = e.clientX; drag.py = e.clientY; }
+});
+cv.addEventListener('pointerup', () => {
+  if (!press) return; press = null;
+  if (drag) drop(); else if (wait && wait.kind === 'place') wait.r = (wait.r + 1) % 4;
 });
 
 // SECTION: TEST HOOKS -- what the flows read and set
@@ -377,12 +505,21 @@ window.__dg = {
   ready: false, restart,
   slotQueue(a) { slotQ.length = 0; a.forEach(v => slotQ.push(v)); },
   btn(id) { const b = buttons.find(b => b.id === id); return b ? [b.x + b.w / 2, b.y + b.h / 2] : null; },
+  buttons() { return buttons.map(b => b.id); },
+  tileAt: tileCentre,
+  edge(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; },
+  draftHalf(k, h) { const { T } = L(), s = Math.round(Math.min(T * 0.42, 60)), gap = 2 * s + 46, x = W / 2 - (G.draft.length - 1) * gap / 2 + k * gap; return [x + (h ? s / 2 : -s / 2), T / 2]; },
+  pixel(x, y) { const d = devicePixelRatio || 1; return [...cx.getImageData(Math.floor(x * d), Math.floor(y * d), 1, 1).data]; },
+  sampleJars(n) { const m = {}; for (let k = 0; k < n; k++) { const j = rollJar(); m[j.k] = (m[j.k] || 0) + 1; } return m; },
   state() {
     return {
-      round: G.round, phase: G.phase, first: G.first, over: G.over, winner: G.winner, slot: G.slot ? { w: G.slot.w.slice(), sel: G.slot.sel.slice() } : null,
-      wait: wait ? { kind: wait.kind, who: wait.who } : null, draft: G.draft.map(t => t.slice()),
-      spots: wait && wait.kind === 'place' ? spots(G.players[wait.who], wait.tile, wait.r) : [],
-      players: G.players.map(p => ({ land: [...p.land.values()].map(s => [s.x, s.y, s.c]), goods: p.goods.slice(), coins: p.coins, jars: p.jars, got: p.got, bid: p.bid })),
+      round: G.round, phase: G.phase, first: G.first, over: G.over, winner: G.winner, passing: G.passing, slot: G.slot ? { w: G.slot.w.slice(), sel: G.slot.sel.slice() } : null,
+      wait: wait ? { kind: wait.kind, who: wait.who, r: wait.r } : null, draft: G.draft.map(t => t.slice()), fits: G.draft.map(fits),
+      spots: wait && wait.kind === 'place' ? [0, 1, 2, 3].flatMap(r => spots(wait.tile, r)) : [], snap: snapSpot() && (({ x, y, r }) => ({ x, y, r }))(snapSpot()),
+      halves: [0, 1, 2, 3, 4].map(c => G.bag.concat(G.draft).flat().filter(v => v === c).length), left: G.bag.length + G.draft.length,
+      tiles: [...G.tiles.values()].map(t => [t.x, t.y, t.r, t.cs[0], t.cs[1], t.o, t.id]), passes: G.players.map(p => p.passes),
+      hand: { x: G.hand.x, y: G.hand.y }, handDrag: !!(drag && drag.byHand),
+      players: G.players.map(p => ({ goods: p.goods.slice(), coins: p.coins, jars: p.jars, got: p.got, bid: p.bid })),
     };
   },
 };

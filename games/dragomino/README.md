@@ -4,12 +4,12 @@ A two-player tile-drafting game based on the board game Dragomino: each player b
 
 ## How to play
 
-- Open `dragomino.html` in a browser (one self-contained file). You play on the left, the PC on the right.
-- Top: the 4 tiles of this round; the bars on the left are the rounds left. Tap a tile to pick it.
-- If the other player wants it, a panel shows the sets needed: green takes it (a tie is yours), red lets it go.
-- Your tile in hand is bottom-left on your land; tap it to turn it. Tap a blue square to place it there.
-- Jars: tap the big jars to open them. Slot machine: tap wheels to choose, the green button pays a coin and spins them again, the yellow button takes what you have.
-- Under each land: goods (a row per colour) and gold coins. The star is the first-player token.
+- Open `dragomino.html` in a browser (one self-contained file). You are green (left panel), the PC is red (right panel); you share one board.
+- Top: the 4 tiles of this round; the bars are the rounds left. Tap a tile to pick it. Greyed tiles fit nowhere and can't be picked; if none fits, the turn passes.
+- If the other player wants your tile, a panel shows the sets needed (a set is one of each of the 5 goods): green takes it (a tie is the picker's), red lets it go.
+- Your tile waits in the box at the bottom of your panel: tap it to turn it, drag it onto the board; the place it will snap to is shown. It must meet the same colour on at least one edge, in anyone's land.
+- Every matching edge earns a jar; tap the big jars to open them. Slot machine: tap wheels to choose, the green button pays a coin and spins them again, the yellow button takes what you have.
+- Each panel: goods (a row per colour), sets, gold coins; the star is the first-player token. The PC's hand does every PC move.
 - At the end the two rows of coins are shown; the star marks the winner. The round arrow starts again.
 
 ## Where things are
@@ -25,7 +25,7 @@ A two-player tile-drafting game based on the board game Dragomino: each player b
 
 ## Now
 
-A rough playable prototype against the PC, colours only. Rules and what was built without an owner decision are in `design.md` sections 2 and 6.
+A playable prototype against the PC on one shared board, colours only. Rules and what was built without an owner decision are in `design.md` sections 2 and 6.
 
 ## Open
 
