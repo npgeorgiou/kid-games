@@ -45,6 +45,7 @@ Flat brushes are held at one fixed angle, unless the turn switch in the brush po
 | `tools/harness.py` | Builds the game and runs its play-through tests. |
 | `tools/flows.py` | Play-through tests (`SECTION:` markers): the real page, real clicks, keys, drags and touches, at a finger's speed, each on a small test paper. |
 | `tools/previews.py` | Paints the brush previews straight through the game's stroke code (under 2 minutes). |
+| `tools/looks.py`, `tools/looks/` | Saves every brush's normal stroke as a picture; the `brush_looks` test fails when a brush no longer looks like its picture. |
 
 Shared with other games, at the repo root: `.githooks/` (the commit gate), `docs/design-rules.md` (rules for every game).
 
@@ -54,6 +55,7 @@ From this folder (once per clone: `git config core.hooksPath .githooks`):
 
 - `python3 tools/harness.py flows [names]` -- the play-through tests; most take 2-8 s; the watercolour, undo and undo-room ones 15-30 s (paint dries in real time); all of them about 4 minutes.
 - `python3 tools/previews.py` -- remake the brush previews after any change to how a tool, brush or canvas looks.
+- `python3 tools/looks.py` -- save the brush pictures again, only when a brush's look was meant to change.
 
 Each flow runs on a test paper (`coloring-book.html?paper=400x250@600,375`): that part of the full 1600x1000 paper, with the same canvas grain there, so a flow paints only the paper it needs. The flows that measure speed or the undo room keep the full paper.
 

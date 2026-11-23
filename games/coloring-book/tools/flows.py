@@ -700,3 +700,33 @@ def f_previews_drawn(q):  # owner 23 Nov 20:18: some brush pictures in the brush
       const mean=sum/(d.length/4);if(mean<150||hi-lo<60)out.push(cv+':'+k)}return out}""")
     report(not bad, 'brush pictures: paper with a stroke, none black or empty', 'bad: %d %s' % (len(bad), bad[:8]))
 FLOWS['previews_drawn'] = f_previews_drawn
+
+LOOKS = GAME.parent / 'tools' / 'looks'  # one saved picture per brush: how its normal stroke looked when the owner last saw it
+def brush_jobs(q):
+    n = q.evaluate("()=>Object.fromEntries(Object.entries(__cb.shapes).map(([t,v])=>[t,v.length]))")
+    return [(t, i) for t in ('acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil') for i in range(n[t])]
+def brush_strokes(q):  # every drawing tool and brush, one stroke each at his usual speed, run dry; returns {name: picture}
+    from PIL import Image; import io
+    jobs = brush_jobs(q); out = {}
+    for k, (t, i) in enumerate(jobs):
+        x, y = 30 + (k % 4) * 400, 60 + (k // 4) * 125
+        tap(q, 'tool-' + t); tap(q, 'shape-%d' % i); tap(q, 'size-1'); tap(q, 'color-6'); jerk(q, x, x + 330, y, 550)
+    wait_dry(q)
+    for k, (t, i) in enumerate(jobs):
+        x, y = 10 + (k % 4) * 400, (k // 4) * 125; a, b = scr(q, x, y), scr(q, x + 380, y + 120)
+        out['%s-%d' % (t, i)] = Image.open(io.BytesIO(q.screenshot(clip={'x': a[0], 'y': a[1], 'width': b[0] - a[0], 'height': b[1] - a[1]}))).convert('L')
+    return out
+
+def f_brush_looks(q):  # owner 23 Nov 20:11: a change must not alter how any brush looks unless that brush was meant to change: every brush's normal stroke matches its saved picture
+    from PIL import ImageChops, ImageStat
+    pics = brush_strokes(q); bad = []
+    for k, im in pics.items():
+        f = LOOKS / (k + '.png')
+        if not f.exists(): bad.append(k + ' (no saved picture)'); continue
+        from PIL import Image; ref = Image.open(f).convert('L').resize(im.size)
+        from PIL import ImageFilter; blur = ImageFilter.GaussianBlur(4)  # spray and grain are random dot by dot: compare the look, not each dot
+        d = ImageStat.Stat(ImageChops.difference(im.filter(blur), ref.filter(blur))).mean[0]
+        if d > 4: bad.append('%s %.1f' % (k, d))
+    report(not bad, 'every brush looks as saved (tools/looks.py saves them after he approves a look)', 'changed: %s' % bad[:8])
+FLOWS['brush_looks'] = f_brush_looks
+PAPER['brush_looks'] = ('1600x1000', (0, 0))
