@@ -293,6 +293,23 @@ Columns: **Theme** (from brief) · **System** (standard game type it is) · **Br
 - Theme: a game about mixing liquids.
 - Open: system and mechanics.
 
+### 47. Mosaic workshop (idea from owner, 23 Nov; mechanics open)
+- Idea: make mosaics. Drawers, maybe, with materials: tiles, stained glass and smalti. Pieces can be broken into smaller ones. Recreate existing mosaics or create new ones.
+- Open: system and mechanics.
+
+### 48. Image to outline (idea from owner, 23 Nov; game or function, open)
+- Idea: a game or function that takes images and turns them into only their outlines.
+- Open: whether it is a game or a shared function, and what uses it.
+
+### 49. Monkey Palace in 3D (idea from owner, 23 Nov; mechanics open)
+- Idea: a game like Monkey Palace, in 3D.
+- Open: system and mechanics.
+
+### 50. The Revolution of 1821 (idea from owner, 23 Nov; game style open)
+- Intro idea: a video where images move on top of other images as the narration plays. Owner's inspiration text for the narration:
+  > Εδώ και 400 χρόνια, το έθνος των Ελλήνων είναι υπόδουλο στους Τούρκους. Οι Τούρκοι κατέλαβαν την Κωνσταντινούπολη, και χάλασαν το Κράτος μας. Εδώ και 400 χρόνια βιώνουμε λεηλασίες, καταπίεση και θάνατο. Όμως το έθνος δεν έπαψε ποτέ να ζητάει την επανόρθωσή του. Εξεγείρεται ξανά και ξανά, μα οι εξεγέρσεις του πνίγονται στο αίμα. Μα δεν σταματά. Το 1821, το ολιγάριθμο, άοπλο, και δούλο έθνος επαναστατεί ξανά. Αυτή η φορά όμως είναι διαφορετική: Στον πυρήνα της επανάστασης είναι οι Κλέφτες, αντάρτες που αιώνες τώρα πολεμούν τους Τούρκους από τα βουνά. Και μια μυστική οργάνωση, η Φιλική Εταιρεία, έχει οργανώσει τους κλέφτες, τους αρχηγούς των κοινοτήτων, και τους εκκλησιαστικούς ηγέτες. Και κάτι ακόμα: Αυτή η φορά θα είναι η τελευταία: Είμαστε αποφασισμένοι να νικήσουμε ή να πεθάνουμε όλοι για πάντα. Ελευθερία ή Θάνατος!
+- Open: game style, system and mechanics.
+
 ## Real-game mechanics matched to our list
 
 Proposals only. Each line: mechanic (real games that use it) → where it could fit.
