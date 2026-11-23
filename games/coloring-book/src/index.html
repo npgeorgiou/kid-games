@@ -16,8 +16,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
 .arrow{position:fixed;width:calc(var(--g)*2.2);height:calc(var(--g)*2.2);background:#f4ecdc;transform:translate(-50%,-50%) rotate(45deg);pointer-events:none}
 .pal{display:flex;flex-direction:column;align-items:flex-start;gap:calc(var(--g)*0.4);border:0;border-radius:calc(var(--b)*0.12);background:#eadfcb;padding:calc(var(--g)*0.6);font:600 calc(var(--b)*0.24) sans-serif;color:#3a2a1a;touch-action:none}
 .pal i{font-weight:400;opacity:.7}
-.pal b{display:flex;gap:2px}
-.pal u{display:block;width:calc(var(--b)*0.36);height:calc(var(--b)*0.36);border-radius:20%}
+.pal b{display:flex;border-radius:calc(var(--b)*0.1);overflow:hidden}
+.pal u{display:block;flex:1}.paldiv{background:#cbb894;border-radius:1px}
 .pal.on{outline:calc(var(--b)*0.06) solid #f4b43a}
 #gal .card .bin{position:absolute;top:calc(var(--g)*0.5);right:calc(var(--g)*0.5);width:calc(var(--b)*0.8);height:calc(var(--b)*0.8)}
 #guide{pointer-events:none;opacity:.4;object-fit:fill}
@@ -27,7 +27,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
 .btn canvas{width:100%;height:100%;display:block;pointer-events:none}
 .btn.on{background:#fff8ea;outline:calc(var(--b)*0.07) solid #f4b43a}
 .pot{border-radius:50%}
-.pot.on{outline-color:#fff}
+#bottom .btn{width:var(--pb);height:var(--pb)}
+.pot.on{transform:translateY(-18%) scale(1.08)} /* owner 23 Nov: the chosen bucket raised and ringed like the chosen tool */
 .hide{display:none!important}
 #pickpeek{position:fixed;width:96px;height:96px;border-radius:50%;border:5px solid #f4ecdc;box-shadow:0 0 0 2px #3a2a1a,0 4px 12px rgba(0,0,0,.4);pointer-events:none;z-index:6}
 #gal,#cv{position:fixed;inset:0;background:rgba(40,30,22,.94);overflow:auto;padding:calc(var(--b)*0.4);box-sizing:border-box;display:flex;flex-wrap:wrap;gap:calc(var(--b)*0.4);align-content:flex-start;touch-action:pan-y}
@@ -99,9 +100,9 @@ const CANVASES = { // the canvas's colour and its surface (grain kind, how stron
   cotton: { paper: [0.95, 0.94, 0.91], kind: 'cotton', bump: 0.45 },
 };
 const hexCols = (hex) => hex.split(' ').map((h) => [0, 2, 4].map((k) => parseInt(h.substr(k, 2), 16) / 255));
-const COOLORS = /*%COOLORS%*/[]; // popular 10-colour palettes from coolors.co (lib/coolors/palettes.txt), inlined by build.py
+const SHOWN = /*%PALETTES%*/[]; // the palettes popup's columns (lib/palettes/palettes.txt), inlined by build.py; div: a divider line before it
 const PALETTES = [{ name: 'Basic', by: '', grp: 'b', colors: hexCols('f7f7f2 0a0a0d db0f12 fa730d ffe00f 1a8c26 0d33bf 731f99 fa8cb3 73401a') }] // our own basic set, then the owner's palettes, 10 to a column (owner 21 Nov: every palette exactly 10 colours)
-  .concat(COOLORS.filter((p) => p.grp).map((p) => ({ name: p.name, by: '', grp: p.grp, colors: hexCols(p.hex) })));
+  .concat(SHOWN.map((p) => ({ name: p.name, by: '', grp: p.grp, div: p.div, colors: hexCols(p.hex) })));
 const SIZES = [8, 16, 28, 48, 80]; // brush radius for each size dot, the same for every medium (owner 21 Nov: 5 sizes, the biggest a little over double the old biggest)
 const SOFT = [0.95, 0.05]; // sharp, blurred: how far out the dab stays full strength (owner 21 Nov: two rows, the brushes sharp and blurred)
 const LOADS = [0.12, 0.4, 1]; // paint in the brush for a third-, two-thirds- and full bucket (owner 21 Nov: the lowest even less)
@@ -452,7 +453,7 @@ async function undoOne() {
 
 // SECTION: TOOLS -- one dab of each medium (the model's parts 2-5)
 const st = { tool: 'acrylic', palette: 0, color: 4, load: 3, size: 1, soft: 0, shape: { oil: 0, acrylic: 0, water: 0, crayon: 1, marker: 0, simple: 0 }, canvas: 'wc' };
-const colorOf = (i) => (i === 'pick' ? st.picked : PALETTES[st.palette].colors[Math.min(i, PALETTES[st.palette].colors.length - 1)]); // 'pick': the colour taken from the painting
+const colorOf = (i) => (i === 'pick' ? st.picked : colorsNow()[Math.min(i, colorsNow().length - 1)]); // 'pick': the colour taken from the painting
 let stroke = null, clockShift = 0;
 const paintNow = () => performance.now() / 1000 + clockShift;
 const water = { steps: 0, active: false, rect: null, mask: new Uint8Array(TX * TY), recent: null, stroking: false, pend: null, dabNo: 0, frames: 0, acc: 0 };
@@ -738,26 +739,32 @@ function makePots() {
   }, 'pot'));
   bottom.appendChild(palBtn); bottom.appendChild(pickBtn); for (const b of trayBtns) bottom.appendChild(b);
 }
-const colorsNow = () => PALETTES[st.palette].colors;
+const WHITE = PALETTES[0].colors[0], BLACK = PALETTES[0].colors[1]; // Basic's white and black
+const colorsNow = () => { const c = PALETTES[st.palette].colors, has = (w) => c.some((k) => Math.hypot(...k.map((v, i) => v - w[i])) < 0.08); // owner 23 Nov: white and black always there, after the palette's own
+  return c.concat([WHITE, BLACK].filter((w) => !has(w))); };
 addEventListener('pointerup', () => { clearInterval(potHold); potHold = null; });
 addEventListener('pointercancel', () => { clearInterval(potHold); potHold = null; });
-const palBtn = makeBtn(bottom, 'palette', icon('palette', '#3a2a1a'), () => openPop(palBtn, (box) => { // owner 21 Nov: on top Basic and the picture's palettes beside a copy of the picture; below the columns of 10 (owner 22 Nov: four, his own palettes); big and roomy
-  const groups = [...new Set(PALETTES.map((p) => p.grp).filter((g) => g && g !== 'b'))], K = groups.length; // one column per group, in the list's order
-  const GAP = 4, PAD = 8, ROW = 14, COL = 32, availH = palBtn.getBoundingClientRect().top - 60, availW = innerWidth * 0.94 - 40;
-  const nr = PALETTES.some((p) => p.fromPicture) ? 12 : 11, sw = Math.floor(Math.max(10, Math.min((availW - (K - 1) * COL - K * (9 * GAP + 2 * PAD)) / (10 * K), (availH - 40 - nr * (2 * PAD) - (nr - 1) * ROW - 30) / nr)));
-  const colGap = Math.max(COL, Math.min(120, (availW - K * (10 * sw + 9 * GAP + 2 * PAD)) / (K - 1))); // spare width goes between the columns
-  const wrap = document.createElement('div'); wrap.className = 'palwrap'; wrap.style.gap = 30 + 'px'; box.appendChild(wrap);
+const palBtn = makeBtn(bottom, 'palette', icon('palette', '#3a2a1a'), () => openPop(palBtn, (box) => { // owner 21 Nov: on top Basic and the picture's palette beside a copy of the picture; below the columns of 10 (owner 22 Nov: four, his own palettes)
+  // owner 23 Nov: each palette one long bar of colour stripes, the bars big and close together, as much of the screen as there is; a line after column 1 and where the list says
+  const groups = [...new Set(PALETTES.map((p) => p.grp).filter((g) => g && g !== 'b'))], K = groups.length, nDiv = PALETTES.filter((p) => p.div).length;
+  const g = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--g')) || 8, PAD = 3, ROW = 5, COL = 22, TOP = 14;
+  const availW = innerWidth - 4 * g - 2 * g, availH = palBtn.getBoundingClientRect().top - 2.6 * g - 2 * g; // the screen beside and above the button, less the popup's own edge
+  const bw = Math.floor((availW - (K - 1) * COL - 2 - K * 2 * PAD) / K);
+  const bh = Math.floor(Math.min(bw / 4, (availH - 2 * TOP - 2 - 11 * 2 * PAD - 9 * ROW - nDiv * (2 * ROW + 2)) / 11));
+  const wrap = document.createElement('div'); wrap.className = 'palwrap'; wrap.style.gap = TOP + 'px'; box.appendChild(wrap);
   const palBtnOf = (p, i) => { const b = document.createElement('button'); b.className = 'pal' + (i === st.palette ? ' on' : ''); b.dataset.id = 'pal-' + i; b.style.padding = PAD + 'px';
-    b.innerHTML = '<b style="gap:' + GAP + 'px">' + p.colors.map((c) => '<u style="background:' + rgbS(c) + ';width:' + sw + 'px;height:' + sw + 'px"></u>').join('') + '</b>';
-    b.addEventListener('pointerdown', (e) => { e.preventDefault(); st.palette = i; if (st.color !== 'pick') st.color = Math.min(st.color, p.colors.length - 1); closePop(); makePots(); refresh(); });
+    b.innerHTML = '<b style="width:' + bw + 'px;height:' + bh + 'px">' + p.colors.map((c) => '<u style="background:' + rgbS(c) + '"></u>').join('') + '</b>';
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); st.palette = i; closePop(); if (st.color !== 'pick') st.color = Math.min(st.color, colorsNow().length - 1); makePots(); refresh(); });
     return b; };
-  const top = document.createElement('div'); top.className = 'palpic'; top.style.gap = colGap + 'px'; wrap.appendChild(top);
+  const line = (across) => { const d = document.createElement('div'); d.className = 'paldiv'; Object.assign(d.style, across ? { height: '2px', margin: ROW + 'px 0' } : { width: '2px', alignSelf: 'stretch' }); return d; };
+  const top = document.createElement('div'); top.className = 'palpic'; top.style.gap = COL + 'px'; top.style.paddingBottom = TOP + 'px'; wrap.appendChild(top);
   PALETTES.forEach((p, i) => { if (p.grp === 'b') top.appendChild(palBtnOf(p, i)); });
-  const pic = PALETTES.map((p, i) => [p, i]).filter(([p]) => p.fromPicture);
-  if (pic.length) { const g = document.createElement('div'); g.className = 'palpicg'; top.appendChild(g); const im = document.createElement('img'); im.src = pic[0][0].thumb; im.style.height = (2 * sw + 4 * PAD + ROW) + 'px'; g.appendChild(im); const st2 = document.createElement('div'); st2.className = 'palcol'; st2.style.gap = ROW + 'px'; g.appendChild(st2); for (const [p, i] of pic) st2.appendChild(palBtnOf(p, i)); } // the picture, and its two palettes beside it
-  const cols = document.createElement('div'); cols.className = 'palcols'; cols.style.gap = colGap + 'px'; wrap.appendChild(cols);
-  for (const grp of groups) { const col = document.createElement('div'); col.className = 'palcol'; col.style.gap = ROW + 'px'; cols.appendChild(col);
-    PALETTES.forEach((p, i) => { if (p.grp === grp) col.appendChild(palBtnOf(p, i)); }); }
+  const pic = PALETTES.findIndex((p) => p.fromPicture);
+  if (pic >= 0) { const gp = document.createElement('div'); gp.className = 'palpicg'; top.appendChild(gp); const im = document.createElement('img'); im.src = PALETTES[pic].thumb; im.style.height = (bh + 2 * PAD) + 'px'; gp.appendChild(im); gp.appendChild(palBtnOf(PALETTES[pic], pic)); } // the picture, and its palette beside it
+  const cols = document.createElement('div'); cols.className = 'palcols'; cols.style.gap = COL / 2 + 'px'; wrap.appendChild(cols);
+  groups.forEach((grp, k) => { if (k === 1) cols.appendChild(line(false)); // owner 23 Nov: column 1 (the monochromes) set apart
+    const col = document.createElement('div'); col.className = 'palcol'; col.style.gap = ROW + 'px'; cols.appendChild(col);
+    PALETTES.forEach((p, i) => { if (p.grp !== grp) return; if (p.div) col.appendChild(line(true)); col.appendChild(palBtnOf(p, i)); }); });
 }));
 const pickBtn = makeBtn(bottom, 'pick', (c) => { // owner 21 Nov: a colour picker, as in Photoshop: tap it, then tap the painting; the button then holds that colour
   if (st.picked) { c.fillStyle = rgbS(st.picked); c.beginPath(); c.arc(68, 68, 22, 0, 7); c.fill(); c.lineWidth = 3; c.strokeStyle = '#5a4a3a'; c.stroke(); }
@@ -794,14 +801,14 @@ function refresh() {
 }
 function sizePots() { // all the palette's colours fit in the bottom row
   const w = bottom.getBoundingClientRect().width, n = pots.length + 2, b = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--b')) || 60;
-  const s = Math.min(b, (w / n) * 0.84); for (const p of pots) Object.assign(p.style, { width: s + 'px', height: s + 'px' });
+  const s = Math.min(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pb')) || b, (w / n) * 0.84); for (const p of pots) Object.assign(p.style, { width: s + 'px', height: s + 'px' });
 }
 function layout() {
-  const vw = innerWidth, vh = innerHeight, b = Math.round(Math.min(vh * 0.085, vw * 0.06)), g = Math.round(b * 0.22);
-  const root = document.documentElement.style; root.setProperty('--b', b + 'px'); root.setProperty('--g', g + 'px');
+  const vw = innerWidth, vh = innerHeight, b = Math.round(Math.min(vh * 0.085, vw * 0.06)), g = Math.round(b * 0.1), pb = Math.round(b * 0.82); // owner 23 Nov: smaller gaps and buckets, a bigger paper
+  const root = document.documentElement.style; root.setProperty('--b', b + 'px'); root.setProperty('--g', g + 'px'); root.setProperty('--pb', pb + 'px');
   left.style.left = g + 'px'; right.style.right = g + 'px';
-  Object.assign(bottom.style, { left: (2 * g + b) + 'px', right: (2 * g + b) + 'px', bottom: g + 'px', height: b + 'px' });
-  const x0 = 2 * g + b, x1 = vw - 2 * g - b, y0 = g, y1 = vh - 2 * g - b, s = Math.min((x1 - x0) / CW, (y1 - y0) / CH);
+  Object.assign(bottom.style, { left: (2 * g + b) + 'px', right: (2 * g + b) + 'px', bottom: g + 'px', height: pb + 'px' });
+  const x0 = 2 * g + b, x1 = vw - 2 * g - b, y0 = g, y1 = vh - 2 * g - pb * 1.22, s = Math.min((x1 - x0) / CW, (y1 - y0) / CH);
   const w = CW * s, h = CH * s, L = x0 + (x1 - x0 - w) / 2, T = y0 + (y1 - y0 - h) / 2;
   for (const el of [view, document.getElementById('stick'), guideImg]) Object.assign(el.style, { left: L + 'px', top: T + 'px', width: w + 'px', height: h + 'px' });
   closePop(); refresh();
@@ -823,7 +830,7 @@ guideFile.addEventListener('change', async () => {
 });
 
 // Palettes for the guide picture (owner 21 Nov): one made from the picture's own colours (standard technique: k-means
-// colour quantisation), and the Coolors palette closest to it (each colour matched to its nearest, both ways).
+// colour quantisation); owner 23 Nov: only that one.
 function lab(c) { // sRGB 0..1 to CIELAB (D65), where distances match how different colours look
   const l = c.map((v) => (v > 0.04045 ? ((v + 0.055) / 1.055) ** 2.4 : v / 12.92));
   const X = (0.4124 * l[0] + 0.3576 * l[1] + 0.1805 * l[2]) / 0.95047, Y = 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2], Z = (0.0193 * l[0] + 0.1192 * l[1] + 0.9505 * l[2]) / 1.08883;
@@ -866,14 +873,10 @@ function palettesFor(cnv) {
     picked.splice(0, picked.length, ...col.slice(at), ...col.slice(0, at), ...grey);
   }
   const cenRGB = picked.map((g) => unlab([g.lab[0], g.lab[1] * 1.35, g.lab[2] * 1.35])); // a little more colourful, as the picture looks to the eye, not as its pixels average out
-  let best = null, bd = 1e9;
-  const pl = picked.map((g) => g.lab);
-  for (const p of COOLORS) { const cs = hexCols(p.hex).map(lab); let e = 0; for (const q of pl) e += Math.min(...cs.map((c) => dist(c, q))); for (const c of cs) e += Math.min(...pl.map((q) => dist(c, q))); if (e < bd) { bd = e; best = p; } }
   const keep = PALETTES.filter((p) => !p.fromPicture);
   PALETTES.length = 0; const th = document.createElement('canvas'); th.height = 80; th.width = Math.round(80 * cnv.width / cnv.height); th.getContext('2d').drawImage(cnv, 0, 0, th.width, th.height); // owner 21 Nov: a small copy of the picture next to its palettes
   PALETTES.push({ name: 'From your picture', by: '', colors: cenRGB, fromPicture: 1, thumb: th.toDataURL('image/jpeg', 0.8) });
-  if (best) PALETTES.push({ name: best.name, by: 'Coolors, closest to your picture', colors: hexCols(best.hex), fromPicture: 1 });
-  PALETTES.push(...keep); st.palette = Math.min(PALETTES.length - 1, st.palette + (best ? 2 : 1)); makePots();
+  PALETTES.push(...keep); st.palette = Math.min(PALETTES.length - 1, st.palette + 1); makePots();
 }
 
 // SECTION: CANVASES -- pick what to paint on: a new picture on that canvas
@@ -941,7 +944,7 @@ async function load(id) {
   const qa = await gunz(rec.a), qh = await gunz(rec.h), f = new Float32Array(N * 4);
   for (let k = 0; k < N; k++) { f[k * 4] = qa[k * 3] / 64; f[k * 4 + 1] = qa[k * 3 + 1] / 64; f[k * 4 + 2] = qa[k * 3 + 2] / 64; f[k * 4 + 3] = qh[k] / 127.5; }
   useCanvas(rec.canvas || 'wc'); blank(); for (const T of [PIC, UNDER]) { gl.bindTexture(gl.TEXTURE_2D, T.t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, CW, CH, gl.RGBA, gl.FLOAT, f); } version++; // saved pictures are dry: what shows becomes what is under
-  stickers = JSON.parse(rec.st); stickDirty = true; cur = { id }; isChanged = false; guide.src = rec.guide || null; guide.on = true; showGuide();
+  stickers = JSON.parse(rec.st); stickDirty = true; cur = { id }; isChanged = false; guide.src = rec.guide || null; guide.on = false; showGuide(); // owner 23 Nov: a kept picture opens with its guide hidden
   resetUndo(); renderAll(); return true;
 }
 async function newPicture(canvas) { // a new picture on the same canvas, or on the one picked
@@ -1003,7 +1006,7 @@ window.__cb = { CW, CH, st, shapes: SHAPES, get freeTiles() { return freeSlots.l
   shown(x, y) { render(); const d = new Uint8Array(4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.readPixels(Math.round(x), CH - 1 - Math.round(y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, d); return [d[0], d[1], d[2]]; },
   cell(x, y, w, h) { render(); const d = new Uint8Array(w * h * 4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.readPixels(x, CH - y - h, w, h, gl.RGBA, gl.UNSIGNED_BYTE, d); const c = document.createElement('canvas'); c.width = w; c.height = h; const x2 = c.getContext('2d'), im = x2.createImageData(w, h); for (let j = 0; j < h; j++) im.data.set(d.subarray((h - 1 - j) * w * 4, (h - j) * w * 4), j * w * 4); x2.putImageData(im, 0, 0); return c.toDataURL('image/png'); }, // tools/previews.py: a part of the picture as it shows
   paint(pts) { startStroke({ x: pts[0][0], y: pts[0][1] }, 1); for (let k = 1; k < pts.length; k++) { const [a, b] = [pts[k - 1], pts[k]], n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 4); for (let i = 1; i <= n; i++) moveStroke({ x: a[0] + (b[0] - a[0]) * i / n, y: a[1] + (b[1] - a[1]) * i / n }, 1); } endStroke(); }, // tools/previews.py: a stroke without waiting for a finger
-  age(s) { clockShift += s; }, pal(i) { return PALETTES[i] && PALETTES[i].colors; },
+  age(s) { clockShift += s; }, color() { return colorOf(st.color).map((v) => Math.round(v * 255)); }, pal(i) { return PALETTES[i] && PALETTES[i].colors; },
   fast(sec) { for (let i = 0; i < sec / SIM_DT && water.active; i++) { simStep(SIM_DT); if (i % 24 === 0) { water.frames = CHECK_EVERY - 1; checkWater(); gl.finish(); checkWater(); } } render(); }, // debug: let the wet paint run on
 
   sum(T, r) { const t = { W: WAT, D: DEP, P: PIC }[T], w = r[2] - r[0], h = r[3] - r[1], f = new Float32Array(w * h * 4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, t.fb); gl.readPixels(r[0], r[1], w, h, gl.RGBA, gl.FLOAT, f); const s = [0, 0, 0, 0]; for (let i = 0; i < f.length; i++) s[i & 3] += f[i]; return s.map((v) => +v.toFixed(1)); },

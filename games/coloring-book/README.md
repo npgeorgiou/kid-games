@@ -7,7 +7,7 @@ A painting game for a curious four-year-old, on a touchscreen PC. Not a workshee
 - **Start:** open `coloring-book.html` in a browser (one self-contained file). The newest picture opens.
 - **Paint:** one finger (or the mouse, or a pen with pressure) paints; other fingers are ignored. Ctrl+Z takes back the last stroke.
 - **Left side, tools:** acrylic, watercolour, crayon (oil pastel), marker, simple brush, stickers. The tool buttons take the colour chosen.
-- **Bottom, colours:** the colour buttons are paint buckets. A tap fills the bucket (a full brush); holding goes round a third, two thirds, full, every half second. Choosing another colour keeps the amount. The palette button opens the palettes (Basic on top, then four columns of 10: monochromes, rainbows, and mixed palettes); the pipette picks a colour from the painting (its own pointer, with a big swatch of the colour under it). With the sticker tool the bottom shows the stickers: drag one onto the paper, drag it off to remove it.
+- **Bottom, colours:** the colour buttons are paint buckets. A tap fills the bucket (a full brush); holding goes round a third, two thirds, full, every half second. Choosing another colour keeps the amount. The palette button opens the palettes (Basic and a guide picture's own palette on top, then four columns of 10, each palette a bar of stripes: monochromes, a line, rainbows, a line, then the rest from simple to busy); white and black buckets are added when a palette has none; the pipette picks a colour from the painting (its own pointer, with a big swatch of the colour under it). With the sticker tool the bottom shows the stickers: drag one onto the paper, drag it off to remove it.
 - **Right side:** brush (the brush shape, shown as the brush and as a real stroke of it), size (5 sizes, the same for every brush), canvas (a new picture on watercolour paper, smooth paper or cotton), guide picture (choose, show or hide, remove), undo (all the way back), new picture, gallery (every kept picture, with delete), delete (press twice within a few seconds; a touch anywhere else takes the first press back).
 - **Esc** closes the gallery and other views.
 
@@ -32,7 +32,7 @@ Flat brushes are held at one fixed angle. The brush popup shows real strokes of 
 | `build.py` | Inlines Mixbox, the icons, the palettes and the brush previews into the one game file. |
 | `lib/mixbox/` | Mixbox pigment mixing (shader `mixbox.glsl`, lookup picture `mixbox_lut.png`, `LICENSE`: CC BY-NC 4.0, Secret Weapons). |
 | `lib/phosphor/` | Phosphor icons used on the buttons (`LICENSE`: MIT). |
-| `lib/coolors/palettes.txt` | The palettes: the four shown columns (the owner's own) and, hidden, popular coolors.co palettes used only to find the one closest to a guide picture. |
+| `lib/palettes/palettes.txt` | The palettes shown in the four columns (the owner's own), with the divider marks. |
 | `lib/owner-palettes/` | The owner's palette files (22 Nov), the source of the four columns. |
 | `lib/previews/` | The brush popup's stroke pictures, one file per canvas; made by `tools/previews.py`. |
 | `design.md` | The design sheet approved at the start (20 Nov). |

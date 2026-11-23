@@ -433,3 +433,74 @@ def f_pastel_smear(q):  # owner 21 Nov 18:29: the crayon is an oil pastel: passi
     near = q.evaluate(avg, [515, 585]); far = q.evaluate(avg, [800, 880])
     report(near[1] - near[2] > far[1] - far[2] + 25, 'oil pastel: dragging through yellow carries yellow along (greener just after it)', 'just past the yellow %s, far from it %s' % (near, far))
 FLOWS['pastel_smear'] = f_pastel_smear
+
+def pal_dom(q):  # the popup's columns as they are drawn: per column, per palette, its colours (r,g,b) and its box
+    return q.evaluate("()=>[...document.querySelectorAll('.palcols .palcol')].map(c=>[...c.querySelectorAll('.pal')].map(p=>{const r=p.getBoundingClientRect();return {cols:[...p.querySelectorAll('u')].map(u=>getComputedStyle(u).backgroundColor.match(/\\d+/g).map(Number)),box:[r.left,r.top,r.right,r.bottom]}}))")
+
+def f_pal_dividers(q):  # owner 23 Nov: a vertical divider between column 1 (monochromes) and column 2; a horizontal one in column 2 after its 5 rainbows
+    tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)
+    lines = q.evaluate("()=>[...document.querySelectorAll('.paldiv')].map(d=>{const r=d.getBoundingClientRect();return [r.left,r.top,r.right,r.bottom]})")
+    c1r, c2l = max(p['box'][2] for p in cols[0]), min(p['box'][0] for p in cols[1])
+    vert = [l for l in lines if l[3] - l[1] > 5 * (l[2] - l[0]) and c1r <= l[0] and l[2] <= c2l]
+    r5, r6 = cols[1][4]['box'], cols[1][5]['box']
+    horiz = [l for l in lines if l[2] - l[0] > 5 * (l[3] - l[1]) and r5[3] <= l[1] and l[3] <= r6[1] and l[0] < r5[2] and l[2] > r5[0]]
+    report(len(vert) == 1 and len(horiz) == 1, 'palettes: divider after column 1, divider after the 5 rainbows', 'vertical %d, horizontal %d' % (len(vert), len(horiz)))
+
+DUAL_ORDER = ['023047', '901447', '67001F', '543005', '40004B', '76451D', 'A3151A', '797D62', 'A85633', '532A09', '7400B8', '380D61', '03071E', 'D9ED92', 'EB5E28',
+              '52A1A3', 'C4594C', 'A85918', 'EDFFAD', '001219', 'CC4400', 'CD0D58', '0450B4', '264653', '669900']
+def f_pal_order(q):  # owner 23 Nov: the new two-colour palettes (ColorBrewer BrBG, PRGn, RdBu; answer A), and the 25 ordered from simple to busy after the rainbows
+    tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)
+    got = ['%02X%02X%02X' % tuple(p['cols'][0]) for p in cols[1][5:] + cols[2] + cols[3]]
+    wrong = [(i + 1, g, w) for i, (g, w) in enumerate(zip(got, DUAL_ORDER)) if g != w]
+    report(len(got) == 25 and not wrong, 'palettes: the 25 after the rainbows in his new order', 'first wrong (place, shown, wanted) %s of %d' % (wrong[:3], len(got)))
+
+def f_pal_picture_only(q):  # owner 23 Nov: a guide picture gives only its own palette, no closest saved palette
+    pt = q.evaluate("()=>__cb.btn('guide')")
+    with q.expect_file_chooser(timeout=8000) as fc: q.mouse.move(*pt); q.mouse.down(); q.mouse.up()
+    fc.value.set_files('owner-shots/2026-11-21-guide-yellow-building.jpg'); time.sleep(2)
+    tap(q, 'palette'); time.sleep(0.3); n = q.evaluate("()=>document.querySelectorAll('.palpicg .pal').length")
+    report(n == 1, 'palettes: one palette from the guide picture', 'picture palettes %d' % n)
+
+def f_pal_stripes(q):  # owner 23 Nov: each palette one long bar of stripes, palettes closer together and bigger, the popup bigger
+    tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)
+    gaps = q.evaluate("()=>{let m=0;for(const p of document.querySelectorAll('.palcols .pal')){const u=[...p.querySelectorAll('u')].map(e=>e.getBoundingClientRect());for(let i=1;i<u.length;i++)m=Math.max(m,u[i].left-u[i-1].right)}return m}")
+    b = cols[1][0]['box']; w, h = b[2] - b[0], b[3] - b[1]; between = cols[1][2]['box'][1] - cols[1][1]['box'][3]
+    box = q.evaluate("()=>{const r=document.querySelector('.popbox').getBoundingClientRect();return [r.width/innerWidth,r.height/innerHeight]}")
+    report(gaps < 0.5 and w > 3 * h and between < 0.3 * h and box[0] > 0.9 and box[1] > 0.82, 'palettes: stripes on one bar, close together, popup bigger',
+           'gap between stripes %.1f, bar %dx%d, space between bars %d, popup %.0f%% x %.0f%%' % (gaps, w, h, between, box[0] * 100, box[1] * 100))
+
+def f_canvas_bigger(q):  # owner 23 Nov: a bigger paper: smaller buckets and gaps; nothing covers the paper
+    p = q.evaluate("()=>{const r=document.getElementById('paper').getBoundingClientRect();return [r.left,r.top,r.right,r.bottom]}")
+    over = q.evaluate("([l,t,r,b])=>[...document.querySelectorAll('.bar .btn')].filter(e=>!e.classList.contains('hide')).filter(e=>{const k=e.getBoundingClientRect();return k.left<r&&k.right>l&&k.top<b&&k.bottom>t}).length", p)
+    report(p[2] - p[0] >= 1111 and over == 0, 'screen: the paper at least 2.5% wider than before (1084 on 1280x800), nothing over it', 'paper %dx%d, buttons over it %d' % (p[2] - p[0], p[3] - p[1], over))
+
+def pots_shown(q): return q.evaluate("()=>[...document.querySelectorAll('#bottom .pot')].filter(e=>!e.classList.contains('hide')).map(e=>e.dataset.id)")
+def f_pots_bw(q):  # owner 23 Nov: white and black buckets always in the bottom bar, unless the palette has them (then 10 buckets, else up to 12)
+    basic = len(pots_shown(q))
+    tap(q, 'palette'); time.sleep(0.3); p = q.evaluate("()=>{const e=document.querySelectorAll('.palcols .palcol')[1].querySelector('.pal').getBoundingClientRect();return [e.left+e.width/2,e.top+e.height/2]}")
+    q.mouse.click(*p); time.sleep(0.3); ids = pots_shown(q)
+    tap(q, ids[-1]); last = q.evaluate("()=>__cb.color()"); tap(q, ids[-2]); before = q.evaluate("()=>__cb.color()")
+    report(basic == 10 and len(ids) == 12 and lum(last) < 25 and lum(before) > 235, 'buckets: white and black added to a palette without them',
+           'Basic %d buckets, a rainbow %d, the last two %s %s' % (basic, len(ids), before, last))
+
+def f_pot_selected(q):  # owner 23 Nov: the chosen bucket is plainly visible: raised and ringed in the tool buttons' orange
+    tap(q, 'color-3'); time.sleep(0.2)
+    r = q.evaluate("()=>[...document.querySelectorAll('#bottom .pot')].map(e=>{const k=e.getBoundingClientRect(),s=getComputedStyle(e);return [e.classList.contains('on'),k.top+k.height/2,k.height,s.outlineColor,parseFloat(s.outlineWidth)]})")
+    on = [x for x in r if x[0]][0]; others = [x for x in r if not x[0]]
+    rise = (others[0][1] - on[1]) / others[0][2]
+    report(rise > 0.15 and on[3] == 'rgb(244, 180, 58)' and on[4] >= 4, 'buckets: the chosen one raised and ringed orange', 'raised %.0f%% of a bucket, ring %s %.0fpx' % (rise * 100, on[3], on[4]))
+
+def f_gallery_guide_hidden(q):  # owner 23 Nov: opening a kept picture that has a guide picture keeps the guide, hidden (the eye shows it)
+    pt = q.evaluate("()=>__cb.btn('guide')")
+    with q.expect_file_chooser(timeout=8000) as fc: q.mouse.move(*pt); q.mouse.down(); q.mouse.up()
+    fc.value.set_files('owner-shots/2026-11-21-guide-yellow-building.jpg'); time.sleep(2)
+    tap(q, 'tool-simple'); drag(q, [(50, 100), (300, 100)]); tap(q, 'new'); time.sleep(0.5)
+    tap(q, 'gallery'); time.sleep(0.4)
+    cards = q.evaluate("()=>[...document.querySelectorAll('#gal .card')].map(c=>{const r=c.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2,c.classList.contains('cur')]})")
+    old = [c for c in cards if not c[2]]; q.mouse.click(old[0][0], old[0][1]); time.sleep(0.8)
+    hidden = q.evaluate("()=>document.getElementById('guide').classList.contains('hide')")
+    tap(q, 'guide'); time.sleep(0.2); tap(q, 'guide-show'); time.sleep(0.2)
+    shows = q.evaluate("()=>!document.getElementById('guide').classList.contains('hide')")
+    report(hidden and shows, 'gallery: a kept picture opens with its guide picture hidden, the eye shows it', 'hidden on open %s, shown after the eye %s' % (hidden, shows))
+FLOWS.update({'pal_dividers': f_pal_dividers, 'pal_order': f_pal_order, 'pal_picture_only': f_pal_picture_only, 'pal_stripes': f_pal_stripes, 'canvas_bigger': f_canvas_bigger,
+              'pots_bw': f_pots_bw, 'pot_selected': f_pot_selected, 'gallery_guide_hidden': f_gallery_guide_hidden})
