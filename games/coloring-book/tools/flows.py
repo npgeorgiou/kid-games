@@ -504,3 +504,36 @@ def f_gallery_guide_hidden(q):  # owner 23 Nov: opening a kept picture that has 
     report(hidden and shows, 'gallery: a kept picture opens with its guide picture hidden, the eye shows it', 'hidden on open %s, shown after the eye %s' % (hidden, shows))
 FLOWS.update({'pal_dividers': f_pal_dividers, 'pal_order': f_pal_order, 'pal_picture_only': f_pal_picture_only, 'pal_stripes': f_pal_stripes, 'canvas_bigger': f_canvas_bigger,
               'pots_bw': f_pots_bw, 'pot_selected': f_pot_selected, 'gallery_guide_hidden': f_gallery_guide_hidden})
+
+def drag_screen(q, s, step=9):  # screen points, at a finger's speed (step screen pixels per 16 ms)
+    q.mouse.move(*s[0]); q.mouse.down()
+    for (x0, y0), (x1, y1) in zip(s, s[1:]):
+        n = max(1, int(max(abs(x1 - x0), abs(y1 - y0)) / step))
+        for i in range(1, n + 1): q.mouse.move(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n); time.sleep(0.016)
+    q.mouse.up(); time.sleep(0.1)
+
+def f_start_outside(q):  # owner 23 Nov: a stroke can start beside the paper and come in, painting from the edge on
+    tap(q, 'tool-simple'); tap(q, 'color-6')
+    top = q.evaluate("()=>document.getElementById('paper').getBoundingClientRect().top"); x, _ = scr(q, 200, 0); _, y1 = scr(q, 200, 150)
+    drag_screen(q, [(x, top - 5), (x, y1)])
+    ys = [2, 20, 60, 120]; got = [round(lum(shown(q, 200, y))) for y in ys]
+    report(all(v < 120 for v in got), 'stroke started above the paper paints from its edge in', 'brightness down the line at %s: %s' % (ys, got))
+
+def width_across(q, cx, cy, ux, uy, half=60):  # painted pixels along the line through (cx, cy) in direction (ux, uy)
+    return q.evaluate("([cx,cy,ux,uy,h])=>{let n=0;for(let i=-h;i<=h;i++){const c=S(cx+ux*i,cy+uy*i);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<150)n++}return n}", [cx, cy, ux, uy, half])
+
+def f_turn(q):  # owner 23 Nov: a switch in the brush popup: brushes turn with the stroke; off, a flat brush stays at its one angle (owner 21 Nov)
+    tap(q, 'tool-marker'); tap(q, 'shape-1'); tap(q, 'size-3'); tap(q, 'color-6')
+    def pair(x0):  # strokes down-right and up-right; widths across each
+        drag(q, [(x0, 30), (x0 + 80, 110)]); drag(q, [(x0, 220), (x0 + 80, 140)])
+        return width_across(q, x0 + 40, 70, 0.7071, -0.7071, 90), width_across(q, x0 + 40, 180, 0.7071, 0.7071, 90)
+    fixed = pair(40); tap(q, 'brush'); time.sleep(0.1); tap(q, 'turn'); turned = pair(240)
+    rf, rt = max(fixed) / max(1, min(fixed)), max(turned) / max(1, min(turned))
+    report(rf > 1.5 and rt < 1.2, 'brush turns with the stroke when switched on', 'widths of the two directions: one angle %s, turning %s' % (fixed, turned))
+
+def f_speed_pressure(q):  # owner 23 Nov: with a finger or the mouse, a slower stroke presses harder (a fast one is lighter and narrower)
+    tap(q, 'tool-simple'); tap(q, 'size-3'); tap(q, 'color-6')
+    drag(q, [(40, 70), (360, 70)], step=400, per_move=True); drag(q, [(40, 180), (360, 180)], step=2, per_move=True)  # one move after another: the slow test browser spaces them out
+    fast, slow = [round(lum(across(q, 300, y, 6))) for y in (70, 180)]
+    report(slow < fast - 8, 'slower strokes press harder', 'brightness in the middle of the line: fast %d, slow %d' % (fast, slow))
+FLOWS.update({'start_outside': f_start_outside, 'turn': f_turn, 'speed_pressure': f_speed_pressure})

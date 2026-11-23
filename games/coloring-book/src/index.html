@@ -452,7 +452,7 @@ async function undoOne() {
 }
 
 // SECTION: TOOLS -- one dab of each medium (the model's parts 2-5)
-const st = { tool: 'acrylic', palette: 0, color: 4, load: 3, size: 1, soft: 0, shape: { oil: 0, acrylic: 0, water: 0, crayon: 1, marker: 0, simple: 0 }, canvas: 'wc' };
+const st = { tool: 'acrylic', palette: 0, color: 4, load: 3, size: 1, soft: 0, turn: false, shape: { oil: 0, acrylic: 0, water: 0, crayon: 1, marker: 0, simple: 0 }, canvas: 'wc' };
 const colorOf = (i) => (i === 'pick' ? st.picked : colorsNow()[Math.min(i, colorsNow().length - 1)]); // 'pick': the colour taken from the painting
 let stroke = null, clockShift = 0;
 const paintNow = () => performance.now() / 1000 + clockShift;
@@ -461,7 +461,7 @@ const MED = { // acrylic and oil pastel: same brush model, different paint (mode
   crayon: { UGIVE: K.PASTEL_GIVE, UTAKE: K.PASTEL_TAKE, URIDGE: 0, UEDGE: 0.7, MAT: 0 }, // oil pastel (model part 4)
   acrylic: { UGIVE: K.ACR_GIVE, UTAKE: K.ACR_TAKE, URIDGE: K.ACR_RIDGE, UEDGE: K.ACR_EDGE, MAT: 1 },
 };
-function shapeUni(s) { return { D: s.shape.upright ? [1, 0] : s.shape.fixed ? FIXED : s.dir, SHK: s.shape.k, SAL: s.shape.al, SSC: (s.shape.sc || 1) * (0.7 + 0.3 * Math.min(1, s.pres)) }; } // a lighter touch makes a narrower mark
+function shapeUni(s) { return { D: st.turn ? s.dir : s.shape.upright ? [1, 0] : s.shape.fixed ? FIXED : s.dir, SHK: s.shape.k, SAL: s.shape.al, SSC: (s.shape.sc || 1) * (0.7 + 0.3 * Math.min(1, s.pres)) }; } // a lighter touch makes a narrower mark
 function bristles(s, n, lo, seed) { // strengths across the tip: soft grooves (oil, acrylic) or the crayon's uneven tip
   const r = rng(seed), b = new Float32Array(n);
   for (let i = 0; i < n; i++) b[i] = r() * r();
@@ -542,32 +542,33 @@ function finishWater() {
   stopWater(); changed();
 }
 
-// SECTION: STROKE -- finger on the paper: one finger paints, others are ignored; pressure from a pen, or from how much finger touches
-let touchW = 0; // the widest recent finger contact, slowly forgotten
-function pressureOf(e) {
-  if (e.pointerType === 'pen') return Math.min(1.2, Math.max(0.3, e.pressure * 1.6));
-  if (e.pointerType === 'touch' && e.width > 1) { touchW = Math.max(touchW * 0.995, e.width); return Math.min(1.2, Math.max(0.4, 0.2 + e.width / touchW)); }
-  return 1;
+// SECTION: STROKE -- finger on or around the paper: one finger paints, others are ignored; pressure from a pen, or from how fast the finger moves
+function pressureOf(e) { // a pen's own pressure; a finger or the mouse: none (owner 23 Nov: from its speed, in moveStroke)
+  return e.pointerType === 'pen' ? Math.min(1.2, Math.max(0.3, e.pressure * 1.6)) : null;
 }
-function startStroke(p, pr) {
+const speedPress = (v) => 0.5 + 0.7 * Math.exp(-v / 1500); // paper pixels a second to pressure: still 1.2, a finger's usual 550 about 1, very fast 0.6 (as painting apps do for a mouse)
+function startStroke(p, pr, at) {
   if (undoing) return;
   const r = SIZES[st.size], t = st.tool;
   const sh0 = SHAPES[t] ? SHAPES[t][st.shape[t]] : { al: 1 }; // a thin brush steps closer, so its mark is smooth
   stroke = { tool: t, r, sp: Math.max(1, r * SPACING[t] * Math.min(1, Math.max(0.4, 2 * sh0.al))), last: p, carry: 0, dir: [1, 0], ca: colorOf(st.color).map(ab), id: ++strokeNo,
-    shape: SHAPES[t][st.shape[t]], load: LOADS[st.load - 1], pres: pr };
+    shape: SHAPES[t][st.shape[t]], load: LOADS[st.load - 1], pres: pr ?? 1, at };
   newEntry();
   if (t === 'water') { water.stroking = true; stroke.wl = stroke.load; }
   else if (t === 'acrylic' || t === 'crayon') oilStart(stroke);
-  DAB[t](stroke, p.x, p.y);
+  dab(stroke, p.x, p.y);
 }
-function moveStroke(p, pr) {
+function dab(s, x, y) { const R = s.r * 2; if (x > -R && y > -R && x < CW + R && y < CH + R) DAB[s.tool](s, x, y); } // owner 23 Nov: off the paper the brush moves on, touching nothing
+function moveStroke(p, pr, at) { // at: the event's time in ms, for the speed
   const s = stroke, dx = p.x - s.last.x, dy = p.y - s.last.y, d = Math.hypot(dx, dy); if (d < 0.01) return;
-  s.pres = s.pres * 0.7 + pr * 0.3;
+  if (pr == null) { pr = at != null && s.at != null && at > s.at ? speedPress(d / ((at - s.at) / 1000)) : s.pres; s.at = at; }
   const ux = dx / d, uy = dy / d;
-  let vx = s.dir[0] * 0.7 + ux * 0.3, vy = s.dir[1] * 0.7 + uy * 0.3; const vl = Math.hypot(vx, vy) || 1; s.dir = [vx / vl, vy / vl];
+  const turnBy = 1 - Math.exp(-d / Math.max(4, s.r * 0.5)); // the brush follows the stroke over a short distance, the same however often the finger is read
+  s.pres += (pr - s.pres) * turnBy; // pressure changes over the same short distance
+  let vx = s.dir[0] * (1 - turnBy) + ux * turnBy, vy = s.dir[1] * (1 - turnBy) + uy * turnBy; const vl = Math.hypot(vx, vy) || 1; s.dir = [vx / vl, vy / vl];
   const sp = s.sp;
   let t = sp - s.carry;
-  while (t <= d) { DAB[s.tool](s, s.last.x + ux * t, s.last.y + uy * t); t += sp; }
+  while (t <= d) { dab(s, s.last.x + ux * t, s.last.y + uy * t); t += sp; }
   s.carry = d - (t - sp); s.last = p;
 }
 function endStroke() {
@@ -579,20 +580,22 @@ function shownAt(p) { render(); const d = new Uint8Array(4); gl.bindFramebuffer(
 view.addEventListener('pointerleave', () => peek.classList.add('hide'));
 let painter = null; // the one pointer that paints
 function toPaper(e) { const r = view.getBoundingClientRect(); return { x: (e.clientX - r.left) * CW / r.width, y: (e.clientY - r.top) * CH / r.height }; }
-view.addEventListener('pointerdown', (e) => {
+function paintDown(e) {
   e.preventDefault();
   if (painter !== null || dragging) return;
   const p = toPaper(e);
   if (st.picking) { st.picked = shownAt(p); st.color = 'pick'; st.picking = false; peek.classList.add('hide'); refresh(); return; } // the colour as it shows there
   if (st.tool === 'sticker') { const i = hitSticker(p); if (i >= 0) startStickerDrag(e, i, p); return; }
-  painter = e.pointerId; view.setPointerCapture(e.pointerId); startStroke(p, pressureOf(e));
-});
+  painter = e.pointerId; view.setPointerCapture(e.pointerId); startStroke(p, pressureOf(e), e.timeStamp);
+}
+view.addEventListener('pointerdown', paintDown);
+document.addEventListener('pointerdown', (e) => { if ((e.target === document.body || e.target.classList.contains('bar')) && !st.picking && st.tool !== 'sticker') paintDown(e); }); // owner 23 Nov: a stroke can start beside the paper and come in
 view.addEventListener('pointermove', (e) => {
   peek.classList.toggle('hide', !st.picking);
   if (st.picking) { const p = toPaper(e); Object.assign(peek.style, { left: (e.clientX + 24) + 'px', top: (e.clientY - 120) + 'px', background: rgbS(shownAt(p)) }); } // the colour it would pick, big, beside the pointer
   if (e.pointerId !== painter || !stroke) return;
   const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
-  for (const q of (list.length ? list : [e])) moveStroke(toPaper(q), pressureOf(q));
+  for (const q of (list.length ? list : [e])) moveStroke(toPaper(q), pressureOf(q), q.timeStamp);
 });
 function painterUp(e) { if (e.pointerId !== painter) return; painter = null; endStroke(); }
 view.addEventListener('pointerup', painterUp); view.addEventListener('pointercancel', painterUp);
@@ -696,6 +699,7 @@ const brushBtn = makeBtn(right, 'brush', (c) => { if (SHAPES[st.tool]) brushDraw
     SHAPES[t].forEach((s, i) => makeBtn(r, (blur ? 'blur-' : 'shape-') + i, brushDraw(t, i, blur ? 0.05 : undefined), () => { st.shape[t] = i; if (simple) st.soft = blur; closePop(); refresh(); },
       i === st.shape[t] && (!simple || st.soft === blur) ? 'on' : ''));
   }
+  makeBtn(row(box), 'turn', icon('arrows-clockwise', '#3a2a1a'), () => { st.turn = !st.turn; closePop(); refresh(); }, st.turn ? 'on' : ''); // owner 23 Nov: brushes turn with the stroke, or stay at one angle
 }));
 const sizeBtn = makeBtn(right, 'size', tipDraw(st.tool, 0, 1), () => openPop(sizeBtn, (box) => { // the same 5 sizes for every brush (owner 21 Nov)
   const r = row(box); SIZES.forEach((v, i) => makeBtn(r, 'size-' + i, tipDraw(st.tool, st.shape[st.tool], i), () => { st.size = i; closePop(); refresh(); }, i === st.size ? 'on' : ''));
