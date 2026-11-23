@@ -197,7 +197,7 @@ def f_guide_menu(q):  # owner 21 Nov: the guide picture can be changed without a
 
 def f_undo_all(q):  # owner 21 Nov: undo goes all the way back (24 big strokes over a 640x384 paper: more changed tiles than the undo room on the graphics card holds, so old steps come back from memory)
     tap(q, 'tool-simple'); tap(q, 'size-4'); tap(q, 'color-1'); n = 24
-    for k in range(n): drag(q, [(20, 40 + k * 13), (620, 60 + k * 13), (20, 80 + k * 13)], step=59)
+    for k in range(n): drag(q, [(20, 40 + k * 13), (620, 60 + k * 13), (20, 80 + k * 13)], step=20)  # quick (1250 px/s) but below lifting off (owner 23 Nov: a flick lifts the brush)
     dark = lum(shown(q, 320, 50))
     for k in range(n): q.keyboard.press('Control+z'); time.sleep(0.15)
     time.sleep(1.0); look = [lum(shown(q, 320, 50 + k * 13)) for k in range(0, n, 4)]
@@ -594,3 +594,29 @@ def f_turn_every(q):  # owner 23 Nov 10:27, point 15: he cannot make the turn sw
     report(not bad and q.evaluate("()=>__cb.st.turn"), 'turn switch: every flat brush turns with the stroke', 'not turning: %s; widths down-right/up-right: %s' % (bad, ', '.join(out)))
 FLOWS['turn_every'] = f_turn_every
 PAPER['turn_every'] = ('1600x1000', (0, 0))
+
+def flick(q, x0, x1, y, v0=550, v1=4000):  # a quick flick: starts at his usual speed (paper pixels a second), speeds up evenly, and leaves the screen still moving fast.
+    L = x1 - x0; a = (v1 * v1 - v0 * v0) / (2 * L); T = (v1 - v0) / a     # Moves 16 ms apart, as his screen sends them, each stamped with its own time: the page
+    cdp = q.context.new_cdp_session(q); t0 = time.time()                   # reads the speed from those times, so a slow test browser draws the same stroke he would.
+    def ev(typ, t, extra={}):
+        x, yy = scr(q, x0 + v0 * t + a * t * t / 2, y)
+        cdp.send('Input.dispatchMouseEvent', dict({'type': typ, 'x': x, 'y': yy, 'button': 'left', 'buttons': 1, 'timestamp': t0 + t}, **extra))
+    ev('mousePressed', 0, {'clickCount': 1}); t = 0.016
+    while t < T: ev('mouseMoved', t); t += 0.016
+    ev('mouseReleased', t - 0.016, {'clickCount': 1}); cdp.detach(); time.sleep(0.1)
+
+def f_flick_lifts(q):  # owner 23 Nov 10:27, point 16: speed works like lifting the brush: a quick flick starts at normal width and thins until it disappears, for every drawing tool
+    tools = ['acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil']
+    out, bad = [], []
+    for i, t in enumerate(tools):
+        y = 60 + i * 105
+        tap(q, 'tool-' + t); tap(q, 'shape-0'); tap(q, 'size-2'); tap(q, 'color-1')
+        flick(q, 100, 900, y)  # 550 px/s at 100, about 1500 at 190, 2500 at 370, 4000 at 900
+        if t == 'water': wait_dry(q)
+        def w(x): return max(width_across(q, x + dx, y, 0, 1, 45) for dx in (-6, -3, 0, 3, 6))  # widest of a few places: spray and shapes are spotty
+        start, mid, end = w(130), w(260), w(700)
+        out.append('%s %d>%d>%d' % (t, start, mid, end))
+        if not (start >= 6 and mid < start * 0.8 and end == 0): bad.append(t)
+    report(not bad, 'a quick flick thins out and disappears, every drawing tool', 'wrong: %s; widths start>middle>end: %s' % (bad, ', '.join(out)))
+FLOWS['flick_lifts'] = f_flick_lifts
+PAPER['flick_lifts'] = ('1000x1000', (0, 0))
