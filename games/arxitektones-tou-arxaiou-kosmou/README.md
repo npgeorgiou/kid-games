@@ -82,8 +82,17 @@ The game is complete and playable. The tutorial never stops, whatever the child 
 
 ## Open
 
-- Nothing open. Accepted as they are (owner): the Valens and Parthenon piles do not fit the sidebar at 1280x800.
+- The tests do not yet keep the owner's 24 Nov rules (Task list 3, 5): 16 use the Ctrl quick build or the Ctrl fast test, 1 cuts spoken lines off from inside the game, and many set the game's state from inside (the tutorial's place, the cue memory, a finished site). Each is to be redone as screen play: taps, drags and keys as the child does them, on the first site following the tutorial's own lessons.
+- Proposal, not agreed: a starting state only through the game's own save (what a child who played that far would have), never written into the game while it runs.
+- tutorial-test-before-red-step and tutorial-test-before-undo-step fail: after a pass the test button is grey, so the "red button" and "green" lessons wait forever. Redo them as screen play first; if the stuck lesson still happens, ask the owner (skip those lessons after a pass, or keep the button pressable while they wait).
+- Waiting for the owner: short test sounds (Task list 2). The test page now has silent sounds of the real lengths.
+- The game's clock jumped forward in tests ran the game only 2 to 4 times faster, and tutorial-early-brick then passed once and failed once (cause unknown); not kept.
 
 ## Task list
 
-- None.
+Owner, 24 Nov (verbatim):
+1. its unacceptable that all tests are not run on every push. unacceptable. provide solutions.
+2. anoter idea is to replace sound files for small files, ffs, its a test.
+3. also do improvements as long as you keep in mind that theya re feature tests, so dont mock things.
+4. and fix tests
+5. "A parent then finishes the building with Ctrl" -> never use these hacks in tests. "they cut spoken lines off from inside the game." -> NEVER
