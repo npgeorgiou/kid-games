@@ -322,16 +322,15 @@ def f_goods_big(q):  # owner 24 Nov ("rethink all UI"): goods were tiny (about 2
     ok = r >= 10 and sign >= 12
     report(ok, 'stockpile: goods big, set signs big', 'goods radius %.1f px (at least 10), set sign radius %.1f (at least 12)' % (r, sign))
 
-def f_turn_shown(q):  # owner 24 Nov: "make it obvious who plays; now there is no difference between me and the opponent playing": the player whose turn it is has his area lit, the other's is dimmed; a sound when the turn passes
+def f_turn_shown(q):  # owner 24 Nov: "make it obvious who plays; now there is no difference between me and the opponent playing": the player whose turn it is has his area lit, the other's is dimmed; a sound when the turn passes; no sign flies from face to face (owner 24 Nov: "weird")
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); settle(q)
     lit = lambda: {d['o']: d['lit'] for d in drawn(q, 'panel')}
     mine = lit(); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2})
     run_until(q, "()=>__dg.state().turn===1"); pcs = lit(); w = st(q)['wait']; h = q.evaluate("()=>__dg.sounds()")
     faces = {x['o']: x for x in drawn(q, 'avatar')}; light = [x for x in drawn(q, 'flight') if x['look'] == 'turnlight']; market = drawn(q, 'market')
-    travels = bool(light) and abs(light[0]['fx'] - faces[0]['x']) < 5 and abs(light[0]['tx'] - faces[1]['x']) < 5  # owner 24 Nov: "it's still not obvious who plays": the light flies from one face to the other
     bigger = faces[1]['r'] > faces[0]['r'] and market and market[0]['o'] == 1; q.clock.resume()
-    ok = mine == {0: True, 1: False} and pcs == {0: False, 1: True} and 'turn' in h and travels and bigger
-    report(ok, 'turn: lit, the light flies over, his face bigger, the market his colour', 'kid playing %s; PC playing %s (wait %s); turn sound %s; light flies face to face %s; PC face bigger and market his %s' % (mine, pcs, w, 'turn' in h, travels, bool(bigger)))
+    ok = mine == {0: True, 1: False} and pcs == {0: False, 1: True} and 'turn' in h and not light and bigger
+    report(ok, 'turn: lit, no sign flying, his face bigger, the market his colour', 'kid playing %s; PC playing %s (wait %s); turn sound %s; a sign flying face to face %s; PC face bigger and market his %s' % (mine, pcs, w, 'turn' in h, bool(light), bool(bigger)))
 
 def f_screen_parts(q):  # owner 24 Nov: "the sidebar doesn't portray any info"; "what are these 9 vertical lines on top": each player's area has his face, a goods tray and a coins tray, everything spaced apart; the pile is a stack of tiles
     table(q, bag=[[0, 4]] * 12, goods=[[4, 4, 7, 2, 1], [1, 1, 0, 0, 0]], coins=[13, 2]); d = q.evaluate("()=>__dg.drawn()")

@@ -28,7 +28,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 
 ## Now
 
-A playable prototype against the PC on one shared board, colours only. The screen follows `tools/ui-design/README.md`: the market on top (the pile on its left, a bonus tile on its right), the board below with a free strip along the bottom edge, and each player's panel at a side with goods big enough to count (a row of 5 places per colour, sets marked as columns) and coins in rows of 5. Tiles feel like objects: a carried tile tilts with the drag, a placed tile bounces as it lands, a tap on the board puffs dust with a knock. A pick takes the tile; each matching edge of a placed tile glows and sends out one good; 5 of a colour fly into a jar at once, opened at once; goods carry over; a set buys a wild tile that takes its neighbours' colours (also the jar's free tile). Each round starts with morning light and ends with evening (moon and big stars). Jars break where tapped and their reward flies to its place; the slot machine has 4 random faces per wheel. Whose turn it is: a light flies between the faces, the player playing has a bigger glowing face, the market takes his colour. A main test plays a whole game from a set pile in which every situation happens. Rules and built-for-now choices are in `design.md`.
+A playable prototype against the PC on one shared board, colours only. The screen follows `tools/ui-design/README.md`: the market on top (the pile on its left, a bonus tile on its right), the board below with a free strip along the bottom edge, and each player's panel at a side with goods big enough to count (a row of 5 places per colour, sets marked as columns) and coins in rows of 5. Tiles feel like objects: a carried tile tilts with the drag, a placed tile bounces as it lands, a tap on the board puffs dust with a knock. A pick takes the tile; each matching edge of a placed tile glows and sends out one good; 5 of a colour fly into a jar at once, opened at once; goods carry over; a set buys a wild tile that takes its neighbours' colours (also the jar's free tile). Each round starts with morning light and ends with evening (moon and big stars). Jars break where tapped and their reward flies to its place; the slot machine has 4 random faces per wheel. Whose turn it is: his area is lit and the other dimmed, the player playing has a bigger glowing face, the market takes his colour. A main test plays a whole game from a set pile in which every situation happens. Rules and built-for-now choices are in `design.md`.
 
 ## Open
 
@@ -41,8 +41,7 @@ A playable prototype against the PC on one shared board, colours only. The scree
 ## Task list
 
 In this order, each one tested and merged before the next (the rules are in `design.md`, 24 Nov):
-1. Remove the turn sign flying from face to face.
-2. Slot machine (said twice): each wheel a shaded drum showing only the face it lands on, wheels apart; tap a wheel to keep it (a clamp), pull a lever to pay a coin and spin the others, tap the tray under the wheels to take the prizes; no circular arrow.
-3. Whole screen (owner: "MANY issues"): grey sketches of every moment for the owner's yes first, then build, then screenshots in grey and the full checklist.
-4. The PC plays the new rules at its best, sets included.
-5. Measure jars and coins per game and tell the owner.
+1. Slot machine (said twice): each wheel a shaded drum showing only the face it lands on, wheels apart; tap a wheel to keep it (a clamp), pull a lever to pay a coin and spin the others, tap the tray under the wheels to take the prizes; no circular arrow.
+2. Whole screen (owner: "MANY issues"): grey sketches of every moment for the owner's yes first, then build, then screenshots in grey and the full checklist.
+3. The PC plays the new rules at its best, sets included.
+4. Measure jars and coins per game and tell the owner.
