@@ -4,6 +4,7 @@
 import os, subprocess, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import changed_games, game_checks
+if subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_changed_games.py')]).returncode: sys.exit(1)  # the rule that picks which games' tests run
 root = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True).stdout.strip()
 start = sys.argv[1] if len(sys.argv) > 1 else ''
 base = changed_games.start_commit(start) or 'HEAD~1'
