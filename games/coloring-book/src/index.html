@@ -94,8 +94,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
     each drawn from where it was to where it is, thinner the faster the hand; a fast stroke throws drops off the tip, as
     many as the splash setting says. Pencil leaves its colour only where the paper's raised grain
     touches the lead; pressing harder (the bucket level; the hand's speed only a little) reaches lower into the grain, and the round lead presses
-    hardest at its middle. Each pass of the lead lays its mark at once over what shows there; when the lead comes back
-    (crossing its own line or going back) that is a new pass and adds another layer. The soft row lays a thinner see-through layer, so colours mix.
+    hardest at its middle. Each pass of the lead lays its mark at once over what shows there; each time the lead has
+    travelled more than its own width since its last pass over a place (crossing its own line, going back, turning) it adds another layer. The soft row lays a thinner see-through layer, so colours mix.
  Pressure: a pen's pressure, or for a finger or the mouse its speed (slower is harder), gives more paint and a wider mark.
  Lifting: a hand moving faster than a normal line lifts the brush, a little more each moment, the faster the sooner: the mark
     narrows smoothly to a point (its dabs come closer as it narrows); slowing down sets it down again.
@@ -323,8 +323,7 @@ const PR = {
     float rr = foot(vec2(p - C), R);
     float m = (rr > 1. ? 0. : rr <= HD ? 1. : 1. - sm(HD, 1., rr)) * LO;
     if (LEAD > 0.) { // pencil (model part 8)
-      if (rr <= 1. && (!mine || DIST - b0.a > 2.2 * R)) { b0.rgb = visOf(pic, u, mis.a); mo = 0.; mis.g = 0.; mis.b = ID; } // a new pass of the lead over this place: it lays over what shows now
-      if (rr <= 1.) b0.a = DIST; // where along the stroke the lead last touched this place
+      if (rr <= 1. && (!mine || DIST - b0.a > 2.2 * R * SSC)) { b0.rgb = visOf(pic, u, mis.a); b0.a = DIST; mo = 0.; mis.g = 0.; mis.b = ID; } // a new pass: the lead has travelled more than its own width since its last pass here (it came back, or turned over it), and lays over what shows now
       vec2 bu = brushUV(vec2(p - C), R); float lines = fract(sin(floor(bu.y * R * SSC * .8) * 91.7 + ID * 3.1) * 43758.5453); // fine lines along the stroke where the lead is uneven
       m = rr > 1. ? 0. : sm(1.05 - LEAD - .8, 1.05 - LEAD + .35, g + (lines - .5) * .2 - .8 * rr * rr) * LO; } // it touches the raised grain, deeper the harder it presses; the round lead presses hardest at its middle, so towards the edges only the highest grain
     if (GLAZE > 0.) m *= 1. + MARK_RIM * sm(.6, .95, rr); // marker ink gathers a little at the edge of the line

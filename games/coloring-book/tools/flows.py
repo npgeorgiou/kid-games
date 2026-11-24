@@ -829,7 +829,15 @@ def f_pencil_no_fade(q):  # owner 24 Nov 21:34: a pencil line starts strong, the
 FLOWS['pencil_no_fade'] = f_pencil_no_fade
 PAPER['pencil_no_fade'] = ('800x300', (0, 0))
 
-FLOWS.update({'new_tools': f_new_tools, 'shapes_vary': f_shapes_vary, 'pencil_grain': f_pencil_grain, 'ink_speed': f_ink_speed, 'pencil_like_pictures': f_pencil_like_pictures, 'pencil_hard_start': f_pencil_hard_start, 'pencil_crossing': f_pencil_crossing, 'pencil_soft_mix': f_pencil_soft_mix, 'pencil_rows': f_pencil_rows, 'pencil_intense': f_pencil_intense})
+def f_pencil_turn_back(q):  # owner 24 Nov 22:56, bug 1: a thick pencil line, where the motion ends and returns over the line, is not coloured twice near the turn
+    def dark(x0, x1, y): return q.evaluate("([x0,x1,y])=>{let t=0,n=0;for(let x=x0;x<x1;x+=2)for(let j=-2;j<=2;j++){const c=S(x,y+j);t+=255-(0.3*c[0]+0.59*c[1]+0.11*c[2]);n++}return t/n}", [x0, x1, y])
+    tap(q, 'tool-pencil'); tap(q, 'shape-0'); tap(q, 'size-4'); tap(q, 'color-6'); hold(q, 'color-6', 0.6)  # light, so a second layer shows
+    drag(q, [(40, 120), (700, 120), (480, 120)])
+    once, back, turn = dark(100, 400, 120), dark(520, 620, 120), dark(640, 690, 120)
+    report(back > once * 1.2 and turn > once * 1.2, 'pencil: going back over the line colours it twice, up to the turn', 'darkness once %.0f, on the way back %.0f, near the turn %.0f' % (once, back, turn))
+
+FLOWS.update({'new_tools': f_new_tools, 'shapes_vary': f_shapes_vary, 'pencil_grain': f_pencil_grain, 'ink_speed': f_ink_speed, 'pencil_like_pictures': f_pencil_like_pictures, 'pencil_hard_start': f_pencil_hard_start, 'pencil_crossing': f_pencil_crossing, 'pencil_soft_mix': f_pencil_soft_mix, 'pencil_rows': f_pencil_rows, 'pencil_turn_back': f_pencil_turn_back, 'pencil_intense': f_pencil_intense})
+PAPER['pencil_turn_back'] = ('800x250', (0, 0))
 
 def f_simple_self_cross(q):  # owner 23 Nov 10:27, point 1: simple tool, blurry brush, ONE stroke that crosses itself: the crossing must not spoil the line (no X-shaped crease where it crosses)
     tap(q, 'tool-simple'); tap(q, 'blur-0'); tap(q, 'size-3'); tap(q, 'color-2')
