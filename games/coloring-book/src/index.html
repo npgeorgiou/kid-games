@@ -93,7 +93,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
  8. Ink and pencil (owner 23 Nov). Ink (as the av01d fabric-brushes ink): many fine opaque strands, one per hair of the tip,
     each drawn from where it was to where it is, thinner the faster the hand; a fast stroke throws drops off the tip, as
     many as the splash setting says. Pencil leaves its colour only where the paper's raised grain
-    touches the lead; pressing harder (pressure and the bucket level) reaches lower into the grain, and the round lead presses
+    touches the lead; pressing harder (the bucket level; the hand's speed only a little) reaches lower into the grain, and the round lead presses
     hardest at its middle. Each pass of the lead lays its mark at once over what shows there; when the lead comes back
     (crossing its own line or going back) that is a new pass and adds another layer. The soft row lays a thinner see-through layer, so colours mix.
  Pressure: a pen's pressure, or for a finger or the mouse its speed (slower is harder), gives more paint and a wider mark.
@@ -557,13 +557,14 @@ function waterDab(s, cx, cy) {
 }
 const liftPaint = (s) => 0.5 + 0.5 * s.lift; // a lifting brush leaves a little less paint
 const liftWide = (s) => 1 - (1 - s.lift) ** 2; // how wide a lifting brush still touches: it narrows gently at first, then to a point
+const leadPress = (s) => 0.85 + 0.15 * Math.min(1, s.pres); // a pencil hand presses about as hard fast as slow: speed lightens the lead only a little (owner 24 Nov: no fading after the start)
 const tipWide = (s) => (0.7 + 0.3 * Math.min(1, s.pres)) * liftWide(s); // how wide the tip touches: less pressed, and lifting, it is narrower
 function simpleDab(s, cx, cy) { // the simple brush, the marker (see-through ink, model part 6), ink and pencil (part 8)
   const R = s.r, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]), t = s.tool, mk = t === 'marker', sharp = mk;
   const lo = t === 'simple' ? [1 / 3, 2 / 3, 1][st.load - 1] : mk ? s.load * K.MARK_INK : K.PENCIL_WAX[st.soft.pencil];
   capture(r); pass(PR.simple, r, [PIC, MISC, B0, UNDER], Object.assign({ P: PIC, M: MISC, B: B0, U: UNDER, G: GRAIN, C: [X, Y], R, HD: sharp ? 1 - 1.5 / (R * (s.shape.sc || 1)) : t === 'pencil' ? 0.8 : SOFT[st.soft.simple], ID: s.id,
-    LO: lo * Math.min(1, s.pres) * liftPaint(s), CA: s.ca, GLAZE: mk ? 1 : 0, PA: CANVASES[st.canvas].paper.map(ab),
-    LEAD: t === 'pencil' ? Math.min(1, K.PENCIL_PRESS[st.load - 1] * s.pres) : 0, DIST: s.dist, FL: t === 'simple' ? K.SIMPLE_FLOW * s.sp / (2 * R) : 0 }, shapeUni(s))); markDirty(r);
+    LO: lo * (t === 'pencil' ? leadPress(s) : Math.min(1, s.pres)) * liftPaint(s), CA: s.ca, GLAZE: mk ? 1 : 0, PA: CANVASES[st.canvas].paper.map(ab),
+    LEAD: t === 'pencil' ? K.PENCIL_PRESS[st.load - 1] * leadPress(s) : 0, DIST: s.dist, FL: t === 'simple' ? K.SIMPLE_FLOW * s.sp / (2 * R) : 0 }, shapeUni(s))); markDirty(r);
 }
 const shapeLen = (s) => (s.pen ? s.r * 0.6 * (0.45 + 0.55 * Math.min(1.2, s.pres)) : Math.max(1.5, Math.min(K.SHAPE_TOP_V, s.v) * K.SHAPE_FRAME) * s.r / SIZES[1]) * tipWide(s); // owner 23 Nov 22:37: as the Squares Brush
 // (av01d fabric-brushes): each shape is as long along the stroke as the hand moved in one frame of his screen (a pen: by its pressure), twice that across, and the next one starts where it ends
