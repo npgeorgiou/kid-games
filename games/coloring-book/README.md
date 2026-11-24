@@ -23,7 +23,7 @@ A painting game for a curious four-year-old, on a touchscreen PC. Not a workshee
 | Spray | fine, coarse (droplet size) | an airbrush: puffs many times a second, so a fast hand leaves them further apart; droplets scattered over a round area, thinner at its edge, as far apart at every size |
 | Shapes | square, circle, triangle, star, heart, grass | as the Squares Brush: each shape twice as wide across as the hand moved in one frame (the square half that along the stroke, the others in their own proportions), touching the next, turned with the stroke, outlined, each a slightly different colour; a tap makes one shape of his usual speed's size |
 | Ink | round, nib | opaque ink of many fine strands, thinner the faster the hand; a quick hand throws splash drops |
-| Pencil | sharp, blunt, side, soft | coloured lead only on the paper's raised grain; the bucket level is how hard it presses; each pass lays its mark at once and every new pass (crossing, going back) adds a layer; soft lays a thin see-through layer so colours mix |
+| Pencil | sharp, side; a second row: the same, soft | coloured lead only on the paper's raised grain; the bucket level is how hard it presses; each pass lays its mark at once and every new pass (crossing, going back) adds a layer; the soft row lays a thinner see-through layer so colours mix |
 
 Flat brushes are held at one fixed angle, unless the turn switch in the brush popup is on: then every brush turns with the stroke. The lift switch there (off at the start) makes a fast hand lift the brush: above about 55 cm/s it rises, the faster the quicker, and once off it stays off until a new touch. The brush popup shows real strokes of each brush on the chosen canvas (`lib/previews`).
 

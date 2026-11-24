@@ -19,11 +19,11 @@ with sync_playwright() as p:
             q = page(b, '1600x1000')
             if cv != 'wc': tap(q, 'canvas'); tap(q, 'canvas-' + cv); time.sleep(0.5)
             shapes = q.evaluate("()=>Object.fromEntries(Object.entries(__cb.shapes).map(([t,v])=>[t,v.length]))")
-            jobs = [(t, i, 0) for t in ('acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil') for i in range(shapes[t])] + [('simple', i, 1) for i in range(shapes['simple'])]
+            jobs = [(t, i, 0) for t in ('acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil') for i in range(shapes[t])] + [(t, i, 1) for t in ('simple', 'pencil') for i in range(shapes[t])]
             batch = jobs[done:done + PER]
             for k, (t, i, blur) in enumerate(batch):
                 x, y = (k % 4) * W, (k // 4) * H
-                q.evaluate("([t,i,blur,pts])=>{const s=__cb.st;s.tool=t;s.shape[t]=i;s.soft=blur;s.size=1;s.color=6;s.load=3;__cb.paint(pts)}",
+                q.evaluate("([t,i,blur,pts])=>{const s=__cb.st;s.tool=t;s.shape[t]=i;s.soft[t]=blur;s.size=1;s.color=6;s.load=3;__cb.paint(pts)}",
                            [t, i, blur, [[x + 60, y + 130], [x + 140, y + 80], [x + 230, y + 110], [x + 340, y + 70]]])
             q.evaluate("()=>{__cb.fast(6); __cb.age(120)}")
             for k, (t, i, blur) in enumerate(batch):
@@ -31,7 +31,7 @@ with sync_playwright() as p:
                 u = q.evaluate("(a)=>__cb.cell(...a)", [x, y, W, H])
                 im = Image.open(io.BytesIO(base64.b64decode(u.split(',')[1]))).convert('RGB').resize((W // 2, H // 2), Image.LANCZOS)
                 buf = io.BytesIO(); im.save(buf, 'JPEG', quality=82)
-                out['%s-%d%s' % (t, i, '-blur' if blur else '')] = 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode()
+                out['%s-%d%s' % (t, i, '-soft' if blur else '')] = 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode()
             q.close(); done += len(batch)
             if done >= len(jobs): break
         (here / "lib" / "previews" / (cv + ".json")).write_text(json.dumps(out)); print(cv, len(out), 'previews')

@@ -20,7 +20,7 @@ def reload(q):  # S(x, y): what the paper shows at a full-paper point, for check
 def scr(q, x, y): return q.evaluate("([x,y])=>__cb.screenOf(x,y)", [x - q.ox, y - q.oy])
 
 def tap(q, bid):
-    opener = {'size': 'size', 'shape': 'brush', 'blur': 'brush', 'splash': 'brush', 'lift': 'brush'}.get(bid.split('-')[0])  # owner 21 Nov: sizes and brushes are chosen in a popup
+    opener = {'size': 'size', 'shape': 'brush', 'blur': 'brush', 'soft': 'brush', 'splash': 'brush', 'lift': 'brush'}.get(bid.split('-')[0])  # owner 21 Nov: sizes and brushes are chosen in a popup
     if opener: p = q.evaluate("(id)=>__cb.btn(id)", opener); q.mouse.click(p[0], p[1]); time.sleep(0.1)
     p = q.evaluate("(id)=>__cb.btn(id)", bid); q.mouse.click(p[0], p[1]); time.sleep(0.05)
 
@@ -756,7 +756,7 @@ def f_shapes_vary(q):  # owner 23 Nov: shape stamps along the stroke, each a sli
     report(len(cols) > 40 and spread >= 12, 'shapes: stamps vary a little in colour', 'red stamp pixels %d, red channel from %s to %s' % (len(cols), reds[:1], reds[-1:]))
 
 def f_pencil_grain(q):  # owner 23 Nov: a drawing pencil: colour only on the paper's raised grain, so paper shows through; harder (fuller bucket) is darker
-    tap(q, 'tool-pencil'); tap(q, 'shape-1'); tap(q, 'size-3'); tap(q, 'color-6'); hold(q, 'color-6', 0.6)
+    tap(q, 'tool-pencil'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-6'); hold(q, 'color-6', 0.6)
     drag(q, [(30, 70), (370, 70)]); tap(q, 'color-6'); drag(q, [(30, 180), (370, 180)])
     def light(y): return q.evaluate("(y)=>{let n=0,t=0;for(let x=60;x<340;x+=2)for(let j=-4;j<=4;j+=2){const c=S(x,y+j);t++;if(0.3*c[0]+0.59*c[1]+0.11*c[2]>200)n++}return n/t}", y)
     soft, hard = light(70), light(180)
@@ -769,7 +769,7 @@ def f_ink_speed(q):  # owner 23 Nov: an ink pen: a slow line is wider than a fas
     report(slow > fast * 1.5, 'ink: slow lines wider than fast', 'width fast %d, slow %d' % (fast, slow))
 def f_pencil_like_pictures(q):  # owner 23 Nov (his pencil pictures): passes build up, a line is lighter at its edges, a light pass is pale
     def dark(x0, x1, y, h=0): return q.evaluate("([x0,x1,y,h])=>{let t=0,n=0;for(let x=x0;x<x1;x+=2)for(let j=-h;j<=h;j++){const c=S(x,y+j);t+=255-(0.3*c[0]+0.59*c[1]+0.11*c[2]);n++}return t/n}", [x0, x1, y, h])
-    tap(q, 'tool-pencil'); tap(q, 'shape-1'); tap(q, 'size-3'); tap(q, 'color-6'); hold(q, 'color-6', 0.6)  # light: a third
+    tap(q, 'tool-pencil'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-6'); hold(q, 'color-6', 0.6)  # light: a third
     drag(q, [(30, 40), (370, 40)]); drag(q, [(30, 100), (370, 100), (30, 100), (370, 100)])
     once, thrice = dark(80, 320, 40, 2), dark(80, 320, 100, 2)
     report(thrice > once * 1.5, 'pencil: going back and forth darkens the line', 'darkness one pass %.0f, three %.0f' % (once, thrice))
@@ -780,30 +780,46 @@ def f_pencil_like_pictures(q):  # owner 23 Nov (his pencil pictures): passes bui
     report(len(edge) > 2 and rim < mid * 0.6, 'pencil: a line is lighter towards its edges', 'darkness middle %.0f, edge %.0f' % (mid, rim))
     report(once < full * 0.45, 'pencil: a light pass is pale', 'darkness light pass %.0f, the colour %.0f' % (once, full))
 def f_pencil_hard_start(q):  # owner 24 Nov 16:56, points 2 and 4: a pencil line starts hard, not soft and blurry; a pencil dot is as strong as the line, with the biggest brush
-    tap(q, 'tool-pencil'); tap(q, 'shape-1'); tap(q, 'size-4'); tap(q, 'color-1')
+    tap(q, 'tool-pencil'); tap(q, 'shape-0'); tap(q, 'size-4'); tap(q, 'color-1')
     drag(q, [(60, 80), (360, 80)]); s = scr(q, 80, 190); q.mouse.click(*s); time.sleep(0.1)
     def dark(x, y): return q.evaluate("([x,y])=>{let t=0,n=0;for(let i=-3;i<=3;i++)for(let j=-3;j<=3;j++){const c=S(x+i,y+j);t+=255-(0.3*c[0]+0.59*c[1]+0.11*c[2]);n++}return t/n}", [x, y])
     start, mid, dot = dark(62, 80), dark(220, 80), dark(80, 190)
     report(start > mid * 0.75 and dot > mid * 0.75, 'pencil: a line starts hard, a dot is as strong as the line', 'darkness start %.0f, middle %.0f, dot %.0f' % (start, mid, dot))
 
-def f_pencil_crossing(q):  # owner 24 Nov 16:56, point 3: a pencil line crossing another, in the same touch or a new one, makes the colour stronger
-    tap(q, 'tool-pencil'); tap(q, 'shape-1'); tap(q, 'size-3'); tap(q, 'color-6')
+def f_pencil_crossing(q):  # owner 24 Nov 16:56, point 3: a pencil line crossing another, in the same touch or a new one, makes the colour stronger; 20:29: with strong lines, about a quarter stronger is right
+    tap(q, 'tool-pencil'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-6')
     drag(q, [(40, 60), (360, 60), (360, 120), (200, 120), (200, 20)])  # one touch: right, down, back left, up across its own start
     drag(q, [(100, 230), (100, 140)]); drag(q, [(40, 190), (360, 190)])  # two touches: the second crosses the first
     def dark(x, y): return q.evaluate("([x,y])=>{let t=0,n=0;for(let i=-4;i<=4;i++)for(let j=-4;j<=4;j++){const c=S(x+i,y+j);t+=255-(0.3*c[0]+0.59*c[1]+0.11*c[2]);n++}return t/n}", [x, y])
     one, own, other = dark(300, 60), dark(200, 60), dark(100, 190)
-    report(own > one * 1.3 and other > one * 1.3, 'pencil: a line crossing a line makes the colour stronger', 'darkness one line %.0f, crossing itself %.0f, crossing another %.0f' % (one, own, other))
+    report(own > one * 1.2 and other > one * 1.2, 'pencil: a line crossing a line makes the colour stronger', 'darkness one line %.0f, crossing itself %.0f, crossing another %.0f' % (one, own, other))
 
 def f_pencil_soft_mix(q):  # owner 24 Nov 16:56, point 3 (second): a pencil brush with softer colour, so colours laid over each other mix: blue over red shows more of the red than with the sharp brush
     def avg(x, y): return q.evaluate("([x,y])=>{const s=[0,0,0];let n=0;for(let i=-4;i<=4;i++)for(let j=-4;j<=4;j++){const c=S(x+i,y+j);s[0]+=c[0];s[1]+=c[1];s[2]+=c[2];n++}return s.map(v=>Math.round(v/n))}", [x, y])
     def rb(c): return (255 - c[2]) / max(1, 255 - c[0])  # how red against how blue: the blue absorbs red light, the red absorbs blue
     got = []
-    for sh, x in ((0, 100), (3, 300)):  # sharp, then soft
-        tap(q, 'tool-pencil'); tap(q, 'shape-%d' % sh); tap(q, 'size-3'); tap(q, 'color-2'); drag(q, [(x - 80, 120), (x + 80, 120)])
+    for btn, x in (('shape-0', 100), ('soft-0', 300)):  # sharp, then soft sharp
+        tap(q, 'tool-pencil'); tap(q, btn); tap(q, 'size-3'); tap(q, 'color-2'); drag(q, [(x - 80, 120), (x + 80, 120)])
         tap(q, 'color-6'); drag(q, [(x, 40), (x, 220)]); got.append(avg(x, 120))
     report(rb(got[1]) > rb(got[0]) * 1.2, 'pencil soft brush: blue over red shows more red than the sharp brush', 'where they cross: sharp %s, soft %s' % tuple(got))
 
-FLOWS.update({'new_tools': f_new_tools, 'shapes_vary': f_shapes_vary, 'pencil_grain': f_pencil_grain, 'ink_speed': f_ink_speed, 'pencil_like_pictures': f_pencil_like_pictures, 'pencil_hard_start': f_pencil_hard_start, 'pencil_crossing': f_pencil_crossing, 'pencil_soft_mix': f_pencil_soft_mix})
+def f_pencil_rows(q):  # owner 24 Nov 20:22: pencil brushes sharp and side, their softer versions in a second row; size only by the size button
+    tap(q, 'tool-pencil'); tap(q, 'brush'); time.sleep(0.1)
+    seen = q.evaluate("()=>['shape-0','shape-1','shape-2','soft-0','soft-1','soft-2'].filter(id=>__cb.btn(id))")
+    rows = q.evaluate("()=>['shape-0','soft-0'].map(id=>{const p=__cb.btn(id);return p?Math.round(p[1]):null})")
+    tap(q, 'brush')
+    report(seen == ['shape-0', 'shape-1', 'soft-0', 'soft-1'] and None not in rows and rows[1] > rows[0], 'pencil brushes: sharp and side, their soft versions in a second row', 'buttons %s, row tops %s' % (seen, rows))
+
+def f_pencil_intense(q):  # owner 24 Nov 18:33 (his picture): the sharp pencil's lines are too soft at all 5 sizes, and the start not solid: lines as strong as a real pencil's, the start as strong as the line
+    def dark(x, y): return q.evaluate("([x,y])=>{let t=0,n=0;for(let i=-2;i<=2;i++)for(let j=-1;j<=1;j++){const c=S(x+i,y+j);t+=255-(0.3*c[0]+0.59*c[1]+0.11*c[2]);n++}return t/n}", [x, y])
+    tap(q, 'tool-pencil'); tap(q, 'shape-0'); tap(q, 'color-1')
+    full = q.evaluate("()=>{const c=__cb.color();return 255-(0.3*c[0]+0.59*c[1]+0.11*c[2])}"); got = []
+    for k in range(5):
+        y = 25 + k * 45; tap(q, 'size-%d' % k); drag(q, [(40, y), (360, y)])
+        st, mid = sum(dark(x, y) for x in range(44, 64, 2)) / 10, sum(dark(x, y) for x in range(190, 210, 2)) / 10; got.append((round(st), round(mid)))  # spans: the grain makes single spots jump
+    report(all(m >= full * 0.6 and s >= m * 0.85 for s, m in got), 'pencil: lines strong at every size, the start as strong as the line', 'the colour %.0f; start, middle per size %s' % (full, got))
+
+FLOWS.update({'new_tools': f_new_tools, 'shapes_vary': f_shapes_vary, 'pencil_grain': f_pencil_grain, 'ink_speed': f_ink_speed, 'pencil_like_pictures': f_pencil_like_pictures, 'pencil_hard_start': f_pencil_hard_start, 'pencil_crossing': f_pencil_crossing, 'pencil_soft_mix': f_pencil_soft_mix, 'pencil_rows': f_pencil_rows, 'pencil_intense': f_pencil_intense})
 
 def f_simple_self_cross(q):  # owner 23 Nov 10:27, point 1: simple tool, blurry brush, ONE stroke that crosses itself: the crossing must not spoil the line (no X-shaped crease where it crosses)
     tap(q, 'tool-simple'); tap(q, 'blur-0'); tap(q, 'size-3'); tap(q, 'color-2')
@@ -820,7 +836,7 @@ def f_simple_self_cross(q):  # owner 23 Nov 10:27, point 1: simple tool, blurry 
 FLOWS['simple_self_cross'] = f_simple_self_cross
 
 def f_turn_every(q):  # owner 23 Nov 10:27, point 15: he cannot make the turn switch work: switched on, every drawing tool's flat brush turns with the stroke, so a line is as wide going down-right as up-right
-    tools = [('acrylic', 1), ('water', 1), ('crayon', 1), ('marker', 1), ('simple', 1), ('ink', 1), ('pencil', 2)]
+    tools = [('acrylic', 1), ('water', 1), ('crayon', 1), ('marker', 1), ('simple', 1), ('ink', 1), ('pencil', 1)]
     tap(q, 'tool-marker'); tap(q, 'brush'); time.sleep(0.1); tap(q, 'turn')  # his steps: open the brush popup, press the turn switch
     out, bad = [], []
     for i, (t, sh) in enumerate(tools):
