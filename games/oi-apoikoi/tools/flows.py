@@ -16,6 +16,7 @@ WAIT = 1500  # ms: the game answers in a few ms in fast mode, so a flow that wai
 def settle(q): q.evaluate("()=>__dg.render()")  # the game answers a tap at once; draw it now, so what is on screen (and its buttons) is current
 def table(q, **opts):  # a new game on a set table, its first round's goods already in (the round start's flight has its own flow)
     opts.setdefault('fast', True); opts.setdefault('goodsIn', True); opts.setdefault('seed', 1)  # always seeded: a flow never depends on luck
+    if opts['fast']: pause_clock(q)  # a fast game needs no time to pass; a running clock draws 60 frames a second for nothing
     q.evaluate("(o)=>__dg.restart(o)", opts); settle(q)
 def skip(q, ms):  # jump the paused fake clock on (each due timer fires once, no frame in between): for waits whose middle nobody looks at
     q.clock.fast_forward(ms); settle(q)
@@ -677,10 +678,11 @@ def f_random_play(q):  # seeded games played through the screen (taps and drags 
 
 # SECTION: RUN -- one browser, one page (with a fake clock that runs normally until a flow pauses it), every flow on a new game
 # The browser does not wait for the screen's refresh: each step of a finger drag otherwise waits a whole frame (16 ms); the game's own time is the fake clock either way.
+# It draws without the emulated graphics card, which cost more processor time than drawing directly.
 FLOWS = {n[2:]: f for n, f in list(globals().items()) if n.startswith('f_')}
 def run(names):
     with sync_playwright() as p:
-        b = p.chromium.launch(args=['--disable-gpu-vsync', '--disable-frame-rate-limit']); ctx = b.new_context(viewport={'width': 1280, 'height': 800}, has_touch=True); q = ctx.new_page()
+        b = p.chromium.launch(args=['--disable-gpu-vsync', '--disable-frame-rate-limit', '--disable-gpu', '--disable-gpu-compositing', '--disable-accelerated-2d-canvas']); ctx = b.new_context(viewport={'width': 1280, 'height': 800}, has_touch=True); q = ctx.new_page()
         q.clock.install(); q.goto(GAME.as_uri() + '?fast=1')
         try: q.wait_for_function("()=>window.__dg&&__dg.ready", timeout=5000)
         except Exception as e: pass
