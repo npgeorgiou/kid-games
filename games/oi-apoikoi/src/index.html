@@ -48,7 +48,7 @@ const pause = ms => { const my = G; return fast ? Promise.resolve() : new Promis
 // Made like real objects (the standard Web Audio recipes): a knock is a short tone that drops in pitch, like wood; a clink is a bell-like
 // pair of partials, like metal; a break is a burst of filtered noise with a few shards, like clay; a chime is soft sine notes; a whoosh is noise swept upward.
 const SOUNDS = {  // kind and its notes (Hz)
-  good: ['knock', [640]], board: ['knock', [180]], pick: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], pass: ['chime', [392, 294]],
+  good: ['knock', [640]], board: ['knock', [180]], pick: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], clamp: ['knock', [250]], pass: ['chime', [392, 294]],
   jar: ['break', []], coin: ['clink', [1320, 1760]], made: ['chime', [392, 494, 587]], win: ['chime', [523, 659, 784, 1047]],
   dawn: ['chime', [392, 523, 659]], token: ['chime', [523, 784]], into: ['knock', [460]], wild: ['chime', [523, 659, 784]], edge: ['chime', [784]], turn: ['chime', [587, 784]], roundend: ['chime', [784, 659, 523, 392]], spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
 };
@@ -403,19 +403,18 @@ async function roll(wheels) {  // the chosen wheels get their new pictures, roll
 }
 async function slot(i) {
   const p = G.players[i];
-  G.slot = { who: i, faces: makeFaces(), memo: new Map(), w: [0, 0, 0], sel: [false, false, false], reel: [0, 1, 2].map(() => ({ t0: 0, ms: 0, from: 0, to: 0 })) };
+  G.slot = { who: i, faces: makeFaces(), memo: new Map(), w: [0, 0, 0], kept: [false, false, false], reel: [0, 1, 2].map(() => ({ t0: 0, ms: 0, from: 0, to: 0 })) };
   await roll([0, 1, 2]);
   for (;;) {
     if (tripled(shownFaces(G.slot))) { await pause(900); break; }
     const a = await choose('slot', i, {}, async () => {
       const plan = slotPlan(G.slot, p.coins);
-      if (!plan) return pcTap('collect');
-      for (const k of plan) await pcTap('wheel-' + k);
-      await pcTap('reroll');
+      if (!plan) return pcTap('tray');
+      for (let k = 0; k < 3; k++) if (G.slot.kept[k] === plan.includes(k)) await pcTap('wheel-' + k);  // keep the wheels it does not spin, free the ones it does
+      await pcTap('lever');
     });
     if (a === 'collect') break;
-    p.coins--; const picked = [0, 1, 2].filter(k => G.slot.sel[k]); G.slot.sel = [false, false, false];
-    await roll(picked);
+    p.coins--; await roll([0, 1, 2].filter(k => !G.slot.kept[k]));  // the lever spins the wheels not kept; a clamp stays until tapped off
   }
   const f = shownFaces(G.slot), won = tripled(f) ? f.concat(f) : f, goods = [], at = [W / 2, H / 2];  // what the wheels show, twice when all three are the same
   G.slot = null; sound('win');
@@ -677,34 +676,54 @@ function shownCard(j, who, x, y, z) {  // what a jar held, and a short label say
   cx.fillStyle = '#3a2410'; cx.font = 'bold 26px sans-serif'; cx.textAlign = 'center'; cx.fillText(text, 0, 92); cx.textAlign = 'start'; cx.restore();
   drawn.push({ k: 'label', text });
 }
-function drawSlot() {  // three wheels; tap the ones to spin again, pay 1 coin to spin them, or take what the wheels show
-  const S = G.slot, x = W / 2, y = H / 2, ww = 140, live = wait && wait.kind === 'slot', now = performance.now(), p = G.players[S.who];
-  shade(0.4); rrect(x - 280, y - 210, 560, 420, 30, '#7a2f2f', BORDER[S.who], 6);
-  for (let k = 0; k < p.coins; k++) coin(x - 250 + 14 + (k % 16) * 30, y - 186 + Math.floor(k / 16) * 26, 12);  // the coins you have, as coins
+// The slot machine's look (owner 24 Nov, said twice): 1. each wheel is a many-sided drum seen from the front (the standard reel window): a face shows
+// where the drum turns it toward you, squashed as it turns away, and at rest only the face it lands on shows; 2. a kept wheel has a clamp on it;
+// 3. a lever on the machine's side pays a coin and spins the wheels not kept; 4. the tray under the wheels holds the prizes, tapped to take them.
+function drum(k, wx, wy, ww, fh, S, now) {  // wheel k's window at (wx, wy), one face high
+  const r = S.reel[k], at = reelAt(r, now), base = Math.floor(at), frac = at - base, R = fh / (2 * Math.SQRT1_2), cy = wy + fh / 2;
+  const g = cx.createLinearGradient(0, wy, 0, wy + fh); g.addColorStop(0, '#8d8478'); g.addColorStop(0.3, '#fffaf0'); g.addColorStop(0.7, '#fffaf0'); g.addColorStop(1, '#8d8478');
+  rrect(wx, wy, ww, fh, 14, g, '#3a2414', 3);
+  cx.save(); cx.beginPath(); cx.roundRect(wx, wy, ww, fh, 14); cx.clip();
+  for (let j = -1; j <= 1; j++) {  // the face j steps along the strip sits at angle (frac - j) quarter turns from the front
+    const phi = (frac - j) * Math.PI / 2, top = cy + R * Math.sin(phi - Math.PI / 4), bot = cy + R * Math.sin(phi + Math.PI / 4), h = bot - top;  // a flat face between its two edges
+    if (Math.cos(phi) < 0.02 || h < 2) continue;  // turned away (or edge-on): not seen
+    const f = S.faces[k][((base + j) % FACES_PER_WHEEL + FACES_PER_WHEEL) % FACES_PER_WHEEL];
+    cx.save(); cx.translate(wx + ww / 2, (top + bot) / 2); cx.scale(1, h / fh); symbol(f, 0, 0, fh * 0.4); cx.restore(); drawn.push({ k: 'drumface', n: k, f });
+  }
+  const sh = cx.createLinearGradient(0, wy, 0, wy + fh); sh.addColorStop(0, 'rgba(40,25,10,0.45)'); sh.addColorStop(0.28, 'rgba(40,25,10,0)'); sh.addColorStop(0.72, 'rgba(40,25,10,0)'); sh.addColorStop(1, 'rgba(40,25,10,0.45)');
+  cx.fillStyle = sh; cx.fillRect(wx, wy, ww, fh); cx.restore();  // the drum's curve: darker where it turns away
+  drawn.push({ k: 'wheel', n: k, rolling: now < r.t0 + r.ms, at, kept: S.kept[k], shaded: true, x: wx, y: wy, w: ww, h: fh });
+}
+function clamp(wx, wy, ww, fh) {  // a metal clamp across a kept wheel: a bar over its top and two jaws down its sides
+  rrect(wx - 10, wy - 18, ww + 20, 20, 8, '#9aa3ad', '#3c434a', 3);
+  rrect(wx - 10, wy - 6, 16, fh * 0.6, 6, '#9aa3ad', '#3c434a', 3); rrect(wx + ww - 6, wy - 6, 16, fh * 0.6, 6, '#9aa3ad', '#3c434a', 3);
+}
+function drawSlot() {
+  const S = G.slot, x = W / 2, y = H / 2, ww = 130, fh = 120, gap = 40, live = wait && wait.kind === 'slot', now = performance.now(), p = G.players[S.who];
+  const mx = x - 270, mw = 540, wy = y - 130;
+  shade(0.4); rrect(mx, y - 230, mw, 440, 30, '#7a2f2f', BORDER[S.who], 6);
+  for (let k = 0; k < p.coins; k++) coin(mx + 30 + 14 + (k % 16) * 30, y - 206 + Math.floor(k / 16) * 26, 12);  // the coins you have, as coins
   drawn.push({ k: 'pic', for: 'coins', n: p.coins });
   S.w.forEach((s, k) => {
-    const wx = x - 225 + k * (ww + 15), r = S.reel[k], rolling = now < r.t0 + r.ms, at = reelAt(r, now), gap = 84;
-    rrect(wx, y - 150, ww, 170, 16, '#fff', S.sel[k] ? '#2f7de1' : '#555', S.sel[k] ? 8 : 3);
-    cx.save(); cx.beginPath(); cx.rect(wx + 4, y - 146, ww - 8, 162); cx.clip();
-    const base = Math.floor(at), frac = at - base;  // the strip: picture i of the reel shows symbol i; the pictures slide down as the reel turns
-    for (let j = -1; j <= 1; j++) symbol(S.faces[k][((base + j) % FACES_PER_WHEEL + FACES_PER_WHEEL) % FACES_PER_WHEEL], wx + ww / 2, y - 65 + (frac - j) * gap, 46);
-    cx.restore(); drawn.push({ k: 'wheel', n: k, rolling, at });
-    if (S.sel[k]) { cx.strokeStyle = '#2f7de1'; cx.lineWidth = 5; cx.beginPath(); cx.arc(wx + ww - 22, y - 128, 13, 0.6, 5.8); cx.stroke(); }  // marked to spin again
-    if (live) btn('wheel-' + k, wx, y - 150, ww, 170, () => { S.sel[k] = !S.sel[k]; });
+    const wx = x - (3 * ww + 2 * gap) / 2 + k * (ww + gap);
+    drum(k, wx, wy, ww, fh, S, now);
+    if (S.kept[k]) { clamp(wx, wy, ww, fh); drawn.push({ k: 'clamp', n: k }); }
+    if (live) btn('wheel-' + k, wx - 10, wy - 20, ww + 20, fh + 30, () => { S.kept[k] = !S.kept[k]; sound('clamp'); });  // a clamp drops on or comes off, with a knock
   });
-  if (!live) return;
-  const n = S.sel.filter(v => v).length, can = p.coins > 0 && n > 0, f = shownFaces(S), twice = tripled(f);
-  cx.globalAlpha = can ? 1 : 0.45;  // spin again: a turning arrow, and one coin going in
-  rrect(x - 240, y + 40, 230, 140, 18, '#d8f0c8', '#3a8a2a', 4);
-  cx.strokeStyle = '#2f6a22'; cx.lineWidth = 9; cx.lineCap = 'round'; cx.beginPath(); cx.arc(x - 170, y + 110, 34, -2.4, 2.2); cx.stroke();
-  const ax = x - 170 + 34 * Math.cos(2.2), ay = y + 110 + 34 * Math.sin(2.2); cx.beginPath(); cx.moveTo(ax - 16, ay - 2); cx.lineTo(ax, ay); cx.lineTo(ax + 4, ay - 17); cx.stroke();
-  coin(x - 80, y + 128, 20); arrow(x - 80, y + 62, x - 80, y + 96, '#7a2f2f', 6); cx.lineCap = 'butt'; cx.globalAlpha = 1;
-  drawn.push({ k: 'pic', for: 'reroll', coins: 1 });
-  if (can) btn('reroll', x - 240, y + 40, 230, 140, () => answer('reroll'));
-  rrect(x + 10, y + 40, 230, 140, 18, '#ffe9a8', '#e0a020', 4);  // take what the wheels show: their 3 faces, a second row of them when all three are the same
-  for (const [row, ry] of (twice ? [[0, y + 80], [1, y + 140]] : [[0, y + 110]])) f.forEach((x0, k) => symbol(x0, x + 125 + (k - 1) * 64, ry, twice ? 24 : 30));
-  drawn.push({ k: 'pic', for: 'collect', faces: f, double: twice });
-  btn('collect', x + 10, y + 40, 230, 140, () => answer('collect'));
+  const f = shownFaces(S), twice = tripled(f), rolling = S.reel.some(r => now < r.t0 + r.ms), can = live && p.coins > 0 && S.kept.includes(false);
+  const lx = mx + mw + 12, ly = wy - 20, down = rolling ? 1 : 0;  // the lever: a knob on a stick at the machine's right side, pulled down while the wheels roll; the coin it costs beside it
+  cx.globalAlpha = can || rolling ? 1 : 0.45;
+  rrect(lx, y - 10, 30, 70, 10, '#5a2020', '#3a1010', 3);
+  cx.strokeStyle = '#3c434a'; cx.lineWidth = 12; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(lx + 15, y + 20); cx.lineTo(lx + 45, down ? y + 120 : ly + 30); cx.stroke(); cx.lineCap = 'butt';
+  dot(lx + 45, down ? y + 120 : ly + 30, 24, '#d42a2a'); dot(lx + 38, (down ? y + 120 : ly + 30) - 7, 7, '#ff9a9a');
+  coin(lx + 45, y + 90, 18); cx.globalAlpha = 1;
+  drawn.push({ k: 'pic', for: 'lever', coins: 1 });
+  if (can) btn('lever', lx - 10, ly, 90, 220, () => answer('lever'));
+  const ty = wy + fh + 30;  // the tray under the wheels: their 3 faces, a second row of them when all three are the same
+  rrect(mx + 40, ty, mw - 80, 130, 22, '#ffe9a8', '#e0a020', 4); rrect(mx + 56, ty + 12, mw - 112, 106, 16, '#f5d77a', null);
+  for (const [, ry] of (twice ? [[0, ty + 40], [1, ty + 92]] : [[0, ty + 65]])) f.forEach((x0, k) => symbol(x0, x + (k - 1) * 90, ry, twice ? 22 : 30));
+  drawn.push({ k: 'pic', for: 'tray', faces: f, double: twice });
+  if (live) btn('tray', mx + 40, ty, mw - 80, 130, () => answer('collect'));
 }
 function drawDusk() {  // evening: the sky darkens from the top down, lightly, so the board stays in view; a moon rises over the market and stars come out
   const u = Math.min(1, (performance.now() - G.dusk) / DUSK_MS), a = 0.45 * easeInOut(u), { T } = L();
@@ -806,7 +825,7 @@ window.__dg = {
   sampleJars(n, who) { const m = {}; for (let k = 0; k < n; k++) { const j = rollJar(who); m[j.k] = (m[j.k] || 0) + 1; } return m; },
   state() {
     return {
-      round: G.round, turn: G.turn, phase: G.phase, queued: jarQueue.length, first: G.first, over: G.over, winner: G.winner, passing: G.passing, slot: G.slot ? { w: G.slot.w.slice(), sel: G.slot.sel.slice(), faces: G.slot.faces } : null,
+      round: G.round, turn: G.turn, phase: G.phase, queued: jarQueue.length, first: G.first, over: G.over, winner: G.winner, passing: G.passing, slot: G.slot ? { w: G.slot.w.slice(), kept: G.slot.kept.slice(), faces: G.slot.faces } : null,
       wait: wait ? { kind: wait.kind, who: wait.who, r: wait.r, wild: wait.tile === WILD } : null, draft: G.draft.map(t => t && t.slice()), fits: G.draft.map((t, k) => pickable(k, 0)),
       spots: wait && wait.kind === 'place' ? [0, 1, 2, 3].flatMap(r => spots(wait.tile, r, wait.who)) : [], snap: (s => s && { x: s.x, y: s.y, r: s.r })(snapSpot()),
       halves: [0, 1, 2, 3, 4].map(c => G.bag.concat(G.draft.filter(t => t)).flat().filter(v => v === c).length), left: G.bag.length + G.draft.filter(t => t).length, fromNowhere: G.fromNowhere, leftFits: G.bag.concat(G.draft.filter(t => t)).some(t => fits(t, 0) || fits(t, 1)),

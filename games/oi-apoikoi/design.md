@@ -74,7 +74,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Worth in coins used by the PC: 1 coin = 1; a jar = what jars hold on average (about 0.65); 1 of each good or 5 of one good = a jar's worth.
 - The slot pictures stay as they are (owner 24 Nov: no new icons).
 - Owner rule (24 Nov): the wheels roll fast, then slow down and stop one after another (first, second, third), with sounds.
-- Owner rule (24 Nov, said twice): each wheel looks like a turning many-sided drum, shaded, the wheels apart; only the face it lands on shows, not the faces above and below. Better buttons; no circular arrow (it read as a "C"). Proposal: tap a wheel to keep it (a clamp drops on it), pull a lever on the machine's side to pay a coin and spin the others, tap the tray under the wheels to take the prizes.
+- Owner rule (24 Nov, said twice): each wheel looks like a turning many-sided drum, shaded, the wheels apart; only the face it lands on shows, not the faces above and below. Better buttons; no circular arrow (it read as a "C"). Owner's task list (24 Nov): tap a wheel to keep it (a clamp drops on it), pull a lever on the machine's side to pay a coin and spin the others, tap the tray under the wheels to take the prizes.
 
 ### Points and winning
 - Owner rule: points are gold coins drawn one by one, with no numbers. At the end, the players' coins are lined up side by side and the longer row wins.
