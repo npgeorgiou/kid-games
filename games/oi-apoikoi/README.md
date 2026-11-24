@@ -32,17 +32,27 @@ A playable prototype against the PC on one shared board, colours only. The scree
 
 ## Open
 
-- Pull request 19 (tasks: no bidding, goods from edges, rows of 5, sets and the wild tile, no turn sign, slot drums) passed GitHub's tests; Claude's merge was refused by the session's safety check: the owner merges it, or tells Claude to retry.
-- Whole screen: grey sketches of every moment sent to the owner; waiting for his yes before building (task 1).
-- The PC does not spend sets yet (task 2).
+- The owner reshaped the game by playing a prototype built without tests (24-25 Nov). It is the project doc `claude/oi-apoikoi-prototype-25nov.html` (claude.ai project "kid games"), not in the repo; task 1 builds it in.
+- The star (first-player token): the owner saw it make him play next in the same round; the code only uses it at the next round's start. Unknown whether he saw a skipped turn: ask him.
 - The full test run is about 16-17 s of the 20 s limit on a 2-core machine; keep flows sampling with skip, not run_for.
-- Coins and jars per game under the new rules not measured yet (task 3); the 24 Nov measure (old rules: kid 109 coins, about 177 jars a game) no longer holds.
 - The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` sections 6 and 7.
 
 ## Task list
 
-In this order, each one tested and merged before the next (the rules are in `design.md`, 24 Nov):
-1. Whole screen (owner: "MANY issues"): grey sketches of every moment for the owner's yes first, then build, then screenshots in grey and the full checklist.
-2. The PC plays the new rules at its best, sets included.
-3. Measure jars and coins per game and tell the owner.
+1. Build the prototype in, test first (every point a failing step first), and write the rules into `design.md`:
+   - 6 colours (6th teal), 28 tiles (halves 10, 10, 9, 9, 9, 9); board 20 x 13 as now.
+   - Each connection gives a jar, dropping from the top of the screen; it also lights the connected land of that colour (both players'), spreading out from it; each lit square gives one material; 5 of a colour make a jar at once.
+   - No wild tiles, no sets to tap, no stealing.
+   - Jar contents per 95: empty 10, 1 coin 40, 2 coins 10, random tile 2.5 (no colours shown until it lies beside the market), slot machine 5, first player 7.5, another jar 7.5, one of each material 7.5.
+   - Slot machine: each wheel has 2 coins, 2 jars, 2 of each material, blank (an X); only three of a kind wins, what you see; a spin costs 1 coin (option 1, 3 faces of 1 each, noted in a comment); rolling wheels stop at 1.8, 2.6, 3.5 s by their order among the rolling ones; the tray shows the prize only after they stop.
+   - Board as big as the height allows, player areas take the rest of the width; a tile the same size everywhere; tiles he can't take: a light grey wash, colours clear.
+   - Coins in the 5 material columns, in a tray under the materials, rows of 5 from the top.
+   - Materials: each colour its own line; a full row's jar drops while its 5th flies; lit squares 120 ms apart.
+   - Jars: lines of up to 6 centred on their jars; a new one takes the first free place, the others slide; a broken one leaves its place; no glow; always drawn while waiting.
+   - Jars break at once, as fast as he taps; the prize (a picture, no words) pops up above its jar, stays a moment, then flies to its place; only the slot machine and a tile to place wait.
+   - A skipped turn: only its sound. An X for an empty jar.
+   - The pile holds every tile; the 4 market tiles are dealt one by one.
+   - End: a smaller box over the board; coins fly into two piles of the same coin size (rows of 10); a star over the taller; a green play button that works.
+2. A simulation tool in `tools/` that plays seeded games through the screen and reports jars, coins and bonus shares per player; run it before every rule change and tell the owner the numbers (the prototype: about 96 jars a game, kid about 30 coins, PC about 34).
+3. The PC plays the rules at its best.
