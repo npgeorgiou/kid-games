@@ -190,16 +190,27 @@ def f_no_bidding(q):  # owner 24 Nov: no bidding (too slow: every pick triggered
     ok = w['kind'] == 'place' and w['who'] == 0 and s['players'][1]['goods'] == [1] * 5 and not drawn(q, 'bidcard') and 'bid' not in q.evaluate("()=>__dg.sounds()")
     report(ok, 'pick: the tile is yours, no bid', 'after the pick: %s, PC goods %s, bid card %s' % (w, s['players'][1]['goods'], bool(drawn(q, 'bidcard'))))
 
-def f_stockpile_columns(q):  # owner 24 Nov: goods stand in a column per colour (they never widen the panel); rows of one of each are marked as sets, each 5 of a colour as a jar at the round's end (owner 24 Nov: 5, not 3)
-    table(q, bag=[[0, 4]] * 4, goods=[[4, 4, 7, 2, 1], [0] * 5]); g = drawn(q, 'good'); g = [x for x in g if x['o'] == 0]
-    cols = {c: {round(x['x']) for x in g if x['c'] == c} for c in range(5)}; counts = [sum(1 for x in g if x['c'] == c) for c in range(5)]
-    panel = next(x for x in drawn(q, 'panel') if x['o'] == 0); inside = all(x['x'] < panel['x'] + panel['w'] for x in g)
-    jars = [sum(1 for x in drawn(q, 'jargroup') if x['o'] == 0 and x['c'] == c) for c in range(5)]; sets = sum(1 for x in drawn(q, 'setrow') if x['o'] == 0)
-    shaped = all(x['shape'] == 'jar' and x['parts'] == ['lip', 'neck', 'handles', 'body', 'foot'] for x in drawn(q, 'jargroup'))  # owner 24 Nov: "the sets of 5 should be outlined not by this oval, but by a jar"
-    signs = [x for x in drawn(q, 'setsign') if x['o'] == 0]; side = max(x['x'] + x['r'] for x in g)  # owner 24 Nov: "the sets should on their side make a set symbol appear"
-    signed = len(signs) == 1 and signs[0]['x'] > side and abs(signs[0]['y'] - min(x['y'] for x in g if x['c'] == 4)) < 2
-    ok = counts == [4, 4, 7, 2, 1] and all(len(v) == 1 for c, v in cols.items() if counts[c]) and inside and jars == [0, 0, 1, 0, 0] and sets == 1 and shaped and signed
-    report(ok, 'stockpile: columns, sets and jar groups shown', 'goods %s, one column each %s, jar groups %s outlined as jars %s, set rows %d with a set sign beside %s' % (counts, all(len(v) == 1 for c, v in cols.items() if counts[c]), jars, shaped, sets, signed))
+def f_stockpile_rows(q):  # owner 24 Nov: the stockpile is a tray in the player's area: one row per colour, 5 places each (a row never needs more); no tall jar outlines, no crates; a column with one of each colour is a set, its sign beside it
+    table(q, bag=[[0, 4]] * 4, goods=[[4, 4, 4, 2, 1], [0] * 5]); g = [x for x in drawn(q, 'good') if x['o'] == 0]; places = [x for x in drawn(q, 'place') if x['o'] == 0]
+    rows = {c: {round(x['y']) for x in g if x['c'] == c} for c in range(5)}; counts = [sum(1 for x in g if x['c'] == c) for c in range(5)]
+    prow = {c: sorted(x['x'] for x in places if x['c'] == c) for c in range(5)}; on_place = all(any(abs(x['x'] - px) < 1 for px in prow[x['c']]) for x in g)
+    panel = next(x for x in drawn(q, 'panel') if x['o'] == 0); inside = all(panel['x'] < x['x'] - x['r'] and x['x'] + x['r'] < panel['x'] + panel['w'] for x in places)
+    sets = sum(1 for x in drawn(q, 'setrow') if x['o'] == 0); signs = [x for x in drawn(q, 'setsign') if x['o'] == 0]
+    ok = counts == [4, 4, 4, 2, 1] and all(len(v) == 1 for v in rows.values()) and len({min(v) for v in rows.values()}) == 5 and all(len(v) == 5 for v in prow.values()) and on_place and inside \
+        and not drawn(q, 'jargroup') and sets == 1 and len(signs) == 1
+    report(ok, 'stockpile: a row of 5 places per colour, no outlines', 'goods %s, one row each %s, places per row %s, goods on places %s, inside %s, jar outlines %d, sets %d, set signs %d' % (counts, all(len(v) == 1 for v in rows.values()), [len(v) for v in prow.values()], on_place, inside, len(drawn(q, 'jargroup')), sets, len(signs)))
+
+def f_row_never_overflows(q):  # owner 24 Nov: a row never needs more than 5 places: a tile giving 2 goods to a row of 4 fills it, the 5 fly into a jar, and the 6th good takes the first place
+    pause_clock(q); table(q, fast=False, bag=[[0, 0]] * 4, tiles=[[4, 7, 0, 0, 0, 0]], goods=K4, jarQueue=[COIN] * 8)
+    xs = sorted(x['x'] for x in drawn(q, 'place') if x['o'] == 0 and x['c'] == 0); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 1}); most, targets, ms = 0, set(), 0  # 2 matching edges of colour 0
+    while ms < 5000:
+        skip(q, 50); ms += 50; most = max(most, sum(1 for x in drawn(q, 'good') if x['o'] == 0 and x['c'] == 0))
+        targets |= {round(x['tx']) for x in drawn(q, 'flight') if x['look'] == 'good' and x['fx'] > xs[-1] + 40}  # goods flying from the board to the stockpile
+        w = st(q)['wait']
+        if w and w['kind'] == 'jar': break
+    g = st(q)['players'][0]; q.clock.resume()
+    ok = most <= 5 and targets <= {round(v) for v in xs} and g['goods'][0] == 1 and g['jars'] == 1
+    report(ok, 'stockpile: a full row becomes a jar before the next good', 'most goods in the row %d, goods flew to places %s (row %s), left %d, jars %d' % (most, sorted(targets), [round(v) for v in xs], g['goods'][0], g['jars']))
 
 def away_and_back(q, k):  # carry the tile in hand onto the board, leave it, then carry it back to its market place
     path(q, held(q), [640, 600]); path(q, held(q), q.evaluate("(k)=>__dg.slot(k)", k))
@@ -223,12 +234,12 @@ def f_sound_kinds(q):  # owner 24 Nov: "a weird blip when I tap a piece"; "jars 
     report(ok, 'sounds: wood tap, clay break, coin clink', 'heard %s; kinds in the game %s' % (h[:5], q.evaluate("()=>__dg.soundKinds()")))
 
 def f_many_jars_rows(q):  # owner 24 Nov: "when a lot of jars exist, make more rows, 6 jars per row; don't reduce their size"
-    get_jar_ready = lambda goods: (table(q, bag=[[0, 4]] * 4, goods=goods, jarQueue=[COIN] * 40), tap(q, 'draft-0'), waiting(q, 'place'), drag_to(q, {'x': 3, 'y': 6, 'r': 2}), waiting(q, 'jar'))
-    get_jar_ready(K4); one = drawn(q, 'jar')[0]['size']  # one jar alone: its size
-    get_jar_ready([[69, 0, 0, 0, 0], [0] * 5]); jars = drawn(q, 'jar')  # 70 goods of one colour: 14 jars at once
+    table(q, bag=[[0, 4]] * 4, goods=K4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); one = drawn(q, 'jar')[0]['size']  # one jar alone: its size
+    table(q, bag=[[0, 1]] * 4, goods=K44, jarQueue=[{'k': 'slot'}] + [COIN] * 20, slotQueue=[0, 0, 0], slotFaces=[['jar', 'coin', 'set', 'g2']] * 3)
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); waiting(q, 'jar'); tap(q, 'jar-0'); waiting(q, 'jar'); jars = drawn(q, 'jar')  # 2 jars; the first's slot machine shows three jars: 6 more
     rows = {}; [rows.setdefault(j['row'], []).append(j) for j in jars]
     W, H = q.evaluate("()=>[innerWidth, innerHeight]")
-    ok = len(jars) >= 14 and max(len(r) for r in rows.values()) == 6 and all(abs(j['size'] - one) < 0.5 for j in jars) and all(0 < j['y'] - j['size'] / 2 and j['y'] + j['size'] / 2 < H for j in jars)
+    ok = len(jars) == 7 and max(len(r) for r in rows.values()) == 6 and all(abs(j['size'] - one) < 0.5 for j in jars) and all(0 < j['y'] - j['size'] / 2 and j['y'] + j['size'] / 2 < H for j in jars)
     report(ok, 'jars: 6 to a row, more rows, same size', '%d jars in rows of %s, sizes %s (one alone %.0f)' % (len(jars), [len(r) for r in rows.values()], sorted({round(j['size']) for j in jars}), one))
 
 def f_many_coins(q):  # owner 24 Nov: "make sure more coins than you predicted can fit", then "coins are too stacked and squeezed, make them easier to count": rows of 5, apart, a gap after every 10
@@ -280,13 +291,11 @@ def f_round_end_shown(q):  # owner 24 Nov: the round's end is its own moment, se
     ok = returned and len(shown) >= 10 and moon and light and 'roundend' in h
     report(ok, 'end: tiles back to the pile, evening falls, its own moment', 'leftover tile flew back to the pile %s; evening shown %d00 ms, moon %s, board in view %s, sound %s' % (returned, len(shown), moon, light, 'roundend' in h))
 
-def f_goods_big(q):  # owner 24 Nov ("rethink all UI"): goods were tiny (about 20 px a column); goods big enough to see and count, each 5's jar outline inside its own column, set signs big
-    table(q, bag=[[0, 4]] * 4, goods=[[8, 4, 7, 2, 1], [0] * 5]); g = [x for x in drawn(q, 'good') if x['o'] == 0]
-    xs = sorted({round(x['x']) for x in g}); pitch = min(b - a for a, b in zip(xs, xs[1:]))
-    jars = [x for x in drawn(q, 'jargroup') if x['o'] == 0]; signs = [x for x in drawn(q, 'setsign') if x['o'] == 0]
-    r = min(x['r'] for x in g); wide = max(x['half'] for x in jars); sign = min(x['r'] for x in signs)
-    ok = r >= 10 and jars and 2 * wide < pitch - 2 and sign >= 12
-    report(ok, 'stockpile: goods big, jar outlines inside their column', 'goods radius %.1f px (at least 10), jar outline %.1f px wide in a %d px column, set sign radius %.1f (at least 12)' % (r, 2 * wide, pitch, sign))
+def f_goods_big(q):  # owner 24 Nov ("rethink all UI"): goods were tiny (about 20 px a column); goods big enough to see and count, set signs big
+    table(q, bag=[[0, 4]] * 4, goods=[[4, 4, 4, 2, 1], [0] * 5]); g = [x for x in drawn(q, 'good') if x['o'] == 0]; signs = [x for x in drawn(q, 'setsign') if x['o'] == 0]
+    r = min(x['r'] for x in g); sign = min(x['r'] for x in signs)
+    ok = r >= 10 and sign >= 12
+    report(ok, 'stockpile: goods big, set signs big', 'goods radius %.1f px (at least 10), set sign radius %.1f (at least 12)' % (r, sign))
 
 def f_turn_shown(q):  # owner 24 Nov: "make it obvious who plays; now there is no difference between me and the opponent playing": the player whose turn it is has his area lit, the other's is dimmed; a sound when the turn passes
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); settle(q)
@@ -354,7 +363,7 @@ def f_empty_jar(q):  # owner 24 Nov: some jars hold nothing: it breaks, shows it
 
 def f_jar_breaks(q):  # owner 24 Nov: "jars should visually break and the revealed bonus comes from inside them"; "the you play first should fly to its place"; a coin flies to his coins
     pause_clock(q); table(q, fast=False, bag=[[0, 1]] * 4, goods=K44, jarQueue=[COIN, {'k': 'first'}] + [COIN] * 8)  # the tile meets 2 edges: 2 jars
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}")
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 8000)
     def watch(btn, until):  # tap a jar, then watch the screen until the reward has landed
         at = q.evaluate("(b)=>__dg.btn(b)", btn); tap(q, btn); seen, ms = [], 0
         while ms < 3000:
@@ -375,7 +384,7 @@ def f_jar_breaks(q):  # owner 24 Nov: "jars should visually break and the reveal
 
 def f_jars_step_aside(q):  # owner 24 Nov: "the extra tile bonus makes the jars I was opening disappear; it should temporarily fly them to some free area"
     pause_clock(q); table(q, fast=False, bag=[[0, 1]] * 4, goods=K44, jarQueue=[{'k': 'tile'}] + [COIN] * 8)  # 2 jars; the first holds a tile
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-1')
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 8000); tap(q, 'jar-1')
     run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='place'}", 3000); q.clock.run_for(600); settle(q)
     T = q.evaluate("()=>innerHeight*0.16"); away = [j for j in drawn(q, 'jar') if j['o'] == 0]
     aside = len(away) == 1 and away[0]['y'] < T + 20
@@ -398,11 +407,6 @@ def f_new_game_mid_jar(q):  # found by the tests: a new game started while a jar
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-0')
     table(q, bag=[[0, 4]] * 4); q.clock.run_for(2000); settle(q); s = st(q); q.clock.resume()
     report(s['players'][0]['coins'] == 0 and s['wait']['kind'] == 'pick', 'new game: an old jar pays nothing into it', 'coins %d, wait %s' % (s['players'][0]['coins'], s['wait']))
-
-def f_many_goods_drawn(q):  # found by the tests (a seeded main game crashed): a column with very many goods of one colour must still draw
-    try: table(q, bag=[[0, 4]] * 4, goods=[[0, 0, 90, 0, 0], [0] * 5]); n = sum(1 for x in drawn(q, 'good') if x['o'] == 0 and x['c'] == 2); ok = n == 90; seen = '%d goods of colour 2 drawn' % n
-    except Exception as e: ok, seen = False, 'drawing failed: %s' % str(e).splitlines()[0][:80]
-    report(ok, 'stockpile: very many goods still draw', seen)
 
 def f_coins2(q):  # the 2 coins bonus
     get_jar(q, [{'k': 'coins2'}]); c = st(q)['players'][0]['coins']
