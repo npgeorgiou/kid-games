@@ -174,6 +174,22 @@ def f_leftovers_jar(q):  # at the end of the round each 3 of the same leftover g
     kid_plays(q, lambda s: s['phase'] == 'end'); waiting(q, 'jar'); p = st(q)['players'][0]
     report(p['jars'] == 3 and p['goods'] == [0, 0, 0, 0, 0], 'end: each 3 same leftovers a jar', 'jars %d goods %s' % (p['jars'], p['goods']))
 
+def f_goods_become_jars(q):  # owner 24 Nov: at the round's end the goods turn into jars one by one, visibly; then the leftovers fade out
+    pause_clock(q)  # the kid's last tile ends the round: 8 goods, 6 of one colour (2 jars), 2 left over
+    table(q, fast=False, bag=[[2, 2]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); waiting(q, 'jar'); tap(q, 'jar-0')
+    made, flying, faded, shown_left, ms = {}, False, False, {}, 0
+    while ms < 5000:
+        q.clock.run_for(100); ms += 100; settle(q); d = q.evaluate("()=>__dg.drawn()")
+        jars = sum(1 for x in d if x['k'] == 'jar' and x['o'] == 0 and not x.get('growing'))
+        goods = sum(1 for x in d if x['k'] in ('good', 'flying') and x['o'] == 0)
+        flying = flying or any(x['k'] == 'flying' for x in d); faded = faded or any(x['k'] == 'good' and x.get('a', 1) < 1 for x in d)
+        if jars not in made: made[jars] = ms; shown_left[jars] = goods
+        if st(q)['wait'] and st(q)['wait']['kind'] == 'jar': break
+    q.clock.resume()
+    ok = sorted(made) == [0, 1, 2] and made[2] - made[1] >= 500 and flying and faded and shown_left[1] == 5 and st(q)['players'][0]['jars'] == 2
+    report(ok, 'end: goods become jars one by one', 'jar counts first seen at %s ms, goods then %s, flying %s, fading %s' % (made, shown_left, flying, faded))
+
 def f_pc_best(q):  # the PC picks and places for the most jars
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)

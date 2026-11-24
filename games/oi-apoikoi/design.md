@@ -43,6 +43,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 4. **End of round.**
    - Owner rule: goods not spent are lost at the end of the round, but each 3 of the same good (for example 3 grain) become a jar (6 make 2). Sets don't become jars.
    - Owner rule: jars from leftover goods are opened at the end of the round.
+   - Owner rule (24 Nov): this is shown one group at a time: each 3 of a colour fly from the stockpile into a jar; then the leftover goods fade out.
 
 ### Jars
 - Owner rule: the child opens jars by tapping big jars lined up on screen. Opening one yourself is the fun.
