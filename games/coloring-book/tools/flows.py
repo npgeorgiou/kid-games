@@ -506,6 +506,7 @@ def f_palettes(q):  # owner 22 Nov 00:21, changed by him 23 Nov 10:27 and 22:37:
     import csv
     def his(name): return [[[int(h[k:k + 2], 16) for k in (1, 3, 5)] for h in r[1:11]] for r in list(csv.reader(open(GAME.parent / 'lib' / 'owner-palettes' / name)))[1:] if r and "Payne" not in r[0]]
     mono, rainbow = his('monochromatic.csv'), his('rainbow.csv')
+    rainbow[3] = [[int(h[k:k + 2], 16) for k in (0, 2, 4)] for h in SPECTRAL]  # owner 24 Nov 10:46: ColorBrewer Spectral replaces the 4th rainbow
     payne = [[int(h[k:k + 2], 16) for k in (1, 3, 5)] for h in "#15283C,#253A4E,#364C62,#495F75,#5D728A,#70879F,#859CB4,#9AB2CA,#AFC7E1,#C5DDF8".split(',')]
     tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)
     c = [[p['cols'] for p in col] for col in cols]
@@ -513,7 +514,7 @@ def f_palettes(q):  # owner 22 Nov 00:21, changed by him 23 Nov 10:27 and 22:37:
     grey_ok = len(grey) == 10 and all(max(g) - min(g) <= 2 for g in grey) and all(grey[i][0] < grey[i + 1][0] for i in range(9))
     above = q.evaluate("()=>document.querySelectorAll('.palpic .pal').length")
     box = q.evaluate("()=>{const r=document.querySelector('.popbox').getBoundingClientRect();return [r.width/innerWidth,r.height/innerHeight]}")
-    ok = [len(x) for x in c] == [12] * 4 and c[0][:7] + c[0][8:11] == mono and c[0][7] == payne and grey_ok  # owner 23 Nov 22:37: Payne's grey between Blue and Purple and c[1][:5] == rainbow and above == 0 and box[0] > 0.8 and box[1] > 0.75
+    ok = [len(x) for x in c] == [12] * 4 and c[0][:7] + c[0][8:11] == mono and c[0][7] == payne and grey_ok and c[1][:5] == rainbow and above == 0 and box[0] > 0.8 and box[1] > 0.75  # owner 23 Nov 22:37: Payne's grey between Blue and Purple (the rest of this check sat inside this comment until 24 Nov)
     report(ok, 'palettes: four columns of 12, monochromes then Payne\'s grey and a grey scale, nothing above',
            'columns %s, monochromes his %s, Payne %s, grey scale %s, rainbows %s, above %d, popup %.0f%% x %.0f%%' % ([len(x) for x in c], c[0][:7] + c[0][8:11] == mono, len(c[0]) > 7 and c[0][7] == payne, grey_ok, c[1][:5] == rainbow, above, box[0] * 100, box[1] * 100))
 FLOWS['palettes'] = f_palettes
@@ -550,16 +551,19 @@ def f_pal_dividers(q):  # owner 23 Nov: a vertical divider between column 1 (mon
     horiz = [l for l in lines if l[2] - l[0] > 5 * (l[3] - l[1]) and r5[3] <= l[1] and l[3] <= r6[1] and l[0] < r5[2] and l[2] > r5[0]]
     report(len(vert) == 1 and len(horiz) == 1, 'palettes: divider after column 1, divider after the 5 rainbows', 'vertical %d, horizontal %d' % (len(vert), len(horiz)))
 
+SPECTRAL = '9E0142 D53E4F F46D43 FDAE61 FEE08B E6F598 ABDDA4 66C2A5 3288BD 5E4FA2'.split()
 from palette_groups import GROUPS, group  # how many hues a palette shows, computed from its stripes (owner 24 Nov 10:32: never hand-set)
 
 def f_pal_order(q):  # owner 23 Nov 22:37, 24 Nov 08:50 and 10:32 (computed from the stripes; Red, Yellow and Green and Citrus to Deep Ocean two hues, Steel Blue and Red three): the extras (after the rainbows, down column 2, then 3, then 4): one smooth progression, two hues, three, many; Basic is one of them;
     tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)  # the green-red Red, Yellow and Green replaces Coral, Citrus and Olive; every row level across the columns
     ex = cols[1][5:] + cols[2] + cols[3]; hexes = ['%02X%02X%02X' % tuple(p['cols'][0]) for p in ex]; h = [GROUPS.index(group(['%02X%02X%02X' % tuple(c) for c in p['cols']])) for p in ex]  # from the stripes he sees
     back = [(i + 1, h[i], h[i + 1]) for i in range(len(h) - 1) if h[i + 1] < h[i]]
+    def lum(c): return 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
+    dark_up = all(all(lum(a) <= lum(b) for a, b in zip(p['cols'], p['cols'][1:])) for p, g in zip(ex, h) if g == 0)  # owner 24 Nov 10:46: a progression's stripes go darkest to lightest
     tops = [[round(p['box'][1]) for p in col] for col in cols]; level = all(abs(tops[k][r] - tops[0][r]) <= 1 for k in range(1, len(tops)) for r in range(min(map(len, tops))))
-    ok = len(ex) == 31 and not back and sorted(set(h)) == [0, 1, 2, 3] and 'F7F7F2' in hexes and 'A50026' in hexes and 'EB5E28' not in hexes and level and {'7F3B08', 'A6CEE3'} <= set(hexes) and not {'582F0E', 'F94144'} & set(hexes)  # owner 24 Nov 10:32: PuOr for Brown and Sage, Paired for Coral to Steel Blue
-    report(ok, 'palettes: extras progression, two, three, many hues (computed); Basic, PuOr, Paired among them, rows level', 'extras %d, a busier group before a simpler one (place, group, next) %s, Basic %s, red-yellow-green %s, coral gone %s, rows level %s'
-           % (len(ex), back[:3], 'F7F7F2' in hexes, 'A50026' in hexes, 'EB5E28' not in hexes, level))
+    ok = len(ex) == 31 and not back and sorted(set(h)) == [0, 1, 2, 3] and 'F7F7F2' in hexes and 'A50026' in hexes and 'EB5E28' not in hexes and level and {'7F3B08', 'A6CEE3', '67001F', '8DD3C7'} <= set(hexes) and not {'582F0E', 'F94144', 'A85633', '669900'} & set(hexes) and dark_up  # owner 24 Nov: PuOr for Brown and Sage, Paired for Coral to Steel Blue, RdGy for Terracotta, Sand and Sage, Set3 for Retro Primary Mix
+    report(ok, 'palettes: extras progression, two, three, many hues (computed); Basic, PuOr, Paired among them, rows level', 'extras %d, a busier group before a simpler one (place, group, next) %s, progressions dark to light %s, Basic %s, red-yellow-green %s, coral gone %s, rows level %s'
+           % (len(ex), back[:3], dark_up, 'F7F7F2' in hexes, 'A50026' in hexes, 'EB5E28' not in hexes, level))
 
 def f_pal_picture_only(q):  # owner 23 Nov: a guide picture gives only its own palette, no closest saved palette
     pt = q.evaluate("()=>__cb.btn('guide')")

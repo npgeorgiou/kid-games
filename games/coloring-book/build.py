@@ -11,7 +11,7 @@ icons = {}
 for f in sorted((here / "lib" / "phosphor").glob("*-fill.svg")):
     icons[f.name[:-len("-fill.svg")]] = re.search(r'<path d="([^"]+)"', f.read_text()).group(1)
 out = out.replace("/*%MIXBOX_GLSL%*/''", json.dumps(glsl)).replace("%MIXBOX_LUT%", "data:image/png;base64," + lut).replace("/*%ICONS%*/{}", json.dumps(icons))
-sys.path.insert(0, str(here / "tools")); from palette_groups import GROUPS, group  # how many hues each extra shows, computed
+sys.path.insert(0, str(here / "tools")); from palette_groups import GROUPS, group, oklch  # how many hues each extra shows, computed
 pals, div, extras, first = [], False, [], False
 for line in (here / "lib" / "palettes" / "palettes.txt").read_text().splitlines():
     if not line.strip() or line.startswith("#"): continue
@@ -22,6 +22,8 @@ for line in (here / "lib" / "palettes" / "palettes.txt").read_text().splitlines(
     (extras if grp == "x" else pals).append(p)
 extras.sort(key=lambda p: GROUPS.index(group(p["hex"].split())))  # one progression, two hues, three, many; the file's order within a group
 if extras: extras[0]["div"] = first
+for p in extras:  # a progression's stripes go darkest to lightest (owner 24 Nov 10:46)
+    if group(p["hex"].split()) == "progression": p["hex"] = " ".join(sorted(p["hex"].split(), key=lambda h: oklch(h)[0]))
 room = 12 - sum(p["grp"] == "2" for p in pals)  # what is left of column 2 after the rainbows
 for k, p in enumerate(extras): p["grp"] = "2" if k < room else "3" if k < room + 12 else "4"
 pals += extras
