@@ -720,7 +720,7 @@ def f_new_tools(q):  # owner 23 Nov: new drawing tools: spray, shapes, ink, penc
     got = {}
     for k, t in enumerate(('spray', 'shapes', 'ink', 'pencil')):
         tap(q, 'tool-' + t); tap(q, 'size-2'); tap(q, 'color-6'); y = 35 + 60 * k
-        drag(q, [(40, y), (360, y)]); got[t] = round(lum(across(q, 200, y, 10)))
+        drag(q, [(40, y), (360, y)]); got[t] = round(q.evaluate("(y)=>{let t=0,n=0;for(let x=80;x<320;x+=2)for(let j=-2;j<=2;j++){const c=S(x,y+j);t+=0.3*c[0]+0.59*c[1]+0.11*c[2];n++}return t/n}", y))  # a band, not one row: spray drops fall at random
     report(all(v < (238 if t == 'spray' else 200) for t, v in got.items()), 'new drawing tools paint', 'brightness on each stroke %s' % got)  # spray: loose drops, as far apart at every size (owner 24 Nov), so a small size is light
 
 def f_shapes_vary(q):  # owner 23 Nov: shape stamps along the stroke, each a slightly different colour from the chosen one
@@ -741,7 +741,19 @@ def f_ink_speed(q):  # owner 23 Nov: an ink pen: a slow line is wider than a fas
     drag(q, [(40, 70), (360, 70)], step=400, per_move=True); drag(q, [(40, 180), (360, 180)], step=2, per_move=True)
     fast, slow = width_across(q, 300, 70, 0, 1, 50), width_across(q, 300, 180, 0, 1, 50)
     report(slow > fast * 1.5, 'ink: slow lines wider than fast', 'width fast %d, slow %d' % (fast, slow))
-FLOWS.update({'new_tools': f_new_tools, 'shapes_vary': f_shapes_vary, 'pencil_grain': f_pencil_grain, 'ink_speed': f_ink_speed})
+def f_pencil_like_pictures(q):  # owner 23 Nov (his pencil pictures): passes build up, a line is lighter at its edges, a light pass is pale
+    def dark(x0, x1, y, h=0): return q.evaluate("([x0,x1,y,h])=>{let t=0,n=0;for(let x=x0;x<x1;x+=2)for(let j=-h;j<=h;j++){const c=S(x,y+j);t+=255-(0.3*c[0]+0.59*c[1]+0.11*c[2]);n++}return t/n}", [x0, x1, y, h])
+    tap(q, 'tool-pencil'); tap(q, 'shape-1'); tap(q, 'size-3'); tap(q, 'color-6'); hold(q, 'color-6', 0.6)  # light: a third
+    drag(q, [(30, 40), (370, 40)]); drag(q, [(30, 100), (370, 100), (30, 100), (370, 100)])
+    once, thrice = dark(80, 320, 40, 2), dark(80, 320, 100, 2)
+    report(thrice > once * 1.5, 'pencil: going back and forth darkens the line', 'darkness one pass %.0f, three %.0f' % (once, thrice))
+    tap(q, 'color-6'); drag(q, [(30, 190), (370, 190)])  # full: pressing hard
+    full = q.evaluate("()=>{const c=__cb.color();return 255-(0.3*c[0]+0.59*c[1]+0.11*c[2])}")
+    paper = dark(80, 320, 145, 2); prof = [dark(80, 320, 190 + j) - paper for j in range(0, 50, 2)]; edge = [d for d in prof if d > 8]  # darkness above the bare paper's
+    mid, rim = prof[0], edge[len(edge) * 3 // 4] if edge else 0  # three quarters of the way out
+    report(len(edge) > 2 and rim < mid * 0.6, 'pencil: a line is lighter towards its edges', 'darkness middle %.0f, edge %.0f' % (mid, rim))
+    report(once < full * 0.45, 'pencil: a light pass is pale', 'darkness light pass %.0f, the colour %.0f' % (once, full))
+FLOWS.update({'new_tools': f_new_tools, 'shapes_vary': f_shapes_vary, 'pencil_grain': f_pencil_grain, 'ink_speed': f_ink_speed, 'pencil_like_pictures': f_pencil_like_pictures})
 
 def f_simple_self_cross(q):  # owner 23 Nov 10:27, point 1: simple tool, blurry brush, ONE stroke that crosses itself: the crossing must not spoil the line (no X-shaped crease where it crosses)
     tap(q, 'tool-simple'); tap(q, 'blur-0'); tap(q, 'size-3'); tap(q, 'color-2')
@@ -766,7 +778,8 @@ def f_turn_every(q):  # owner 23 Nov 10:27, point 15: he cannot make the turn sw
         tap(q, 'tool-' + t); tap(q, 'shape-%d' % sh); tap(q, 'size-2'); tap(q, 'color-1')
         drag(q, [(x0, y0), (x0 + 200, y0 + 200)]); drag(q, [(x0, y0 + 360), (x0 + 200, y0 + 160)])
         if t == 'water': wait_dry(q)
-        a, b = width_across(q, x0 + 100, y0 + 100, 0.7071, -0.7071, 60), width_across(q, x0 + 100, y0 + 260, 0.7071, 0.7071, 60)
+        a = sum(width_across(q, x0 + 100 + d, y0 + 100 + d, 0.7071, -0.7071, 60) for d in range(-60, 61, 6)) / 21  # many places along each line: ink hairs fall at random
+        b = sum(width_across(q, x0 + 100 + d, y0 + 260 - d, 0.7071, 0.7071, 60) for d in range(-60, 61, 6)) / 21
         out.append('%s %d/%d' % (t, a, b))
         if not (a > 2 and b > 2 and max(a, b) / min(a, b) < 1.3): bad.append(t)
     report(not bad and q.evaluate("()=>__cb.st.turn"), 'turn switch: every flat brush turns with the stroke', 'not turning: %s; widths down-right/up-right: %s' % (bad, ', '.join(out)))
@@ -791,7 +804,7 @@ def f_flick_lifts(q):  # owner 23 Nov 10:27, point 16: speed works like lifting 
         tap(q, 'tool-' + t); tap(q, 'shape-0'); tap(q, 'size-2'); tap(q, 'color-1')
         flick(q, 100, 1500, y, v1=4500)  # 550 px/s at 100, 2000 at 430, 3200 at 800, 4500 at 1500 (owner 24 Nov: lifting starts later and is slower, so a flick runs longer)
         if t == 'water': wait_dry(q)
-        def w(x): return max(width_across(q, x + dx, y, 0, 1, 45) for dx in (-6, -3, 0, 3, 6)) if t != 'spray' else sum(width_across(q, x + dx, y, 0, 1, 45) for dx in range(-20, 21, 2))  # spray is loose drops: all its paint across a band
+        def w(x): return max(width_across(q, x + dx, y, 0, 1, 45, 215 if t == 'pencil' else 150) for dx in (-6, -3, 0, 3, 6)) if t != 'spray' else sum(width_across(q, x + dx, y, 0, 1, 45) for dx in range(-20, 21, 2))  # spray is loose drops: all its paint across a band; a pencil pass is light grey, as in jerk_tail
         start, mid, end = w(130), w(1000), w(1450)  # owner 23 Nov 20:18: lifting starts once the hand is fast and takes a few centimetres (24 Nov: more of them)
         out.append('%s %d>%d>%d' % (t, start, mid, end))
         if not (start >= 6 and mid < start * 0.8 and end == 0): bad.append(t)
