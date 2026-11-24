@@ -908,3 +908,14 @@ def f_long_lift(q):  # owner 24 Nov 08:50, point 1: he cannot make long lifts, t
 FLOWS['long_lift'] = f_long_lift
 PAPER['long_lift'] = ('1600x500', (0, 0))
 
+def f_spray_sizes(q):  # owner 24 Nov 08:50, point 4: smaller spray sizes put the drops closer together: every size sprays its drops equally far apart
+    tap(q, 'tool-spray'); tap(q, 'shape-0'); tap(q, 'color-1'); out = []
+    for i, (x0, R) in enumerate(((60, 8), (130, 16), (230, 28), (380, 48))):
+        tap(q, 'size-%d' % i); tap(q, 'color-1'); r = int(R * 0.7); got = []
+        for y0 in (60, 150, 240):  # three puffs of 0.3 s each, averaged (a small size gets only a drop or two a puff)
+            x, y = scr(q, x0, y0); q.mouse.move(x, y); q.mouse.down(); time.sleep(0.3); q.mouse.up(); time.sleep(0.1)
+            got.append(q.evaluate("([x0,y0,r])=>{let n=0,k=0;for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){if(dx*dx+dy*dy>r*r)continue;k++;const c=S(x0+dx,y0+dy);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<200)n++}return n/k}", [x0, y0, r]))
+        out.append(sum(got) / 3)
+    report(max(out) < min(out) * 1.6 and min(out) > 0, 'spray: drops as far apart at every size', 'share of the middle painted, small to big %s' % ['%.2f' % v for v in out])
+FLOWS['spray_sizes'] = f_spray_sizes
+PAPER['spray_sizes'] = ('500x300', (0, 0))

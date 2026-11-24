@@ -20,7 +20,7 @@ A painting game for a curious four-year-old, on a touchscreen PC. Not a workshee
 | Crayon (oil pastel) | tip, side | thick and opaque in the paper's raised grain; the bucket level is how hard it presses; passes build up, smear and blend, small lumps |
 | Marker | bullet, chisel | see-through ink: each layer darker, crossings and the edge darker |
 | Simple | round, square, each sharp or soft | plain digital paint: opacity is the bucket level, the soft row has blurred edges |
-| Spray | fine, coarse (droplet size) | an airbrush: puffs many times a second, so a fast hand leaves them further apart; droplets scattered over a round area, thinner at its edge |
+| Spray | fine, coarse (droplet size) | an airbrush: puffs many times a second, so a fast hand leaves them further apart; droplets scattered over a round area, thinner at its edge, as far apart at every size |
 | Shapes | square, circle, triangle, star, heart | as the Squares Brush: each shape as long as the hand moved in one frame and twice that across, touching the next, turned with the stroke, outlined, each a slightly different colour |
 | Ink | round, nib | opaque ink of many fine strands, thinner the faster the hand; a quick hand throws splash drops |
 | Pencil | sharp, blunt, side | coloured lead only on the paper's raised grain; the bucket level is how hard it presses |
