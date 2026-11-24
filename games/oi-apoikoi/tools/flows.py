@@ -399,9 +399,10 @@ def f_free_tile(q):  # a free extra tile from nowhere, always one that fits, pla
     get_jar(q, [{'k': 'tile'}]); waiting(q, 'place'); n0 = tile_count(q, 0); ok = len(st(q)['spots']) > 0; drag_to(q, best_spot(q))
     report(ok and tile_count(q, 0) == n0 + 1, 'tile: free tile fits and is placed', 'tiles %d -> %d' % (n0, tile_count(q, 0)))
 
-def f_free_tile_from_jar(q):  # owner 24 Nov: "an extra tile from the jar appears on top of the pile": it comes out of the jar, over the board, not in the pile's row
-    get_jar(q, [{'k': 'tile'}]); waiting(q, 'place'); h = held(q); top = q.evaluate("()=>innerHeight*0.16")
-    report(h[1] > top + 40, 'free tile: comes out of the jar, not the pile', 'tile at %s, pile row ends at %d' % (h, top))
+def f_free_tile_from_jar(q):  # owner 24 Nov: "the bonus tile should not appear on the board, but on the pile, marked somehow as yours"
+    get_jar(q, [{'k': 'tile'}]); waiting(q, 'place'); h = held(q); pile = drawn(q, 'pile')[0]; mark = drawn(q, 'heldmark')
+    ok = abs(h[0] - pile['x']) < 5 and abs(h[1] - pile['y']) < 5 and [m['o'] for m in mark] == [0]
+    report(ok, 'free tile: on the pile, marked as yours', 'tile at %s, pile top at %s, marked for %s' % (h, (pile['x'], pile['y']), [m['o'] for m in mark]))
 
 def f_another_jar(q):  # another jar, which you open yourself
     get_jar(q, [{'k': 'jar'}, {'k': 'coins2'}]); waiting(q, 'jar'); c0 = st(q)['players'][0]['coins']
