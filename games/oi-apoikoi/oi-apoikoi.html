@@ -141,19 +141,21 @@ async function play() {
     G.round++; G.phase = 'round';
     for (const p of G.players) { p.goods = [0, 0, 0, 0, 0]; p.got = 0; }
     for (const s of G.cells.values()) G.players[s.o].goods[s.c]++;
-    G.draft = G.bag.splice(0, 4);
+    G.draft = G.bag.splice(0, 4); G.locks = [];  // locks[k]: the player who won the bid on tile k; only he may pick it
     let turn = G.first ?? 0, passes = 0, passed = null;
     while (G === my && G.draft.some(t => t) && passes < 2) {
       const other = 1 - turn, P = G.players;
       if (P[turn].got >= 2 && P[other].got < 2 && passed !== other) turn = 1 - turn;  // 2 tiles each, unless the other has just passed
-      if (!G.draft.some(t => fits(t, turn))) { await pass(turn); passes++; passed = turn; turn = 1 - turn; continue; }
+      if (!G.draft.some((t, k) => pickable(k, turn))) { await pass(turn); passes++; passed = turn; turn = 1 - turn; continue; }
       passes = 0; passed = null;
       const k = await pick(turn); if (G !== my) return;
       const tile = G.draft[k]; G.chosen = k;
-      const winner = await bidding(turn, tile); if (G !== my) return;
-      G.draft[k] = null; G.chosen = -1; P[winner].got++;
-      await place(winner, tile, draftSlot(k)); if (G !== my) return;
-      if (winner === turn) turn = 1 - turn;  // a picker who lost the bid picks again
+      const winner = G.locks[k] === turn ? turn : await bidding(turn, tile); if (G !== my) return;  // a tile locked to you is yours without a bid
+      G.chosen = -1;
+      if (winner !== turn) { G.locks[k] = winner; continue; }  // the bid's winner locks the tile for himself; the picker picks again
+      G.draft[k] = null; P[turn].got++;
+      await place(turn, tile, draftSlot(k)); if (G !== my) return;
+      turn = 1 - turn;
     }
     if (G !== my) return;
     G.bag.push(...G.draft.filter(t => t)); G.draft = [];  // tiles nobody could place are not thrown: they go back under the pile (built for now)
@@ -166,8 +168,9 @@ async function play() {
   G.over = true; G.winner = a > b ? 0 : b > a ? 1 : -1;
 }
 async function pass(i) { G.players[i].passes++; G.passing = i; if (!G.players[i].human) G.hand.g = 'raised'; await pause(2400); G.passing = null; G.hand.g = 'point'; }
+const pickable = (k, i) => fits(G.draft[k], i) && (G.locks[k] ?? i) === i;  // fits his land and is not locked to the other player
 function pick(i) {
-  let best = -1, bm = -1; G.draft.forEach((t, k) => { if (fits(t, i) && jarsFor(t, i) > bm) { bm = jarsFor(t, i); best = k; } });
+  let best = -1, bm = -1; G.draft.forEach((t, k) => { if (pickable(k, i) && jarsFor(t, i) > bm) { bm = jarsFor(t, i); best = k; } });
   return choose('pick', i, {}, () => pcTap('draft-' + best));
 }
 async function bidding(picker, tile) {  // the opponent outbids by one; the picker only has to match (a tie is his)
@@ -279,7 +282,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); G = { board: 0, round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, shown: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); G = { board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, shown: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; });
@@ -402,7 +405,8 @@ function drawDraft() {
     const [x, y] = draftSlot(k), sel = k === G.chosen;
     rrect(x - ds - 12, y - ds / 2 - 12, 2 * ds + 24, ds + 24, 14, sel ? '#ffe9a8' : '#fbf3e2', sel ? '#e0a020' : '#cdb991', sel ? 4 : 2);
     if (!t) return;
-    const ok = fits(t, who);
+    const ok = pickable(k, who), lock = G.locks[k];
+    if (lock != null) rrect(x - ds - 6, y - ds / 2 - 6, 2 * ds + 12, ds + 12, 10, null, BORDER[lock], 5);  // locked: the winner's colour around it
     tileShape(x, y, ds, t, 0, ok ? null : 'grey', 'draft-' + k);
     if (ok && wait && wait.kind === 'pick') btn('draft-' + k, x - ds - 12, y - ds / 2 - 12, 2 * ds + 24, ds + 24, () => answer(k));
   });
@@ -532,7 +536,7 @@ window.__dg = {
   state() {
     return {
       round: G.round, phase: G.phase, first: G.first, over: G.over, winner: G.winner, passing: G.passing, slot: G.slot ? { w: G.slot.w.slice(), sel: G.slot.sel.slice() } : null,
-      wait: wait ? { kind: wait.kind, who: wait.who, r: wait.r } : null, draft: G.draft.map(t => t && t.slice()), fits: G.draft.map(t => fits(t, 0)),
+      wait: wait ? { kind: wait.kind, who: wait.who, r: wait.r } : null, draft: G.draft.map(t => t && t.slice()), fits: G.draft.map((t, k) => pickable(k, 0)),
       spots: wait && wait.kind === 'place' ? [0, 1, 2, 3].flatMap(r => spots(wait.tile, r, wait.who)) : [], snap: (s => s && { x: s.x, y: s.y, r: s.r })(snapSpot()),
       halves: [0, 1, 2, 3, 4].map(c => G.bag.concat(G.draft.filter(t => t)).flat().filter(v => v === c).length), left: G.bag.length + G.draft.filter(t => t).length,
       tiles: [...G.tiles.values()].map(t => [t.x, t.y, t.r, t.cs[0], t.cs[1], t.o, t.id]), passes: G.players.map(p => p.passes),

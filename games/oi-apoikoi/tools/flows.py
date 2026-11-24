@@ -131,6 +131,17 @@ def f_sets_of_five(q):  # a set is 5 goods, one of each; the PC bids when it pay
     ok = pc_bid == 1 and s['players'][0]['goods'] == [0, 0, 0, 0, 1] and s['players'][1]['goods'] == [1, 1, 1, 1, 2]
     report(ok, 'bid: sets of 5, tie to picker, winner pays', 'pc bid %d, kid %s, pc %s' % (pc_bid, s['players'][0]['goods'], s['players'][1]['goods']))
 
+def f_bid_locks(q):  # owner 24 Nov: winning a bid does not take the tile, it locks it: greyed for the other player, only the winner can pick it later
+    kid, pc = [[4, 4, 0, 2, 3, 0], [4, 2, 0, 4, 4, 0]], [[14, 4, 0, 2, 3, 1], [14, 2, 0, 4, 4, 1]]
+    table(q, bag=[[0, 1], [0, 0], [0, 0], [0, 0]], tiles=kid + pc, jarQueue=[COIN] * 20)
+    tap(q, 'draft-0'); waiting(q, 'bid'); tap(q, 'letgo'); waiting(q, 'pick'); s = st(q)
+    d = {x['id']: x for x in drawn(q, 'tile')}
+    locked = s['draft'][0] == [0, 1] and q.evaluate("()=>!__dg.btn('draft-0')") and d['draft-0']['look'] == 'grey' and s['players'][1]['goods'] == [0, 0, 0, 0, 1]
+    tap(q, 'draft-1'); waiting(q, 'place'); drag_to(q, best_spot(q))
+    s = kid_plays(q, lambda s: any(t[5] == 1 and t[3:5] == [0, 1] and t[:2] != [14, 6] for t in s['tiles']) or s['round'] > 1)
+    pc_took = any(t[5] == 1 and t[3:5] == [0, 1] and t[:2] != [14, 6] for t in s['tiles'])
+    report(locked and pc_took, 'bid: winner locks the tile, picks it later', 'locked for kid %s, PC took it later %s' % (locked, pc_took))
+
 def f_leftovers_jar(q):  # at the end of the round each 3 of the same leftover good make a jar; the rest are lost
     table(q, bag=[[0, 0]] * 4, tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0]], jarQueue=[COIN] * 20)
     kid_plays(q, lambda s: s['phase'] == 'end'); waiting(q, 'jar'); p = st(q)['players'][0]

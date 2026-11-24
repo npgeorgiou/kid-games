@@ -35,7 +35,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 
 ### A round
 1. **Tiles laid out** (a draft). Owner rule: tiles are picked in turn.
-2. **Picking and bidding** (owner rule). A set is 5 goods, one of each. Only the winner pays. The player whose turn it is picks a tile. The opponent may bid sets on it; then the bidding goes back and forth. On a tie, the player whose turn it was wins. The winner's tile is locked for him. A tile nobody bids on goes to the picker.
+2. **Picking and bidding** (owner rule). A set is 5 goods, one of each. Only the winner pays. The player whose turn it is picks a tile. The opponent may bid sets on it; then the bidding goes back and forth. On a tie, the player whose turn it was wins. The bid's winner does not take the tile: it is locked for him (greyed for the other player) and only he can pick it, later, on his turn; a picker who loses the bid picks again. A picker who wins (a tie is his) takes it now. A tile nobody bids on goes to the picker.
 3. **Placing.** Each player places his tiles in his own land.
    - Owner rule: one jar per matching edge, so one tile can earn several, and edges with the opponent's land count too. They are opened at once, during the round.
    - Owner rule: a tile is one rectangle, coloured half and half. The won tile stays where it is (in the top row at first): tap it to turn it, drag it and leave it anywhere, as often as you like, until it snaps into a place; before it snaps, the place is shown.
