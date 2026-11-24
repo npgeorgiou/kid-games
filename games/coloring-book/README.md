@@ -53,7 +53,7 @@ Shared with other games, at the repo root: `.githooks/` (the commit gate), `docs
 
 From this folder (once per clone: `git config core.hooksPath .githooks`):
 
-- `python3 tools/harness.py flows [names]` -- the play-through tests; most take 2-8 s; the watercolour, undo and undo-room ones 15-30 s (paint dries in real time); all of them about 4 minutes.
+- `python3 tools/harness.py flows [names]` -- the play-through tests; most take 2-8 s; the watercolour, undo and undo-room ones 15-30 s (paint dries in real time); all of them about 9 minutes (run in the background).
 - `python3 tools/previews.py` -- remake the brush previews after any change to how a tool, brush or canvas looks.
 - `python3 tools/looks.py` -- save the brush pictures again, only when a brush's look was meant to change.
 
@@ -65,17 +65,19 @@ Every check passes. A commit that changes the game must name its flow (`Flow: co
 
 ## Now
 
-Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words: "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape inside one drawing tool; "colour button" = a paint bucket filled to the paint amount. Palettes are stripe bars in four columns of 12 with dividers: monochromes (Payne's grey between Blue and Purple) and a grey scale, rainbows, then the extras by number of hues (one, two, three, more); no palette colour is ever dropped (a palette's own near-white or near-black is its white or black bucket, always first). The chosen bucket is a little bigger and ringed, and fits between the paper and the screen edge. Brushes and the pointer turn with the stroke (switch in the brush popup). Speed acts as pressure, and with the lift switch on a fast hand lifts the brush (numbers LIFT_FROM 2000, LIFT_FAST 4000, LIFT_TIME 0.17 in src K: paper dots a second, about 36 a cm); once off the paper it stays off until a new touch. Spray is an airbrush puffing on the clock; shapes are the Squares Brush; ink is fine strands that splash at quick (not lifting) speed. Tests include every brush's look (tools/looks) and every brush picture.
+Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words: "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape inside one drawing tool; "colour button" = a paint bucket filled to the paint amount. Palettes are stripe bars in four columns of 12 with dividers: monochromes (Payne's grey between Blue and Purple) and a grey scale, rainbows, then the extras by number of hues (one, two, three, more); no palette colour is ever dropped (a palette's own near-white or near-black is its white or black bucket, always first). The chosen bucket is a little bigger and ringed, and fits between the paper and the screen edge. Brushes and the pointer turn with the stroke (switch in the brush popup). Speed acts as pressure, and with the lift switch on a fast hand lifts the brush (numbers LIFT_FROM 2000, LIFT_FAST 4000, LIFT_TIME 0.17 in src K: paper dots a second, about 36 a cm); once off the paper it stays off until a new touch. Spray is an airbrush puffing on the clock; shapes are the Squares Brush; ink is fine strands that splash at quick (not lifting) speed. Tests include every brush's look (tools/looks) and every brush picture. The full flow run takes about 9 minutes (checks read the paper once per check).
 
 ## Open
 
 Do next, in this order (his words are in the Task list):
-- 22:37 point 2: near-duplicate palettes flagged to him with replacements (Earthy Woodland ~ Brown and Sage: ColorBrewer PuOr; Mediterranean Berry ~ Coral to Steel Blue: ColorBrewer Paired; Terracotta, Sand and Sage ~ Earth, Sage and Sky / Olive, Sand and Clay and Retro Primary Mix ~ Standard rainbow: no checked replacement yet). Waiting for his pick.
-- Lifting, spray, shapes, ink, pointer turning: waiting for his look.
-- 26: pencil needs work (his pencil pictures owner-shots/2026-11-23-pencil-*): only its grain curve was softened so a fast light line does not break.
-- p5.brush (https://p5-brush.cargo.site/, MIT): its page says it is meant for high-resolution artworks, maybe not live painting. Try it on one brush, measure stroke delay on a full paper at his screen size, show him, let him decide.
-- Batches 4-6: acrylic (11-14, 25), watercolour (17-21), crayon (22, his oil pastel pictures owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23).
-- The whole flow run now takes about 30 minutes (it was 4): find the slow flows.
+- 24 Nov point 3: his pick of the near-duplicate replacements (shown to him as stripes: Earthy Woodland or Brown and Sage -> ColorBrewer PuOr; Mediterranean Berry -> ColorBrewer Paired; Terracotta, Sand and Sage / Earth, Sage and Sky / Olive, Sand and Clay and Retro Primary Mix / Standard rainbow: no checked replacement yet), and whether any palette is in the wrong group.
+- 24 Nov point 4: "spray other shapes": asked him whether each drop is a shape (star, heart, square); waiting.
+- 24 Nov point 5: "a shapes line starts big no matter what" was not seen here (a slow start is small); what he did is unknown.
+- Lifting, spray, shapes, ink: waiting for his look at the 24 Nov changes.
+- 26: pencil needs work (his pencil pictures owner-shots/2026-11-23-pencil-*).
+- p5.brush (https://p5-brush.cargo.site/, MIT): try it on one brush, measure stroke delay on a full paper at his screen size (1536x960 at 125%), show him, let him decide.
+- Batches 4-6: acrylic (11-14, 25), watercolour (17-21), crayon (22, owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23).
+- Changes go to main through a pull request now (main refuses direct pushes); PR 2 holds the 24 Nov work.
 - Drying times; outline pictures later.
 
 ## Task list
