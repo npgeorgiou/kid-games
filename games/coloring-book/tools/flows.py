@@ -574,7 +574,8 @@ def f_pal_order(q):  # owner 23 Nov 22:37, 24 Nov 08:50 (replacing hues by slice
     back = [(i + 1, h[i], h[i + 1]) for i in range(len(h) - 1) if h[i + 1] < h[i]]
     tops = [[round(p['box'][1]) for p in col] for col in cols]; level = all(abs(tops[k][r] - tops[0][r]) <= 1 for k in range(1, len(tops)) for r in range(min(map(len, tops))))
     shown = {'%02X%02X%02X' % tuple(k) for p in ex for k in p['cols']}  # owner 24 Nov 13:31, point 3: Sienna to Sky (~ Red and Blue) and Lemon and Magenta dropped; suggested in their places ColorBrewer PuOr and Matplotlib cool
-    swapped = not {'76451D', 'F8CFAF', '901447', 'FFFFAD'} & shown and {'7F3B08', '2D004B', '00FFFF', 'FF00FF'} <= shown
+    # owner 24 Nov 14:00: Brown and Sage, Cyan and Magenta, Violet and Lime, Terracotta, Sand and Sage, Mediterranean Berry, Retro Primary Mix give way to six Coolors scene palettes he chose
+    swapped = not {'76451D', 'F8CFAF', '901447', 'FFFFAD', '582F0E', '00FFFF', '421869', 'A85633', '867ECF', '669900'} & shown and {'7F3B08', '2D004B', 'FFF04C', 'F2636A', '71093B', 'B0EBEB', 'FABC2A', '54478C'} <= shown
     ok = len(ex) == 31 and swapped and not back and -1 not in h and sorted(set(h)) == [0, 1, 2, 3] and 'F7F7F2' in hexes and 'A50026' in hexes and 'EB5E28' not in hexes and level
     report(ok, 'palettes: extras progression, two, three, many hues; Basic among them, rows level', 'swapped %s, extras %d, a busier group before a simpler one (place, group, next) %s, Basic %s, red-yellow-green %s, coral gone %s, rows level %s'
            % (swapped, len(ex), back[:3], 'F7F7F2' in hexes, 'A50026' in hexes, 'EB5E28' not in hexes, level))
@@ -663,13 +664,14 @@ def shifted_hue(k):  # a colour's place on the spectrum, red to violet (crimson 
     h = colorsys.rgb_to_hsv(*[v / 255 for v in k])[0] * 360
     return h - 360 if h >= 330 else h
 
-def f_pal_spectrum(q):  # owner 24 Nov 13:31, point 4: inside every palette the colours go like the spectrum, reddish first, then yellow, green, blue, violet (a later colour never more than 40 degrees back)
-    tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)  # his rainbows and Basic keep their own order
+def f_pal_spectrum(q):  # owner 24 Nov 13:31, point 4: a palette that runs along the spectrum runs reddish first, then yellow, green, blue, violet (a later colour never more than 40 degrees back)
+    tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)  # owner 24 Nov 14:00: no colours shuffled; a palette that runs along the spectrum neither way keeps its own order
     bad = []
+    def along(cs):
+        hs = [h for h in map(shifted_hue, cs) if h is not None]
+        return not any(hs[j] < hs[i] - 40 for i in range(len(hs)) for j in range(i + 1, len(hs)))
     for p in cols[1][5:] + cols[2] + cols[3]:
-        if tuple(p['cols'][0]) == (247, 247, 242): continue
-        hs = [h for h in map(shifted_hue, p['cols']) if h is not None]
-        if any(hs[j] < hs[i] - 40 for i in range(len(hs)) for j in range(i + 1, len(hs))): bad.append('%02X%02X%02X' % tuple(p['cols'][0]))
+        if along(p['cols'][::-1]) and not along(p['cols']): bad.append('%02X%02X%02X' % tuple(p['cols'][0]))
     report(not bad, 'palettes: colours inside each palette in spectrum order', 'out of order (first colour) %s' % bad)
 
 FLOWS.update({'pal_spectrum': f_pal_spectrum, 'pal_dividers': f_pal_dividers, 'pal_order': f_pal_order, 'pal_picture_only': f_pal_picture_only, 'pal_stripes': f_pal_stripes, 'canvas_bigger': f_canvas_bigger,

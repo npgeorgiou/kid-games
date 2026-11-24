@@ -1,6 +1,6 @@
-# Palettes shown in the palettes popup, 12 to a column. A line starts with its column (1-4); "---" draws a divider line there (it takes no row of its own). From the owner's files in lib/owner-palettes (owner 23 Nov 10:27): Inside every palette (not his rainbows, not Basic) the colours go like the spectrum, reddish first (owner 24 Nov 13:31): a gradient running the other way is turned round, a busy palette sorted.
+# Palettes shown in the palettes popup, 12 to a column. A line starts with its column (1-4); "---" draws a divider line there (it takes no row of its own). From the owner's files in lib/owner-palettes (owner 23 Nov 10:27): Inside every palette (not his rainbows, not Basic) the colours go like the spectrum, reddish first (owner 24 Nov 13:31): a gradient running the other way is turned round, a palette that runs along the spectrum neither way keeps its own order (owner 24 Nov 14:00).
 # 1 the monochromes (Payne's grey between Blue and Purple), a grey scale, each spread a bit darker and lighter than his files (owner 24 Nov 13:31); 2 the 5 rainbows, a divider, then the extras; 3 and 4 the extras. The extras go down the columns by what they hold (owner 24 Nov 08:50: one hue, two, three, many): one smooth progression, two hues, three hues, many hues; the group is the last field;
-# Basic is one of them (no top row); Red, Yellow and Green replaces Coral, Citrus and Olive; Brown and Sage and Coral to Steel Blue are the two Coolors palettes he gave as examples (21 Nov). Orange and Purple (ColorBrewer PuOr, 10 classes) and Cyan and Magenta (Matplotlib cool, 10 even steps) replace Sienna to Sky and Lemon and Magenta, near-duplicates (owner 24 Nov 13:31, suggested).
+# Basic is one of them (no top row); Red, Yellow and Green replaces Coral, Citrus and Olive; Brown and Sage and Coral to Steel Blue are the two Coolors palettes he gave as examples (21 Nov). Orange and Purple is ColorBrewer PuOr (10 classes). Sunset, Autumn, City, Beach, Spring garden and Meadow are Coolors popular 10-colour palettes he chose (24 Nov 14:00; the names are ours).
 1 Red | 540000 750000 960009 BD0017 E10023 FF2938 FF6E68 FF9991 FFBFB9 FFE4DF
 1 Orange | 7F3100 973F00 AE4B00 C65A00 DF6800 F97607 FF9045 FFAC77 FFC7A1 FFE0C6
 1 Yellow | A86700 BD7B00 CD8E00 DDA100 EDB508 F7C514 FFD61D FFE625 FFF32A FFFB3E
@@ -20,33 +20,33 @@
 2 Soft rainbow | F65356 FB8066 FEA671 FEC979 FEEA80 D7E586 A5DE94 5DAAD8 8187C7 C56BBA
 2 ---
 2 Spring Green to Ocean | D9ED92 B5E48C 99D98C 76C893 52B69A 34A0A4 168AAD 1A759F 1E6091 184E77 | progression
-2 Purple to Amber | AB4563 C65F66 E17869 E9854F F09135 FFAA00 380D61 511761 692161 8A3362 | progression
+2 Purple to Amber | 380D61 511761 692161 8A3362 AB4563 C65F66 E17869 E9854F F09135 FFAA00 | progression
 2 Violet to Aqua Gradient | 80FFDB 72EFDD 64DFDF 56CFE1 48BFE3 4EA8DE 5390D9 5E60CE 6930C3 7400B8 | progression
 2 Midnight Red and Flame | 03071E 370617 6A040F 9D0208 D00000 DC2F02 E85D04 F48C06 FAA307 FFBA08 | progression
-2 Brown and Sage | 582F0E 7F4F24 936639 A68A64 B6AD90 C2C5AA A4AC86 656D4A 414833 333D29 | two
 2 Earthy Woodland | 532A09 7B4618 915C27 AD8042 BFAB67 BFC882 A4B75C 647332 3E4C22 2E401C | two
 2 Orange and Purple | 7F3B08 B35806 E08214 FDB863 FEE0B6 D8DAEB B2ABD2 8073AC 542788 2D004B | two
-3 Brown and Teal | 543005 8C510A BF812D DFC27D F6E8C3 C7EAE5 80CDC1 35978F 01665E 003C30 | two
+2 Brown and Teal | 543005 8C510A BF812D DFC27D F6E8C3 C7EAE5 80CDC1 35978F 01665E 003C30 | two
 3 Purple and Green | 00441B 1B7837 5AAE61 A6DBA0 D9F0D3 E7D4E8 C2A5CF 9970AB 762A83 40004B | two
 3 Pink and Green | 276419 4D9221 7FBC41 B8E186 E6F5D0 FDE0EF F1B6DA DE77AE C51B7D 8E0152 | two
 3 Red and Blue | 67001F B2182B D6604D F4A582 FDDBC7 D1E5F0 92C5DE 4393C3 2166AC 053061 | two
 3 Steel Blue and Red | A3151A 726464 B09F9E 8D8896 AFB6C3 E7EDF1 8CAED8 6081AC 447CB2 294364 | two
 3 Sky Blue and Amber | FB8500 FB9017 FD9E02 FFB703 8ECAE6 73BFDC 58B4D1 219EBC 126782 023047 | two
 3 Electric Blue and Yellow | FFCB17 FFC600 FEDD00 FCF300 CFE57D A2D6F9 60B6FB 1E96FC 1360E2 072AC8 | two
-3 Cyan and Magenta | 00FFFF 1CE3FF 38C7FF 55AAFF 718EFF 8E71FF AA55FF C738FF E31CFF FF00FF | two
-3 Violet and Lime | 1F6924 509724 80C423 8EDF34 9CF945 BF99F2 995BD5 721CB8 491A74 421869 | two
 3 Olive, Sand and Clay | CABBB1 BDAA9D AD9585 997B66 D08C60 D9AE94 F1DCA7 FFCB69 9B9B7A 797D62 | three
-3 Terracotta, Sand and Sage | A85633 CF6E41 D37C4D D68A58 DEA66F E5C185 F0DAA5 FBF2C4 DAE0B8 B8CDAB | three
+3 City | 71093B 990B52 CB8B15 EAAA34 FFFFFF F1F4F9 749ED2 467EC3 023578 022450 | three
+3 Beach | B55200 FF9300 B0EBEB 00BFBF 007877 004242 FBA071 FFE3D3 FFB092 FF8A72 | three
 3 Red, Yellow and Green | A50026 D73027 F46D43 FDAE61 FEE08B D9EF8B A6D96A 66BD63 1A9850 006837 | three
-4 Citrus to Deep Ocean | CC4400 D66915 E08E29 F0C761 FFFF99 C2FCFF 7CC6DE 3890BC 1C489A 000077 | three
-4 Teal, Sand and Ember | 9B2226 AE2012 BB3E03 CA6702 EE9B00 E9D8A6 94D2BD 0A9396 005F73 001219 | three
+3 Citrus to Deep Ocean | CC4400 D66915 E08E29 F0C761 FFFF99 C2FCFF 7CC6DE 3890BC 1C489A 000077 | three
+3 Teal, Sand and Ember | 9B2226 AE2012 BB3E03 CA6702 EE9B00 E9D8A6 94D2BD 0A9396 005F73 001219 | three
 4 Aqua, Berry and Gold | AF1D3C DC244B D23F0F F05A29 F3B816 F6CB52 76C8B1 50B99B 73B7B8 52A1A3 | three
 4 Scandi Brick and Slate | C4594C C8A095 D5C9A4 A6A56E F2F4F7 C2C9CD 88A6B3 6BAFC9 5D86B5 394143 | many
-4 Jewel Burgundy and Gold | 94214B BD959D 9E0F1E 63141C AD382B D4AF37 EDFFAD 5B7436 096377 463A49 | many
+4 Jewel Burgundy and Gold | EDFFAD D4AF37 5B7436 096377 463A49 63141C 9E0F1E AD382B 94214B BD959D | many
 4 Earth, Sage and Sky | A85918 BA7631 DBAB5D EDD5AE FAFAFA AEC4AF 5B7865 CDE0F0 9DD5EB 9C96BD | many
 4 Basic | F7F7F2 0A0A0D DB0F12 FA730D FFE00F 1A8C26 0D33BF 731F99 FA8CB3 73401A | many
 4 Coral to Steel Blue | F94144 F3722C F8961E F9844A F9C74F 90BE6D 43AA8B 4D908E 577590 277DA1 | many
-4 Mediterranean Berry | B56F88 E36040 EC8151 F4A261 E9C46A 8AB17D 2A9D8F 287271 264653 867ECF | many
+4 Sunset | FFFFFF FFF04C FFC545 FF9B3E FF7037 D15053 A3306F 75108B 110015 B8D14B | many
+4 Autumn | F2636A DC4B4F C63333 E94900 EF6803 F58606 C1B225 72A85F 229E99 36A7A2 | many
+4 Spring garden | FABC2A FFCAB1 F38D68 EE6C4D F76F8E F2BAC9 7FD8BE A1FCDF 3B5249 519872 | many
 4 Watermelon Sorbet | CD0D58 EF476F FF9153 FFD166 AFD869 06D6A0 00AFB3 118AB2 0B617D 073B4C | many
-4 Ocean to Sunset Spectrum | D94A8C EA515F FE7434 FEA802 6FB1A0 15A2A2 1184A7 046DC8 0450B4 B4418E | many
-4 Retro Primary Mix | FF6600 FF9900 FFCC00 CCEE66 669900 99CC33 3399CC 006699 CC3399 990066 | many
+4 Ocean to Sunset Spectrum | 0450B4 046DC8 1184A7 15A2A2 6FB1A0 B4418E D94A8C EA515F FE7434 FEA802 | many
+4 Meadow | F29E4C F1C453 EFEA5A B9E769 83E377 16DB93 0DB39E 048BA8 2C699A 54478C | many
