@@ -852,10 +852,11 @@ def f_turn_every(q):  # owner 23 Nov 10:27, point 15: he cannot make the turn sw
     for i, (t, sh) in enumerate(tools):
         x0, y0 = 60 + (i % 4) * 380, 60 + (i // 4) * 420
         tap(q, 'tool-' + t); tap(q, 'shape-%d' % sh); tap(q, 'size-2'); tap(q, 'color-1')
-        drag(q, [(x0, y0), (x0 + 200, y0 + 200)]); drag(q, [(x0, y0 + 360), (x0 + 200, y0 + 160)])
+        if t == 'ink': tap(q, 'splash-0')  # splash drops fall at random and widen the line by chance (WARNINGS)
+        for o in (0, 130): drag(q, [(x0 + o, y0), (x0 + o + 200, y0 + 200)]); drag(q, [(x0 + o, y0 + 360), (x0 + o + 200, y0 + 160)])  # two lines each way: an ink line's width differs stroke to stroke
         if t == 'water': wait_dry(q)
-        a = sum(width_across(q, x0 + 100 + d, y0 + 100 + d, 0.7071, -0.7071, 60) for d in range(-60, 61, 6)) / 21  # many places along each line: ink hairs fall at random
-        b = sum(width_across(q, x0 + 100 + d, y0 + 260 - d, 0.7071, 0.7071, 60) for d in range(-60, 61, 6)) / 21
+        a = sum(width_across(q, x0 + o + 100 + d, y0 + 100 + d, 0.7071, -0.7071, 60) for o in (0, 130) for d in range(-60, 61, 6)) / 42  # many places along each line: ink hairs fall at random
+        b = sum(width_across(q, x0 + o + 100 + d, y0 + 260 - d, 0.7071, 0.7071, 60) for o in (0, 130) for d in range(-60, 61, 6)) / 42
         out.append('%s %d/%d' % (t, a, b))
         if not (a > 2 and b > 2 and max(a, b) / min(a, b) < 1.3): bad.append(t)
     report(not bad and q.evaluate("()=>__cb.st.turn"), 'turn switch: every flat brush turns with the stroke', 'not turning: %s; widths down-right/up-right: %s' % (bad, ', '.join(out)))
