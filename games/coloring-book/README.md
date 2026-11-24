@@ -36,7 +36,8 @@ Flat brushes are held at one fixed angle, unless the turn switch in the brush po
 | `build.py` | Inlines Mixbox, the icons, the palettes and the brush previews into the one game file. |
 | `lib/mixbox/` | Mixbox pigment mixing (shader `mixbox.glsl`, lookup picture `mixbox_lut.png`, `LICENSE`: CC BY-NC 4.0, Secret Weapons). |
 | `lib/phosphor/` | Phosphor icons used on the buttons (`LICENSE`: MIT). |
-| `lib/palettes/palettes.txt` | The palettes shown in the four columns (the owner's own), with the divider marks. |
+| `lib/palettes/palettes.txt` | The palettes shown in the four columns, with the divider marks; the extras (x) are placed by `build.py`. |
+| `tools/palette_groups.py` | Counts the hues a palette shows from its stripes; `build.py` orders the extras by it and the palette test checks it. |
 | `lib/owner-palettes/` | The owner's palette files (22 Nov), the source of the four columns. |
 | `lib/previews/` | The brush popup's stroke pictures, one file per canvas; made by `tools/previews.py`. |
 | `design.md` | The design sheet approved at the start (20 Nov). |

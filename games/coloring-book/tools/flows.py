@@ -550,21 +550,15 @@ def f_pal_dividers(q):  # owner 23 Nov: a vertical divider between column 1 (mon
     horiz = [l for l in lines if l[2] - l[0] > 5 * (l[3] - l[1]) and r5[3] <= l[1] and l[3] <= r6[1] and l[0] < r5[2] and l[2] > r5[0]]
     report(len(vert) == 1 and len(horiz) == 1, 'palettes: divider after column 1, divider after the 5 rainbows', 'vertical %d, horizontal %d' % (len(vert), len(horiz)))
 
-GROUPS = ['progression', 'two', 'three', 'many']  # the extras' groups, in the order shown (owner 24 Nov 08:50: by hue the way he sees it: one smooth progression, two hues, three, many)
-def pal_groups():  # each extra palette's group, by its first colour, from lib/palettes/palettes.txt (shown to him as stripes, 24 Nov)
-    out = {}
-    for l in (pathlib.Path(__file__).parent.parent / 'lib' / 'palettes' / 'palettes.txt').read_text().splitlines():
-        f = [t.strip() for t in l[2:].split('|')] if l[:1] in '234' else []
-        if len(f) == 3: out[f[1].split()[0]] = f[2]
-    return out
+from palette_groups import GROUPS, group  # how many hues a palette shows, computed from its stripes (owner 24 Nov 10:32: never hand-set)
 
-def f_pal_order(q):  # owner 23 Nov 22:37, 24 Nov 08:50 (replacing hues by slices of the colour wheel): the extras (after the rainbows, down column 2, then 3, then 4): one smooth progression, two hues, three, many; Basic is one of them;
+def f_pal_order(q):  # owner 23 Nov 22:37, 24 Nov 08:50 and 10:32 (computed from the stripes; Red, Yellow and Green and Citrus to Deep Ocean two hues, Steel Blue and Red three): the extras (after the rainbows, down column 2, then 3, then 4): one smooth progression, two hues, three, many; Basic is one of them;
     tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)  # the green-red Red, Yellow and Green replaces Coral, Citrus and Olive; every row level across the columns
-    ex = cols[1][5:] + cols[2] + cols[3]; hexes = ['%02X%02X%02X' % tuple(p['cols'][0]) for p in ex]; g = pal_groups(); h = [GROUPS.index(g[x]) if g.get(x) in GROUPS else -1 for x in hexes]
+    ex = cols[1][5:] + cols[2] + cols[3]; hexes = ['%02X%02X%02X' % tuple(p['cols'][0]) for p in ex]; h = [GROUPS.index(group(['%02X%02X%02X' % tuple(c) for c in p['cols']])) for p in ex]  # from the stripes he sees
     back = [(i + 1, h[i], h[i + 1]) for i in range(len(h) - 1) if h[i + 1] < h[i]]
     tops = [[round(p['box'][1]) for p in col] for col in cols]; level = all(abs(tops[k][r] - tops[0][r]) <= 1 for k in range(1, len(tops)) for r in range(min(map(len, tops))))
-    ok = len(ex) == 31 and not back and -1 not in h and sorted(set(h)) == [0, 1, 2, 3] and 'F7F7F2' in hexes and 'A50026' in hexes and 'EB5E28' not in hexes and level
-    report(ok, 'palettes: extras progression, two, three, many hues; Basic among them, rows level', 'extras %d, a busier group before a simpler one (place, group, next) %s, Basic %s, red-yellow-green %s, coral gone %s, rows level %s'
+    ok = len(ex) == 31 and not back and sorted(set(h)) == [0, 1, 2, 3] and 'F7F7F2' in hexes and 'A50026' in hexes and 'EB5E28' not in hexes and level and {'7F3B08', 'A6CEE3'} <= set(hexes) and not {'582F0E', 'F94144'} & set(hexes)  # owner 24 Nov 10:32: PuOr for Brown and Sage, Paired for Coral to Steel Blue
+    report(ok, 'palettes: extras progression, two, three, many hues (computed); Basic, PuOr, Paired among them, rows level', 'extras %d, a busier group before a simpler one (place, group, next) %s, Basic %s, red-yellow-green %s, coral gone %s, rows level %s'
            % (len(ex), back[:3], 'F7F7F2' in hexes, 'A50026' in hexes, 'EB5E28' not in hexes, level))
 
 def f_pal_picture_only(q):  # owner 23 Nov: a guide picture gives only its own palette, no closest saved palette
