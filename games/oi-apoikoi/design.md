@@ -34,13 +34,14 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Owner rule: 4 tiles are laid out per round, 2 for each player; 10 rounds, 20 tiles each.
 
 ### A round
-1. **Tiles laid out** (a draft). Owner rule: tiles are picked in turn.
-2. **Picking and bidding** (owner rule). A set is 5 goods, one of each. Only the winner pays. The player whose turn it is picks a tile. The opponent may bid sets on it; then the bidding goes back and forth. On a tie, the player whose turn it was wins. The bid's winner does not take the tile: it is locked for him (greyed for the other player) and only he can pick it, later, on his turn; a picker who loses the bid picks again. A picker who wins (a tie is his) takes it now. A tile nobody bids on goes to the picker.
-3. **Placing.** Each player places his tiles in his own land.
+1. **Start of round.** Owner rule: each square of land makes 1 good of its terrain. All goods are worth the same. Owner rule (24 Nov): a tile placed during the round (picked, stolen or free) makes its 2 goods at once too.
+2. **Tiles laid out** (a draft). Owner rule: tiles are picked in turn.
+3. **Picking and bidding** (owner rule). A set is 5 goods, one of each. Only the winner pays. The player whose turn it is picks a tile. The opponent may bid sets on it; then the bidding goes back and forth. On a tie, the player whose turn it was wins. The bid's winner does not take the tile: it is locked for him (greyed for the other player) and only he can pick it, later, on his turn; a picker who loses the bid picks again. A picker who wins (a tie is his) takes it now. A tile nobody bids on goes to the picker.
+   - Owner rule: tiles you can't place are greyed (colours still visible) and can't be picked. With none to pick, your turn passes, slowly and clearly, and the other player plays again. No tile is thrown.
+4. **Placing.** Each player places his tiles in his own land.
    - Owner rule: one jar per matching edge, so one tile can earn several, and edges with the opponent's land count too. They are opened at once, during the round.
    - Owner rule: a tile is one rectangle, coloured half and half. The won tile stays where it is (in the top row at first): tap it to turn it, drag it and leave it anywhere, as often as you like, until it snaps into a place; before it snaps, the place is shown.
-0. **Start of round.** Owner rule: each square of land makes 1 good of its terrain. All goods are worth the same. Owner rule (24 Nov): a tile placed during the round (picked, stolen or free) makes its 2 goods at once too.
-4. **End of round.**
+5. **End of round.**
    - Owner rule: goods not spent are lost at the end of the round, but each 3 of the same good (for example 3 grain) become a jar (6 make 2). Sets don't become jars.
    - Owner rule: jars from leftover goods are opened at the end of the round.
    - Owner rule (24 Nov): this is shown one group at a time: each 3 of a colour fly from the stockpile into a jar; then the leftover goods fade out.
@@ -54,9 +55,6 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Owner rule: stealing takes a tile already in the opponent's land; you place it in yours. A tile with no place in your land can't be stolen. Whether the opponent's land stays connected does not matter.
 - Owner rule: a free tile is always one that can be placed.
 - Owner rule: nobody starts with the first-player token; a jar sometimes gives it. Without it, the human player goes first (with two humans, one of them). The holder opens his end-of-round jars first.
-- Owner rule: a picker who loses the bid picks again.
-- Owner rule: tiles you can't place are greyed (colours still visible) and can't be picked. With none to pick, your turn passes, slowly and clearly, and the other player plays again. No tile is thrown.
-- Owner rule: the game ends when no tile left can be placed by either player.
 - Rejected by the owner:
   - An unbeatable first pick: hard to show visually.
   - A second tile next round: changed into the free tile from nowhere.
@@ -67,9 +65,8 @@ Two players each build their own land from tiles with two terrain halves. Each r
 
 ### Slot machine (a jar bonus)
 - Owner rule: it has 3 wheels. Their pictures are all the game's resources: the 5 goods, points (coins) and jars.
-- Owner rule: it spins once. Then you pay 1 coin to reroll whichever wheels you choose, as many times as you want. When all 3 show the same, you win it.
+- Owner rule: it spins once. Then you pay 1 coin to reroll whichever wheels you choose, as many times as you want.
 - Owner idea: wheel pictures can show amounts, such as 2 grain or 3 coins. To be worked out later.
-- Owner idea: 2 matching wins 2 of that thing, and 3 matching wins 3.
 - Known odds: with 7 pictures, once two wheels match, each reroll has a 1 in 7 chance, so a third match costs about 7 coins on average. The first spin shows a pair about 4 times in 10.
 - Proposals, not chosen:
   - Each machine shows only 3 of the 7 kinds (a 1 in 3 chance per reroll).
@@ -94,7 +91,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 ## 4. Tensions (from the rules so far)
 
 - Placing one half well forces the other half somewhere.
-- Matching edges for jars pulls toward one terrain. Sets (3 different goods) for bidding pull toward variety.
+- Matching edges for jars pulls toward one terrain. Sets (5 goods, one of each) for bidding pull toward variety.
 - Bidding goods wins tiles, while keeping 3 of the same good makes a jar.
 
 ## 5. Design sheet rows (required by `docs/design-rules.md`)
