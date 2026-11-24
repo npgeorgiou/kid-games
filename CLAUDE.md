@@ -4,6 +4,8 @@ Library of independent HTML5 touchscreen games with Greek settings, for a Window
 
 Game design rules (product rules, quantities, periods, tech, design sheet, game folders, process, the brief): `docs/design-rules.md`. Read the part a task needs.
 
+UI design guidelines: `tools/ui-design/README.md`. Read them and follow them, checklist included, before designing or changing anything a player sees or hears.
+
 ## Start of every chat
 
 1. Attach the repo with `add_repo` (push access). If it or a push is refused, retry once before saying anything about access. Then turn on the commit gate: `git config core.hooksPath .githooks`.
@@ -64,7 +66,8 @@ Rules a machine can check are checked by the commit check (`.githooks/commit-msg
 - Never contradict what he says he did or saw; an unknown cause is stated as unknown and found with a test.
 - Never call anything agreed or done unless he said so. A proposal stays a proposal.
 - Questions to him are yes/no or pick-one, and say what each answer changes.
-- Go through every point and question in his message before replying; none dropped. A long list is copied verbatim into the game's `README.md` "Task list" first and answered point by point, numbered as he numbered them.
+- Go through every point and question in his message before replying; none dropped; answer in his numbering.
+- His messages stay in the chat, never in the repo. What goes into the game's `README.md` "Task list" is his requests as short todos: rewritten, merged and compacted so each is terse and clear. A todo is deleted when it is done.
 - Never invent rules, stats, mechanics or history. Research historical details; unknown is unknown.
 
 ## Working
@@ -78,4 +81,4 @@ Rules a machine can check are checked by the commit check (`.githooks/commit-msg
 - At the end of a chat, rewrite the game's `README.md` "Now" and "Open" (what the game is now and what is open, short) and its line in Status in `docs/design-rules.md`.
 - Every game has a `README.md`, readable by a person: what the game is, how to play it, its levels or parts, where every file and folder is and what it is for, how to run its checks, then "Now", "Open" and "Task list". Example: `games/arxitektones-tou-arxaiou-kosmou/README.md`. A new game gets one from the start; a file added, moved or removed is changed in its map in the same commit.
 - History lives only in git commit messages: never a history, log or changelog file, never updates appended to a file, never a list of what was done or when ("done: batch 1 ..." is a log).
-- Hand off when going on costs more than a new chat: when the chat is so long that each step spends many of the owner's tokens, or when rules start slipping (a rule broken, a point dropped, a question asked twice). Not after a fixed number of messages. Then rewrite "Open" and give one line to paste into the next chat; his words and screenshots stay in the repo.
+- Hand off when going on costs more than a new chat: when the chat is so long that each step spends many of the owner's tokens, or when rules start slipping (a rule broken, a point dropped, a question asked twice). Not after a fixed number of messages. Then rewrite "Open", make sure every open request is a todo in the Task list, and give one line to paste into the next chat.
