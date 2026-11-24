@@ -83,11 +83,9 @@ The game is complete and playable. The tutorial never stops, whatever the child 
 
 ## Open
 
-- The tests do not yet keep the owner's 24 Nov rules (Task list 3, 5): 16 use the Ctrl quick build or the Ctrl fast test, 1 cuts spoken lines off from inside the game, and many set the game's state from inside (the tutorial's place, the cue memory, a finished site). Each is to be redone as screen play: taps, drags and keys as the child does them, on the first site following the tutorial's own lessons.
-- Proposal, not agreed: a starting state only through the game's own save (what a child who played that far would have), never written into the game while it runs.
-- tutorial-test-before-red-step and tutorial-test-before-undo-step fail: after a pass the test button is grey, so the "red button" and "green" lessons wait forever. Redo them as screen play first; if the stuck lesson still happens, ask the owner (skip those lessons after a pass, or keep the button pressable while they wait).
-- Waiting for the owner: short test sounds (Task list 2). The test page now has silent sounds of the real lengths.
-- The game's clock jumped forward in tests ran the game only 2 to 4 times faster, and tutorial-early-brick then passed once and failed once (cause unknown); not kept.
+- The whole-game test takes about 6 minutes here; the commit check allows 10. The slowest steps are the ones built by hand (the owner's first-site build, the wooden-top building).
+- The drag-back lesson's "piece put in before / after the line" variants are played once, as "during"; the random cue check (cuetest) covers other orders.
+- Sites 2-10 are finished with the quick build (owner 24 Nov); building them by hand is not tested.
 
 ## Task list
 
