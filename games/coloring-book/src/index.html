@@ -149,7 +149,7 @@ const K = {
   CF: 0.4, DEEP: 0.3, KP: 0.015, MAXF: 0.5, // flow: speed, how deep water pushes onto dry paper, pull of the paper's dips, most water leaving a pixel per step
   EV: 0.15, EDGE: 25, W0: 0.02, SETTLE: 30, DEP0: 0.05, GRAN: 0.35, LIFT: 0.3, DAMPW: 2, DAMPE: 2, FIX: 4, // drying, edge drying, settling, granulation, lifting, damp paper, fixing
   PASTEL_GIVE: 1 / 2500, PASTEL_TAKE: 0.06, PASTEL_STICK: 8, PASTEL_REACH: [0.45, 0.65, 0.82], PASTEL_FILL: 1.2, PASTEL_LUMP: 0.004, // oil pastel: lays thick, picks up and smears soft paint, a stick lasts (8 brushfuls); how far into the grain each bucket level (pressure) reaches; laid paint fills the dips; lumps
-  PENCIL_WAX: [0.75, 0.4], PENCIL_PRESS: [0.35, 0.6, 1], STAMP_LIGHT: 0.25, STAMP_HUE: 0.1, SHAPE_FILL: 0.45, SHAPE_FRAME: 1 / 60, SHAPE_TOP_V: 1000, SHAPE_TAP_V: 550, INK_AMOUNT: 7, INK_SPLASH: [0, 0.12, 0.25, 0.5], INK_SPLASH_V: 900, // ink (av01d fabric-brushes): how much ink the strands carry; splash drops: none, few, some, many (owner 24 Nov: a quarter of before)
+  PENCIL_WAX: [0.7, 0.37], PENCIL_PRESS: [0.35, 0.6, 1], STAMP_LIGHT: 0.25, STAMP_HUE: 0.1, SHAPE_FILL: 0.45, SHAPE_FRAME: 1 / 60, SHAPE_TOP_V: 1000, SHAPE_TAP_V: 550, INK_AMOUNT: 7, INK_SPLASH: [0, 0.12, 0.25, 0.5], INK_SPLASH_V: 900, // ink (av01d fabric-brushes): how much ink the strands carry; splash drops: none, few, some, many (owner 24 Nov: a quarter of before)
   SPRAY_DROPS: 24, SPRAY_HOLD: 200, // owner 23 Nov: pencil (lead pressure per bucket level), shapes (colour spread), spray
   MARK_INK: 0.6, MARK_RIM: 1.5, // one layer of ink is lighter than the colour, so layers build up darker; owner 21 Nov: a real marker: see-through ink, crossing strokes darker, ink gathers at the edge
   LIFT_FROM: 2000, LIFT_FAST: 4000, LIFT_TIME: 0.17, // owner 23 Nov: a fast hand lifts the brush (with the lift switch on). Paper pixels a second (his screen about 36 a cm): above LIFT_FROM (about 55 cm/s) it
@@ -556,7 +556,7 @@ function waterDab(s, cx, cy) {
 }
 const liftPaint = (s) => 0.5 + 0.5 * s.lift; // a lifting brush leaves a little less paint
 const liftWide = (s) => 1 - (1 - s.lift) ** 2; // how wide a lifting brush still touches: it narrows gently at first, then to a point
-const leadPress = (s) => 0.85 + 0.15 * Math.min(1, s.pres); // a pencil hand presses about as hard fast as slow: speed lightens the lead only a little (owner 24 Nov: no fading after the start)
+const leadPress = (s) => 0.6 + 0.4 * Math.min(1, s.pres); // a pencil hand presses about as hard fast as slow: speed lightens the lead a little (owner 24 Nov: no fading after the start; a faster hand a bit lighter)
 const tipWide = (s) => (0.7 + 0.3 * Math.min(1, s.pres)) * liftWide(s); // how wide the tip touches: less pressed, and lifting, it is narrower
 function simpleDab(s, cx, cy) { // the simple brush, the marker (see-through ink, model part 6), ink and pencil (part 8)
   const R = s.r, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]), t = s.tool, mk = t === 'marker', sharp = mk;
