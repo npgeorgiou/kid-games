@@ -228,6 +228,13 @@ def f_jars_from_edges(q):  # owner 24 Nov: show which edges matched, and each ja
     ok = glows == 2 and all(seen) and len(late) == 2 and min(late) > 3 * size and h[:3] == ['pick', 'snap', 'edge'] and h.count('edge') == 2
     report(ok, 'jars: matched edges glow, jars come out of them', 'edges glowing %d; a jar seen at each edge %s, then %s px away; sounds %s' % (glows, seen, [round(v) for v in late], h[:4]))
 
+def f_jars_apart(q):  # owner 24 Nov: "jar circles are touching": every jar and its glow stands apart, with a clear gap
+    table(q, bag=[[0, 1]] * 4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); waiting(q, 'jar'); settle(q)
+    jars = sorted((d['x'], d['size'] / 2) for d in drawn(q, 'jar')); glows = sorted((d['x'], d['r']) for d in drawn(q, 'jarglow'))
+    gaps = [b[0] - a[0] - a[1] - b[1] for row in (jars, glows) for a, b in zip(row, row[1:])]
+    ok = len(jars) == 2 and len(glows) == 2 and min(gaps) >= 12
+    report(ok, 'jars: apart, with a gap between them', 'gaps between jars and between glows %s px' % [round(g) for g in gaps])
+
 def f_pc_best(q):  # the PC picks and places for the most jars
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)
