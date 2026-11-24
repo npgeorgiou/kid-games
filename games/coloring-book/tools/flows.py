@@ -938,3 +938,12 @@ def f_shapes_brushes(q):  # owner 24 Nov 08:50, point 5: the brush pictures all 
     ok = ids == ['square', 'circle', 'triangle', 'star', 'heart', 'grass'] and len(sig) == 6 and len(set(sig)) == 6
     report(ok, 'shapes: brushes square, circle, triangle, star, heart, grass, each pictured as its shape', 'brushes %s, different pictures %d of %d' % (ids, len(set(sig)), len(sig)))
 FLOWS['shapes_brushes'] = f_shapes_brushes
+
+def f_ink_splash_less(q):  # owner 24 Nov 08:50, point 6: ink splashes far too much, at every splash setting: a quarter of the drops of 23 Nov (few 11, some about 40, many 92 spots here then)
+    tap(q, 'tool-ink'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-1'); out = []
+    for i, y in ((1, 80), (2, 220), (3, 360)):
+        tap(q, 'splash-%d' % i); jerk(q, 40, 560, y, 2600)
+        out.append(q.evaluate("(y0)=>{let n=0;for(let dy=-60;dy<=60;dy+=4){if(Math.abs(dy)<40)continue;let was=false;for(let x=40;x<560;x++){const c=S(x,y0+dy),d=0.3*c[0]+0.59*c[1]+0.11*c[2]<150;if(d&&!was)n++;was=d}}return n}", y))  # drops crossed by rows well off the stroke (a big drop counts once a row, not by its pixels)
+    report(0 < sum(out) <= 50, 'ink: a quarter of the splashing, every setting', 'splash spots few, some, many %s (drops crossed; 23 Nov about 140-160 together; random drops, so the three together)' % out)
+FLOWS['ink_splash_less'] = f_ink_splash_less
+PAPER['ink_splash_less'] = ('600x450', (0, 0))
