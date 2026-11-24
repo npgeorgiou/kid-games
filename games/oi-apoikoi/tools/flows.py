@@ -4,7 +4,7 @@
 # Colours are numbered 0-4 (0 the most common); a tile is [first half, second half]; the board is 20 x 13 squares, the start tiles [0, 1] at (4, 6) and (14, 6).
 # A table tile is [x, y, turn, colour, colour, owner]: turn 0 puts the second half to the right, 1 below, 2 left, 3 above; owner 0 is the kid, 1 the PC.
 # Jar contents a test needs are queued: {'k': 'coins'}, {'k': 'coins2'}, {'k': 'slot'}, {'k': 'steal'}, {'k': 'first'}, {'k': 'tile'}, {'k': 'jar'}, {'k': 'set'}.
-import time, pathlib
+import time, pathlib, datetime
 from playwright.sync_api import sync_playwright
 GAME = next((pathlib.Path(__file__).resolve().parent.parent).glob('*.html'))  # this copy's own built page (whatever its name then), so old and new code can be tested at once
 COIN = {'k': 'coins'}
@@ -24,6 +24,8 @@ def path(q, a, b, up=True):  # a finger drag: press, move in small steps, let go
     q.mouse.move(a[0], a[1]); q.mouse.down(); q.mouse.move(b[0], b[1], steps=6)
     if up: q.mouse.up()
     settle(q)
+def pause_clock(q):  # stop the page's fake clock a second ahead; run_for then moves it on (a date, not a number: a number after an earlier pause is refused)
+    q.clock.pause_at(datetime.datetime.fromtimestamp(q.evaluate("()=>Date.now()") / 1000 + 1))
 def held(q): return q.evaluate("()=>__dg.held()")
 def drag_to(q, sp):  # turn the tile where it lies by tapping it, then drag it to the spot {x, y, r}
     while st(q)['wait']['r'] != sp['r']: h = held(q); q.mouse.click(h[0], h[1]); settle(q)
@@ -140,16 +142,19 @@ def f_pc_best(q):  # the PC picks and places for the most jars
     pc = [t[3:5] for t in s['tiles'] if t[5] == 1 and t[:2] != [14, 6]]
     report(pc == [[0, 1]] and s['players'][1]['coins'] == 2, 'pc: best tile, best place', 'pc tiles %s coins %d' % (pc, s['players'][1]['coins']))
 
-def f_pc_hand(q):  # the PC's moves are slow and done by a moving hand: it points to tap, pinches to drag (a fake clock runs the real timings at once)
-    q.clock.pause_at(q.evaluate("()=>Date.now()") + 1000)
+def f_pc_hand(q):  # the PC's moves are slow and done by a moving hand: it points to tap, pinches to drag (a fake clock runs the real timings at once);
+    # a new game started while that hand still carries a tile: the old move never touches the new game
+    pause_clock(q)
     q.evaluate("()=>__dg.restart({fast:false,bag:[[0,1],[0,0],[0,4],[0,4]],first:1,jarQueue:Array(8).fill({k:'coins'})})")
     ms, xs, gs, dragged = 0, set(), set(), False
     while ms < 20000:
-        q.clock.run_for(300); ms += 300; s = st(q)
+        q.clock.run_for(200); ms += 200; s = st(q)
         xs.add(round(s['hand']['x'])); gs.add(s['hand']['g']); dragged = dragged or s['handDrag']
-        if any(t[5] == 1 and t[:2] != [14, 6] for t in s['tiles']): break
-    q.clock.resume()
-    report(ms >= 2500 and len(xs) > 10 and dragged and {'point', 'pinch'} <= gs, 'pc: slow, by a moving hand', '%d ms, hand at %d places, gestures %s' % (ms, len(xs), sorted(gs)))
+        if ms >= 2500 and dragged and {'point', 'pinch'} <= gs: break  # slow enough, and seen pointing, pinching and dragging
+    slow = ms >= 2500 and len(xs) > 10 and dragged and {'point', 'pinch'} <= gs
+    table(q, bag=[[0, 4]] * 4); tap(q, 'draft-0'); waiting(q, 'place'); h0 = held(q)
+    q.clock.run_for(1800); settle(q); h1 = held(q); q.clock.resume()  # longer than the rest of the PC's drag
+    report(slow and h0 == h1, 'pc: slow, by a moving hand; a new game is left alone', '%d ms, hand at %d places, gestures %s; new game tile %s then %s' % (ms, len(xs), sorted(gs), h0, h1))
 
 def f_pc_slot(q):  # the PC takes the best expected result on the slot machine too
     table(q, bag=[[0, 4]] * 4, first=1, coins=[0, 5], jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[5, 5, 1])
@@ -183,6 +188,15 @@ def f_steal(q):  # steal a PC tile: it is lifted where it lay and you place it; 
     drag_to(q, best_spot(q)); s = st(q); mine = [t[3:5] for t in s['tiles'] if t[5] == 0]; theirs = [t[3:5] for t in s['tiles'] if t[5] == 1]
     report(blocked and lifted and [0, 0] in mine and [0, 0] not in theirs, 'steal: tile moves to you, unfit one blocked', 'blocked %s, lifted there %s, mine %s' % (blocked, lifted, mine))
 
+def f_stolen_tile_jars(q):  # owner 24 Nov: "I stole a tile and made 2 connections, and 5 jars appear": the jars a tile earns are shown apart from jars still waiting
+    table(q, bag=[[2, 4], [2, 4]], tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0], [14, 7, 0, 0, 1, 1]], jarQueue=[COIN] * 2 + [{'k': 'steal'}] + [COIN] * 8)  # only the kid can place these: the PC passes
+    for sp in ({'x': 8, 'y': 3, 'r': 0}, {'x': 3, 'y': 2, 'r': 2}):
+        waiting(q, 'pick'); tap(q, 'draft-%d' % st(q)['fits'].index(True)); waiting(q, 'place'); drag_to(q, sp); waiting(q, 'jar'); tap(q, 'jar-0')
+    q.wait_for_function("()=>__dg.state().phase==='end'", timeout=WAIT, polling=5); waiting(q, 'jar'); tap(q, 'jar-0'); waiting(q, 'steal')
+    tap(q, 'steal-t4'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); waiting(q, 'jar')
+    jars = drawn(q, 'jar'); new = sum(1 for j in jars if j.get('new'))
+    report(len(jars) == 3 and new == 2, 'steal: 2 matches show 2 new jars apart', 'jars shown %d, new %d' % (len(jars), new))
+
 def f_first_token(q):  # the first-player token comes from a jar
     get_jar(q, [{'k': 'first'}]); report(st(q)['first'] == 0, 'first: token comes to you', 'first %s' % st(q)['first'])
 
@@ -210,33 +224,54 @@ def f_game_end(q):  # the game ends when the tiles run out; most points wins
     s = kid_plays(q, lambda s: s['over'])
     report(s['over'] and s['winner'] == 0, 'end: tiles run out, most coins wins', 'winner %s coins %s' % (s['winner'], [p['coins'] for p in s['players']]))
 
-def f_random_play(q):  # many seeded games with random moves at random moments: every game ends, every placement keeps the rules
+def f_random_play(q):  # seeded games played through the screen (taps and drags on what is drawn, at random moments); after every move, what he can see holds:
+    # at a round's start each player's goods shown match his land shown; the jars shown after a placement match its matching edges on the board shown
     bad = q.evaluate("""async () => {
-      const ch = new MessageChannel(), tick = () => new Promise(r => { ch.port1.onmessage = () => r(); ch.port2.postMessage(0); }), errs = [];  // a message, not a timer: timers wait 4 ms each
+      const cv = document.querySelector('canvas'), ch = new MessageChannel(), errs = [];
+      const tick = async () => { for (let k = 0; k < 300; k++) await null; };  // let the game's answers run (they are promise steps in fast mode); no timer, no message: those wait for the browser
+      const ev = (type, [x, y]) => cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, isPrimary: true, bubbles: true }));
+      const tap = async p => { ev('pointerdown', p); ev('pointerup', p); await tick(); };  // the game answers after the event: wait for it
+      const drag = async (a, b) => { ev('pointerdown', a); for (let k = 1; k <= 4; k++) ev('pointermove', [a[0] + (b[0] - a[0]) * k / 4, a[1] + (b[1] - a[1]) * k / 4]); ev('pointerup', b); await tick(); };
+      const seen = kind => __dg.drawn().filter(d => d.k === kind);
       for (let seed = 1; seed <= 4; seed++) {
         let rs = seed * 7919; const rand = n => { rs = (rs * 16807) % 2147483647; return rs % n; };
-        __dg.restart({ seed, fast: true });
+        __dg.restart({ seed, fast: true }); let lastRound = 0;
         for (let step = 0; ; step++) {
           for (let k = rand(3); k >= 0; k--) await tick();
-          const s = __dg.state(), w = __dg.wait();
+          const s = __dg.state(), w = s.wait;
           if (s.over) break;
-          if (step > 3000) { errs.push('seed ' + seed + ' stuck at ' + JSON.stringify(s.wait)); break; }
-          const cells = new Set(); for (const t of s.tiles) for (const [a, b] of [[t[0], t[1]], [t[0] + [1, 0, -1, 0][t[2]], t[1] + [0, 1, 0, -1][t[2]]]]) {
-            if (a < 0 || b < 0 || a >= 20 || b >= 13 || cells.has(a + ',' + b)) errs.push('seed ' + seed + ' bad square ' + a + ',' + b); cells.add(a + ',' + b); }
-          if (s.players.some(p => p.coins < 0 || p.goods.some(g => g < 0))) errs.push('seed ' + seed + ' below zero');
-          if (!w || !w.human) continue;
-          if (w.kind === 'pick') { const ok = s.fits.map((f, i) => f ? i : -1).filter(i => i >= 0); if (!ok.length) errs.push('seed ' + seed + ' pick with nothing to pick'); else __dg.answer(ok[rand(ok.length)]); }
-          else if (w.kind === 'bid') __dg.answer(rand(2) === 0);
-          else if (w.kind === 'place') { if (!w.spots.length) { errs.push('seed ' + seed + ' a tile with no place'); break; } __dg.answer(w.spots[rand(w.spots.length)]); }
-          else if (w.kind === 'jar') __dg.answer();
-          else if (w.kind === 'steal') __dg.answer(w.ids[rand(w.ids.length)]);
-          else if (w.kind === 'slot') __dg.answer('collect');
+          if (step > 3000) { errs.push('seed ' + seed + ' stuck at ' + JSON.stringify(w)); break; }
+          if (s.round !== lastRound && s.players.every(p => p.got === 0)) {  // a new round, nothing taken yet
+            lastRound = s.round; __dg.render();
+            for (const o of [0, 1]) for (let c = 0; c < 5; c++) {
+              const land = seen('square').filter(d => d.o === o && d.c === c).length, goods = seen('good').filter(d => d.o === o && d.c === c).length;
+              if (land !== goods) errs.push('seed ' + seed + ' round ' + s.round + ': player ' + o + ' colour ' + c + ' land ' + land + ' goods ' + goods);
+            }
+          }
+          if (!w || w.who !== 0) continue;
+          __dg.render(); const btn = id => __dg.btn(id);  // draw first: buttons are where the last picture put them
+          if (w.kind === 'pick') { const ok = s.fits.map((f, i) => f ? i : -1).filter(i => i >= 0); if (!ok.length) { errs.push('seed ' + seed + ' pick with nothing to pick'); break; } await tap(btn('draft-' + ok[rand(ok.length)])); }
+          else if (w.kind === 'bid') await tap(btn(rand(2) ? 'bid' : 'letgo'));
+          else if (w.kind === 'place') {
+            if (!s.spots.length) { errs.push('seed ' + seed + ' a tile with no place'); break; }
+            const sp = s.spots[rand(s.spots.length)];
+            while (__dg.state().wait.r !== sp.r) { await tap(__dg.held()); __dg.render(); }
+            const sq = seen('square'), at = (x, y) => sq.find(d => d.x === x && d.y === y), d = [[1, 0], [0, 1], [-1, 0], [0, -1]][sp.r], cs = [__dg.drawn().find(e => e.id === 'held').cs[0], __dg.drawn().find(e => e.id === 'held').cs[1]];
+            const hs = [[sp.x, sp.y], [sp.x + d[0], sp.y + d[1]]]; let edges = 0;
+            hs.forEach(([x, y], h) => [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([dx, dy]) => { const n = at(x + dx, y + dy); if (n && n.c === cs[h]) edges++; }));
+            await drag(__dg.held(), __dg.tileAt(sp.x, sp.y, sp.r)); __dg.render();
+            const jars = seen('jar').filter(j => j.o === 0 && j.new).length;
+            if (jars !== edges) errs.push('seed ' + seed + ': ' + edges + ' matching edges on the board, ' + jars + ' new jars shown');
+          }
+          else if (w.kind === 'jar') await tap(btn('jar-0'));
+          else if (w.kind === 'steal') { const ids = __dg.buttons().filter(b => b.startsWith('steal-')); await tap(btn(ids[rand(ids.length)])); }
+          else if (w.kind === 'slot') await tap(btn('collect'));
         }
         if (errs.length > 5) break;
       }
       return errs.slice(0, 5);
     }""")
-    report(not bad, 'random play: games end, rules hold', '%s' % (bad or '4 games'))
+    report(not bad, 'random play: games end, what he sees adds up', '%s' % (bad or '4 games'))
 
 # SECTION: RUN -- one browser, one page (with a fake clock that runs normally until a flow pauses it), every flow on a new game
 FLOWS = {n[2:]: f for n, f in list(globals().items()) if n.startswith('f_')}
@@ -249,5 +284,8 @@ def run(names):
         for n in (names or FLOWS):
             NOW[0] = n
             try: q.mouse.up(); table(q); FLOWS[n](q)
-            except Exception as e: report(False, n, 'error: %s' % str(e).splitlines()[0][:120])
+            except Exception as e:
+                try: s = st(q); seen = 'wait %s, phase %s, round %s' % (s['wait'], s['phase'], s['round'])
+                except Exception: seen = ''
+                report(False, n, 'error: %s; %s' % (str(e).splitlines()[0][:100], seen))
         b.close()
