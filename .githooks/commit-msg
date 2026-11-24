@@ -12,13 +12,18 @@ for l in subprocess.run(['git', 'diff', '--cached', '-M', '--name-status'], capt
     p = l.split('\t')
     if p[0].startswith('R') and p[1].startswith('games/') and p[2].startswith('games/') and p[1].split('/')[1] != p[2].split('/')[1]: renamed[p[2].split('/')[1]] = p[1].split('/')[1]
 games = sorted({f.split('/')[1] for f in files if f.startswith('games/') and f.count('/') >= 2 and (f.endswith('.html') or '/src/' in f or '/lib/' in f)} - set(renamed.values()))  # the game itself: its page, its source, its libraries (not tests, tools or notes)
-for f in files:  # owner 23 Nov 20:11: a README's "Now" says what the game is now: never a list of what was done, never dates (history lives in git)
+LOG_WORDS = r'(?<![/\w-])(?:done|finished|was|verbatim|batch \d+|\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}|\d{4}-\d{2}-\d{2})\b|\(owner '
+for f in files:  # owner 24 Nov: a README is never a log: no dates or history words anywhere, no Task list, "Now" at most 6 lines, "Open" at most 15
     if not re.match(r'games/[^/]+/README\.md$', f): continue
     txt = subprocess.run(['git', 'show', ':' + f], capture_output=True, text=True).stdout
-    m = re.search(r'^## Now\s*$(.*?)(?=^## |\Z)', txt, re.M | re.S)
-    if not m: continue
-    hits = re.findall(r'\b(?:done|fixed|finished|added|batch \d+|\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}|\d{4}-\d{2}-\d{2})\b', m.group(1), re.I)
-    if hits: sys.exit('commit refused: %s "Now" reads like a log (%s); say what the game is now, no done lists or dates' % (f, ', '.join(sorted(set(hits))[:5])))
+    def sec(name): m = re.search(r'^## ' + name + r'\s*$(.*?)(?=^## |\Z)', txt, re.M | re.S); return [l for l in (m.group(1).splitlines() if m else []) if l.strip()]
+    why = []
+    hits = sorted(set(m.group(0) for m in re.finditer(LOG_WORDS, txt, re.I)))
+    if hits: why.append('history words or dates (%s)' % ', '.join(hits[:6]))
+    if re.search(r'^## (?:Task list|Log|History|Changelog|Done)\b', txt, re.M | re.I): why.append('a Task list or history section')
+    if len(sec('Now')) > 6: why.append('"Now" has %d lines (at most 6)' % len(sec('Now')))
+    if len(sec('Open')) > 15: why.append('"Open" has %d lines (at most 15)' % len(sec('Open')))
+    if why: sys.exit('commit refused: %s reads like a log: %s. Say what the game is now and what is still to do; history lives in git.' % (f, '; '.join(why)))
 if not games: sys.exit(0)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import game_checks  # games on the strict rules: test first, no back-door moves, the whole test set within 10 s (owner 24 Nov)
