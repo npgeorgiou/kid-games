@@ -42,7 +42,7 @@ def drag_to(q, sp):  # turn the tile where it lies by tapping it, then drag it t
     path(q, held(q), q.evaluate("(s)=>__dg.tileAt(s.x,s.y,s.r)", sp))
 def best_spot(q): return max(st(q)['spots'], key=lambda p: p['m'])
 def tile_count(q, who): return sum(1 for t in st(q)['tiles'] if t[5] == who)
-def drawn(q, kind): return [d for d in q.evaluate("()=>__dg.drawn()") if d['k'] == kind]
+def drawn(q, kind): return q.evaluate("(k)=>__dg.drawn().filter(d=>d.k===k)", kind)  # filtered in the page: the whole list is long
 def report(ok, name, seen): print('%-4s [%s] %-40s %s' % ('PASS' if ok else 'FAIL', NOW[0], name, seen))
 FACES = [['coin', 'jar', 'set', 'g2']] * 3  # a slot machine's faces, wheel by wheel: 1 coin, 1 jar, 1 of each good, 5 of good 2 (owner 24 Nov)
 def get_jar(q, contents, coins=0, slots=(), faces=FACES):  # place a tile with one matching edge, then open the jar it earns (slots: the face each spin lands on)
@@ -364,8 +364,8 @@ def f_jar_breaks(q):  # owner 24 Nov: "jars should visually break and the reveal
     def watch(btn, until):  # tap a jar, then watch the screen until the reward has landed
         at = q.evaluate("(b)=>__dg.btn(b)", btn); tap(q, btn); seen, ms = [], 0
         while ms < 3000:
-            skip(q, 50); ms += 50; d = q.evaluate("()=>__dg.drawn()"); seen.append((d, st(q)))
-            if until(st(q)): break
+            skip(q, 50); ms += 50; d = q.evaluate("()=>__dg.drawn().filter(d=>d.k==='flight'||d.k==='speck')"); s = st(q); seen.append((d, s))
+            if until(s): break
         return at, seen
     at1, seen1 = watch('jar-1', lambda s: s['players'][0]['coins'] == 1)
     at0, seen0 = watch('jar-0', lambda s: s['first'] == 0)
@@ -631,10 +631,11 @@ def f_random_play(q):  # seeded games played through the screen (taps and drags 
     report(not bad, 'random play: games end, what he sees adds up', '%s' % (bad or '4 games'))
 
 # SECTION: RUN -- one browser, one page (with a fake clock that runs normally until a flow pauses it), every flow on a new game
+# The browser does not wait for the screen's refresh: each step of a finger drag otherwise waits a whole frame (16 ms); the game's own time is the fake clock either way.
 FLOWS = {n[2:]: f for n, f in list(globals().items()) if n.startswith('f_')}
 def run(names):
     with sync_playwright() as p:
-        b = p.chromium.launch(); ctx = b.new_context(viewport={'width': 1280, 'height': 800}, has_touch=True); q = ctx.new_page()
+        b = p.chromium.launch(args=['--disable-gpu-vsync', '--disable-frame-rate-limit']); ctx = b.new_context(viewport={'width': 1280, 'height': 800}, has_touch=True); q = ctx.new_page()
         q.clock.install(); q.goto(GAME.as_uri() + '?fast=1')
         try: q.wait_for_function("()=>window.__dg&&__dg.ready", timeout=5000)
         except Exception as e: pass
