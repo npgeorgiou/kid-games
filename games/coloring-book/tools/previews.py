@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Brush previews (owner 21 Nov: real results, painted as he would, on each canvas): python3 tools/previews.py
+# Brush previews (owner 21 Nov: real results, painted as he would, on each canvas): python3 tools/previews.py [tool ...] (only those tools' brushes are repainted; none: all)
 # One page: for each canvas, one stroke per brush painted straight through the game's stroke code (no finger-speed waiting),
 # the wet paint run dry, each stroke kept as lib/previews/<canvas>.json (JPEG data URLs). Takes about a minute (most of it the watercolour running, on the test browser's slow processor drawing).
 import sys, time, json, base64, io, pathlib, subprocess
@@ -14,12 +14,13 @@ PER = (1600 // W) * (1000 // H)  # previews on one paper; more jobs go on a fres
 with sync_playwright() as p:
     b = p.chromium.launch()
     for cv in ('wc', 'smooth', 'cotton'):
-        out, done = {}, 0
+        f = here / "lib" / "previews" / (cv + ".json"); out, done = (json.loads(f.read_text()) if sys.argv[1:] and f.exists() else {}), 0
         while True:
             q = page(b, '1600x1000')
             if cv != 'wc': tap(q, 'canvas'); tap(q, 'canvas-' + cv); time.sleep(0.5)
             shapes = q.evaluate("()=>Object.fromEntries(Object.entries(__cb.shapes).map(([t,v])=>[t,v.length]))")
             jobs = [(t, i, 0) for t in ('acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil') for i in range(shapes[t])] + [('simple', i, 1) for i in range(shapes['simple'])]
+            jobs = [j for j in jobs if not sys.argv[1:] or j[0] in sys.argv[1:]]
             batch = jobs[done:done + PER]
             for k, (t, i, blur) in enumerate(batch):
                 x, y = (k % 4) * W, (k // 4) * H
@@ -34,5 +35,5 @@ with sync_playwright() as p:
                 out['%s-%d%s' % (t, i, '-blur' if blur else '')] = 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode()
             q.close(); done += len(batch)
             if done >= len(jobs): break
-        (here / "lib" / "previews" / (cv + ".json")).write_text(json.dumps(out)); print(cv, len(out), 'previews')
+        f.write_text(json.dumps(out)); print(cv, len(out), 'previews')
     b.close()

@@ -1,5 +1,5 @@
 # Saves every brush's normal stroke as tools/looks/<tool>-<brush>.png, the pictures the brush_looks flow compares against.
-# Run it only when a brush's look was meant to change (and say so in the commit): python3 tools/looks.py
+# Run it only when a brush's look was meant to change (and say so in the commit): python3 tools/looks.py [tool ...] (only those tools' brushes; none: all)
 import sys, pathlib, subprocess
 here = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(here / "tools"))
@@ -9,6 +9,6 @@ subprocess.run([sys.executable, str(here / "build.py")], check=True, stdout=subp
 flows.LOOKS.mkdir(exist_ok=True)
 with sync_playwright() as p:
     b = p.chromium.launch(); q = flows.page(b, '1600x1000')
-    pics = flows.brush_strokes(q)
+    pics = flows.brush_strokes(q, sys.argv[1:])
     for k, im in pics.items(): im.save(flows.LOOKS / (k + '.png'))
     print(len(pics), 'looks saved'); b.close()

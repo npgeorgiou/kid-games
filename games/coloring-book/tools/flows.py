@@ -808,9 +808,9 @@ LOOKS = GAME.parent / 'tools' / 'looks'  # one saved picture per brush: how its 
 def brush_jobs(q):
     n = q.evaluate("()=>Object.fromEntries(Object.entries(__cb.shapes).map(([t,v])=>[t,v.length]))")
     return [(t, i) for t in ('acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil') for i in range(n[t])]
-def brush_strokes(q):  # every drawing tool and brush, one stroke each at his usual speed, run dry; returns {name: picture}
+def brush_strokes(q, tools=None):  # every drawing tool and brush (or only those of tools), one stroke each at his usual speed, run dry; returns {name: picture}
     from PIL import Image; import io
-    jobs = brush_jobs(q); out = {}
+    jobs = [j for j in brush_jobs(q) if not tools or j[0] in tools]; out = {}
     for k, (t, i) in enumerate(jobs):
         x, y = 30 + (k % 4) * 400, 60 + (k // 4) * 125
         tap(q, 'tool-' + t); tap(q, 'shape-%d' % i); tap(q, 'size-1'); tap(q, 'color-6'); jerk(q, x, x + 330, y, 550)

@@ -37,3 +37,8 @@
 - When a size or spacing grows with speed (shapes), check it against lifting: the flick flow needs the mark narrower half-way (shapes stop growing at SHAPE_TOP_V).
 - The full flow run is long (about 30 minutes): run it in the background with PYTHONUNBUFFERED=1 and a long timeout, never in the foreground.
 - water_speed can fail when the one-spot frame lands on 17 ms (headless frames come in 16.7 ms steps, so the ratio jumps): rerun it once before looking for a cause.
+- Remake brush pictures only for the tools whose look changed: `python3 tools/previews.py <tool>` and `python3 tools/looks.py <tool>` (about 10 s each); all tools take minutes.
+- While working, run only the flows of the point at hand; the full run (about 9 minutes) once before the push, in the background, never in the foreground.
+- Checks read the paper through __cb.shown (the whole paper once per check); a hook that reads one pixel at a time stalls the graphics card and made the full run 30 minutes.
+- Never wait for drying with __cb.fast in flows: the test browser runs every step of it and it is slower than real time.
+- Never end a check's `ok =` line with a comment that holds more conditions: everything after # is dropped silently (the palettes check lost its rainbow part).

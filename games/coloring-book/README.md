@@ -55,8 +55,8 @@ Shared with other games, at the repo root: `.githooks/` (the commit gate), `docs
 From this folder (once per clone: `git config core.hooksPath .githooks`):
 
 - `python3 tools/harness.py flows [names]` -- the play-through tests; most take 2-8 s; the watercolour, undo and undo-room ones 15-30 s (paint dries in real time); all of them about 9 minutes (run in the background).
-- `python3 tools/previews.py` -- remake the brush previews after any change to how a tool, brush or canvas looks.
-- `python3 tools/looks.py` -- save the brush pictures again, only when a brush's look was meant to change.
+- `python3 tools/previews.py [tool ...]` -- remake the brush previews of those tools (all, if none named) after a change to how they look.
+- `python3 tools/looks.py [tool ...]` -- save those tools' brush pictures again, only when their look was meant to change.
 
 Each flow runs on a test paper (`coloring-book.html?paper=400x250@600,375`): that part of the full 1600x1000 paper, with the same canvas grain there, so a flow paints only the paper it needs. The flows that measure speed or the undo room keep the full paper.
 
