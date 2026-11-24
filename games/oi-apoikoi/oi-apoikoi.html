@@ -261,9 +261,16 @@ function slotPlan(w0, coins) {  // the PC's best choice: stop, or pay 1 coin to 
   };
   const c = Math.min(coins, 4); V(w0, c); return memo.get(w0.join() + '|' + c).sel;
 }
+const ROLL_MS = [700, 1000, 1300];  // each wheel rolls this long, so they stop one after another
+async function roll(wheels) {  // the chosen wheels get their new pictures, roll, and stop one by one
+  const now = performance.now();
+  wheels.forEach(k => { G.slot.w[k] = spin(); G.slot.until[k] = fast ? 0 : now + ROLL_MS[k]; });
+  await pause(Math.max(...wheels.map(k => ROLL_MS[k])) + 100);
+}
 async function slot(i) {
   const p = G.players[i];
-  G.slot = { who: i, w: [spin(), spin(), spin()], sel: [false, false, false] };
+  G.slot = { who: i, w: [0, 0, 0], sel: [false, false, false], until: [0, 0, 0] };
+  await roll([0, 1, 2]);
   for (;;) {
     const w = G.slot.w;
     if (w[0] === w[1] && w[1] === w[2]) { await pause(900); break; }
@@ -274,7 +281,8 @@ async function slot(i) {
       await pcTap('reroll');
     });
     if (a === 'collect') break;
-    p.coins--; G.slot.sel.forEach((s, k) => { if (s) w[k] = spin(); }); G.slot.sel = [false, false, false];
+    p.coins--; const picked = [0, 1, 2].filter(k => G.slot.sel[k]); G.slot.sel = [false, false, false];
+    await roll(picked);
   }
   const w = G.slot.w, c = w.map(s => w.filter(t => t === s).length), best = c.indexOf(Math.max(...c)), n = c[best];
   G.slot = null;
@@ -475,24 +483,36 @@ function drawJars() {  // big jars in a row; tap one to open it
     drawn.push({ k: 'label', text });
   }
 }
-function drawSlot() {
-  const S = G.slot, x = W / 2, y = H / 2, ww = 140, live = wait && wait.kind === 'slot';
-  shade(0.4); rrect(x - 260, y - 180, 520, 360, 30, '#7a2f2f', BORDER[S.who], 6);
+function slotPrize(w) {  // what taking now gives: 2 or 3 of the picture that repeats
+  const c = w.map(s => w.filter(t => t === s).length), n = Math.max(...c);
+  return n >= 2 ? { s: w[c.indexOf(n)], n } : null;
+}
+function label(text, x, y, size, col, forWhat) { cx.fillStyle = col; cx.font = 'bold ' + size + 'px sans-serif'; cx.textAlign = 'center'; cx.fillText(text, x, y); cx.textAlign = 'start'; drawn.push({ k: 'label', text, for: forWhat }); }
+function drawSlot() {  // three wheels; tap the ones to spin again, pay 1 coin to spin them, or take what the wheels show
+  const S = G.slot, x = W / 2, y = H / 2, ww = 140, live = wait && wait.kind === 'slot', now = performance.now(), p = G.players[S.who];
+  shade(0.4); rrect(x - 280, y - 210, 560, 420, 30, '#7a2f2f', BORDER[S.who], 6);
+  coin(x - 230, y - 180, 14); label('' + p.coins, x - 200, y - 172, 24, '#ffe9a8', 'coins');  // the coins you have
   S.w.forEach((s, k) => {
-    const wx = x - 225 + k * (ww + 15);
-    rrect(wx, y - 140, ww, 170, 16, '#fff', S.sel[k] ? '#2f7de1' : '#555', S.sel[k] ? 8 : 3);
-    symbol(s, wx + ww / 2, y - 55, 46);
-    if (live) btn('wheel-' + k, wx, y - 140, ww, 170, () => { S.sel[k] = !S.sel[k]; });
+    const wx = x - 225 + k * (ww + 15), rolling = now < S.until[k];
+    rrect(wx, y - 150, ww, 170, 16, '#fff', S.sel[k] ? '#2f7de1' : '#555', S.sel[k] ? 8 : 3);
+    cx.save(); cx.beginPath(); cx.rect(wx + 4, y - 146, ww - 8, 162); cx.clip();
+    if (rolling) { const off = (now / 2.2) % 70; for (let j = -1; j < 3; j++) symbol(Math.floor(now / 60 + j * 3 + k * 2) % SYMBOLS, wx + ww / 2, y - 65 + off - j * 70, 30); }  // pictures sliding past
+    else symbol(s, wx + ww / 2, y - 65, 46);
+    cx.restore(); drawn.push({ k: 'wheel', n: k, rolling });
+    if (S.sel[k]) { cx.strokeStyle = '#2f7de1'; cx.lineWidth = 5; cx.beginPath(); cx.arc(wx + ww - 22, y - 128, 13, 0.6, 5.8); cx.stroke(); }  // marked to spin again
+    if (live) btn('wheel-' + k, wx, y - 150, ww, 170, () => { S.sel[k] = !S.sel[k]; });
   });
-  if (live) {
-    const can = G.players[S.who].coins > 0 && S.sel.some(v => v);
-    rrect(x - 225, y + 50, 215, 100, 18, can ? '#d8f0c8' : '#ccc', '#3a8a2a', 4); coin(x - 160, y + 100, 22);
-    cx.strokeStyle = '#333'; cx.lineWidth = 6; cx.beginPath(); cx.arc(x - 80, y + 100, 22, 0.5, 5.6); cx.stroke();  // pay a coin, spin again
-    if (can) btn('reroll', x - 225, y + 50, 215, 100, () => answer('reroll'));
-    rrect(x + 10, y + 50, 215, 100, 18, '#ffe9a8', '#e0a020', 4);
-    cx.fillStyle = '#e0a020'; cx.beginPath(); cx.moveTo(x + 95, y + 72); cx.lineTo(x + 150, y + 100); cx.lineTo(x + 95, y + 128); cx.fill();  // take what you have
-    btn('collect', x + 10, y + 50, 215, 100, () => answer('collect'));
-  }
+  if (!live) return;
+  const n = S.sel.filter(v => v).length, can = p.coins > 0 && n > 0, prize = slotPrize(S.w);
+  rrect(x - 240, y + 40, 230, 140, 18, can ? '#d8f0c8' : '#d6d0c8', '#3a8a2a', 4);  // spin again: costs 1 coin
+  label(n ? 'Γύρνα ' + n + (n > 1 ? ' ρόδες' : ' ρόδα') : 'Διάλεξε ρόδες', x - 125, y + 80, 22, '#1f4d16', 'spin');
+  label('−1', x - 140, y + 140, 34, '#7a2f2f', 'reroll'); coin(x - 95, y + 128, 16);
+  if (can) btn('reroll', x - 240, y + 40, 230, 140, () => answer('reroll'));
+  rrect(x + 10, y + 40, 230, 140, 18, '#ffe9a8', '#e0a020', 4);  // take what the wheels show
+  label('Πάρε', x + 125, y + 80, 22, '#6e4a08', 'take');
+  if (prize) { label('+' + prize.n, x + 100, y + 140, 34, '#3a5a10', 'collect'); symbol(prize.s, x + 160, y + 128, 20); }
+  else label('τίποτα', x + 125, y + 140, 26, '#6e4a08', 'collect');
+  btn('collect', x + 10, y + 40, 230, 140, () => answer('collect'));
 }
 function drawPass() {  // nothing fits: this turn passes to the other player
   const i = G.passing, x = W / 2, y = H * 0.5, k = Math.min(1, (performance.now() % 1200) / 900);

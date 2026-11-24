@@ -218,6 +218,26 @@ def f_coins2(q):  # the 2 coins bonus
     get_jar(q, [{'k': 'coins2'}]); c = st(q)['players'][0]['coins']
     report(c == 2, 'jar: 2 coins', 'coins %d' % c)
 
+def f_slot_rolls(q):  # owner 24 Nov: the slot machine actually rolls: the wheels spin, then stop one after another
+    pause_clock(q)
+    table(q, bag=[[0, 4]] * 4, fast=False, coins=[3, 0], jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 0, 1])
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')
+    stops, rolling_seen, ms = [None] * 3, False, 0
+    while ms < 4000 and None in stops:
+        q.clock.run_for(100); ms += 100; settle(q)
+        for k, w in enumerate(sorted(drawn(q, 'wheel'), key=lambda d: d['n'])):
+            rolling_seen = rolling_seen or w['rolling']
+            if not w['rolling'] and stops[k] is None and rolling_seen: stops[k] = ms
+    q.clock.resume()
+    ok = rolling_seen and None not in stops and stops[0] < stops[1] < stops[2] and stops[0] >= 500
+    report(ok, 'slot: wheels roll, then stop one by one', 'rolling seen %s, stops at %s ms' % (rolling_seen, stops))
+
+def f_slot_says_price(q):  # owner 24 Nov: "I can't even see what I pay": the spin button shows its price, the take button shows what you get
+    get_jar(q, [{'k': 'slot'}], coins=3, slots=[5, 5, 1]); waiting(q, 'slot'); tap(q, 'wheel-2')
+    labels = {d.get('for'): d['text'] for d in drawn(q, 'label')}
+    ok = '1' in labels.get('reroll', '') and '2' in labels.get('collect', '') and str(3) in labels.get('coins', '')
+    report(ok, 'slot: price and prize written on the buttons', str(labels))
+
 def f_slot_three(q):  # slot machine: pay 1 coin to reroll chosen wheels; 3 the same wins 3
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot')
     tap(q, 'wheel-2'); tap(q, 'reroll'); q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); p = st(q)['players'][0]
