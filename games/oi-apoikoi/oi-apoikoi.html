@@ -747,7 +747,7 @@ function drawEnd() {  // the two rows of coins side by side; the longer one wins
   shade(0.4); rrect(W * 0.08, H * 0.28, W * 0.84, H * 0.44, 30, '#fff8e8', '#e0a020', 6);
   G.players.forEach((p, i) => {
     const y = H * 0.4 + i * H * 0.16, r = Math.min(16, W * 0.66 / Math.max(1, p.coins) / 2.2);
-    dot(W * 0.13, y, 22, BORDER[i]); if (G.winner === i) star(W * 0.13, y, 18);
+    dot(W * 0.13, y, 22, BORDER[i]); if (G.winner === i) { star(W * 0.13, y, 18); drawn.push({ k: 'winner', o: i }); }
     for (let k = 0; k < p.coins; k++) coin(W * 0.18 + r + k * r * 2.2, y, r);
   });
   rrect(W * 0.86, H * 0.3, 64, 64, 16, '#d8f0c8', '#3a8a2a', 3);
@@ -826,7 +826,7 @@ window.__dg = {
   sampleJars(n, who) { const m = {}; for (let k = 0; k < n; k++) { const j = rollJar(who); m[j.k] = (m[j.k] || 0) + 1; } return m; },
   state() {
     return {
-      round: G.round, turn: G.turn, phase: G.phase, first: G.first, over: G.over, winner: G.winner, passing: G.passing, slot: G.slot ? { w: G.slot.w.slice(), sel: G.slot.sel.slice() } : null,
+      round: G.round, turn: G.turn, phase: G.phase, queued: jarQueue.length, first: G.first, over: G.over, winner: G.winner, passing: G.passing, slot: G.slot ? { w: G.slot.w.slice(), sel: G.slot.sel.slice() } : null,
       wait: wait ? { kind: wait.kind, who: wait.who, r: wait.r } : null, draft: G.draft.map(t => t && t.slice()), locks: G.draft.map((t, k) => G.locks[k] ?? null), fits: G.draft.map((t, k) => pickable(k, 0)),
       spots: wait && wait.kind === 'place' ? [0, 1, 2, 3].flatMap(r => spots(wait.tile, r, wait.who)) : [], snap: (s => s && { x: s.x, y: s.y, r: s.r })(snapSpot()),
       halves: [0, 1, 2, 3, 4].map(c => G.bag.concat(G.draft.filter(t => t)).flat().filter(v => v === c).length), left: G.bag.length + G.draft.filter(t => t).length,

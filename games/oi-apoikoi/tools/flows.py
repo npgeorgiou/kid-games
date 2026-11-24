@@ -544,6 +544,56 @@ def f_game_end(q):  # the game ends when the tiles run out; most points wins
     s = kid_plays(q, lambda s: s['over'])
     report(s['over'] and s['winner'] == 0, 'end: tiles run out, most coins wins', 'winner %s coins %s' % (s['winner'], [p['coins'] for p in s['players']]))
 
+MAIN_SEED, MAIN_JARS = 3, ['coins', 'empty', 'coins2', 'set', 'first', 'jar', 'tile', 'slot', 'steal']  # the main game's fixed pile (made by this seed) and the jar contents queued, in order
+def f_main_game(q):  # owner 24 Nov: one main test plays a whole game with a fixed pile and fixed jar contents, so every situation happens in order; after every move, what he sees adds up
+    out = q.evaluate("""async ([seed, kinds]) => {
+      const cv = document.querySelector('canvas'), errs = [], did = {};
+      const tick = async () => { for (let k = 0; k < 300; k++) await null; };
+      const ev = (type, [x, y]) => cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, isPrimary: true, bubbles: true }));
+      const tap = async p => { if (!p) { errs.push('nothing to tap at ' + JSON.stringify(__dg.state().wait)); return; } __dg.render(); ev('pointerdown', p); ev('pointerup', p); await tick(); };
+      const drag = async (a, b) => { if (!a || !b) { errs.push('nothing to drag at ' + JSON.stringify(__dg.state().wait) + ' ' + JSON.stringify([a, b])); return; } __dg.render(); ev('pointerdown', a); for (let k = 1; k <= 4; k++) ev('pointermove', [a[0] + (b[0] - a[0]) * k / 4, a[1] + (b[1] - a[1]) * k / 4]); ev('pointerup', b); await tick(); };
+      const seen = kind => __dg.drawn().filter(d => d.k === kind), btn = id => { __dg.render(); return __dg.btn(id); };  // buttons are where the last picture put them: draw first
+      const queue = kinds.concat(kinds).map(k => ({ k }));
+      __dg.restart({ seed, fast: true, jarQueue: queue, slotQueue: [0, 0, 1, 0] }); await tick();
+      let lastRound = 0, bids = 0, putBack = false, endJars = null, picked = false;
+      for (let step = 0; ; step++) {
+        await tick(); const s = __dg.state(), w = s.wait; __dg.render();
+        if (s.over) { did.end = seen('winner').length === 1 || s.winner === -1; break; }
+        if (step > 4000 || errs.length > 5) { errs.push('stuck at ' + JSON.stringify(w)); break; }
+        for (const o of [0, 1]) if (seen('coin').filter(d => d.o === o).length !== s.players[o].coins) errs.push('round ' + s.round + ': coins shown for ' + o + ' differ');
+        if (s.round !== lastRound && s.players.every(p => p.got === 0)) {
+          lastRound = s.round;
+          for (const o of [0, 1]) for (let c = 0; c < 5; c++) if (seen('square').filter(d => d.o === o && d.c === c).length !== seen('good').filter(d => d.o === o && d.c === c).length) errs.push('round ' + s.round + ': goods shown differ from land, player ' + o);
+        }
+        if (s.passes.some(n => n)) did.pass = true;
+        if (!w || w.who !== 0) continue;
+        if (w.kind === 'pick') {
+          if (seen('tile').some(d => d.id && d.id.startsWith('draft-') && d.look === 'grey')) did.unusable = true;
+          const k = s.fits.indexOf(true); picked = true; await tap(btn('draft-' + k));
+          if (!putBack && s.round >= 2 && __dg.state().wait && __dg.state().wait.kind === 'place') { await drag(__dg.held(), [innerWidth - 60, 400]); await drag(__dg.held(), __dg.slot(k)); putBack = did.putBack = __dg.state().draft[k] !== null && __dg.state().wait.kind === 'pick'; }
+        }
+        else if (w.kind === 'bid') { bids++; const take = bids % 2 === 0; await tap(btn(take ? 'bid' : 'letgo')); did[take ? 'bidWon' : 'bidLost'] = true; }
+        else if (w.kind === 'place') {
+          if (!picked) did.bonusTile = true; picked = false;
+          const sp = s.spots.reduce((a, b) => b.m > a.m ? b : a);
+          while (__dg.state().wait.r !== sp.r) { await tap(__dg.held()); __dg.render(); }
+          const before = __dg.sounds().filter(n => n === 'edge').length; await drag(__dg.held(), __dg.tileAt(sp.x, sp.y, sp.r)); __dg.render();
+          const edges = __dg.sounds().filter(n => n === 'edge').length - before, jars = seen('jar').filter(j => j.o === 0 && j.new).length;
+          if (jars !== edges) errs.push('round ' + s.round + ': ' + edges + ' matching edges, ' + jars + ' new jars shown');
+        }
+        else if (w.kind === 'jar') {
+          if (s.phase === 'end') { if (endJars !== null && s.players[0].jars > endJars) did.moreJars = true; endJars = s.players[0].jars - 1; } else endJars = null;
+          await tap(btn('jar-0'));
+        }
+        else if (w.kind === 'steal') { did.steal = true; await tap(btn(__dg.buttons().find(b => b.startsWith('steal-')))); }
+        else if (w.kind === 'slot') { did.slot = true; await tap(btn(s.players[0].coins && !did.reroll ? 'wheel-2' : 'collect')); if (__dg.state().slot && __dg.state().slot.sel[2]) { did.reroll = true; await tap(btn('reroll')); } }
+      }
+      return { errs: errs.slice(0, 5), did, left: __dg.state().queued };
+    }""", [MAIN_SEED, MAIN_JARS])
+    want = ['unusable', 'bidLost', 'bidWon', 'pass', 'putBack', 'bonusTile', 'steal', 'slot', 'reroll', 'moreJars', 'end']
+    missing = [k for k in want if not out['did'].get(k)]
+    report(not out['errs'] and not missing and out['left'] == 0, 'main game: every situation, what he sees adds up', 'missing %s, errors %s, jar contents left %s' % (missing, out['errs'], out['left']))
+
 def f_random_play(q):  # seeded games played through the screen (taps and drags on what is drawn, at random moments); after every move, what he can see holds:
     # at a round's start each player's goods shown match his land shown; the jars shown after a placement match its matching edges on the board shown
     bad = q.evaluate("""async () => {
