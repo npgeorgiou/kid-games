@@ -89,6 +89,15 @@ def f_drag_from_pile(q):  # owner 24 Nov: no tap first: press a tile in the pile
     table(q, bag=[[0, 4]] * 4); tap(q, 'draft-0'); w = st(q)['wait']
     report(placed and w == {'kind': 'place', 'who': 0, 'r': 0}, 'pile: drag straight from the pile', 'placed %s; after a tap %s' % (placed, w))
 
+def f_carried_tilts(q):  # owner 24 Nov ("rethink all UI": pieces do not feel physical): a carried tile tilts toward where it is going, and straightens when it stops
+    table(q, bag=[[0, 4]] * 4); tap(q, 'draft-0'); waiting(q, 'place'); h = held(q)
+    tilt = lambda: drawn(q, 'heldmark')[0]['tilt']
+    q.mouse.move(h[0], h[1]); q.mouse.down(); q.mouse.move(h[0] + 200, h[1] + 120, steps=6); settle(q); right = tilt()
+    pause_clock(q); skip(q, 500); still = tilt(); q.clock.resume()
+    q.mouse.move(h[0] - 100, h[1] + 120, steps=6); settle(q); left = tilt(); q.mouse.up(); settle(q)
+    ok = right >= 4 and abs(still) < 0.5 and left <= -4
+    report(ok, 'carried tile tilts with the drag', 'moving right %.1f deg, standing still %.1f deg, moving left %.1f deg' % (right, still, left))
+
 def f_drag_leave(q):  # drag, leave it anywhere, turn it there, drag again: it is placed only when it snaps
     table(q, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place')
     far = q.evaluate("()=>__dg.tileAt(9,1,0)"); path(q, held(q), far); h1 = held(q); left = h1 is not None and abs(h1[0] - far[0]) < 2 and abs(h1[1] - far[1]) < 2
