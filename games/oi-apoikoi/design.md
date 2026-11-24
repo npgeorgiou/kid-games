@@ -122,7 +122,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - The PC counts a jar as about 0.7 coins (its coin contents only) and a good as a third of a jar; with these values the best slot play is to stop at once, so the PC never re-spins.
 - Tiles nobody could place in a round go back under the pile.
 - Sounds (owner 24 Nov: simple built-in sounds until his own files come): one short tone pattern each for picking a tile, a bid, a tile snapping in, a pass, opening a jar, a coin, a jar made from goods, the slot machine spinning, each wheel stopping, a slot win, and a steal.
-- The PC's hand: Fluent Emoji pictures; it points to tap, grabs to carry a tile, opens to let go, is raised when the PC passes.
+- The PC's hand: Fluent Emoji pictures; it points to tap and to carry a tile (owner 24 Nov), opens to let go, is raised when the PC passes.
 
 ## 7. Still open (all in one place)
 

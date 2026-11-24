@@ -401,8 +401,8 @@ function content(j, x, y, s) {  // what a jar held
   else if (j.k === 'set') setShape(x, y, s * 0.3);
 }
 const HANDS = /*HANDS*/{};  // the hand pictures, put in by build.py
-const GESTURES = {  // picture and its active point (of 32): point to tap, grab (a fist) to hold a tile, open to let go, raised to pass
-  point: ['backhand_index_pointing_up', 14.5, 2.5], grab: ['raised_fist', 16, 16], open: ['hand_with_fingers_splayed', 16, 9], raised: ['raised_hand', 16, 9],
+const GESTURES = {  // picture and its active point (of 32): point to tap and to hold a tile (owner 24 Nov), open to let go, raised to pass
+  point: ['backhand_index_pointing_up', 14.5, 2.5], grab: ['backhand_index_pointing_up', 14.5, 2.5], open: ['hand_with_fingers_splayed', 16, 9], raised: ['raised_hand', 16, 9],
 };
 const handPics = Object.fromEntries(Object.entries(GESTURES).map(([g, [f]]) => {  // each picture drawn once onto its own canvas: a picture drawn every frame would be redrawn from its shapes each time
   const c = document.createElement('canvas'); c.width = c.height = 256; const im = new Image();
@@ -412,6 +412,7 @@ function hand(h) {  // the PC's hand, the only hand drawn; a press shows a ring 
   const [, ax, ay] = GESTURES[h.g], im = handPics[h.g], z = h.down ? 84 : 92, k = z / 32;
   if (h.down) { cx.strokeStyle = '#ffffffcc'; cx.lineWidth = 4; cx.beginPath(); cx.arc(h.x, h.y, 20, 0, 7); cx.stroke(); }
   if (im.ready) cx.drawImage(im, h.x - ax * k, h.y - ay * k, z, z);
+  drawn.push({ k: 'hand', pic: GESTURES[h.g][0] });
 }
 
 // SECTION: DRAWING -- each screen part
