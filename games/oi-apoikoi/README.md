@@ -27,26 +27,16 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 
 ## Now
 
-A playable prototype against the PC on one shared board, colours only. Tiles are dragged straight from the pile and stay where they are left until they snap; a won bid locks a tile for its winner; a placed tile adds its 2 goods at once, and every land makes goods again at each round's start; the stockpile stands in colour columns with set bands and jar frames; at the round's end each 3 of a colour fly into a jar one group at a time and the leftovers fade out; jars have labels; the slot machine rolls and shows price and prize; simple built-in sounds for each thing that happens; the PC plays with a visible hand (it points, and holds a tile with the same pointing hand). Rules and built-for-now choices are in `design.md`.
+A playable prototype against the PC on one shared board, colours only. Tiles are dragged straight from the pile and stay where they are left until they snap; a won bid locks a tile for its winner; a placed tile adds its 2 goods at once, and every land makes goods again at each round's start. Each player's area has his face, a goods tray (a groove per colour, set bands, jar frames) and a coins tray; the player whose turn it is has his area lit, the other's is dimmed. The pile is a stack of face-down tiles beside the market tray. When a tile snaps its matched edges glow and each jar flies out of its edge. The round's end is its own moment (a sunset); then one player turns his goods into jars one group at a time and opens them, then the other. The slot machine has no text; its wheels roll fast, slow down and stop one by one. Sounds are one soft built-in family (wood, clay, coins, chimes). The PC plays with a visible pointing hand. Rules and built-for-now choices are in `design.md`; the screen follows `tools/ui-design/README.md`.
 
 ## Open
 
-- Main is protected: changes go on a branch with a pull request for the owner to merge.
+- Main is protected: work goes on a branch with a pull request, merged by Claude once its tests pass.
 - The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` sections 6 and 7.
 
 ## Task list
 
-- Rethink the whole screen by `tools/ui-design/README.md`; the player panels must show clearly what each player has; nothing unexplained on screen (the 9 lines at the top).
-- Whose turn it is must be obvious; the PC's turn must look different from yours.
-- No text anywhere except the jar bonus labels; none on the slot machine.
-- Everything separate and distinct (jars must not touch).
-- A matched edge is shown, and each jar it earns comes out of that edge; a snap sound.
-- Tapping a tile makes a weird blip: a pleasant sound instead.
-- A picked tile can be put back: dropped on the pile it returns to its place, and another can be picked.
-- Opening a jar plays a breaking sound.
-- The PC's hand uses the pointing hand for grabbing too.
-- The round's end is its own phase, clearly seen and heard.
-- Round end: one player turns his goods into jars and opens them, then the other.
-- Slot machine: wheels roll fast, then slow down and stop one after another, with sounds.
+- A picked tile can be put back: dropped on the pile it returns to its place, and another can be picked. Waiting for the owner: if it was won with a bid, are the sets given back?
+- Go over the whole screen again with `tools/ui-design/README.md`'s checklist once the owner has seen this version.
 - A general refactor (one owner per behaviour), tests passing throughout.
