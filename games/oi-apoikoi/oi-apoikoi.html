@@ -35,7 +35,9 @@ let fast = params.has('fast');  // tests: the PC moves without waiting
 const HAND_SPEED = 450;  // px per second: slow enough to follow
 let rnd = Math.random;
 function seeded(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-const pause = ms => fast ? Promise.resolve() : new Promise(r => setTimeout(r, ms));
+// Time passes only for the game that asked: when a new game has started, an old game's pause or hand move never ends,
+// so whatever the old game was doing (a jar, a move, a turn) stops there and never touches the new game.
+const pause = ms => { const my = G; return fast ? Promise.resolve() : new Promise(r => setTimeout(() => { if (G === my) r(); }, ms)); };
 
 // SECTION: MODEL -- the shared board, tiles, matches, goods and sets
 let G = null, tileNo = 1;
@@ -106,7 +108,7 @@ function handTo(x, y, ms) {  // the hand glides to a point (eased), slow enough 
   if (fast || d < 1) { h.x = x; h.y = y; return Promise.resolve(); }
   const t0 = performance.now(), x0 = h.x, y0 = h.y, T = ms || Math.max(350, d / HAND_SPEED * 1000);
   return new Promise(res => {
-    const step = () => { const k = Math.min(1, (performance.now() - t0) / T), e = k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k); h.x = x0 + (x - x0) * e; h.y = y0 + (y - y0) * e; k < 1 ? requestAnimationFrame(step) : res(); };
+    const my = G, step = () => { if (G !== my) return; const k = Math.min(1, (performance.now() - t0) / T), e = k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k); h.x = x0 + (x - x0) * e; h.y = y0 + (y - y0) * e; k < 1 ? requestAnimationFrame(step) : res(); };
     requestAnimationFrame(step);
   });
 }
@@ -235,6 +237,10 @@ async function bonus(i, j) {
   }
   else if (j.k === 'slot') await slot(i);
 }
+const JAR_LABELS = {  // shown under what a jar held (Greek, for the child)
+  coins: '1 νόμισμα', coins2: '2 νομίσματα', slot: 'Κουλοχέρης', steal: 'Κλέψε ένα πλακίδιο', first: 'Παίζεις πρώτος',
+  tile: 'Ένα πλακίδιο δώρο', jar: 'Ένα πιθάρι ακόμα', set: 'Ένα από κάθε αγαθό',
+};
 const SYMBOLS = 7;  // the 5 goods, coins, jars
 const spin = () => slotQ.length ? slotQ.shift() : Math.floor(rnd() * SYMBOLS);
 const JAR_WORTH = (0.5 + 2 / 14) / (1 - 1 / 14);  // what the PC counts a jar as, in coins: 1 coin half the time, 2 coins a fourteenth, another jar a fourteenth
@@ -462,7 +468,12 @@ function drawJars() {  // big jars in a row; tap one to open it
     jarShape(x, y, s * 0.85); drawn.push({ k: 'jar', o: who, new: fresh });
     if (wait && wait.kind === 'jar') btn('jar-' + k, x - s / 2, y - s / 2, s, s, () => answer());
   }
-  if (G.shown) { const [x, y] = shownSpot(); rrect(x - 130, y - 80, 260, 160, 24, '#fff8e8', BORDER[who], 6); content(G.shown.j, x, y, 170); }
+  if (G.shown) {  // what the jar held, and a short label saying what it means
+    const [x, y] = shownSpot(), text = JAR_LABELS[G.shown.j.k];
+    rrect(x - 170, y - 80, 340, 200, 24, '#fff8e8', BORDER[who], 6); content(G.shown.j, x, y - 10, 160);
+    cx.fillStyle = '#3a2410'; cx.font = 'bold 26px sans-serif'; cx.textAlign = 'center'; cx.fillText(text, x, y + 92); cx.textAlign = 'start';
+    drawn.push({ k: 'label', text });
+  }
 }
 function drawSlot() {
   const S = G.slot, x = W / 2, y = H / 2, ww = 140, live = wait && wait.kind === 'slot';

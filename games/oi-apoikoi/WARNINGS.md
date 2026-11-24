@@ -5,5 +5,5 @@
 - In tests (fast) the PC moves at once: pass slot spins and jar contents in the table, never after it starts.
 - In-page test loops wait with promise steps (await null), not timers or messages: those wait for the browser and made random play many times slower.
 - Never draw an SVG picture on the canvas every frame: draw it once onto its own canvas and draw that.
-- A PC move is tied to its game and its tile: after any await it stops if a new game started (a new game during the hand's drag moved the new game's tile).
+- Time passes only for the current game: pause and hand moves never end for an old game, so old jars, moves and turns stop and never touch a new game. Never read the game state across an await without that.
 - The page's fake clock is paused with a date, not a number (a number after an earlier pause is refused); every fake second of real-speed play costs about half a real second.

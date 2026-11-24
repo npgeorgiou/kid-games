@@ -198,6 +198,22 @@ def f_jar_mix(q):  # half the jars hold 1 coin (a coins jar always holds 1); 2 c
     ok = set(m) == {'coins', 'coins2', 'slot', 'steal', 'first', 'tile', 'jar', 'set'} and 0.45 < m['coins'] / 4000 < 0.55
     report(ok, 'jars: 1 coin half the time', str(m))
 
+def f_jar_labels(q):  # owner 24 Nov: "for bonus jars add some text, I don't get what some of those mean": every jar's contents carry a short label
+    seen = {}
+    for k in ['coins', 'coins2', 'slot', 'steal', 'first', 'tile', 'jar', 'set']:
+        table(q, bag=[[0, 4]] * 4, fast=False, jarQueue=[{'k': k}] + [COIN] * 8)
+        tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')
+        seen[k] = [d['text'] for d in drawn(q, 'label')]
+    ok = all(len(v) == 1 and v[0] for v in seen.values()) and len({v[0] for v in seen.values() if v}) == 8
+    report(ok, 'jars: each content has its own label', str(seen))
+
+def f_new_game_mid_jar(q):  # found by the tests: a new game started while a jar is being shown: the old jar never pays into the new game
+    pause_clock(q)
+    table(q, bag=[[0, 4]] * 4, fast=False, jarQueue=[{'k': 'coins2'}] + [COIN] * 8)
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')
+    table(q, bag=[[0, 4]] * 4); q.clock.run_for(2000); settle(q); s = st(q); q.clock.resume()
+    report(s['players'][0]['coins'] == 0 and s['wait']['kind'] == 'pick', 'new game: an old jar pays nothing into it', 'coins %d, wait %s' % (s['players'][0]['coins'], s['wait']))
+
 def f_coins2(q):  # the 2 coins bonus
     get_jar(q, [{'k': 'coins2'}]); c = st(q)['players'][0]['coins']
     report(c == 2, 'jar: 2 coins', 'coins %d' % c)
