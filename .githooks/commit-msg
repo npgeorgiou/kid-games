@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Commit gate (owner 21 Nov: rules are enforced, not remembered). Enable once per clone: git config core.hooksPath .githooks
-# A commit that changes a game (its .html page, src/ or lib/) must name its flows in the message:
+# Games listed in strict-games.txt are checked by game_checks.py (owner 24 Nov). Any other game whose code changes (its .html page, src/ or lib/) must name its flows in the message:
 #   Flow: <game> <flow> [<flow> ...]
 # Each named flow must FAIL on the code before the change (the last commit, with the new flows file) and PASS on the code being committed.
 import subprocess, sys, re, os, tempfile, shutil
@@ -20,6 +20,18 @@ for f in files:  # owner 23 Nov 20:11: a README's "Now" says what the game is no
     if not m: continue
     hits = re.findall(r'\b(?:done|fixed|finished|added|batch \d+|\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}|\d{4}-\d{2}-\d{2})\b', m.group(1), re.I)
     if hits: sys.exit('commit refused: %s "Now" reads like a log (%s); say what the game is now, no done lists or dates' % (f, ', '.join(sorted(set(hits))[:5])))
+if not games: sys.exit(0)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import game_checks  # games on the strict rules: test first, no back-door moves, the whole test set within 10 s (owner 24 Nov)
+strict = [g for g in games if g in game_checks.strict_games()]
+games = [g for g in games if g not in strict]
+problems = []
+for g in strict:
+    f = 'games/%s/tools/flows.py' % g
+    old = subprocess.run(['git', 'show', 'HEAD:' + f], capture_output=True, text=True).stdout
+    new = subprocess.run(['git', 'show', ':' + f], capture_output=True, text=True).stdout
+    problems += game_checks.check(os.path.join(root, 'games', g), old, new, True, root)
+if problems: sys.exit('commit refused:\n' + '\n'.join(problems))
 if not games: sys.exit(0)
 named = {}
 for g, rest in re.findall(r'^Flow:\s*(\S+)\s+(.+)$', msg, re.M): named.setdefault(g, []).extend(rest.split())

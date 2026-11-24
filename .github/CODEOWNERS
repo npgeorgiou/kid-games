@@ -1,0 +1,4 @@
+# The owner reviews every change to the checks and the rules (owner 24 Nov). Turn on branch protection for main: require the "tests" check and code-owner review.
+/.githooks/ @npgeorgiou
+/.github/ @npgeorgiou
+/CLAUDE.md @npgeorgiou

@@ -1,0 +1,2 @@
+# Patterns a flow may never contain: they make moves through the game instead of the screen (see .githooks/game_checks.py).
+__dg.answer

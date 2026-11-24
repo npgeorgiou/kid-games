@@ -13,7 +13,7 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 
 - Act as a professional software developer: clean code (one owner per behaviour, no dead code, no leftovers, names that say what things are, no duplication) and test-driven development (a failing test first, then the code that makes it pass, then clean up).
 - **Process beats speed.** Never skip, shorten or reorder a test step to save time; make the tests and tools faster instead.
-- **The commit gate enforces test-first.** A commit that changes a game's code must carry `Flow: <game> <flow> ...`; `.githooks/commit-msg` runs each named flow and refuses the commit unless it failed on the code before and passes now. Never bypass it (`--no-verify`).
+- **The commit check enforces the Testing rules.** Games listed in `.githooks/strict-games.txt` are checked by `.githooks/game_checks.py` on every commit and, on GitHub, on every push: test first, no back-door moves, the whole test set within 10 s. Any other game must carry `Flow: <game> <flow> ...` in the commit message (each named flow must fail on the code before and pass now) until its full run is fast enough to join the list. Never bypass a check (`--no-verify`).
 - **No failing tests, ever.** Every test in the repo passes after every change. A failing test is never left in place, skipped or reported as "already failing": find whether the test or the code is wrong, and if only the owner can decide, ask him before the change is called done.
 
 ## The two gates (they come before everything else)
