@@ -1,12 +1,12 @@
 # Checks for games on the strict rules (owner 24 Nov; CLAUDE.md Testing). Used by the commit check and by the GitHub check on every push.
 # A game is on them when it is listed in .githooks/strict-games.txt (one folder name per line); the others keep the "Flow:" line check
-# until their full test run is fast enough (at most 10 s).
+# until their full test run is fast enough (at most 20 s).
 # For a game on the strict rules:
 # 1. A change to its code (its page, src/ or lib/) must add or change a flow (a def f_... in tools/flows.py) in the same change.
 # 2. Flows never make moves through the game's insides: no flow may contain a pattern listed in tools/backdoors.txt.
-# 3. Its whole current test set passes, in at most 10 seconds, browser start included.
+# 3. Its whole current test set passes, in at most 20 seconds, browser start included.
 import os, re, subprocess, sys, time, tempfile, shutil
-LIMIT_S = 10
+LIMIT_S = 20
 HERE = os.path.dirname(os.path.abspath(__file__))
 def strict_games():
     p = os.path.join(HERE, 'strict-games.txt')

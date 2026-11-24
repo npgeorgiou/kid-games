@@ -7,7 +7,7 @@ A painting game for a curious four-year-old, on a touchscreen PC. Not a workshee
 - **Start:** open `coloring-book.html` in a browser (one self-contained file). The newest picture opens.
 - **Paint:** one finger (or the mouse, or a pen with pressure) paints; other fingers are ignored. A finger or the mouse presses harder the slower it moves. A stroke may start beside the paper and come in. Ctrl+Z takes back the last stroke.
 - **Left side, drawing tools:** acrylic, watercolour, crayon (oil pastel), marker, simple brush, spray, shapes, ink, pencil, stickers. The buttons take the colour chosen.
-- **Bottom, colours:** the colour buttons are paint buckets. A tap fills the bucket (a full brush); holding goes round a third, two thirds, full, every half second. Choosing another colour keeps the amount. The palette button opens the palettes (Basic and a guide picture's own palette on top, then four columns of 10, each palette a bar of stripes: monochromes, a line, rainbows, a line, then the rest from simple to busy); white and black buckets are added when a palette has none; the pipette picks a colour from the painting (its own pointer, with a big swatch of the colour under it). With the sticker tool the bottom shows the stickers: drag one onto the paper, drag it off to remove it.
+- **Bottom, colours:** the colour buttons are paint buckets. A tap fills the bucket (a full brush); holding goes round a third, two thirds, full, every half second. Choosing another colour keeps the amount. The palette button opens the palettes (Basic and a guide picture's own palette on top, then four columns of 10, each palette a bar of stripes: monochromes, a line, rainbows, a line, then the rest from simple to busy); white and black buckets are added when a palette has none; the pipette picks a colour from the painting: touch, slide onto the colour (a big swatch shows it), lift to pick. With the sticker tool the bottom shows the stickers: drag one onto the paper, drag it off to remove it.
 - **Right side:** brush (the brush shape, shown as the brush and as a real stroke of it), size (5 sizes, the same for every brush), canvas (a new picture on watercolour paper, smooth paper or cotton), guide picture (choose, show or hide, remove), undo (all the way back), new picture, gallery (every kept picture, with delete), delete (press twice within a few seconds; a touch anywhere else takes the first press back).
 - **Esc** closes the gallery and other views.
 
@@ -20,12 +20,12 @@ A painting game for a curious four-year-old, on a touchscreen PC. Not a workshee
 | Crayon (oil pastel) | tip, side | thick and opaque in the paper's raised grain; the bucket level is how hard it presses; passes build up, smear and blend, small lumps |
 | Marker | bullet, chisel | see-through ink: each layer darker, crossings and the edge darker |
 | Simple | round, square, each sharp or soft | plain digital paint: opacity is the bucket level, the soft row has blurred edges |
-| Spray | fine, coarse (droplet size) | an airbrush: puffs many times a second, so a fast hand leaves them further apart; droplets scattered over a round area, thinner at its edge |
-| Shapes | square, circle, triangle, star, heart | as the Squares Brush: each shape as long as the hand moved in one frame and twice that across, touching the next, turned with the stroke, outlined, each a slightly different colour |
+| Spray | fine, coarse (droplet size) | an airbrush: puffs many times a second, so a fast hand leaves them further apart; droplets scattered over a round area, thinner at its edge, as far apart at every size |
+| Shapes | square, circle, triangle, star, heart, grass | as the Squares Brush: each shape twice as wide across as the hand moved in one frame (the square half that along the stroke, the others in their own proportions), touching the next, turned with the stroke, outlined, each a slightly different colour; a tap makes one shape of his usual speed's size |
 | Ink | round, nib | opaque ink of many fine strands, thinner the faster the hand; a quick hand throws splash drops |
-| Pencil | sharp, blunt, side | coloured lead only on the paper's raised grain; the bucket level is how hard it presses |
+| Pencil | sharp, blunt, side, soft | coloured lead only on the paper's raised grain; the bucket level is how hard it presses; each pass lays its mark at once and every new pass (crossing, going back) adds a layer; soft lays a thin see-through layer so colours mix |
 
-Flat brushes are held at one fixed angle, unless the turn switch in the brush popup is on: then every brush turns with the stroke. The brush popup shows real strokes of each brush on the chosen canvas (`lib/previews`).
+Flat brushes are held at one fixed angle, unless the turn switch in the brush popup is on: then every brush turns with the stroke. The lift switch there (off at the start) makes a fast hand lift the brush: above about 55 cm/s it rises, the faster the quicker, and once off it stays off until a new touch. The brush popup shows real strokes of each brush on the chosen canvas (`lib/previews`).
 
 ## Where things are
 
@@ -66,13 +66,12 @@ Every check passes. A commit that changes the game must name its flow (`Flow: co
 
 ## Now
 
-Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words: "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape inside one drawing tool; "colour button" = a paint bucket filled to the paint amount. Palettes are stripe bars in four columns of 12 with dividers: monochromes (Payne's grey between Blue and Purple) and a grey scale, rainbows, then the extras by number of hues (one, two, three, more); no palette colour is ever dropped (a palette's own near-white or near-black is its white or black bucket, always first). The chosen bucket is a little bigger and ringed, and fits between the paper and the screen edge. Brushes and the pointer turn with the stroke (switch in the brush popup). Speed acts as pressure, and a fast hand lifts the brush (numbers LIFT_FROM, LIFT_FAST, LIFT_TIME in src K); once off the paper it stays off until a new touch. Spray is an airbrush puffing on the clock; shapes are the Squares Brush; ink is fine strands that splash at quick (not lifting) speed. Tests include every brush's look (tools/looks) and every brush picture.
+Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words: "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape inside one drawing tool; "colour button" = a paint bucket filled to the paint amount. Palettes are stripe bars in four columns of 12 with bold dark dividers, a palette that runs along the spectrum runs reddish first, the rest keep their own order; the extras include scene palettes from Coolors he chose: monochromes (Payne's grey between Blue and Purple) and a grey scale, a bit wider than his files, rainbows, then the extras by number of hues (one, two, three, more); no palette colour is ever dropped (a palette's own near-white or near-black is its white or black bucket, always first). The chosen bucket is a little bigger and ringed, and fits between the paper and the screen edge. Brushes and the pointer turn with the stroke (switch in the brush popup). Speed acts as pressure, and with the lift switch on a fast hand lifts the brush (numbers LIFT_FROM 2000, LIFT_FAST 4000, LIFT_TIME 0.17 in src K: paper dots a second, about 36 a cm); once off the paper it stays off until a new touch. Spray is an airbrush puffing on the clock; shapes are the Squares Brush; ink is fine strands that splash at quick (not lifting) speed. Tests include every brush's look (tools/looks) and every brush picture.
 
 ## Open
 
 Do next, in this order (his words are in the Task list):
 - First, the tests (owner 24 Nov, Task list): make them one whole-game test that plays the game in the order it appears to the child, as `CLAUDE.md` Testing says. Check that every part of the game is tested (every tool, brush, colour, palette, the size dots, undo, Ctrl+Z and Ctrl+X, stickers, the gallery, the guide, saving), in that order, and that no two steps check the same thing. Read the page only, never write into it. Add `tools/backdoors.txt` listing what a shortcut through the game would look like, and set `tools/ci-checks.txt` to `flows 1`.
-- 22:37 point 2: near-duplicate palettes flagged to him with replacements (Earthy Woodland ~ Brown and Sage: ColorBrewer PuOr; Mediterranean Berry ~ Coral to Steel Blue: ColorBrewer Paired; Terracotta, Sand and Sage ~ Earth, Sage and Sky / Olive, Sand and Clay and Retro Primary Mix ~ Standard rainbow: no checked replacement yet). Waiting for his pick.
 - Lifting, spray, shapes, ink, pointer turning: waiting for his look.
 - 26: pencil needs work (his pencil pictures owner-shots/2026-11-23-pencil-*): only its grain curve was softened so a fast light line does not break.
 - p5.brush (https://p5-brush.cargo.site/, MIT): its page says it is meant for high-resolution artworks, maybe not live painting. Try it on one brush, measure stroke delay on a full paper at his screen size, show him, let him decide.
@@ -159,3 +158,18 @@ also, the palette that is generated from the image, must show its colors by orde
   6. same for ink: shit. splashes only when its off teh paper, etch. maybe it will be fixed when you increase the speed threshold for lifting up. see examples in page I had given: https://av01d.github.io/fabric-brushes/index.html
   7. when the pointer is rotating in circular motions, make it visually rotate too."
 - Owner 2026-11-24, verbatim: "for drawing, check that every think is tested, in the order it appears in the game, adn that there re no duplicate tests. I find no reason why the whole game is not tested in one big feature tests that does things in order."
+- Owner 2026-11-24 08:50, verbatim: "coloring book: work through README "Open" in order, test-first, verify in real game at my screen size. also, i tested previous work and have comments: "1. explain the brush speed -> lifting logic. I still find it hard to control it, I cant make long lifts, the lift happens too fast. 
+
+  2. I also want an option in the brush, whether to use speed as lift or no. default no.
+
+  3. its the fifth time you try to order the palettes my hue (1 hue, 2, 3, many) and you always fail. how is number 1, 2 after the rainbows, less complex than 16 and 17? . you cant do simple things. also, the previous chat said: "Near-duplicates and my suggested replacements:
+  Earthy Woodland ≈ Brown and Sage → replace with ColorBrewer PuOr (two hues).
+  Mediterranean Berry ≈ Coral to Steel Blue → replace with ColorBrewer Paired (many hues).
+  Terracotta, Sand and Sage ≈ Earth, Sage and Sky / Olive, Sand and Clay: I haven't found a checked replacement yet.
+  Retro Primary Mix ≈ Standard rainbow: same, no checked replacement yet." I dont know what these games are, show them in this caht in a simple and cheap way.
+
+  4. the spray is not correct, it seems that smaller brush sizes also make the dots get spreyed closer to each other. aso add ability to spray other shapes.
+
+  5. the shapes brush, errors: a single dot makes a tiny shape, not the size that a normal drawing speed would make. also, the same problem where the lift happens too early happens here (its a general thing) and I also cant start a shape line as small, it starts as big no matter what. also, the brush previews all show a dot, not the shape's shape, and the last 2 brushes are stupid, add normal star and normal heart, also something like grass or hair.
+
+  6: ink: your splashing is excessive, reduce across all brush options.""

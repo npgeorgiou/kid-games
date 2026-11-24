@@ -1,0 +1,136 @@
+# UI design guidelines
+
+Read this before designing or changing anything a player sees or hears, in any game here. Follow it. When a screen is done, go through the checklist at the end.
+
+The player is a four-year-old who cannot read, on a touchscreen. The screen is the whole game for him: what is not visible, audible and clear does not exist.
+
+## 1. The five qualities
+
+Every screen must be all of these at once:
+
+- **Interactive.** Everything he can touch looks touchable and answers at once. What he cannot touch looks still.
+- **Informing.** At any moment he can see whose turn it is, what he has, what just happened and why.
+- **Harmonious.** One visual language: one palette, one set of shapes, one spacing scale, one family of sounds and one way of moving.
+- **Pleasing.** Soft, warm, rounded and calm. Effects are rewards, not noise.
+- **Easily parsable.** One glance tells him what belongs together, what matters most and where to look.
+
+## 2. Layout and grouping (how the eye groups things)
+
+- **Proximity decides groups.** Things that belong together sit close. Things that don't have clear space between them. Proximity is the strongest grouping cue, stronger than colour or shape. Give every element its own space, with a margin around it. Groups are separated by more space than the items inside a group.
+- **Common region.** A shared background or tray means "these belong together": one player's things, one bonus, one choice. Prefer a soft tinted area or a shadow to a hard outline. Borders are the last tool, not the first.
+- **Similarity.** Things that work the same look the same: every jar like every jar, every coin like every coin. A thing that looks different must be different.
+- **Hierarchy.** Decide what he must see first, second and third on each screen, then make it so with size, contrast, position and motion. Only one thing at a time is the most important, and it is where his eyes already are.
+- **Show where the action is.** Put information where his attention already is (on the board, at the piece he moved), not in corners. Information in a far corner is missed.
+- **Spacing scale.** Use a few fixed spacing steps (for example 8, 16, 24, 32, 48 px at the target size) and never values in between. Start with too much space, then remove it.
+- **Nothing unexplained.** Every shape on screen must mean something he can learn. A line, mark or frame that means nothing to him is removed.
+- **Readable at a squint.** Look at the screen in grey, or squinting: the background, the things he can touch and the one thing that matters now must sit at clearly different lightness, with the focal thing strongest. Too much contrast everywhere is noise. Check every screen this way.
+- **Silhouettes and shapes carry states.** Every kind of thing can be told apart as a filled shape, with no colour and no detail inside. A thing that changes state changes its shape or size (it lifts, tilts, opens), not only its tint.
+- **Size is fixed; capacity is designed.** Decide how many of a thing must fit and design the space for that many at full size. Never shrink things to make more fit. Hearthstone capped its board at 7 minions rather than shrink them.
+- **Don't hide what matters.** All public game state is visible on the main screen, never behind a menu or a popup.
+
+## 3. Player areas and turns
+
+- **One player, one place.** Each player's things (land, goods, jars, coins, tokens) live in one area that is clearly his: his colour as a soft background tint, his figure or face at its head. Both areas use the same design, so learning one teaches the other.
+- **Show amounts as things.** Goods, jars and coins are shown as the objects themselves, arranged so that amounts compare at a glance: rows or stacks of equal-sized items, never a heap and never a number.
+- **Whose turn it is is unmistakable.** The active player's area is lit and lifted (brighter, a soft glow, slightly larger); the other is dimmed. Changing turns is an event, seen and heard: the light moves over, with a short sound.
+- **The other player is a person.** Everything the opponent does is shown slowly and in full, the way a person across the table would do it, so he can follow it.
+- **The turn travels.** When the turn passes, something moves from one player's area to the other's (a light, a marker), so the change is seen as it happens. A token won flies from where it was won to its place.
+- **The turn sign sits where he looks.** Whose turn it is is shown in the main view, at the place where the action is, never only at an edge. New players on Board Game Arena missed a turn indicator placed below the main view.
+- **Phases are events.** A new round, the end of a round and the end of the game each get their own short, unmistakable moment: the screen changes mood (a light sweep, a banner picture, a pause) with its own sound, so he knows something different is happening now.
+
+## 4. Feedback (signs and responses)
+
+- **Every action answers, seen and heard.** A touch gives an instant visual and sound response. Sound never carries meaning alone, because the sound may be off.
+- **Cause and effect are visibly linked.** A reward comes out of what earned it: it appears at the place that caused it and travels to where it goes. Nothing appears from nowhere, and nothing vanishes without being seen to go.
+- **Show the possible.** While something is being dragged, show where it can go. Things he can't use look quiet (greyed but still recognisable) and don't answer as if usable.
+- **Physical, like a real table.** Pieces behave like objects: they tilt as they are carried, bounce a little when they land, and the board answers a tap (a puff of dust, a small knock). Hearthstone chose this physical style over flat design because it suits a game played on a table, and it made touch feel right.
+- **Answer the touch, not the release.** Children hold a finger down until something happens, so a tap is answered when the finger touches. Stray second touches are common: they must do nothing.
+- **Forgiveness.** A choice can be undone until it is committed: a picked-up piece can be put back where it came from. Wrong touches cost nothing.
+- **Never hide what a choice depends on.** A choice panel is small and sits beside the thing it is about. Everything the choice depends on stays visible (his land, when he decides on a bid). Better still, the choice lives on the board itself. A panel that covers the context makes him choose from memory.
+- **States are consistent.** Each kind of element has the same few states everywhere (ready, active, used, unavailable) and each state looks the same in every game.
+
+## 5. Motion
+
+Based on Disney's twelve principles of animation, as applied to interfaces:
+
+- **Slow in, slow out.** Nothing starts or stops at full speed. Use easing curves, never linear motion: a spinning wheel winds down, a flying piece slows as it lands.
+- **Anticipation and follow-through.** A small wind-up before a big move, and a small overshoot and settle after it, make moves readable and alive.
+- **Staging.** One motion at a time where it matters, so the eye knows where to look. Things that happen in sequence (one jar, then the next) are shown in sequence, never all at once.
+- **Timing carries meaning.** Small things are quick (about 150–300 ms); events he must follow are slower (about 0.5–1.5 s). Don't make him wait for decoration.
+- **Arcs.** Things travel on curved paths, like something thrown, never in straight lines.
+- **One object, one journey.** A thing that goes from one place to another is the same object all the way: it leaves its old place and arrives at its new one. It never vanishes here and reappears there.
+- **The container comes first.** When things go into something (goods into a jar), the container arrives at its place first. Then the things fly into it one by one, on arcs.
+- **The source shows itself.** When something produces things (a land making goods, a jar giving its bonus), the source lights up or opens. Then each thing comes out of it and flies to where it goes, one at a time, each with its sound.
+- **Loss is seen.** What is lost dissolves where it is (it breaks into specks that fade). This happens only after everything that could still use it is done.
+- **Step aside, don't vanish.** When something interrupts what he is doing (a bonus during jar opening), his things move to a free place and come back afterwards. They never disappear.
+- **Completion is marked at its place.** When a group is complete (a set, a jar's worth of goods), its sign appears right beside it.
+- **Routine is short, rare is longer.** Something that happens every turn takes a fraction of a second, because a long animation he sees a hundred times slows the game and gets skipped. A rare event (a jar's prize, a round's end) may take a second or two.
+- **Juice serves information.** Particles, a glow, a squash and stretch go on events that matter and say what happened. More effects are not better: too much feedback is noise that hides the game.
+
+## 6. Sound
+
+- **One family.** All sounds come from one sound palette (for example soft wooden and clay sounds for an ancient Greek setting), so they belong together.
+- **Pleasant at the hundredth time.** Frequent sounds (a tap, a snap) are short (well under a second), soft, warm and never shrill or buzzy. A sound that is unpleasant on repeat is wrong.
+- **Hierarchy.** Small actions get small sounds; big moments (a won jar, a slot win, the end of a round) get richer, longer ones.
+- **Sounds match the thing.** A clay jar breaks when opened, a piece clicks when it snaps in, coins clink. A sound is chosen for what the object would really do.
+- **Sound with sight.** Each sound starts exactly with its visual event.
+
+## 7. For children who can't read
+
+- **No text.** Pictures, shapes, colour, motion and sound carry everything. Text appears only where the owner asks for it.
+- **Big targets.** Touch targets are at least about 2 cm across (Nielsen Norman Group; about 75 px is the guideline for screens), with space between them, so a resting hand or a rough tap hits the right one.
+- **Nothing to touch at the bottom edge.** Children rest their wrists on the bottom edge of a tablet, so buttons and pieces there get pressed by accident.
+- **Simple gestures.** Tap and drag only. No double taps, pinches, long presses or multi-finger gestures.
+- **Pictures of the thing, checked twice.** Every picture shows a real object: no letters, no abstract arrows or marks. Check each picture twice before using it: can he say what it shows, and can he say what it does here? If either takes more than a moment, redraw it. A button shows its result: what you give and what you get.
+- **Familiar pictures.** Use objects he knows from the world (a jar, a coin, a hand, a star) rather than abstract symbols.
+- **Reward completion.** Finishing something is celebrated with a visual, animation and sound.
+
+## 8. Visual style
+
+- **A small palette.** A few base colours with light and dark steps, chosen once per game. Hierarchy comes from contrast and size more than from adding colours.
+- **Depth by elevation.** A few fixed shadow levels: lifted things (the piece in hand, the active player's area, a popup) cast bigger shadows than things lying flat.
+- **Rounded and solid.** Rounded corners, filled shapes, clear silhouettes that read at a glance.
+- **Form follows function.** A thing's look tells what it does: a button looks pressable, a piece looks liftable, a jar looks breakable.
+
+## How to design a screen
+
+1. Wireframe it first, in grey blocks: what he must see first, second and third, where his eyes are, and what he can touch. A screen that needs a complicated wireframe means the game may be too complicated; say so to the owner.
+2. Then draw it, then look at it: take a screenshot, look at it in grey (the squint test) and go through the checklist. Fix, and look again.
+
+## Checklist for every screen
+
+1. Can he tell whose turn it is from across the room?
+2. Can he tell what each player has without counting carefully?
+3. Does every action he makes get an instant picture and sound response?
+4. Does every reward visibly come out of its cause?
+5. Is every element separate, with its own space, and is every group clearly a group?
+6. Is there anything on screen that means nothing to him? Remove it.
+7. Is there any text? Remove it unless the owner asked for it.
+8. Do all motions ease in and out, and happen one at a time where he must follow them?
+9. Would every sound still be pleasant the hundredth time?
+10. Are new rounds, round ends and the game's end each their own clear moment?
+11. Does every moving thing come out of its source and travel on an arc to its place, the same object all the way?
+12. Does any panel cover what the choice depends on?
+13. Can every picture be named, and its meaning told, at a glance?
+14. In grey, are the background, the touchable things and the one focal thing clearly different in lightness?
+15. Can every kind of thing be told apart by its filled shape alone, and do state changes change the shape?
+16. Is anything shrunk to fit, or anything touchable at the bottom edge?
+17. Is every routine animation short and every rare one allowed its time?
+
+## Sources
+
+- Nielsen Norman Group: [Proximity](https://www.nngroup.com/articles/gestalt-proximity/), [Common region](https://www.nngroup.com/articles/common-region/), [Children's UX: physical development](https://www.nngroup.com/articles/children-ux-physical-development/).
+- Google, [Designing engaging apps for kids](https://developers.google.com/building-for-kids/designing-engaging-apps).
+- Celia Hodent, *The Gamer's Brain* (signs and feedback, form follows function, putting information where attention is); [Creative Bloq interview](https://www.creativebloq.com/features/how-neuroscience-and-ux-impacts-video-game-design).
+- Board Game Arena, [guidelines for digital board games](https://be.doc.boardgamearena.com/images/7/76/5-guidelines.pdf); Asmodee Digital, [Art direction and UI](https://doc.asmodee.net/art-and-ui).
+- Frank Thomas and Ollie Johnston, *The Illusion of Life* (the twelve principles of animation); [Interaction Design Foundation on applying them to UI](https://ixdf.org/literature/article/ui-animation-how-to-apply-disney-s-12-principles-of-animation-to-ui-design).
+- Material Design, [Motion choreography](https://m1.material.io/motion/choreography.html) and [the motion system](https://material.io/design/motion/the-motion-system.html) (shared elements, container transform: one object, one journey).
+- Modals and context: [UX Planet, best practices for modals](https://uxplanet.org/best-practices-for-modals-overlays-dialog-windows-c00c66cddd8c); [Adam Shriki, the cost of interruption](https://medium.com/@adamshriki/the-high-cost-of-interruption-re-evaluating-the-modal-dialog-in-modern-ux-e448fb7559ff).
+- Nielsen Norman Group: [Icon usability: recognizability and interpretation](https://www.nngroup.com/articles/how-to-test-digital-icons/), [Classifying icons](https://www.nngroup.com/articles/classifying-icons/).
+- Derek Sakamoto (Blizzard), [Hearthstone: How to Create an Immersive User Interface](https://gdcvault.com/play/1022036/Hearthstone-How-to-Create-an), GDC 2015 ([summary](https://www.mmo-champion.com/content/4753-Mar-4-Hotfixes-Level-100-Neutral-Pandaren-Hearthstone-at-GDC-Blue-Tweets-NerfNow)): physical UI, fixed board capacity, wireframes first, a complicated UI means a complicated game.
+- Readability: [Peter Angstadt, Reducing visual confusion (value analysis)](https://icewyrmgames.github.io/research/reducing-visual-confusion-in-your-game); [the squint test](https://gbstudiocentral.com/?p=2094); [visual hierarchy for game developers](https://docs.google.com/presentation/d/1CCyvmolcSdJQJGTRgL-PMPZPBO2RETGBAVzzz1A4tes/htmlpresent).
+- Children and touch: [Sesame Workshop's guide, as reported by Gamezebo](https://www.gamezebo.com/news/sesame-street-creators-want-to-help-developers-create-apps-for-kids-count-to-17/) (register on touch, stray multi-touch); [Joan Ganz Cooney Center, touch tablets for preschoolers](https://joanganzcooneycenter.org/?p=19607) (wrists on the bottom edge, landscape).
+- Turn indicators: [Board Game Arena report 84391](https://sv.boardgamearena.com/bug?id=84391). Animation cost in board game adaptations: [How board games are being reimagined as video games](https://coopboardgames.com/blog/how-board-games-are-being-reimagined-as-video-games/).
+- Martin Jonasson and Petri Purho, "Juice it or lose it" (GDC 2012); [Juice overload](https://www.wayline.io/blog/juice-overload-sensory-feedback-hurts-gameplay); [Slime Road: nothing appears out of nowhere](https://www.gamedeveloper.com/design/3-game-juice-techniques-from-slime-road).
+- Adam Wathan and Steve Schoger, *Refactoring UI* (spacing scale, small palette, elevation shadows, fewer borders).
+- Audio: [Audiokinetic, UI audio from a UI design perspective](https://www.audiokinetic.com/en/approaching-ui-audio-ui-design-perspective-2), [Microsoft sound guidelines](https://learn.microsoft.com/en-ie/Windows/Win32/uxguide/vis-sound), [UI sound design for indie games](https://bugnet.io/blog/ui-sound-design-for-indie-games), [Material Design sound](https://m2.material.io/design/sound/about-sound.html).
