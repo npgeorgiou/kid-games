@@ -279,6 +279,17 @@ def f_jars_apart(q):  # owner 24 Nov: "jar circles are touching": every jar and 
     ok = len(jars) == 2 and len(glows) == 2 and min(gaps) >= 12
     report(ok, 'jars: apart, with a gap between them', 'gaps between jars and between glows %s px' % [round(g) for g in gaps])
 
+def f_sky_stars(q):  # owner 24 Nov ("rethink all UI"): the stars in the evening sky were small; at a round's end they are big enough to see from across the room, and apart
+    pause_clock(q); table(q, fast=False, bag=[[2, 2], [3, 3]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); skip(q, 1200); waiting(q, 'jar'); tap(q, 'jar-0')
+    for _ in range(80):
+        if drawn(q, 'skystar'): break
+        skip(q, 200)
+    skip(q, 1600); stars = drawn(q, 'skystar'); q.clock.resume()
+    gap = min((((a['x'] - b['x']) ** 2 + (a['y'] - b['y']) ** 2) ** 0.5 - a['r'] - b['r'] for i, a in enumerate(stars) for b in stars[i + 1:]), default=0)
+    ok = len(stars) >= 4 and min(x['r'] for x in stars) >= 18 and gap >= 16
+    report(ok, 'evening: big stars in the sky', '%d stars, smallest %s px across, %.0f px apart' % (len(stars), min((2 * x['r'] for x in stars), default=0), gap))
+
 def f_round_end_shown(q):  # owner 24 Nov: the round's end is its own moment, seen and heard, before anything else happens in it; "the sunset is weird": evening falls (sky darkens from the top, a moon and stars), the board stays in view; leftover market tiles fly back to the pile
     pause_clock(q); table(q, fast=False, bag=[[2, 2], [3, 3]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)  # [3, 3] fits nobody: both pass, it is left in the market
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); skip(q, 1200); waiting(q, 'jar'); tap(q, 'jar-0')

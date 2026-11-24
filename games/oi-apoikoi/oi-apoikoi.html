@@ -740,7 +740,7 @@ function drawDusk() {  // evening: the sky darkens from the top down, lightly, s
   const my = T * 0.5 + (1 - easeInOut(u)) * T * 0.4, mx = W / 2;  // the moon rises a little as night comes
   cx.globalAlpha = u; cx.save(); cx.beginPath(); cx.rect(0, 0, W, H); cx.arc(mx + T * 0.13, my - T * 0.06, T * 0.27, 0, 7); cx.clip('evenodd');  // a crescent: the moon's disc with a round bite cut out
   dot(mx, my, T * 0.3, '#fdf3c8'); cx.restore();
-  for (const [sx, sy] of [[-0.32, 0.25], [-0.2, 0.7], [0.24, 0.2], [0.36, 0.62], [0.12, 0.85]]) star(mx + sx * W * 0.5, sy * T, 11);
+  for (const [sx, sy] of [[-0.32, 0.25], [-0.2, 0.7], [0.24, 0.2], [0.36, 0.62], [0.12, 0.85]]) { const x = mx + sx * W * 0.5, y = sy * T; star(x, y, 20); drawn.push({ k: 'skystar', x, y, r: 20 }); }  // big enough to see from across the room
   cx.globalAlpha = 1; drawn.push({ k: 'moon', shape: 'crescent' });
 }
 function drawDawn() {  // morning: a band of warm light sweeps over the screen from left to right
