@@ -38,9 +38,8 @@ A playable prototype against the PC on one shared board, colours only. Tiles are
 
 ## Task list
 
-- Merge into the main test the small flows it already covers (owner yes); keep small flows only for versions of one thing.
-- Waiting for the owner: 3, 4, 5 or 7 pictures per wheel (odds given 24 Nov); which new slot gifts, if any. Slot pictures stay as they are (owner).
-- Waiting for the owner: should a tile need more to fit (after round 2 almost every tile fits)?
+- Redo the screen with the new rules in `tools/ui-design/README.md` (24 Nov: squint test, shapes carry states, fixed sizes, turn sign where he looks, physical pieces, routine short and rare longer, nothing at the bottom edge): wireframe first, then draw, screenshot in grey, checklist of 17, fix, look again.
+- Merge into the main test the small flows it already covers (owner yes): their checks move to the moment the main game passes that situation, then they go; small flows stay only for versions of one thing (each jar's label, each slot result, timings).
+- Waiting for the owner: 3, 4, 5 or 7 pictures per wheel; with 5, does three pay 8, and do goods pay 5×? Slot pictures stay as they are.
+- Waiting for the owner: keep the placing rule, or make it stricter (both halves must touch their own colour) so tiles he can't use happen after round 2?
 - Stockpile goods and their jar outlines are small: the panel may need to be wider.
-- Screen pass with `tools/ui-design/README.md`'s checklist (13 points) over the whole game, with screenshots.
-- One full test run failed once (which flow is unknown); find it.

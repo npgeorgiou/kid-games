@@ -10,3 +10,4 @@
 - Sounds at test speed are only noted (`__dg.sounds()`), never played: playing hundreds at once in random play cost about half a second.
 - Flows that only need the end of a wait jump the fake clock (skip: fast_forward, each due timer once); run_for steps every frame and costs about half a real second per fake second.
 - Build (run the harness) before staging: the committed page must be built from the committed source; a page staged before the build goes in stale.
+- A flow that samples the game's randomness is seeded (table(seed=...)): unseeded shares wander out of any tight band now and then, and the run fails at random.

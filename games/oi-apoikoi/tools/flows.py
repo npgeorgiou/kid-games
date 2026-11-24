@@ -15,7 +15,8 @@ WAIT = 1500  # ms: the game answers in a few ms in fast mode, so a flow that wai
 # SECTION: HELPERS -- the page, a set table, taps and drags on what is drawn, the game's state
 def settle(q): q.evaluate("()=>__dg.render()")  # the game answers a tap at once; draw it now, so what is on screen (and its buttons) is current
 def table(q, **opts):  # a new game on a set table, its first round's goods already in (the round start's flight has its own flow)
-    opts.setdefault('fast', True); opts.setdefault('goodsIn', True); q.evaluate("(o)=>__dg.restart(o)", opts); settle(q)
+    opts.setdefault('fast', True); opts.setdefault('goodsIn', True); opts.setdefault('seed', 1)  # always seeded: a flow never depends on luck
+    q.evaluate("(o)=>__dg.restart(o)", opts); settle(q)
 def skip(q, ms):  # jump the paused fake clock on (each due timer fires once, no frame in between): for waits whose middle nobody looks at
     q.clock.fast_forward(ms); settle(q)
 def run_until(q, cond, limit=4000):  # move the paused fake clock on in short steps until the game is in the state asked
@@ -397,13 +398,14 @@ def f_pc_slot(q):  # the PC takes the best expected result on the slot machine t
     report(c == 7, 'pc: slot machine played for the most', 'pc coins %d' % c)
 
 def f_jar_mix(q):  # owner 24 Nov, per 100 jars: 10 empty, 40 one coin, 10 two coins, 5 steal, 5 extra tile, the rest equal (7.5 each: slot, first, another jar, set)
-    table(q, bag=[[0, 4]] * 4, tiles=[[14, 7, 0, 0, 1, 1]]); n = 8000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)  # the PC has a tile the kid could steal
+    table(q, bag=[[0, 4]] * 4, tiles=[[14, 7, 0, 0, 1, 1]], seed=11)  # the PC has a tile the kid could steal; seeded: an unseeded sample missed the 1.5% band about once in 15 runs
+    n = 8000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)
     want = {'empty': 10, 'coins': 40, 'coins2': 10, 'steal': 5, 'tile': 5, 'slot': 7.5, 'first': 7.5, 'jar': 7.5, 'set': 7.5}
     ok = set(m) == set(want) and all(abs(100 * m[k] / n - v) < 1.5 for k, v in want.items())
     report(ok, 'jars: the owner\'s mix', ', '.join('%s %.1f%%' % (k, 100 * m.get(k, 0) / n) for k in want))
 
 def f_no_useless_steal(q):  # owner 24 Nov: "steal a tile shouldn't appear when one can't be stolen (opponent has only the starting tile)"
-    n = 4000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)
+    table(q, bag=[[0, 4]] * 4, seed=11); n = 4000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)  # seeded, so the shares never wander out of their band
     report('steal' not in m and abs(100 * m['coins'] / n - 40 / 0.95) < 2, 'jars: no steal when nothing can be stolen', str(m))
 
 def f_empty_jar(q):  # owner 24 Nov: some jars hold nothing: it breaks, shows it is empty, and nothing is gained
