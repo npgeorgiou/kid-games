@@ -95,7 +95,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
     many as the splash setting says. Pencil leaves its colour only where the paper's raised grain
     touches the lead; pressing harder (pressure and the bucket level) reaches lower into the grain, and the round lead presses
     hardest at its middle. Each pass of the lead lays its mark at once over what shows there; when the lead comes back
-    (crossing its own line or going back) that is a new pass and adds another layer. The soft brush lays a thin see-through layer, so colours mix.
+    (crossing its own line or going back) that is a new pass and adds another layer. The soft row lays a thinner see-through layer, so colours mix.
  Pressure: a pen's pressure, or for a finger or the mouse its speed (slower is harder), gives more paint and a wider mark.
  Lifting: a hand moving faster than a normal line lifts the brush, a little more each moment, the faster the sooner: the mark
     narrows smoothly to a point (its dabs come closer as it narrows); slowing down sets it down again.
@@ -136,7 +136,7 @@ const SHAPES = { // brushes per tool (owner 21 Nov: all of them): kind (0 round,
     { id: 'heart', k: 0, al: 1, asp: 1, pts: heartPts() }, { id: 'grass', k: 0, al: 1, asp: 1, pts: [[-0.7, 0.8], [-0.66, -0.3], [-0.52, 0.55], [-0.42, -0.9], [-0.28, 0.55], [-0.14, -0.5], [-0.02, 0.55], [0.14, -1], [0.26, 0.55], [0.4, -0.45], [0.52, 0.55], [0.68, -0.75], [0.7, 0.8]] }], // owner 23 Nov: squares and more; 24 Nov: a normal star and heart, and grass
   // each shape an outline (pts: x along the stroke, y across it, in brush radii); asp 2: half as long along the stroke as across (the Squares Brush's squares), 1: its own proportions
   ink: [{ id: 'round', k: 0, al: 1, sc: 0.6 }, { id: 'nib', k: 1, al: 0.25, fixed: 1 }],
-  pencil: [{ id: 'sharp', k: 0, al: 1, sc: 0.3 }, { id: 'blunt', k: 0, al: 1, sc: 0.6 }, { id: 'side', k: 1, al: 0.35, fixed: 1 }, { id: 'soft', k: 0, al: 1, sc: 0.6, wax: 0.5 }], // owner 23 Nov: drawing pencils; the side of the lead shades
+  pencil: [{ id: 'sharp', k: 0, al: 1, sc: 0.3 }, { id: 'side', k: 1, al: 0.35, fixed: 1 }], // owner 23 Nov: drawing pencils; the side of the lead shades; 24 Nov: size only by the size button
 };
 // tuning (the prototype answers these with the child)
 const K = {
@@ -149,7 +149,7 @@ const K = {
   CF: 0.4, DEEP: 0.3, KP: 0.015, MAXF: 0.5, // flow: speed, how deep water pushes onto dry paper, pull of the paper's dips, most water leaving a pixel per step
   EV: 0.15, EDGE: 25, W0: 0.02, SETTLE: 30, DEP0: 0.05, GRAN: 0.35, LIFT: 0.3, DAMPW: 2, DAMPE: 2, FIX: 4, // drying, edge drying, settling, granulation, lifting, damp paper, fixing
   PASTEL_GIVE: 1 / 2500, PASTEL_TAKE: 0.06, PASTEL_STICK: 8, PASTEL_REACH: [0.45, 0.65, 0.82], PASTEL_FILL: 1.2, PASTEL_LUMP: 0.004, // oil pastel: lays thick, picks up and smears soft paint, a stick lasts (8 brushfuls); how far into the grain each bucket level (pressure) reaches; laid paint fills the dips; lumps
-  PENCIL_WAX: 0.6, PENCIL_PRESS: [0.35, 0.55, 0.8], STAMP_LIGHT: 0.25, STAMP_HUE: 0.1, SHAPE_FILL: 0.45, SHAPE_FRAME: 1 / 60, SHAPE_TOP_V: 1000, SHAPE_TAP_V: 550, INK_AMOUNT: 7, INK_SPLASH: [0, 0.12, 0.25, 0.5], INK_SPLASH_V: 900, // ink (av01d fabric-brushes): how much ink the strands carry; splash drops: none, few, some, many (owner 24 Nov: a quarter of before)
+  PENCIL_WAX: [0.75, 0.4], PENCIL_PRESS: [0.35, 0.6, 1], STAMP_LIGHT: 0.25, STAMP_HUE: 0.1, SHAPE_FILL: 0.45, SHAPE_FRAME: 1 / 60, SHAPE_TOP_V: 1000, SHAPE_TAP_V: 550, INK_AMOUNT: 7, INK_SPLASH: [0, 0.12, 0.25, 0.5], INK_SPLASH_V: 900, // ink (av01d fabric-brushes): how much ink the strands carry; splash drops: none, few, some, many (owner 24 Nov: a quarter of before)
   SPRAY_DROPS: 24, SPRAY_HOLD: 200, // owner 23 Nov: pencil (lead pressure per bucket level), shapes (colour spread), spray
   MARK_INK: 0.6, MARK_RIM: 1.5, // one layer of ink is lighter than the colour, so layers build up darker; owner 21 Nov: a real marker: see-through ink, crossing strokes darker, ink gathers at the edge
   LIFT_FROM: 2000, LIFT_FAST: 4000, LIFT_TIME: 0.17, // owner 23 Nov: a fast hand lifts the brush (with the lift switch on). Paper pixels a second (his screen about 36 a cm): above LIFT_FROM (about 55 cm/s) it
@@ -326,7 +326,7 @@ const PR = {
       if (rr <= 1. && (!mine || DIST - b0.a > 2.2 * R)) { b0.rgb = visOf(pic, u, mis.a); mo = 0.; mis.g = 0.; mis.b = ID; } // a new pass of the lead over this place: it lays over what shows now
       if (rr <= 1.) b0.a = DIST; // where along the stroke the lead last touched this place
       vec2 bu = brushUV(vec2(p - C), R); float lines = fract(sin(floor(bu.y * R * SSC * .8) * 91.7 + ID * 3.1) * 43758.5453); // fine lines along the stroke where the lead is uneven
-      m = rr > 1. ? 0. : sm(1.05 - LEAD - .8, 1.05 - LEAD + .35, g + (lines - .5) * .2 - 1.4 * rr * rr) * LO; } // it touches the raised grain, deeper the harder it presses; the round lead presses hardest at its middle, so towards the edges only the highest grain
+      m = rr > 1. ? 0. : sm(1.05 - LEAD - .8, 1.05 - LEAD + .35, g + (lines - .5) * .2 - .8 * rr * rr) * LO; } // it touches the raised grain, deeper the harder it presses; the round lead presses hardest at its middle, so towards the edges only the highest grain
     if (GLAZE > 0.) m *= 1. + MARK_RIM * sm(.6, .95, rr); // marker ink gathers a little at the edge of the line
     if (FL > 0. && LO > mo) { float src = m / max(LO, 1e-4); m = mo + (LO - mo) * (src >= 1. ? 1. : 1. - pow(1. - src, FL)); } // simple brush: each dab adds its soft edge towards the coat (standard technique: Krita's wash mode, alpha darken),
     if (m > mo) { mis.g = m; mis.b = ID; pic.rgb = GLAZE > 0. ? b0.rgb + max(CA - PA, 0.) * m : abOf(mix(rgbOf(b0.rgb), rgbOf(CA), m)); u.rgb = pic.rgb; } // marker: see-through ink, crossing lines get darker
@@ -510,7 +510,7 @@ async function undoOne() {
 }
 
 // SECTION: TOOLS -- one dab of each medium (the model's parts 2-5)
-const st = { tool: 'acrylic', palette: 0, color: 4, load: 3, size: 1, soft: 0, turn: false, lift: false, splash: 1, shape: { oil: 0, acrylic: 0, water: 0, crayon: 1, marker: 0, simple: 0, spray: 0, shapes: 0, ink: 0, pencil: 0 }, canvas: 'wc' };
+const st = { tool: 'acrylic', palette: 0, color: 4, load: 3, size: 1, soft: { simple: 0, pencil: 0 }, turn: false, lift: false, splash: 1, shape: { oil: 0, acrylic: 0, water: 0, crayon: 1, marker: 0, simple: 0, spray: 0, shapes: 0, ink: 0, pencil: 0 }, canvas: 'wc' };
 const colorOf = (i) => (i === 'pick' ? st.picked : colorsNow()[Math.min(i, colorsNow().length - 1)]); // 'pick': the colour taken from the painting
 let stroke = null, clockShift = 0;
 const paintNow = () => performance.now() / 1000 + clockShift;
@@ -560,8 +560,8 @@ const liftWide = (s) => 1 - (1 - s.lift) ** 2; // how wide a lifting brush still
 const tipWide = (s) => (0.7 + 0.3 * Math.min(1, s.pres)) * liftWide(s); // how wide the tip touches: less pressed, and lifting, it is narrower
 function simpleDab(s, cx, cy) { // the simple brush, the marker (see-through ink, model part 6), ink and pencil (part 8)
   const R = s.r, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]), t = s.tool, mk = t === 'marker', sharp = mk;
-  const lo = t === 'simple' ? [1 / 3, 2 / 3, 1][st.load - 1] : mk ? s.load * K.MARK_INK : K.PENCIL_WAX * (s.shape.wax || 1);
-  capture(r); pass(PR.simple, r, [PIC, MISC, B0, UNDER], Object.assign({ P: PIC, M: MISC, B: B0, U: UNDER, G: GRAIN, C: [X, Y], R, HD: sharp ? 1 - 1.5 / (R * (s.shape.sc || 1)) : t === 'pencil' ? 0.8 : SOFT[st.soft], ID: s.id,
+  const lo = t === 'simple' ? [1 / 3, 2 / 3, 1][st.load - 1] : mk ? s.load * K.MARK_INK : K.PENCIL_WAX[st.soft.pencil];
+  capture(r); pass(PR.simple, r, [PIC, MISC, B0, UNDER], Object.assign({ P: PIC, M: MISC, B: B0, U: UNDER, G: GRAIN, C: [X, Y], R, HD: sharp ? 1 - 1.5 / (R * (s.shape.sc || 1)) : t === 'pencil' ? 0.8 : SOFT[st.soft.simple], ID: s.id,
     LO: lo * Math.min(1, s.pres) * liftPaint(s), CA: s.ca, GLAZE: mk ? 1 : 0, PA: CANVASES[st.canvas].paper.map(ab),
     LEAD: t === 'pencil' ? Math.min(1, K.PENCIL_PRESS[st.load - 1] * s.pres) : 0, DIST: s.dist, FL: t === 'simple' ? K.SIMPLE_FLOW * s.sp / (2 * R) : 0 }, shapeUni(s))); markDirty(r);
 }
@@ -801,23 +801,23 @@ document.addEventListener('pointerdown', (e) => { // touching anywhere else clos
 
 // Brushes are shown as the mark they make, in the chosen colour; sizes as the brush's tip at that size (owner 21 Nov).
 function tipShape(c, s, R, d = s.fixed && !s.upright ? FIXED : [1, 0]) { c.save(); c.rotate(Math.atan2(d[1], d[0])); c.beginPath(); // the brush's tip, held as it paints (d: the way it is held)
-  if (s.pts) { const k = R / Math.max(...s.pts.map(([x, y]) => Math.max(Math.abs(x) * 2 / s.asp, Math.abs(y)))); s.pts.forEach(([x, y]) => c.lineTo(x * k * 2 / s.asp, y * k)); c.closePath(); } // a shape: its outline as it paints (owner 24 Nov: not a dot)
+  if (s.pts) { const k = R / Math.max(...s.pts.map(([x, y]) => Math.max(Math.abs(x) / s.asp, Math.abs(y)))); s.pts.forEach(([x, y]) => c.lineTo(x * k / s.asp, y * k)); c.closePath(); } // a shape: its outline as it paints, along the stroke 1/asp as long, as the stamp does (owner 24 Nov: not a dot, not squashed)
   else if (s.k === 0) c.arc(0, 0, R, 0, 7); else if (s.k === 1) c.rect(-Math.max(2, R * s.al), -R, 2 * Math.max(2, R * s.al), 2 * R); else c.ellipse(0, 0, R * s.al, R, 0, 0, 7);
   c.restore(); }
 function tipDraw(t, i, size) { return (c) => { const s = SHAPES[t] ? SHAPES[t][st.shape[t]] : { k: 0, al: 1 }; c.save(); c.translate(50, 50); c.fillStyle = '#3a2a1a'; tipShape(c, s, [6, 11, 17, 25, 36][size]); c.fill(); c.restore(); }; }
 const PREVIEWS = /*%PREVIEWS%*/{}, previewImg = {}; // owner 21 Nov: each brush's mark is a real stroke, painted by tools/previews.py as he would, on each canvas (lib/previews), inlined by build.py
-function preview(t, i, blur) { const key = st.canvas + ':' + t + '-' + i + (blur ? '-blur' : ''), src = PREVIEWS[st.canvas] && PREVIEWS[st.canvas][t + '-' + i + (blur ? '-blur' : '')];
+function preview(t, i, soft) { const name = t + '-' + i + (soft ? '-soft' : ''), key = st.canvas + ':' + name, src = PREVIEWS[st.canvas] && PREVIEWS[st.canvas][name];
   if (!src) return null; let im = previewImg[key]; if (!im) { im = previewImg[key] = new Image(); im.onload = () => buttons.forEach(drawIcon); im.src = src; } return im.complete && im.naturalWidth ? im : null; }
-function brushDraw(t, i, blur) { return (c) => { // both: the tip's shape (top left) and the mark it makes (below) (owner 21 Nov)
-  const s = SHAPES[t][i], im = preview(t, i, blur);
+function brushDraw(t, i, soft) { return (c) => { // both: the tip's shape (top left) and the mark it makes (below) (owner 21 Nov)
+  const s = SHAPES[t][i], im = preview(t, i, soft);
   if (im) { c.save(); c.beginPath(); c.roundRect(4, 30, 92, 62, 8); c.clip(); c.drawImage(im, 0, 0, im.naturalWidth, im.naturalHeight, -4, 22, 108, 74); c.restore(); }
   c.save(); c.translate(24, 24); c.fillStyle = '#3a2a1a'; tipShape(c, s, 13); c.fill(); c.restore(); }; }
-const brushBtn = makeBtn(right, 'brush', (c) => { if (SHAPES[st.tool]) brushDraw(st.tool, st.shape[st.tool], st.tool === 'simple' && st.soft ? 0.05 : undefined)(c); }, () => openPop(brushBtn, (box) => {
-  const t = st.tool, simple = t === 'simple';
-  for (const blur of simple ? [0, 1] : [0]) { // the simple tool: the brushes sharp, then the same brushes blurred; one choice at a time
+const brushBtn = makeBtn(right, 'brush', (c) => { if (SHAPES[st.tool]) brushDraw(st.tool, st.shape[st.tool], st.soft[st.tool])(c); }, () => openPop(brushBtn, (box) => {
+  const t = st.tool, two = t in st.soft;
+  for (const soft of two ? [0, 1] : [0]) { // the simple tool and the pencil: the brushes, then the same brushes softer (simple: blurred; pencil: a thinner layer, owner 24 Nov); one choice at a time
     const r = row(box);
-    SHAPES[t].forEach((s, i) => makeBtn(r, (blur ? 'blur-' : 'shape-') + i, brushDraw(t, i, blur ? 0.05 : undefined), () => { st.shape[t] = i; if (simple) st.soft = blur; closePop(); refresh(); },
-      i === st.shape[t] && (!simple || st.soft === blur) ? 'on' : ''));
+    SHAPES[t].forEach((s, i) => makeBtn(r, (soft ? (t === 'simple' ? 'blur-' : 'soft-') : 'shape-') + i, brushDraw(t, i, soft), () => { st.shape[t] = i; if (two) st.soft[t] = soft; closePop(); refresh(); },
+      i === st.shape[t] && (!two || st.soft[t] === soft) ? 'on' : ''));
   }
   if (t === 'ink') { const r = row(box); K.INK_SPLASH.forEach((v, i) => makeBtn(r, 'splash-' + i, (c) => { c.fillStyle = '#3a2a1a'; // owner 23 Nov 10:27: how many drops a fast ink stroke throws
     for (let k = 0; k < [0, 3, 6, 12][i]; k++) { const a = k * 2.4, d = 12 + (k * 13) % 30; c.beginPath(); c.arc(50 + Math.cos(a) * d, 50 + Math.sin(a) * d, 2 + (k % 3), 0, 2 * Math.PI); c.fill(); }
@@ -910,7 +910,7 @@ function updateCursor() { // the pointer over the paper is the chosen brush, at 
   if (st.tool === 'sticker' || !SHAPES[st.tool]) { view.style.cursor = 'default'; return; }
   const s = SHAPES[st.tool][st.shape[st.tool]], sc = view.getBoundingClientRect().width / CW, R = Math.max(3, SIZES[st.size] * (s.sc || 1) * sc), n = Math.min(128, Math.ceil(2 * R + 6)), R2 = Math.min(R, n / 2 - 3);
   const c = document.createElement('canvas'); c.width = c.height = n; const x = c.getContext('2d'); x.translate(n / 2, n / 2);
-  const soft = st.tool === 'simple' && st.soft; const d = heldDir(s, cursorDir); tipShape(x, s, soft ? R2 * 0.75 : R2, d); x.fillStyle = rgbS(colorOf(st.color)); x.globalAlpha = 0.5; if (soft) x.filter = 'blur(' + (R2 * 0.25) + 'px)'; x.fill(); x.filter = 'none'; x.globalAlpha = 1; tipShape(x, s, R2, d); // owner 21 Nov: the pointer shows what the brush covers, its soft edge too
+  const soft = st.tool === 'simple' && st.soft.simple; const d = heldDir(s, cursorDir); tipShape(x, s, soft ? R2 * 0.75 : R2, d); x.fillStyle = rgbS(colorOf(st.color)); x.globalAlpha = 0.5; if (soft) x.filter = 'blur(' + (R2 * 0.25) + 'px)'; x.fill(); x.filter = 'none'; x.globalAlpha = 1; tipShape(x, s, R2, d); // owner 21 Nov: the pointer shows what the brush covers, its soft edge too
    x.lineWidth = 2; x.strokeStyle = 'rgba(0,0,0,.7)'; x.stroke(); x.lineWidth = 1; x.strokeStyle = 'rgba(255,255,255,.9)'; x.stroke();
   view.style.cursor = 'url(' + c.toDataURL() + ') ' + (n / 2) + ' ' + (n / 2) + ', crosshair';
 }
