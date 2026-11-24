@@ -575,7 +575,8 @@ def f_pal_order(q):  # owner 23 Nov 22:37, 24 Nov 08:50 (replacing hues by slice
     tops = [[round(p['box'][1]) for p in col] for col in cols]; level = all(abs(tops[k][r] - tops[0][r]) <= 1 for k in range(1, len(tops)) for r in range(min(map(len, tops))))
     shown = {'%02X%02X%02X' % tuple(k) for p in ex for k in p['cols']}  # owner 24 Nov 13:31, point 3: Sienna to Sky (~ Red and Blue) and Lemon and Magenta dropped; suggested in their places ColorBrewer PuOr and Matplotlib cool
     # owner 24 Nov 14:00: Brown and Sage, Cyan and Magenta, Violet and Lime, Terracotta, Sand and Sage, Mediterranean Berry, Retro Primary Mix give way to six Coolors scene palettes he chose
-    swapped = not {'76451D', 'F8CFAF', '901447', 'FFFFAD', '582F0E', '00FFFF', '421869', 'A85633', '867ECF', '669900'} & shown and {'7F3B08', '2D004B', 'FFF04C', 'F2636A', '71093B', 'B0EBEB', 'FABC2A', '54478C'} <= shown
+    # owner 24 Nov 14:11: Pink and Green, Steel Blue and Red, Electric Blue and Yellow, Citrus to Deep Ocean and Watermelon Sorbet give way to five more Coolors scene palettes he chose
+    swapped = not {'76451D', 'F8CFAF', '901447', 'FFFFAD', '582F0E', '00FFFF', '421869', 'A85633', '867ECF', '669900', '8E0152', 'A3151A', '072AC8', 'CC4400', 'CD0D58'} & shown and {'7F3B08', '2D004B', 'FFF04C', 'F2636A', '71093B', 'B0EBEB', 'FABC2A', '54478C', 'EDBFCB', 'D90429', 'BF271E', '233D4D', 'E07748'} <= shown
     ok = len(ex) == 31 and swapped and not back and -1 not in h and sorted(set(h)) == [0, 1, 2, 3] and 'F7F7F2' in hexes and 'A50026' in hexes and 'EB5E28' not in hexes and level
     report(ok, 'palettes: extras progression, two, three, many hues; Basic among them, rows level', 'swapped %s, extras %d, a busier group before a simpler one (place, group, next) %s, Basic %s, red-yellow-green %s, coral gone %s, rows level %s'
            % (swapped, len(ex), back[:3], 'F7F7F2' in hexes, 'A50026' in hexes, 'EB5E28' not in hexes, level))
