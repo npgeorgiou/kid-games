@@ -351,8 +351,8 @@ def f_ink_splash_drawing(q):  # owner 23 Nov 22:37, point 6: ink as in the fabri
     tap(q, 'tool-ink'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-1'); tap(q, 'splash-2')
     jerk(q, 60, 840, 120, 600); body = q.evaluate("()=>{let n=0,k=0;for(let x=150;x<750;x+=3)for(let dy=-12;dy<=12;dy+=3){const c=S(x,120+dy);k++;if(0.3*c[0]+0.59*c[1]+0.11*c[2]<150)n++}return n/k}")
     jerk(q, 60, 840, 330, 1200)  # quick, still on the paper
-    still = width_across(q, 700, 330, 0, 1, 40) > 0
-    spl = q.evaluate("()=>{let n=0;for(let x=100;x<800;x+=3)for(const dy of [-80,-65,65,80]){const c=S(x,330+dy);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<150)n++}return n}")
+    still = width_across(q, 700, 330, 0, 1, 40) > 0  # splash drops fall at random: count them over two bands, not four rows
+    spl = q.evaluate("()=>{let n=0;for(let x=100;x<800;x+=3)for(let dy=-90;dy<=90;dy+=3){if(Math.abs(dy)<55)continue;const c=S(x,330+dy);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<150)n++}return n}")
     report(body >= 0.85 and still and spl >= 3, 'ink: solid body, splashes while still painting', 'body %.2f covered, still painting %s, splash spots %d' % (body, still, spl))
 FLOWS['ink_splash_drawing'] = f_ink_splash_drawing
 PAPER['ink_splash_drawing'] = ('900x480', (0, 0))
@@ -765,7 +765,31 @@ def f_pencil_like_pictures(q):  # owner 23 Nov (his pencil pictures): passes bui
     mid, rim = prof[0], edge[len(edge) * 3 // 4] if edge else 0  # three quarters of the way out
     report(len(edge) > 2 and rim < mid * 0.6, 'pencil: a line is lighter towards its edges', 'darkness middle %.0f, edge %.0f' % (mid, rim))
     report(once < full * 0.45, 'pencil: a light pass is pale', 'darkness light pass %.0f, the colour %.0f' % (once, full))
-FLOWS.update({'new_tools': f_new_tools, 'shapes_vary': f_shapes_vary, 'pencil_grain': f_pencil_grain, 'ink_speed': f_ink_speed, 'pencil_like_pictures': f_pencil_like_pictures})
+def f_pencil_hard_start(q):  # owner 24 Nov 16:56, points 2 and 4: a pencil line starts hard, not soft and blurry; a pencil dot is as strong as the line, with the biggest brush
+    tap(q, 'tool-pencil'); tap(q, 'shape-1'); tap(q, 'size-4'); tap(q, 'color-1')
+    drag(q, [(60, 80), (360, 80)]); s = scr(q, 80, 190); q.mouse.click(*s); time.sleep(0.1)
+    def dark(x, y): return q.evaluate("([x,y])=>{let t=0,n=0;for(let i=-3;i<=3;i++)for(let j=-3;j<=3;j++){const c=S(x+i,y+j);t+=255-(0.3*c[0]+0.59*c[1]+0.11*c[2]);n++}return t/n}", [x, y])
+    start, mid, dot = dark(62, 80), dark(220, 80), dark(80, 190)
+    report(start > mid * 0.75 and dot > mid * 0.75, 'pencil: a line starts hard, a dot is as strong as the line', 'darkness start %.0f, middle %.0f, dot %.0f' % (start, mid, dot))
+
+def f_pencil_crossing(q):  # owner 24 Nov 16:56, point 3: a pencil line crossing another, in the same touch or a new one, makes the colour stronger
+    tap(q, 'tool-pencil'); tap(q, 'shape-1'); tap(q, 'size-3'); tap(q, 'color-6')
+    drag(q, [(40, 60), (360, 60), (360, 120), (200, 120), (200, 20)])  # one touch: right, down, back left, up across its own start
+    drag(q, [(100, 230), (100, 140)]); drag(q, [(40, 190), (360, 190)])  # two touches: the second crosses the first
+    def dark(x, y): return q.evaluate("([x,y])=>{let t=0,n=0;for(let i=-4;i<=4;i++)for(let j=-4;j<=4;j++){const c=S(x+i,y+j);t+=255-(0.3*c[0]+0.59*c[1]+0.11*c[2]);n++}return t/n}", [x, y])
+    one, own, other = dark(300, 60), dark(200, 60), dark(100, 190)
+    report(own > one * 1.3 and other > one * 1.3, 'pencil: a line crossing a line makes the colour stronger', 'darkness one line %.0f, crossing itself %.0f, crossing another %.0f' % (one, own, other))
+
+def f_pencil_soft_mix(q):  # owner 24 Nov 16:56, point 3 (second): a pencil brush with softer colour, so colours laid over each other mix: blue over red shows more of the red than with the sharp brush
+    def avg(x, y): return q.evaluate("([x,y])=>{const s=[0,0,0];let n=0;for(let i=-4;i<=4;i++)for(let j=-4;j<=4;j++){const c=S(x+i,y+j);s[0]+=c[0];s[1]+=c[1];s[2]+=c[2];n++}return s.map(v=>Math.round(v/n))}", [x, y])
+    def rb(c): return (255 - c[2]) / max(1, 255 - c[0])  # how red against how blue: the blue absorbs red light, the red absorbs blue
+    got = []
+    for sh, x in ((0, 100), (3, 300)):  # sharp, then soft
+        tap(q, 'tool-pencil'); tap(q, 'shape-%d' % sh); tap(q, 'size-3'); tap(q, 'color-2'); drag(q, [(x - 80, 120), (x + 80, 120)])
+        tap(q, 'color-6'); drag(q, [(x, 40), (x, 220)]); got.append(avg(x, 120))
+    report(rb(got[1]) > rb(got[0]) * 1.2, 'pencil soft brush: blue over red shows more red than the sharp brush', 'where they cross: sharp %s, soft %s' % tuple(got))
+
+FLOWS.update({'new_tools': f_new_tools, 'shapes_vary': f_shapes_vary, 'pencil_grain': f_pencil_grain, 'ink_speed': f_ink_speed, 'pencil_like_pictures': f_pencil_like_pictures, 'pencil_hard_start': f_pencil_hard_start, 'pencil_crossing': f_pencil_crossing, 'pencil_soft_mix': f_pencil_soft_mix})
 
 def f_simple_self_cross(q):  # owner 23 Nov 10:27, point 1: simple tool, blurry brush, ONE stroke that crosses itself: the crossing must not spoil the line (no X-shaped crease where it crosses)
     tap(q, 'tool-simple'); tap(q, 'blur-0'); tap(q, 'size-3'); tap(q, 'color-2')
@@ -814,6 +838,7 @@ def f_flick_lifts(q):  # owner 23 Nov 10:27, point 16: speed works like lifting 
     for i, t in enumerate(tools):
         y = 60 + i * 105
         tap(q, 'tool-' + t); tap(q, 'shape-0'); tap(q, 'size-2'); tap(q, 'color-1')
+        if t == 'ink': tap(q, 'splash-0')  # splash drops fly far and fall at random: keep them off the line's end (WARNINGS)
         flick(q, 100, 1500, y, v1=4500)  # 550 px/s at 100, 2000 at 430, 3200 at 800, 4500 at 1500 (owner 24 Nov: lifting starts later and is slower, so a flick runs longer)
         if t == 'water': wait_dry(q)
         def w(x): return max(width_across(q, x + dx, y, 0, 1, 45, 215 if t == 'pencil' else 150) for dx in (-6, -3, 0, 3, 6)) if t != 'spray' else sum(width_across(q, x + dx, y, 0, 1, 45) for dx in range(-20, 21, 2))  # spray is loose drops: all its paint across a band; a pencil pass is light grey, as in jerk_tail
