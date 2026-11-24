@@ -321,16 +321,17 @@ async function place(i, cs, pos, home) {  // the tile lies at pos until it snaps
 
 // SECTION: JARS -- opening, coins and bonuses, the slot machine
 const jarQueue = [], slotQ = [];
-function rollJar() {
+function rollJar(i) {  // what a jar opened by player i holds: the owner's mix, without a steal when nothing can be stolen from the other (owner 24 Nov)
   if (jarQueue.length) return jarQueue.shift();
-  let u = rnd() * 100; for (const k in JAR_MIX) { u -= JAR_MIX[k]; if (u < 0) return { k }; }
+  const mix = Object.entries(JAR_MIX).filter(([k]) => k !== 'steal' || stealable(i).length), all = mix.reduce((a, [, v]) => a + v, 0);
+  let u = rnd() * all; for (const [k, v] of mix) { u -= v; if (u < 0) return { k }; }
   return { k: 'coins' };
 }
 async function openJars(i) {  // a tapped jar breaks where it stands; what it held rises out of it and shows; the other jars close up, gliding
   const p = G.players[i], my = G; G.jarWho = i;
   while (G === my && p.jars > 0) {
     const k = await choose('jar', i, {}, () => pcTap('jar-0')) || 0; if (G !== my) return;
-    const n = p.jars, fresh = p.fresh, at = jarSpot(k, n, fresh), j = rollJar();
+    const n = p.jars, fresh = p.fresh, at = jarSpot(k, n, fresh), j = rollJar(i);
     p.jars--; if (k < fresh) p.fresh--;
     sound('jar'); shatter(at, '#c46a3c', JAR_SIZE() * 0.3);
     const moves = [...Array(p.jars).keys()].map(m => [m, jarSpot(m < k ? m : m + 1, n, fresh), jarSpot(m, p.jars, p.fresh)]).filter(([, a, b]) => a[0] !== b[0] || a[1] !== b[1]);
@@ -616,7 +617,7 @@ function drawPanel(i) {
     const sr = Math.min(10, step / 2); setShape(stock(i).signX, rowY(k), sr); drawn.push({ k: 'setsign', o: i, x: stock(i).signX - sr, y: rowY(k), r: sr });
   }
   p.goods.forEach((g, c) => {
-    for (let k = 0; k + JAR_GOODS <= g; k += JAR_GOODS) { jarOutline(colX(c), rowY(k + JAR_GOODS - 1) - r - 2, rowY(k) + r + 3, r + 4); drawn.push({ k: 'jargroup', o: i, c, shape: 'jar' }); }  // each 5 of a colour: the jar they will become, drawn around them
+    for (let k = 0; k + JAR_GOODS <= g; k += JAR_GOODS) { jarOutline(colX(c), rowY(k + JAR_GOODS - 1) - r - 2, rowY(k) + r + 3, r + 4); drawn.push({ k: 'jargroup', o: i, c, shape: 'jar', parts: ['lip', 'neck', 'handles', 'body', 'foot'] }); }  // each 5 of a colour: the jar they will become, drawn around them
     for (let k = 0; k < g; k++) { dot(colX(c), rowY(k), r, COLOURS[c]); drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), r }); }
   });
   const { cr, sh, coinAt } = stock(i), rows = Math.max(1, Math.ceil(p.coins / 50));
@@ -808,7 +809,7 @@ window.__dg = {
   tileAt: tileCentre, slot: draftSlot, square: squareCentre,
   edge: edgePoint,
   pixel(x, y) { const d = devicePixelRatio || 1; return [...cx.getImageData(Math.floor(x * d), Math.floor(y * d), 1, 1).data]; },
-  sampleJars(n) { const m = {}; for (let k = 0; k < n; k++) { const j = rollJar(); m[j.k] = (m[j.k] || 0) + 1; } return m; },
+  sampleJars(n, who) { const m = {}; for (let k = 0; k < n; k++) { const j = rollJar(who); m[j.k] = (m[j.k] || 0) + 1; } return m; },
   state() {
     return {
       round: G.round, turn: G.turn, phase: G.phase, first: G.first, over: G.over, winner: G.winner, passing: G.passing, slot: G.slot ? { w: G.slot.w.slice(), sel: G.slot.sel.slice() } : null,

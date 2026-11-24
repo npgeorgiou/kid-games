@@ -383,10 +383,14 @@ def f_pc_slot(q):  # the PC takes the best expected result on the slot machine t
     report(c == 7, 'pc: slot machine played for the most', 'pc coins %d' % c)
 
 def f_jar_mix(q):  # owner 24 Nov, per 100 jars: 10 empty, 40 one coin, 10 two coins, 5 steal, 5 extra tile, the rest equal (7.5 each: slot, first, another jar, set)
-    n = 8000; m = q.evaluate("(n)=>__dg.sampleJars(n)", n)
+    table(q, bag=[[0, 4]] * 4, tiles=[[14, 7, 0, 0, 1, 1]]); n = 8000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)  # the PC has a tile the kid could steal
     want = {'empty': 10, 'coins': 40, 'coins2': 10, 'steal': 5, 'tile': 5, 'slot': 7.5, 'first': 7.5, 'jar': 7.5, 'set': 7.5}
     ok = set(m) == set(want) and all(abs(100 * m[k] / n - v) < 1.5 for k, v in want.items())
     report(ok, 'jars: the owner\'s mix', ', '.join('%s %.1f%%' % (k, 100 * m.get(k, 0) / n) for k in want))
+
+def f_no_useless_steal(q):  # owner 24 Nov: "steal a tile shouldn't appear when one can't be stolen (opponent has only the starting tile)"
+    n = 4000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)
+    report('steal' not in m and abs(100 * m['coins'] / n - 40 / 0.95) < 2, 'jars: no steal when nothing can be stolen', str(m))
 
 def f_empty_jar(q):  # owner 24 Nov: some jars hold nothing: it breaks, shows it is empty, and nothing is gained
     get_jar(q, [{'k': 'empty'}])
