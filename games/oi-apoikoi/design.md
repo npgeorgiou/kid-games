@@ -10,7 +10,7 @@ Labels used below:
 
 ## 1. The game in short (draft)
 
-Two players each build their own land from tiles with two terrain halves. Each round, tiles are laid out and players get them in turn or by bidding sets of goods. Placing a half next to the same terrain earns a jar, which the child opens at once by tapping it. Every square of land makes one good of its terrain each round. Three of the same leftover good become a jar. Jars hold gold coins (the points) or bonuses: a slot machine, stealing a tile, the first-player token, or a free tile. When the tiles run out, the longest row of coins wins.
+Two players each build their own land from tiles with two terrain halves. Each round, tiles are laid out and players get them in turn or by bidding sets of goods. Placing a half next to the same terrain earns a jar, which the child opens at once by tapping it. Every square of land makes one good of its terrain each round. Five of the same leftover good become a jar. Jars hold nothing, gold coins (the points) or bonuses: a slot machine, stealing a tile, the first-player token, or a free tile. When the tiles run out, the longest row of coins wins.
 
 ## 2. Rules
 
@@ -45,19 +45,19 @@ Two players each build their own land from tiles with two terrain halves. Each r
    - Owner rule: a tile is one rectangle, coloured half and half. The won tile stays where it is (in the top row at first): tap it to turn it, drag it and leave it anywhere, as often as you like, until it snaps into a place; before it snaps, the place is shown.
 5. **End of round.**
    - Owner rule (24 Nov): the round's end is its own moment, seen and heard, before anything else in it (built for now: a sun sets behind a horizon, with a falling chime).
-   - Owner rule: goods not spent are lost at the end of the round, but each 3 of the same good (for example 3 grain) become a jar (6 make 2). Sets don't become jars.
+   - Owner rule: goods not spent are lost at the end of the round, but each 5 of the same good become a jar (10 make 2; owner 24 Nov: 5, not 3). Sets don't become jars.
    - Owner rule: jars from leftover goods are opened at the end of the round.
-   - Owner rule (24 Nov): this is shown one group at a time: each 3 of a colour fly from the stockpile into a jar; then the leftover goods fade out.
+   - Owner rule (24 Nov): this is shown one group at a time: each 5 of a colour fly from the stockpile into a jar; the jars are opened, and if that makes new groups of 5 they become jars too; only then the leftover goods fade out.
    - Owner rule (24 Nov): one player turns his goods into jars and opens them, then the other (the first-player token holder first).
 
 ### Jars
 - Owner rule: the child opens jars by tapping big jars lined up on screen. Opening one yourself is the fun.
 - Owner rule: a jar's benefit is immediate, in this round. Nothing carries to a "next" round.
 - Owner rule, contents:
-  - Points: 1 gold coin, 50% of the time.
-  - The other 50%, split equally (owner yes): the slot machine, stealing a tile from the opponent, the first-player token, a free extra tile "from nowhere" (not from the draft), another jar, a free set, 2 coins.
+  - Per 100 jars (owner 24 Nov): 10 empty, 40 one gold coin, 10 two coins, 5 stealing a tile from the opponent, 5 a free extra tile "from nowhere" (not from the draft); the rest equal, 7.5 each: the slot machine, the first-player token, another jar, a free set.
+- Owner rule (24 Nov): winning a bid reserves the tile for the winner; the other can't have it. A picked tile can be put back on its market place; a reserved one stays reserved and its sets stay spent.
 - Owner rule: stealing takes a tile already in the opponent's land; you place it in yours. A tile with no place in your land can't be stolen. Whether the opponent's land stays connected does not matter.
-- Owner rule: a free tile is always one that can be placed.
+- Owner rule: a free tile is always one that can be placed. It appears on top of the pile, marked as the player's (owner 24 Nov), and he drags it from there.
 - Owner rule: nobody starts with the first-player token; a jar sometimes gives it. Without it, the human player goes first (with two humans, one of them). The holder opens his end-of-round jars first.
 - Rejected by the owner:
   - An unbeatable first pick: hard to show visually.
@@ -65,7 +65,6 @@ Two players each build their own land from tiles with two terrain halves. Each r
   - Double the next jar: it's a "next" thing.
   - Keeping your goods: the same reason.
   - A free tile from the draft.
-  - An empty jar.
 
 ### Slot machine (a jar bonus)
 - Owner rule: it has 3 wheels. Their pictures are all the game's resources: the 5 goods, points (coins) and jars.
@@ -97,7 +96,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 
 - Placing one half well forces the other half somewhere.
 - Matching edges for jars pulls toward one terrain. Sets (5 goods, one of each) for bidding pull toward variety.
-- Bidding goods wins tiles, while keeping 3 of the same good makes a jar.
+- Bidding goods wins tiles, while keeping 5 of the same good makes a jar.
 
 ## 5. Design sheet rows (required by `docs/design-rules.md`)
 

@@ -31,6 +31,7 @@ Every screen must be all of these at once:
 - **Show amounts as things.** Goods, jars and coins are shown as the objects themselves, arranged so that amounts compare at a glance: rows or stacks of equal-sized items, never a heap and never a number.
 - **Whose turn it is is unmistakable.** The active player's area is lit and lifted (brighter, a soft glow, slightly larger); the other is dimmed. Changing turns is an event, seen and heard: the light moves over, with a short sound.
 - **The other player is a person.** Everything the opponent does is shown slowly and in full, the way a person across the table would do it, so he can follow it.
+- **The turn travels.** When the turn passes, something moves from one player's area to the other's (a light, a marker), so the change is seen as it happens. A token won flies from where it was won to its place.
 - **Phases are events.** A new round, the end of a round and the end of the game each get their own short, unmistakable moment: the screen changes mood (a light sweep, a banner picture, a pause) with its own sound, so he knows something different is happening now.
 
 ## 4. Feedback (signs and responses)
@@ -39,6 +40,7 @@ Every screen must be all of these at once:
 - **Cause and effect are visibly linked.** A reward comes out of what earned it: it appears at the place that caused it and travels to where it goes. Nothing appears from nowhere, and nothing vanishes without being seen to go.
 - **Show the possible.** While something is being dragged, show where it can go. Things he can't use look quiet (greyed but still recognisable) and don't answer as if usable.
 - **Forgiveness.** A choice can be undone until it is committed: a picked-up piece can be put back where it came from. Wrong touches cost nothing.
+- **Never hide what a choice depends on.** A choice panel is small and sits beside the thing it is about. Everything the choice depends on stays visible (his land, when he decides on a bid). Better still, the choice lives on the board itself. A panel that covers the context makes him choose from memory.
 - **States are consistent.** Each kind of element has the same few states everywhere (ready, active, used, unavailable) and each state looks the same in every game.
 
 ## 5. Motion
@@ -49,6 +51,13 @@ Based on Disney's twelve principles of animation, as applied to interfaces:
 - **Anticipation and follow-through.** A small wind-up before a big move, and a small overshoot and settle after it, make moves readable and alive.
 - **Staging.** One motion at a time where it matters, so the eye knows where to look. Things that happen in sequence (one jar, then the next) are shown in sequence, never all at once.
 - **Timing carries meaning.** Small things are quick (about 150–300 ms); events he must follow are slower (about 0.5–1.5 s). Don't make him wait for decoration.
+- **Arcs.** Things travel on curved paths, like something thrown, never in straight lines.
+- **One object, one journey.** A thing that goes from one place to another is the same object all the way: it leaves its old place and arrives at its new one. It never vanishes here and reappears there.
+- **The container comes first.** When things go into something (goods into a jar), the container arrives at its place first. Then the things fly into it one by one, on arcs.
+- **The source shows itself.** When something produces things (a land making goods, a jar giving its bonus), the source lights up or opens. Then each thing comes out of it and flies to where it goes, one at a time, each with its sound.
+- **Loss is seen.** What is lost dissolves where it is (it breaks into specks that fade). This happens only after everything that could still use it is done.
+- **Step aside, don't vanish.** When something interrupts what he is doing (a bonus during jar opening), his things move to a free place and come back afterwards. They never disappear.
+- **Completion is marked at its place.** When a group is complete (a set, a jar's worth of goods), its sign appears right beside it.
 - **Juice serves information.** Particles, a glow, a squash and stretch go on events that matter and say what happened. More effects are not better: too much feedback is noise that hides the game.
 
 ## 6. Sound
@@ -64,6 +73,7 @@ Based on Disney's twelve principles of animation, as applied to interfaces:
 - **No text.** Pictures, shapes, colour, motion and sound carry everything. Text appears only where the owner asks for it.
 - **Big targets.** Touch targets are at least about 2 cm across (Nielsen Norman Group; about 75 px is the guideline for screens), with space between them, so a resting hand or a rough tap hits the right one.
 - **Simple gestures.** Tap and drag only. No double taps, pinches, long presses or multi-finger gestures.
+- **Pictures of the thing, checked twice.** Every picture shows a real object: no letters, no abstract arrows or marks. Check each picture twice before using it: can he say what it shows, and can he say what it does here? If either takes more than a moment, redraw it. A button shows its result: what you give and what you get.
 - **Familiar pictures.** Use objects he knows from the world (a jar, a coin, a hand, a star) rather than abstract symbols.
 - **Reward completion.** Finishing something is celebrated with a visual, animation and sound.
 
@@ -86,6 +96,9 @@ Based on Disney's twelve principles of animation, as applied to interfaces:
 8. Do all motions ease in and out, and happen one at a time where he must follow them?
 9. Would every sound still be pleasant the hundredth time?
 10. Are new rounds, round ends and the game's end each their own clear moment?
+11. Does every moving thing come out of its source and travel on an arc to its place, the same object all the way?
+12. Does any panel cover what the choice depends on?
+13. Can every picture be named, and its meaning told, at a glance?
 
 ## Sources
 
@@ -94,6 +107,9 @@ Based on Disney's twelve principles of animation, as applied to interfaces:
 - Celia Hodent, *The Gamer's Brain* (signs and feedback, form follows function, putting information where attention is); [Creative Bloq interview](https://www.creativebloq.com/features/how-neuroscience-and-ux-impacts-video-game-design).
 - Board Game Arena, [guidelines for digital board games](https://be.doc.boardgamearena.com/images/7/76/5-guidelines.pdf); Asmodee Digital, [Art direction and UI](https://doc.asmodee.net/art-and-ui).
 - Frank Thomas and Ollie Johnston, *The Illusion of Life* (the twelve principles of animation); [Interaction Design Foundation on applying them to UI](https://ixdf.org/literature/article/ui-animation-how-to-apply-disney-s-12-principles-of-animation-to-ui-design).
+- Material Design, [Motion choreography](https://m1.material.io/motion/choreography.html) and [the motion system](https://material.io/design/motion/the-motion-system.html) (shared elements, container transform: one object, one journey).
+- Modals and context: [UX Planet, best practices for modals](https://uxplanet.org/best-practices-for-modals-overlays-dialog-windows-c00c66cddd8c); [Adam Shriki, the cost of interruption](https://medium.com/@adamshriki/the-high-cost-of-interruption-re-evaluating-the-modal-dialog-in-modern-ux-e448fb7559ff).
+- Nielsen Norman Group: [Icon usability: recognizability and interpretation](https://www.nngroup.com/articles/how-to-test-digital-icons/), [Classifying icons](https://www.nngroup.com/articles/classifying-icons/).
 - Martin Jonasson and Petri Purho, "Juice it or lose it" (GDC 2012); [Juice overload](https://www.wayline.io/blog/juice-overload-sensory-feedback-hurts-gameplay); [Slime Road: nothing appears out of nowhere](https://www.gamedeveloper.com/design/3-game-juice-techniques-from-slime-road).
 - Adam Wathan and Steve Schoger, *Refactoring UI* (spacing scale, small palette, elevation shadows, fewer borders).
 - Audio: [Audiokinetic, UI audio from a UI design perspective](https://www.audiokinetic.com/en/approaching-ui-audio-ui-design-perspective-2), [Microsoft sound guidelines](https://learn.microsoft.com/en-ie/Windows/Win32/uxguide/vis-sound), [UI sound design for indie games](https://bugnet.io/blog/ui-sound-design-for-indie-games), [Material Design sound](https://m2.material.io/design/sound/about-sound.html).
