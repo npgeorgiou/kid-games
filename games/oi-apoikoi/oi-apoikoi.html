@@ -35,7 +35,8 @@ const params = new URLSearchParams(location.search);
 let fast = params.has('fast');  // tests: the PC moves without waiting, and nothing travels: it is where it goes at once
 const HAND_SPEED = 450;  // px per second: slow enough to follow
 const STAGGER = 120, GOOD_FLY = 450;  // goods made at the round's start leave their squares one after another; each flies GOOD_FLY, its square lit meanwhile
-const SUNSET_MS = 1600, MAKE_MS = 800, FADE_MS = 600, FLY_MS = 700, EDGE_GAP = 250, GLOW_MS = 1800;  // ... ; a jar flying out of its matched edge, the next one after EDGE_GAP; the edge glows GLOW_MS  // at the round's end: 3 goods flying into a jar; the leftovers fading out
+const DROP_MS = 600, INTO_MS = 450, DISSOLVE_MS = 700;  // at the round's end: a jar dropping from the top; each good flying into it; the leftovers breaking into specks
+const SUNSET_MS = 1600, FLY_MS = 700, EDGE_GAP = 250, GLOW_MS = 1800;  // ... ; a jar flying out of its matched edge, the next one after EDGE_GAP; the edge glows GLOW_MS  // at the round's end: 3 goods flying into a jar; the leftovers fading out
 let rnd = Math.random;
 function seeded(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 // Time passes only for the game that asked: when a new game has started, an old game's pause or hand move never ends,
@@ -48,7 +49,7 @@ const pause = ms => { const my = G; return fast ? Promise.resolve() : new Promis
 const SOUNDS = {  // kind and its notes (Hz)
   good: ['knock', [640]], pick: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], bid: ['chime', [392, 523]], pass: ['chime', [392, 294]],
   jar: ['break', []], coin: ['clink', [1320, 1760]], made: ['chime', [392, 494, 587]], win: ['chime', [523, 659, 784, 1047]],
-  edge: ['chime', [784]], turn: ['chime', [587, 784]], roundend: ['chime', [784, 659, 523, 392]], spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
+  into: ['knock', [460]], dissolve: ['whoosh', []], edge: ['chime', [784]], turn: ['chime', [587, 784]], roundend: ['chime', [784, 659, 523, 392]], spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
 };
 let audio = null, heard = [];  // heard: every sound played in this game, in order (the flows read it)
 function noise(len) { const b = audio.createBuffer(1, audio.sampleRate * len, audio.sampleRate), d = b.getChannelData(0); for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1; const n = audio.createBufferSource(); n.buffer = b; return n; }
@@ -184,6 +185,12 @@ function fly(look, from, to, ms, o = {}) {
   if (!fast) flights.push(f);
   return pause(ms).then(() => { if (G === my) flights = flights.filter(g => g !== f); });
 }
+let specks = [];
+function shatter(at, col, size) {  // a thing breaks where it is: its specks fly out and fade (loss, a jar breaking)
+  if (fast) return;
+  const t0 = performance.now(); for (let k = 0; k < 9; k++) { const a = rnd2() * 7, v = 60 + rnd2() * 120; specks.push({ x: at[0], y: at[1], vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, col, size: size * (0.3 + rnd2() * 0.3), t0 }); }
+}
+const rnd2 = Math.random;  // how specks scatter is looks only: it never touches the game's own random source
 function flightAt(f, now) { const u = Math.min(1, (now - f.t0) / f.ms), e = easeInOut(u); return [f.from[0] + (f.to[0] - f.from[0]) * e, f.from[1] + (f.to[1] - f.from[1]) * e - Math.sin(Math.PI * u) * f.arc, f.z0 + (f.z1 - f.z0) * e]; }
 async function goodFrom(i, c, from) {  // one good leaves a square (it lights up) and flies to its place in player i's stockpile, with a sound
   const p = G.players[i], my = G, to = slotPos(i, c, p.goods[c] + p.coming[c]); p.coming[c]++;
@@ -237,13 +244,24 @@ function setTurn(i) { if (G.turn !== i) { G.turn = i; sound('turn'); } }  // who
 async function roundEndJars(i) {  // goods become jars and are opened, again while opening makes new groups (owner 24 Nov); only then the leftovers fade out and are lost
   const my = G, p = G.players[i];
   for (;;) { await goodsToJars(i); if (G !== my) return; if (!p.jars) break; await openJars(i); if (G !== my) return; }
-  if (p.goods.some(g => g > 0)) { G.making = { who: i, c: -1, t0: performance.now() }; await pause(FADE_MS); }
-  p.goods = [0, 0, 0, 0, 0]; G.making = null;
+  const left = []; p.goods.forEach((g, c) => { for (let k = 0; k < g; k++) left.push([slotPos(i, c, k), COLOURS[c]]); });
+  p.goods = [0, 0, 0, 0, 0];
+  if (left.length) { left.forEach(([at, col]) => shatter(at, col, stock(i).r)); sound('dissolve'); await pause(DISSOLVE_MS); }  // each leftover breaks into specks where it stands
 }
-async function goodsToJars(i) {  // each JAR_GOODS of a colour fly into a jar, one group at a time
-  const p = G.players[i];
-  for (let c = 0; c < 5; c++) while (p.goods[c] >= JAR_GOODS) { G.making = { who: i, c, t0: performance.now() }; await pause(MAKE_MS); p.goods[c] -= JAR_GOODS; p.jars++; sound('made'); }
-  G.making = null;
+async function goodsToJars(i) {  // for each JAR_GOODS of a colour a jar drops from the top to its place; then the goods fly into it one after another, on curves (owner 24 Nov)
+  const my = G, p = G.players[i], n = p.jars + leftoverJars(p.goods);
+  G.jarWho = i; G.jarRows = n;  // the places of all the jars coming are kept, so the jars already there never move
+  for (let c = 0; c < 5; c++) while (p.goods[c] >= JAR_GOODS) {
+    const at = jarSpot(p.jars, n, 0), mouth = [at[0], at[1] - JAR_SIZE() * 0.4];
+    await fly({ k: 'jar' }, [at[0], -JAR_SIZE()], at, DROP_MS, { arc: 0 }); if (G !== my) return;
+    p.jars++;
+    await Promise.all([...Array(JAR_GOODS).keys()].map(g => pause(g * STAGGER).then(() => {
+      if (G !== my) return; const from = slotPos(i, c, p.goods[c] - 1); p.goods[c]--; sound('into');
+      return fly({ k: 'good', c, o: i }, from, mouth, INTO_MS, { arc: 90, z1: 0.6 });
+    }))); if (G !== my) return;
+    sound('made');
+  }
+  G.jarRows = null;
 }
 async function pass(i) { G.players[i].passes++; sound('pass'); G.passing = i; if (!G.players[i].human) G.hand.g = 'raised'; await pause(2400); G.passing = null; G.hand.g = 'point'; }
 const pickable = (k, i) => fits(G.draft[k], i) && (G.locks[k] ?? i) === i;  // fits his land and is not locked to the other player
@@ -389,7 +407,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); heard = []; flights = []; G = { goodsIn: !!o.goodsIn, lit: [], board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, turn: null, shown: null, making: null, burst: null, sunset: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; flights = []; specks = []; G = { goodsIn: !!o.goodsIn, lit: [], board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, turn: null, shown: null, jarWho: null, jarRows: null, burst: null, sunset: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; });
@@ -545,7 +563,6 @@ function stock(i) {  // player i's area, top to bottom: his face; the goods tray
   return { x0, pad, cw, top, base, r, step, colX: c => x0 + pad + 4 + cw * (c + 0.5), rowY: k => base - 8 - step / 2 - k * step, coinTop: base + 18 };
 }
 const flying = () => G.burst && G.burst.edges.length && performance.now() < G.burst.t0 + FLY_MS + (G.burst.edges.length - 1) * EDGE_GAP;
-const progress = (m, ms) => Math.min(1, (performance.now() - m.t0) / (fast ? 1 : ms));
 function face(x, y, r, col) {  // a player: a round face in his colour
   dot(x, y, r, col); dot(x - r * 0.35, y - r * 0.15, r * 0.13, '#fff'); dot(x + r * 0.35, y - r * 0.15, r * 0.13, '#fff');
   cx.strokeStyle = '#fff'; cx.lineWidth = r * 0.12; cx.lineCap = 'round'; cx.beginPath(); cx.arc(x, y + r * 0.05, r * 0.45, 0.5, Math.PI - 0.5); cx.stroke(); cx.lineCap = 'butt';
@@ -560,13 +577,11 @@ function drawPanel(i) {
   // goods: each row with one of every colour is a set (a gold band); each JAR_GOODS of a colour, counted from the base, is a jar at the round's end (a frame)
   rrect(x0 + pad, top - 10, P - 2 * pad, base - top + 10, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'goods' });
   for (let c = 0; c < 5; c++) rrect(colX(c) - cw * 0.42, top - 4, cw * 0.84, base - top - 2, cw * 0.42, '#ffffff55');  // a groove per colour
-  const n = sets(p), mk = G.making && G.making.who === i ? G.making : null, fade = mk && mk.c < 0 ? 1 - progress(mk, FADE_MS) : 1;
+  const n = sets(p);
   for (let k = 0; k < n; k++) { rrect(x0 + pad + 2, rowY(k) - step / 2 + 1, P - 2 * pad - 4, step - 2, step / 2, '#f4cf4a77', '#c99a1a', 1.5); drawn.push({ k: 'setrow', o: i }); }
   p.goods.forEach((g, c) => {
     for (let k = 0; k + JAR_GOODS <= g; k += JAR_GOODS) { rrect(colX(c) - r - 3, rowY(k + JAR_GOODS - 1) - r - 3, 2 * r + 6, (JAR_GOODS - 1) * step + 2 * r + 6, r + 3, null, '#6e3418', 2); drawn.push({ k: 'jargroup', o: i, c }); }
-    for (let k = mk && mk.c === c ? JAR_GOODS : 0; k < g; k++) {  // the JAR_GOODS flying into a jar are drawn with the jars
-      cx.globalAlpha = fade; dot(colX(c), rowY(k), r, COLOURS[c]); cx.globalAlpha = 1; drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), r, a: fade });
-    }
+    for (let k = 0; k < g; k++) { dot(colX(c), rowY(k), r, COLOURS[c]); drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), r }); }
   });
   const cr = Math.min(12, (P - 2 * pad - 16) / 5 / 2 - 2.5), lift = 4, sh = 2 * cr + 9 * lift + 8, rows = Math.max(1, Math.ceil(p.coins / 50));  // coins: stacks of 10, five stacks to a row (owner 24 Nov: any number fits)
   rrect(x0 + pad, coinTop, P - 2 * pad, rows * sh + 12, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'coins' });
@@ -606,16 +621,10 @@ function jarSpot(k, n, fresh) {  // jar k of n: the jars just earned first, then
 }
 function glow(x, y, z) { dot(x, y, z * 0.6, '#ffe27a88'); drawn.push({ k: 'jarglow', x, y, r: z * 0.6 }); }  // a jar just earned glows
 function drawJars() {  // big jars in a row; tap one to open it
-  const mk = !wait && !G.shown ? G.making : null, fly = flying() ? G.burst : null, who = wait ? wait.who : G.shown ? G.shown.who : mk ? mk.who : fly.who, p = G.players[who], growing = mk && mk.c >= 0, n = p.jars + (growing ? 1 : 0), z = JAR_SIZE(), s = z * 1.5;  // z: a jar's size, always the same; s: the space each jar has (its glow fits inside with room to spare)
+  const fly = flying() ? G.burst : null, who = wait ? wait.who : G.shown ? G.shown.who : fly ? fly.who : G.jarWho, p = G.players[who], n = p.jars, rows = G.jarRows ?? n, z = JAR_SIZE(), s = z * 1.5;  // z: a jar's size, always the same; s: the space each jar has (its glow fits inside with room to spare)
   if (!fly) shade(0.35);  // while jars fly out of their edges the board stays bright, so the glowing edges show
   for (let k = 0; k < n; k++) {  // the jars just earned on the left, glowing; a gap; the jars still waiting
-    const fresh = k < p.fresh, [x, y0, row] = jarSpot(k, n, p.fresh), y = y0 + (wait ? Math.sin(performance.now() / 300 + k) * 4 : 0);
-    if (growing && k === n - 1) {  // JAR_GOODS goods fly from the stockpile into this jar, which grows as they shrink
-      const t = progress(mk, MAKE_MS), e = t * t * (3 - 2 * t), sp = stock(who);
-      jarShape(x, y, z * e); drawn.push({ k: 'jar', o: who, growing: true });
-      for (let g = 0; g < JAR_GOODS; g++) { const gx = sp.colX(mk.c), gy = sp.rowY(g); dot(gx + (x - gx) * e, gy + (y - gy) * e, sp.r * (1 + 1.5 * e) * (1 - e) + 0.01, COLOURS[mk.c]); drawn.push({ k: 'flying', o: who, c: mk.c }); }
-      continue;
-    }
+    const fresh = k < p.fresh, [x, y0, row] = jarSpot(k, rows, p.fresh), y = y0 + (wait ? Math.sin(performance.now() / 300 + k) * 4 : 0);
     if (fresh && G.burst && G.burst.who === who && G.burst.edges[k]) {  // a jar just earned flies out of its edge (eased, popping up), then sits in the row
       const [ex, ey] = edgePoint(G.burst.edges[k].x, G.burst.edges[k].y, G.burst.edges[k].d), u = fast ? 1 : Math.min(1, Math.max(0, (performance.now() - G.burst.t0 - k * EDGE_GAP) / FLY_MS));
       if (u <= 0) continue;
@@ -700,11 +709,16 @@ function drawLit() {  // a square giving a good lights up, then fades
   const now = performance.now(), { s } = L(); G.lit = G.lit.filter(l => now - l.t0 < GOOD_FLY);
   for (const l of G.lit) { const a = 1 - (now - l.t0) / GOOD_FLY; cx.globalAlpha = a; rrect(l.at[0] - s / 2, l.at[1] - s / 2, s, s, s * 0.14, '#fff6c8'); cx.globalAlpha = 1; drawn.push({ k: 'lit', x: l.at[0], y: l.at[1] }); }
 }
+function drawSpecks() {
+  const now = performance.now(); specks = specks.filter(p => now - p.t0 < DISSOLVE_MS);
+  for (const p of specks) { const t = (now - p.t0) / 1000, u = (now - p.t0) / DISSOLVE_MS; cx.globalAlpha = 1 - u; dot(p.x + p.vx * t, p.y + p.vy * t + 300 * t * t, p.size * (1 - 0.5 * u), p.col); cx.globalAlpha = 1; drawn.push({ k: 'speck', x: p.x, y: p.y }); }
+}
 function drawFlights() {  // everything on its way, at its point on its curve
   const now = performance.now();
   for (const f of flights) {
     const [x, y, z] = flightAt(f, now), L0 = f.look;
     if (L0.k === 'good') { const sp = stock(L0.o); dot(x, y, sp.r * z, COLOURS[L0.c]); }
+    else if (L0.k === 'jar') jarShape(x, y, JAR_SIZE() * z);
     drawn.push({ k: 'flight', look: L0.k, x, y, fx: f.from[0], fy: f.from[1], tx: f.to[0], ty: f.to[1] });
   }
 }
@@ -714,12 +728,12 @@ function render() {  // one picture of the game; it also lays out the buttons th
   drawBoard(); drawLit(); drawDraft(); drawPanel(0); drawPanel(1);
   if (wait && wait.kind === 'place') drawHeld();
   if (wait && wait.kind === 'bid') drawBid();
-  if ((wait && wait.kind === 'jar') || G.shown || flying() || (G.making && (G.making.c >= 0 || G.players[G.making.who].jars))) drawJars();  // jars being made show with the jars already made
+  if ((wait && wait.kind === 'jar') || G.shown || flying() || G.jarRows != null) drawJars();  // jars being made show with the jars already made
   if (G.slot) drawSlot();
   if (G.passing != null) drawPass();
   if (G.sunset != null) drawSunset();
   if (G.over) drawEnd();
-  drawFlights(); hand(G.hand);
+  drawFlights(); drawSpecks(); hand(G.hand);
 }
 function frame() { render(); requestAnimationFrame(frame); }
 

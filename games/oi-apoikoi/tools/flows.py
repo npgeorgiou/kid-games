@@ -217,26 +217,27 @@ def f_more_jars_while_opening(q):  # owner 24 Nov: "if during jar opening at end
     ok = kid.count('made') == 2 and len(kept) > 0 and st(q)['players'][0]['coins'] == 2
     report(ok, 'end: a set while opening makes another jar', 'made %d, goods still shown before the last jar %d, coins %d' % (kid.count('made'), len(kept), st(q)['players'][0]['coins']))
 
-def f_goods_become_jars(q):  # owner 24 Nov: at the round's end the goods turn into jars one by one, visibly; the leftovers fade out after the jars are opened
-    pause_clock(q)  # the kid's last tile ends the round: 12 goods, 10 of one colour (2 jars of 5), 2 left over
-    table(q, fast=False, bag=[[2, 2]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0], [6, 7, 0, 2, 2, 0], [6, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); q.clock.run_for(1200); waiting(q, 'jar'); tap(q, 'jar-0')  # the jars fly out of the matched edges first
-    made, flying, faded, shown_left, ms = {}, False, False, {}, 0
-    while ms < 5000:
+def f_goods_become_jars(q):  # owner 24 Nov: at the round's end a jar drops from the top to its place, then the goods fly into it on curves, one by one; the leftovers dissolve after the jars are opened
+    pause_clock(q)  # the kid's last tile ends the round: 6 of colour 2 make one jar; 3 goods are left over
+    table(q, fast=False, bag=[[2, 2]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); q.clock.run_for(FLY_MS + 100); waiting(q, 'jar'); tap(q, 'jar-0')
+    drops, intos, ms = [], [], 0
+    while ms < 6000:
         q.clock.run_for(100); ms += 100; settle(q); d = q.evaluate("()=>__dg.drawn()")
-        jars = sum(1 for x in d if x['k'] == 'jar' and x['o'] == 0 and not x.get('growing'))
-        goods = sum(1 for x in d if x['k'] in ('good', 'flying') and x['o'] == 0)
-        flying = flying or any(x['k'] == 'flying' for x in d); faded = faded or any(x['k'] == 'good' and x.get('a', 1) < 1 for x in d)
-        if jars not in made: made[jars] = ms; shown_left[jars] = goods
-        if st(q)['wait'] and st(q)['wait']['kind'] == 'jar': break
-    opened = 0
-    while ms < 12000 and not faded:  # open his jars; then the leftovers fade
+        drops += [(ms, x) for x in d if x['k'] == 'flight' and x['look'] == 'jar']; intos += [(ms, x) for x in d if x['k'] == 'flight' and x['look'] == 'good']
         w = st(q)['wait']
-        if w and w['kind'] == 'jar' and w['who'] == 0: tap(q, 'jar-0'); opened += 1
-        q.clock.run_for(100); ms += 100; settle(q); faded = any(x['k'] == 'good' and x['o'] == 0 and x.get('a', 1) < 1 for x in q.evaluate("()=>__dg.drawn()"))
-    q.clock.resume()
-    ok = sorted(made) == [0, 1, 2] and made[2] - made[1] >= 500 and flying and faded and opened == 2 and shown_left[1] == 7
-    report(ok, 'end: goods become jars one by one', 'jar counts first seen at %s ms, goods then %s, flying %s, fading after %d opened %s' % (made, shown_left, flying, opened, faded))
+        if w and w['kind'] == 'jar': break
+    jar = [x for x in drawn(q, 'jar') if x['o'] == 0]; left = [(round(x['x']), round(x['y'])) for x in drawn(q, 'good') if x['o'] == 0]
+    tap(q, 'jar-0'); dissolved, ms2 = set(), 0
+    while ms2 < 3000 and not dissolved:
+        q.clock.run_for(100); ms2 += 100; settle(q); dissolved = {(round(x['x']), round(x['y'])) for x in drawn(q, 'speck')}
+    gone = not [x for x in drawn(q, 'good') if x['o'] == 0]; q.clock.resume()
+    from_top = bool(drops) and drops[0][1]['fy'] < 0 and len(jar) == 1 and abs(drops[0][1]['tx'] - jar[0]['x']) < 2
+    first = bool(intos) and intos[0][0] > drops[-1][0]  # the jar is in its place before any good flies
+    starts = {(round(x['fx']), round(x['fy'])) for _, x in intos}; into_jar = all(abs(x['tx'] - jar[0]['x']) < 5 for _, x in intos) if jar else False
+    arced = any(x['y'] < min(x['fy'], x['ty']) - 10 for _, x in intos)
+    ok = from_top and first and len(starts) == 5 and into_jar and arced and len(left) == 3 and set(left) <= dissolved and gone
+    report(ok, 'end: a jar drops, goods fly into it, leftovers dissolve', 'jar from the top %s, in place first %s, goods flying in from %d places, on curves %s; leftovers %d, dissolved where they stood %s, gone %s' % (from_top, first, len(starts), arced, len(left), set(left) <= dissolved, gone))
 
 def f_sounds(q):  # owner 24 Nov: "add some sounds, it's hard to follow what happens": each thing that happens has its sound, in the order it happens
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot'); tap(q, 'wheel-2'); tap(q, 'reroll')
@@ -307,10 +308,10 @@ def f_round_end_shown(q):  # owner 24 Nov: the round's end must be its own phase
     while ms < 4000 and first_made is None:
         q.clock.run_for(100); ms += 100; settle(q)
         if drawn(q, 'sunset'): shown.append(ms)
-        if 'made' in q.evaluate("()=>__dg.sounds()"): first_made = ms
+        if drawn(q, 'flight'): first_made = ms  # the first jar dropping in
     q.clock.resume(); h = q.evaluate("()=>__dg.sounds()")
-    ok = len(shown) >= 10 and first_made is not None and max(shown) <= first_made and 'roundend' in h and h.index('roundend') < h.index('made')
-    report(ok, 'end: the round end is its own moment, seen and heard', 'sunset shown %d00 ms (from %s to %s), first jar made at %s ms, round end sound %s' % (len(shown), shown[:1], shown[-1:], first_made, 'roundend' in h))
+    ok = len(shown) >= 10 and first_made is not None and max(shown) <= first_made and 'roundend' in h
+    report(ok, 'end: the round end is its own moment, seen and heard', 'sunset shown %d00 ms (from %s to %s), first jar dropping in at %s ms, round end sound %s' % (len(shown), shown[:1], shown[-1:], first_made, 'roundend' in h))
 
 def f_turn_shown(q):  # owner 24 Nov: "make it obvious who plays; now there is no difference between me and the opponent playing": the player whose turn it is has his area lit, the other's is dimmed; a sound when the turn passes
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); settle(q)
