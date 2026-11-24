@@ -164,6 +164,19 @@ def f_round_start_goods_fly(q):  # owner 24 Nov: at the round's start goods come
     ok = starts == squares and arced and grew and lit_with and q.evaluate("()=>__dg.sounds()").count('good') == 6 and dawn is not None and first is not None and dawn < first
     report(ok, 'round start: goods fly one by one from their squares', 'from the 6 squares %s, on a curve %s, stockpile one at a time %s (%s), square lit %s, sounds %d, morning light at %s ms before the first good at %s ms' % (starts == squares, arced, grew, counts[-1], lit_with, q.evaluate("()=>__dg.sounds()").count('good'), dawn, first))
 
+def f_round_start_short(q):  # owner 24 Nov ("rethink all UI": check every animation's time against how often it happens): with a big land late in the game, the goods still leave their squares one after another but all within about a second
+    tiles = [[x, y, 0, (x + y) % 5, (x + y + 1) % 5, 0] for x in (0, 2) for y in range(10)]  # 20 tiles: 40 squares, plus the start tile's 2
+    pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'bag': [[0, 4]] * 4, 'tiles': tiles}); settle(q); first, last, ms = None, None, 0
+    while ms < 12000:
+        fl = drawn(q, 'flight'); goods = [x for x in fl if x['look'] == 'good']
+        if goods and first is None: first = ms
+        if goods: last = ms
+        if q.evaluate("()=>!!__dg.state().wait"): break
+        skip(q, 100); ms += 100
+    q.clock.resume(); n = sum(st(q)['players'][0]['goods'])
+    ok = n == 42 and first is not None and last - first <= 1200 + 450
+    report(ok, 'round start: a big land gives its goods in about a second', '%d goods, flying from %s ms to %s ms (%s ms)' % (n, first, last, last - first if first is not None else None))
+
 def f_goods_on_place(q):  # owner 24 Nov: a land's goods appear in the stockpile as soon as it is placed, not only at the round's start
     table(q, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); before = [sum(1 for x in drawn(q, 'good') if x['o'] == 0 and x['c'] == c) for c in range(5)]
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); settle(q)

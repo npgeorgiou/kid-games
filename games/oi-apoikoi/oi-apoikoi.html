@@ -34,7 +34,7 @@ const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half 
 const params = new URLSearchParams(location.search);
 let fast = params.has('fast');  // tests: the PC moves without waiting, and nothing travels: it is where it goes at once
 const HAND_SPEED = 450;  // px per second: slow enough to follow
-const STAGGER = 120, GOOD_FLY = 450;  // goods made at the round's start leave their squares one after another; each flies GOOD_FLY, its square lit meanwhile
+const STAGGER = 120, GOOD_FLY = 450, ROUND_GOODS_MS = 1200;  // goods made at the round's start leave their squares one after another; each flies GOOD_FLY, its square lit meanwhile
 const TURN_MS = 700;  // the turn's light flying from one face to the other
 const RISE_MS = 500, SHOW_MS = 900, GLIDE_MS = 300, REWARD_MS = 550;  // a jar opened: what it held rises out of it, shows, and its reward flies to its place; the other jars close up
 const DROP_MS = 600, INTO_MS = 450, DISSOLVE_MS = 700;  // at the round's end: a jar dropping from the top; each good flying into it; the leftovers breaking into specks
@@ -218,7 +218,8 @@ async function makeGoods() {  // the round's start: morning light sweeps over (i
   const my = G, cells = [...G.cells.values()].sort((a, b) => a.o - b.o || a.y - b.y || a.x - b.x);
   for (const p of G.players) { p.goods = [0, 0, 0, 0, 0]; p.got = 0; }
   if (G.goodsIn) { G.goodsIn = false; cells.forEach(c => G.players[c.o].goods[c.c]++); return; }  // a test table that starts with its goods in
-  await Promise.all(cells.map((c, k) => pause(k * STAGGER).then(() => G === my && goodFrom(c.o, c.c, squareCentre(c.x, c.y), true))));
+  const gap = Math.min(STAGGER, ROUND_GOODS_MS / cells.length);  // routine: a big land's goods leave closer together, so all have left within ROUND_GOODS_MS
+  await Promise.all(cells.map((c, k) => pause(k * gap).then(() => G === my && goodFrom(c.o, c.c, squareCentre(c.x, c.y), true))));
 }
 
 // SECTION: ROUNDS -- start, picks and bids, passing, end of round, end of game
