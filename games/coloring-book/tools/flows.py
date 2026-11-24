@@ -542,8 +542,14 @@ def pal_dom(q):  # the popup's columns as they are drawn: per column, per palett
     return q.evaluate("()=>[...document.querySelectorAll('.palcols .palcol')].map(c=>[...c.querySelectorAll('.pal')].map(p=>{const r=p.getBoundingClientRect();return {cols:[...p.querySelectorAll('u')].map(u=>getComputedStyle(u).backgroundColor.match(/\\d+/g).map(Number)),box:[r.left,r.top,r.right,r.bottom]}}))")
 
 def f_pal_dividers(q):  # owner 23 Nov: a vertical divider between column 1 (monochromes) and column 2; a horizontal one in column 2 after its 5 rainbows
+    # owner 24 Nov 13:31, point 1: the divider lines more prominent (at least 4 px, clearly darker than the popup), still without moving any palette
     tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)
     lines = q.evaluate("()=>[...document.querySelectorAll('.paldiv')].map(d=>{const r=d.getBoundingClientRect();return [r.left,r.top,r.right,r.bottom]})")
+    look = q.evaluate("()=>[...document.querySelectorAll('.paldiv')].map(d=>getComputedStyle(d).backgroundColor.match(/\\d+/g).map(Number))")
+    thin = [round(min(l[2] - l[0], l[3] - l[1]), 1) for l in lines]; lum = lambda c: 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
+    bold = all(t >= 4 for t in thin) and all(lum([244, 236, 220]) - lum(c) > 70 for c in look)
+    tops = [[round(p['box'][1]) for p in col] for col in cols]; level = all(abs(tops[k][r] - tops[0][r]) <= 1 for k in range(1, len(tops)) for r in range(min(map(len, tops))))
+    report(bold and level, 'palettes: dividers bold (4 px or more, dark), rows level', 'thickness %s, colours %s, rows level %s' % (thin, look, level))
     c1r, c2l = max(p['box'][2] for p in cols[0]), min(p['box'][0] for p in cols[1])
     vert = [l for l in lines if l[3] - l[1] > 5 * (l[2] - l[0]) and c1r <= l[0] and l[2] <= c2l]
     r5, r6 = cols[1][4]['box'], cols[1][5]['box']

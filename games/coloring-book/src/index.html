@@ -17,7 +17,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
 .pal{display:flex;flex-direction:column;align-items:flex-start;gap:calc(var(--g)*0.4);border:0;border-radius:calc(var(--b)*0.12);background:#eadfcb;padding:calc(var(--g)*0.6);font:600 calc(var(--b)*0.24) sans-serif;color:#3a2a1a;touch-action:none}
 .pal i{font-weight:400;opacity:.7}
 .pal b{display:flex;border-radius:calc(var(--b)*0.1);overflow:hidden}
-.pal u{display:block;flex:1}.paldiv{background:#cbb894;border-radius:1px}
+.pal u{display:block;flex:1}.paldiv{background:#7a5a36;border-radius:2px}
 .pal.on{outline:calc(var(--b)*0.06) solid #f4b43a}
 #gal .card .bin{position:absolute;top:calc(var(--g)*0.5);right:calc(var(--g)*0.5);width:calc(var(--b)*0.8);height:calc(var(--b)*0.8)}
 #guide{pointer-events:none;opacity:.4;object-fit:fill}
@@ -878,7 +878,7 @@ const palBtn = makeBtn(bottom, 'palette', icon('palette', '#3a2a1a'), () => open
     b.innerHTML = '<b style="width:' + bw + 'px;height:' + bh + 'px">' + p.colors.map((c) => '<u style="background:' + rgbS(c) + '"></u>').join('') + '</b>';
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); st.palette = i; closePop(); if (st.color !== 'pick') st.color = Math.min(st.color, colorsNow().length - 1); makePots(); refresh(); });
     return b; };
-  const line = (across) => { const d = document.createElement('div'); d.className = 'paldiv'; Object.assign(d.style, across ? { position: 'absolute', left: '0', right: '0', height: '2px', top: -(ROW / 2 + 1) + 'px' } : { width: '2px', alignSelf: 'stretch' }); return d; }; // across: in the gap above a palette, so the rows stay level in every column
+  const line = (across) => { const d = document.createElement('div'); d.className = 'paldiv'; Object.assign(d.style, across ? { position: 'absolute', left: '0', right: '0', height: '4px', top: -(ROW / 2 + 2) + 'px' } : { width: '4px', alignSelf: 'stretch' }); return d; }; // across: in the gap above a palette, so the rows stay level in every column; owner 24 Nov: bold and dark
   if (pic >= 0) { const top = document.createElement('div'); top.className = 'palpic'; top.style.gap = COL + 'px'; top.style.paddingBottom = TOP + 'px'; wrap.appendChild(top); const gp = document.createElement('div'); gp.className = 'palpicg'; top.appendChild(gp); const im = document.createElement('img'); im.src = PALETTES[pic].thumb; im.style.height = (bh + 2 * PAD) + 'px'; gp.appendChild(im); gp.appendChild(palBtnOf(PALETTES[pic], pic)); } // the picture, and its palette beside it
   const cols = document.createElement('div'); cols.className = 'palcols'; cols.style.gap = COL / 2 + 'px'; wrap.appendChild(cols);
   groups.forEach((grp, k) => { if (k === 1) cols.appendChild(line(false)); // owner 23 Nov: column 1 (the monochromes) set apart
