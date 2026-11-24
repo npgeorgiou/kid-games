@@ -130,6 +130,15 @@ def f_goods_at_start(q):  # each square makes 1 good of its colour at the start 
     table(q, bag=[[0, 4]] * 4, tiles=[[4, 7, 0, 2, 2, 0]]); g = st(q)['players'][0]['goods']
     report(g == [1, 1, 2, 0, 0], 'goods: 1 per square at round start', str(g))
 
+def f_stockpile_columns(q):  # owner 24 Nov: goods stand in a column per colour (they never widen the panel); rows of one of each are marked as sets, each 3 of a colour as a jar at the round's end
+    tiles = [[0, 0, 0, 0, 1, 0], [2, 0, 0, 0, 1, 0], [4, 0, 0, 0, 1, 0], [0, 1, 0, 2, 2, 0], [2, 1, 0, 2, 2, 0], [4, 1, 0, 2, 2, 0], [6, 0, 0, 2, 3, 0], [6, 1, 0, 3, 4, 0]]
+    table(q, bag=[[0, 4]] * 4, tiles=tiles); g = drawn(q, 'good'); g = [x for x in g if x['o'] == 0]
+    cols = {c: {round(x['x']) for x in g if x['c'] == c} for c in range(5)}; counts = [sum(1 for x in g if x['c'] == c) for c in range(5)]
+    panel = q.evaluate("()=>innerWidth*0.13"); inside = all(x['x'] < panel for x in g)
+    jars = [sum(1 for x in drawn(q, 'jargroup') if x['o'] == 0 and x['c'] == c) for c in range(5)]; sets = sum(1 for x in drawn(q, 'setrow') if x['o'] == 0)
+    ok = counts == [4, 4, 7, 2, 1] and all(len(v) == 1 for c, v in cols.items() if counts[c]) and inside and jars == [1, 1, 2, 0, 0] and sets == 1
+    report(ok, 'stockpile: columns, sets and jar groups shown', 'goods %s, one column each %s, jar groups %s, set rows %d' % (counts, all(len(v) == 1 for c, v in cols.items() if counts[c]), jars, sets))
+
 def f_sets_of_five(q):  # a set is 5 goods, one of each; the PC bids when it pays; a tie goes to the picker; only the winner pays
     kid, pc = [[4, 4, 0, 2, 3, 0], [4, 2, 0, 4, 4, 0]], [[14, 4, 0, 2, 3, 1], [14, 2, 0, 4, 4, 1]]
     table(q, bag=[[0, 1], [0, 0], [0, 0], [0, 0]], tiles=kid + pc)

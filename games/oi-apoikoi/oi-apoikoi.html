@@ -420,11 +420,16 @@ function drawPanel(i) {
   const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, cxm = x0 + P / 2, turn = wait && wait.who === i;
   rrect(x0 + 6, 8, P - 12, H - 16, 16, turn ? '#fff8e8' : '#f6ecd6', BORDER[i], turn ? 6 : 3);
   dot(cxm, 44, 24, BORDER[i]); if (G.first === i) star(cxm, 44, 18);
-  const r = Math.min(11, (P - 28) / 14), top = 92;  // goods: a row per colour; a long row squeezes together instead of wrapping
-  p.goods.forEach((n, c) => { for (let k = 0; k < n; k++) drawn.push({ k: 'good', o: i, c }); const step = Math.min(r * 2.3, (P - 32 - 2 * r) / Math.max(1, n - 1)); for (let k = 0; k < n; k++) dot(x0 + 16 + r + k * step, top + c * r * 2.6, r, COLOURS[c]); });
-  const sy = top + 5 * r * 2.6 + 14, n = sets(p);
-  for (let k = 0; k < n; k++) setShape(x0 + 30 + (k % 3) * 44, sy + 6 + Math.floor(k / 3) * 44, 20);  // the sets you can bid
-  const cy0 = sy + Math.max(1, Math.ceil(n / 3)) * 44 + 14, cr = Math.min(12, (P - 24) / 11);
+  // goods: a column per colour, stacking upward from a base line (a tall column squeezes, it never widens the panel);
+  // each row with one of every colour is a set (a gold band); each 3 of a colour, counted from the base, is a jar at the round's end (a frame)
+  const cw = (P - 24) / 5, r = Math.min(11, cw * 0.38), top = 84, base = H * 0.6, most = Math.max(1, ...p.goods), step = Math.min(r * 2.3, (base - top - r) / most), n = sets(p);
+  const colX = c => x0 + 12 + cw * (c + 0.5), rowY = k => base - r - k * step;
+  for (let k = 0; k < n; k++) { rrect(x0 + 10, rowY(k) - step / 2, P - 20, step, step / 2, '#f4cf4a66', '#c99a1a', 1.5); drawn.push({ k: 'setrow', o: i }); }
+  p.goods.forEach((g, c) => {
+    for (let k = 0; k + 3 <= g; k += 3) { rrect(colX(c) - r - 3, rowY(k + 2) - r - 3, 2 * r + 6, 2 * step + 2 * r + 6, r, null, '#6e3418', 2); drawn.push({ k: 'jargroup', o: i, c }); }
+    for (let k = 0; k < g; k++) { dot(colX(c), rowY(k), r, COLOURS[c]); drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k) }); }
+  });
+  const cr = Math.min(12, (P - 24) / 11), cy0 = base + 24;  // coins, five to a row
   for (let k = 0; k < p.coins; k++) coin(x0 + 14 + cr + (k % 5) * cr * 2.15, cy0 + Math.floor(k / 5) * cr * 2.15, cr);
   for (let k = 0; k < p.bid; k++) setShape(cxm + (k - (p.bid - 1) / 2) * 34, H - 60, 15);  // the sets bid now
 }
