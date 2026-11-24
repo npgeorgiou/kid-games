@@ -20,7 +20,7 @@ def reload(q):  # S(x, y): what the paper shows at a full-paper point, for check
 def scr(q, x, y): return q.evaluate("([x,y])=>__cb.screenOf(x,y)", [x - q.ox, y - q.oy])
 
 def tap(q, bid):
-    opener = {'size': 'size', 'shape': 'brush', 'blur': 'brush', 'splash': 'brush'}.get(bid.split('-')[0])  # owner 21 Nov: sizes and brushes are chosen in a popup
+    opener = {'size': 'size', 'shape': 'brush', 'blur': 'brush', 'splash': 'brush', 'lift': 'brush'}.get(bid.split('-')[0])  # owner 21 Nov: sizes and brushes are chosen in a popup
     if opener: p = q.evaluate("(id)=>__cb.btn(id)", opener); q.mouse.click(p[0], p[1]); time.sleep(0.1)
     p = q.evaluate("(id)=>__cb.btn(id)", bid); q.mouse.click(p[0], p[1]); time.sleep(0.05)
 
@@ -283,15 +283,15 @@ def glide(q, at, L, v0, v1, v2=None):  # a stroke along a path: at(d) is the pap
 
 def f_lift_control(q):  # owner 23 Nov 22:37, point 1: once off the paper the brush stays off until a new touch; the biggest brush's tail has no sudden size changes; speeding up round a circle thins it evenly to the end, as on a line
     import math
-    tap(q, 'tool-acrylic'); tap(q, 'shape-0'); tap(q, 'size-4'); tap(q, 'color-1'); bad = []
-    glide(q, lambda d: (100 + d, 150), 1400, 550, 4500, 300)  # speeds up to a flick, then slows down while still pressed
+    tap(q, 'tool-acrylic'); tap(q, 'shape-0'); tap(q, 'size-4'); tap(q, 'color-1'); tap(q, 'lift'); bad = []  # lifting is a switch, off at the start (owner 24 Nov)
+    glide(q, lambda d: (100 + d, 150), 1450, 550, 5500, 300)  # speeds up to a flick, then slows down while still pressed (owner 24 Nov: lifting is slower, so a faster flick to go off)
     ws = [width_across(q, x, 150, 0, 1, 110) for x in range(110, 1500, 4)]
     off = next((j for j in range(len(ws)) if j > 10 and max(ws[j:j + 6]) == 0), len(ws))
     back = sum(1 for w in ws[off:] if w > 0); grows = [j for j in range(8, off) if ws[j] > max(ws[j - 8:j]) + 4]
     if back or grows: bad.append('biggest: back on the paper %d places, widens %d times in the tail' % (back, len(grows)))
     tap(q, 'size-2'); tap(q, 'color-1'); R, L = 200, 2 * math.pi * 200
-    glide(q, lambda d: (800 + R * math.cos(d / R), 700 + R * math.sin(d / R)), L * 0.97, 700, 2400)  # one turn, speeding up evenly
-    glide(q, lambda d: (150 + d, 330), L * 0.97, 700, 2400)  # the same on a line
+    glide(q, lambda d: (800 + R * math.cos(d / R), 700 + R * math.sin(d / R)), L * 0.97, 700, 4200)  # one turn, speeding up evenly (owner 24 Nov: lifting starts at 2000)
+    glide(q, lambda d: (150 + d, 330), L * 0.97, 700, 4200)  # the same on a line
     def circ(f): a = f * 0.97 * 2 * math.pi; return max(width_across(q, 800 + R * math.cos(a + e), 700 + R * math.sin(a + e), math.cos(a + e), math.sin(a + e), 45) for e in (-0.02, 0, 0.02))
     def line(f): x = 150 + f * L * 0.97; return max(width_across(q, x + e, 330, 0, 1, 45) for e in (-4, 0, 4))
     c, l = [circ(f) for f in (0.1, 0.5, 0.9)], [line(f) for f in (0.1, 0.5, 0.9)]
@@ -378,10 +378,10 @@ def run(names):
     with sync_playwright() as p:
         b = p.chromium.launch()
         for n in (names or FLOWS):
-            q = page(b, *PAPER.get(n, ('400x250', (0, 0))))
+            q = page(b, *PAPER.get(n, ('400x250', (0, 0)))); t0 = time.time()
             try: FLOWS[n](q)
             except Exception as e: report(False, n, 'error: %s' % str(e).splitlines()[0])
-            q.context.close()
+            q.context.close(); print('TIME %-44s %.1f s' % (n, time.time() - t0))  # every flow timed (a slow test is fixed first)
         b.close()
 
 # SECTION: LATER FLOWS -- owner rules from 21 Nov afternoon on
@@ -670,8 +670,11 @@ def f_start_outside(q):  # owner 23 Nov: a stroke can start beside the paper and
     ys = [2, 20, 60, 120]; got = [round(lum(shown(q, 200, y))) for y in ys]
     report(all(v < 120 for v in got), 'stroke started above the paper paints from its edge in', 'brightness down the line at %s: %s' % (ys, got))
 
-def width_across(q, cx, cy, ux, uy, half=60):  # painted pixels along the line through (cx, cy) in direction (ux, uy)
-    return q.evaluate("([cx,cy,ux,uy,h])=>{let n=0;for(let i=-h;i<=h;i++){const c=S(cx+ux*i,cy+uy*i);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<150)n++}return n}", [cx, cy, ux, uy, half])
+def widths_along(q, xs, y, half=30, dark=150, dxs=(0,)):  # width_across at every x of a row, in one call (one call per place made a row take seconds); each the widest of the dxs beside it
+    return q.evaluate("([xs,y,h,k,ds])=>xs.map(x=>Math.max(...ds.map(d=>{let n=0;for(let i=-h;i<=h;i++){const c=S(x+d,y+i);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<k)n++}return n})))", [list(xs), y, half, dark, list(dxs)])
+
+def width_across(q, cx, cy, ux, uy, half=60, dark=150):  # painted pixels (darker than dark) along the line through (cx, cy) in direction (ux, uy)
+    return q.evaluate("([cx,cy,ux,uy,h,k])=>{let n=0;for(let i=-h;i<=h;i++){const c=S(cx+ux*i,cy+uy*i);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<k)n++}return n}", [cx, cy, ux, uy, half, dark])
 
 def f_turn(q):  # owner 23 Nov: a switch in the brush popup: brushes turn with the stroke; off, a flat brush stays at its one angle (owner 21 Nov)
     tap(q, 'tool-marker'); tap(q, 'shape-1'); tap(q, 'size-3'); tap(q, 'color-6')
@@ -758,19 +761,19 @@ def flick(q, x0, x1, y, v0=550, v1=4000):  # a quick flick: starts at his usual 
 
 def f_flick_lifts(q):  # owner 23 Nov 10:27, point 16: speed works like lifting the brush: a quick flick starts at normal width and thins until it disappears, for every drawing tool
     tools = ['acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil']
-    out, bad = [], []
+    out, bad = [], []; tap(q, 'lift')  # lifting is a switch, off at the start (owner 24 Nov)
     for i, t in enumerate(tools):
         y = 60 + i * 105
         tap(q, 'tool-' + t); tap(q, 'shape-0'); tap(q, 'size-2'); tap(q, 'color-1')
-        flick(q, 100, 900, y)  # 550 px/s at 100, about 1500 at 190, 2500 at 370, 4000 at 900
+        flick(q, 100, 1500, y, v1=4500)  # 550 px/s at 100, 2000 at 430, 3200 at 800, 4500 at 1500 (owner 24 Nov: lifting starts later and is slower, so a flick runs longer)
         if t == 'water': wait_dry(q)
         def w(x): return max(width_across(q, x + dx, y, 0, 1, 45) for dx in (-6, -3, 0, 3, 6)) if t != 'spray' else sum(width_across(q, x + dx, y, 0, 1, 45) for dx in range(-20, 21, 2))  # spray is loose drops: all its paint across a band
-        start, mid, end = w(130), w(500), w(800)  # owner 23 Nov 20:18: lifting starts once the hand is fast and takes a few centimetres
+        start, mid, end = w(130), w(1000), w(1450)  # owner 23 Nov 20:18: lifting starts once the hand is fast and takes a few centimetres (24 Nov: more of them)
         out.append('%s %d>%d>%d' % (t, start, mid, end))
         if not (start >= 6 and mid < start * 0.8 and end == 0): bad.append(t)
     report(not bad, 'a quick flick thins out and disappears, every drawing tool', 'wrong: %s; widths start>middle>end: %s' % (bad, ', '.join(out)))
 FLOWS['flick_lifts'] = f_flick_lifts
-PAPER['flick_lifts'] = ('1000x1000', (0, 0))
+PAPER['flick_lifts'] = ('1600x1000', (0, 0))
 
 def jerk(q, x0, x1, y, v):  # a jerk: from rest straight to speed v (paper pixels a second), moves 16 ms apart with their own times, let go while moving
     cdp = q.context.new_cdp_session(q); t0 = time.time()
@@ -781,16 +784,16 @@ def jerk(q, x0, x1, y, v):  # a jerk: from rest straight to speed v (paper pixel
     ev('mouseReleased', t - 0.016, x0 + v * (t - 0.016), {'clickCount': 1}); cdp.detach(); time.sleep(0.15)
 
 def f_jerk_tail(q):  # owner 23 Nov 20:18: a jerk lifts the brush fast and leaves a smoothly thinned line (no beads, no rings); a smaller jerk leaves a longer line
-    out, bad = [], []
+    out, bad = [], []; tap(q, 'lift')  # lifting is a switch, off at the start (owner 24 Nov)
     for i, t in enumerate(['acrylic', 'water', 'crayon', 'marker', 'simple', 'ink', 'pencil']):
         tap(q, 'tool-' + t); tap(q, 'shape-0'); tap(q, 'size-2'); tap(q, 'color-1')
         if t == 'ink': tap(q, 'splash-0')  # its splash drops would land on the next rows
         lens = []
-        for k, v in enumerate((3600, 2000)):  # a hand finishing a line fast: about 1 m/s, a smaller jerk about half that (his screen about 36 px a cm)
+        for k, v in enumerate((3600, 3000)):  # a hand finishing a line fast: about 1 m/s, a smaller jerk about 85 cm/s (his screen about 36 px a cm; owner 24 Nov: below 55 cm/s it no longer lifts)
             y = 70 + i * 130 + k * 60
             jerk(q, 100, 1500, y, v)
             if t == 'water': wait_dry(q)
-            ws = [width_across(q, x, y, 0, 1, 30) for x in range(110, 1500, 4)]
+            ws = widths_along(q, range(110, 1500, 4), y, 30, 215 if t == 'pencil' else 150, (-4, 0, 4))  # a fast pencil line is light grey (about 145), not dark; the widest of three beside each place (the pastel's lumps and grain)
             end = max([j for j, w in enumerate(ws) if w > 0] or [0])
             gaps = [j for j in range(1, int(end * 0.9)) if max(ws[j - 1:j + 2]) == 0]  # a stretch with nothing, before the tip (grain alone leaves no 12 px hole)
             grows = [j for j in range(8, end) if ws[j] > max(ws[j - 8:j]) + 3]
@@ -891,3 +894,24 @@ def f_ink_strands(q):  # owner 23 Nov 10:27, point 5: ink like the av01d fabric-
     report(none == 0 and many >= 4 and many > few, 'ink: fast strokes splash, as many as the setting says', 'splash spots with none %d, few %d, many %d' % (none, few, many))
 FLOWS['ink_strands'] = f_ink_strands
 PAPER['ink_strands'] = ('600x450', (0, 0))
+
+def f_lift_switch(q):  # owner 24 Nov 08:50, point 2: a switch in the brush popup, whether speed lifts the brush; off at the start
+    tap(q, 'tool-acrylic'); tap(q, 'shape-0'); tap(q, 'size-2'); tap(q, 'color-1')
+    def ends(y): return [max(width_across(q, x + dx, y, 0, 1, 45) for dx in (-6, 0, 6)) for x in (130, 1450)]
+    flick(q, 100, 1500, y=120, v1=4500); off = ends(120)
+    tap(q, 'lift'); flick(q, 100, 1500, y=300, v1=4500); on = ends(300)
+    ok = off[1] >= off[0] * 0.6 and on[1] == 0 and on[0] > 0  # off: only narrower from speed's lighter press
+    report(ok, 'lift switch: off at start, a flick stays on the paper; on, it lifts off', 'widths start, end: off %s, on %s' % (off, on))
+FLOWS['lift_switch'] = f_lift_switch
+PAPER['lift_switch'] = ('1600x450', (0, 0))
+
+def f_long_lift(q):  # owner 24 Nov 08:50, point 1: he cannot make long lifts, the lift happens too fast (and too early, point 5): a fast hand (about 85 cm/s) thins over a long stretch; a quickish one (50 cm/s) stays down
+    tap(q, 'tool-acrylic'); tap(q, 'shape-0'); tap(q, 'size-2'); tap(q, 'color-1'); tap(q, 'lift')
+    def w(x, y): return max(width_across(q, x + dx, y, 0, 1, 45) for dx in (-6, 0, 6))
+    jerk(q, 100, 1500, 150, 3000); fast = [w(x, 150) for x in (150, 600)]; end = max([x for x in range(150, 1500, 10) if w(x, 150) > 0] or [0])
+    jerk(q, 100, 1500, 350, 1800); calm = [w(x, 350) for x in (150, 1300)]
+    ok = 0 < fast[1] < fast[0] * 0.85 and end > 900 and calm[1] >= calm[0] * 0.8
+    report(ok, 'long lift: a fast hand thins over a long stretch, a quickish one stays down', 'fast: widths %s, last paint at %d; 50 cm/s: widths %s' % (fast, end, calm))
+FLOWS['long_lift'] = f_long_lift
+PAPER['long_lift'] = ('1600x500', (0, 0))
+

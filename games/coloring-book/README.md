@@ -25,7 +25,7 @@ A painting game for a curious four-year-old, on a touchscreen PC. Not a workshee
 | Ink | round, nib | opaque ink of many fine strands, thinner the faster the hand; a quick hand throws splash drops |
 | Pencil | sharp, blunt, side | coloured lead only on the paper's raised grain; the bucket level is how hard it presses |
 
-Flat brushes are held at one fixed angle, unless the turn switch in the brush popup is on: then every brush turns with the stroke. The brush popup shows real strokes of each brush on the chosen canvas (`lib/previews`).
+Flat brushes are held at one fixed angle, unless the turn switch in the brush popup is on: then every brush turns with the stroke. The lift switch there (off at the start) makes a fast hand lift the brush: above about 55 cm/s it rises, the faster the quicker, and once off it stays off until a new touch. The brush popup shows real strokes of each brush on the chosen canvas (`lib/previews`).
 
 ## Where things are
 
@@ -65,7 +65,7 @@ Every check passes. A commit that changes the game must name its flow (`Flow: co
 
 ## Now
 
-Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words: "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape inside one drawing tool; "colour button" = a paint bucket filled to the paint amount. Palettes are stripe bars in four columns of 12 with dividers: monochromes (Payne's grey between Blue and Purple) and a grey scale, rainbows, then the extras by number of hues (one, two, three, more); no palette colour is ever dropped (a palette's own near-white or near-black is its white or black bucket, always first). The chosen bucket is a little bigger and ringed, and fits between the paper and the screen edge. Brushes and the pointer turn with the stroke (switch in the brush popup). Speed acts as pressure, and a fast hand lifts the brush (numbers LIFT_FROM, LIFT_FAST, LIFT_TIME in src K); once off the paper it stays off until a new touch. Spray is an airbrush puffing on the clock; shapes are the Squares Brush; ink is fine strands that splash at quick (not lifting) speed. Tests include every brush's look (tools/looks) and every brush picture.
+Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words: "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape inside one drawing tool; "colour button" = a paint bucket filled to the paint amount. Palettes are stripe bars in four columns of 12 with dividers: monochromes (Payne's grey between Blue and Purple) and a grey scale, rainbows, then the extras by number of hues (one, two, three, more); no palette colour is ever dropped (a palette's own near-white or near-black is its white or black bucket, always first). The chosen bucket is a little bigger and ringed, and fits between the paper and the screen edge. Brushes and the pointer turn with the stroke (switch in the brush popup). Speed acts as pressure, and with the lift switch on a fast hand lifts the brush (numbers LIFT_FROM 2000, LIFT_FAST 4000, LIFT_TIME 0.17 in src K: paper dots a second, about 36 a cm); once off the paper it stays off until a new touch. Spray is an airbrush puffing on the clock; shapes are the Squares Brush; ink is fine strands that splash at quick (not lifting) speed. Tests include every brush's look (tools/looks) and every brush picture.
 
 ## Open
 

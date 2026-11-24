@@ -143,8 +143,8 @@ const K = {
   PENCIL_WAX: 0.75, PENCIL_PRESS: [0.35, 0.55, 0.8], STAMP_LIGHT: 0.25, STAMP_HUE: 0.1, SHAPE_FILL: 0.45, SHAPE_FRAME: 1 / 60, SHAPE_TOP_V: 1000, INK_AMOUNT: 7, INK_SPLASH: [0, 0.5, 1, 2], INK_SPLASH_V: 900, // ink (av01d fabric-brushes): how much ink the strands carry; splash drops: none, few, some, many
   SPRAY_DROPS: 24, SPRAY_HOLD: 200, // owner 23 Nov: pencil (lead pressure per bucket level), shapes (colour spread), spray
   MARK_INK: 0.6, MARK_RIM: 1.5, // one layer of ink is lighter than the colour, so layers build up darker; owner 21 Nov: a real marker: see-through ink, crossing strokes darker, ink gathers at the edge
-  LIFT_FROM: 1400, LIFT_FAST: 4000, LIFT_TIME: 0.085, // owner 23 Nov: a fast hand lifts the brush. Paper pixels a second (his screen about 36 a cm): above LIFT_FROM (about 40 cm/s) it
-  // lifts, the faster the quicker; at LIFT_FAST (about 1.1 m/s) it goes from full to off in LIFT_TIME seconds; slower than LIFT_FROM it presses down again (owner 23 Nov 22:37: wider speeds, more control)
+  LIFT_FROM: 2000, LIFT_FAST: 4000, LIFT_TIME: 0.17, // owner 23 Nov: a fast hand lifts the brush (with the lift switch on). Paper pixels a second (his screen about 36 a cm): above LIFT_FROM (about 55 cm/s) it
+  // lifts, the faster the quicker; at LIFT_FAST (about 1.1 m/s) it goes from full to off in LIFT_TIME seconds; slower than LIFT_FROM it presses down again (owner 24 Nov: it lifted too early and too fast for long lifts)
   SIMPLE_FLOW: 3, // simple brush: how much of its soft edge one dab adds over a brush width of dabs (owner 23 Nov: a stroke crossing itself has no crease)
 };
 const SIM_DT = 1 / 60, MAX_STEPS = 2, CHECK_EVERY = 6, W_EPS = 1e-4, DAMP_EPS = 0.01;
@@ -499,7 +499,7 @@ async function undoOne() {
 }
 
 // SECTION: TOOLS -- one dab of each medium (the model's parts 2-5)
-const st = { tool: 'acrylic', palette: 0, color: 4, load: 3, size: 1, soft: 0, turn: false, splash: 1, shape: { oil: 0, acrylic: 0, water: 0, crayon: 1, marker: 0, simple: 0, spray: 0, shapes: 0, ink: 0, pencil: 0 }, canvas: 'wc' };
+const st = { tool: 'acrylic', palette: 0, color: 4, load: 3, size: 1, soft: 0, turn: false, lift: false, splash: 1, shape: { oil: 0, acrylic: 0, water: 0, crayon: 1, marker: 0, simple: 0, spray: 0, shapes: 0, ink: 0, pencil: 0 }, canvas: 'wc' };
 const colorOf = (i) => (i === 'pick' ? st.picked : colorsNow()[Math.min(i, colorsNow().length - 1)]); // 'pick': the colour taken from the painting
 let stroke = null, clockShift = 0;
 const paintNow = () => performance.now() / 1000 + clockShift;
@@ -634,8 +634,8 @@ function pressureOf(e) { // a pen's own pressure; a finger or the mouse: none (o
   return e.pointerType === 'pen' ? Math.min(1.2, Math.max(0.3, e.pressure * 1.6)) : null;
 }
 const speedPress = (v) => 0.5 + 0.7 * Math.exp(-v / 1500); // paper pixels a second to pressure: still 1.2, a finger's usual 550 about 1, very fast 0.6 (as painting apps do for a mouse)
-function liftBy(s, dt) { // how much the brush lifts (minus: lands again) over dt seconds at the hand's speed now
-  const v = s.v; return dt * (v > K.LIFT_FROM ? -(v - K.LIFT_FROM) / (K.LIFT_FAST - K.LIFT_FROM) : (K.LIFT_FROM - v) / K.LIFT_FROM) / K.LIFT_TIME; }
+function liftBy(s, dt) { // how much the brush lifts (minus: lands again) over dt seconds at the hand's speed now; none with the lift switch off (owner 24 Nov)
+  const v = s.v; return !st.lift ? 0 : dt * (v > K.LIFT_FROM ? -(v - K.LIFT_FROM) / (K.LIFT_FAST - K.LIFT_FROM) : (K.LIFT_FROM - v) / K.LIFT_FROM) / K.LIFT_TIME; }
 function startStroke(p, pr, at) {
   if (undoing) return;
   const r = SIZES[st.size], t = st.tool;
@@ -803,7 +803,8 @@ const brushBtn = makeBtn(right, 'brush', (c) => { if (SHAPES[st.tool]) brushDraw
   if (t === 'ink') { const r = row(box); K.INK_SPLASH.forEach((v, i) => makeBtn(r, 'splash-' + i, (c) => { c.fillStyle = '#3a2a1a'; // owner 23 Nov 10:27: how many drops a fast ink stroke throws
     for (let k = 0; k < [0, 3, 6, 12][i]; k++) { const a = k * 2.4, d = 12 + (k * 13) % 30; c.beginPath(); c.arc(50 + Math.cos(a) * d, 50 + Math.sin(a) * d, 2 + (k % 3), 0, 2 * Math.PI); c.fill(); }
     c.beginPath(); c.arc(50, 50, 8, 0, 2 * Math.PI); c.fill(); }, () => { st.splash = i; closePop(); refresh(); }, i === st.splash ? 'on' : '')); }
-  makeBtn(row(box), 'turn', icon('arrows-clockwise', '#3a2a1a'), () => { st.turn = !st.turn; closePop(); refresh(); }, st.turn ? 'on' : ''); // owner 23 Nov: brushes turn with the stroke, or stay at one angle
+  const sw = row(box); makeBtn(sw, 'lift', icon('gauge', '#3a2a1a'), () => { st.lift = !st.lift; closePop(); refresh(); }, st.lift ? 'on' : ''); // owner 24 Nov: whether speed lifts the brush, off at the start
+  makeBtn(sw, 'turn', icon('arrows-clockwise', '#3a2a1a'), () => { st.turn = !st.turn; closePop(); refresh(); }, st.turn ? 'on' : ''); // owner 23 Nov: brushes turn with the stroke, or stay at one angle
 }));
 const sizeBtn = makeBtn(right, 'size', tipDraw(st.tool, 0, 1), () => openPop(sizeBtn, (box) => { // the same 5 sizes for every brush (owner 21 Nov)
   const r = row(box); SIZES.forEach((v, i) => makeBtn(r, 'size-' + i, tipDraw(st.tool, st.shape[st.tool], i), () => { st.size = i; closePop(); refresh(); }, i === st.size ? 'on' : ''));
@@ -1113,10 +1114,12 @@ function frame(t) {
 requestAnimationFrame(frame);
 
 // SECTION: TEST HOOKS -- read-only views for the flow tests (age: let time pass for the oil paint)
+let shot = null; // the paper as shown, for the checks below
 window.__cb = { CW, CH, st, shapes: SHAPES, get freeTiles() { return freeSlots.length; }, get grain() { return grain; }, undoStack, water, get A() { return readPic().A; }, get Ht() { return readPic().H; }, get stickers() { return stickers; }, get cur() { return cur; }, ready: false,
   screenOf(x, y) { const r = view.getBoundingClientRect(); return [r.left + x * r.width / CW, r.top + y * r.height / CH]; },
   btn(id) { const b = document.querySelector('[data-id="' + id + '"]'); if (!b || b.classList.contains('hide')) return null; const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; },
-  shown(x, y) { render(); const d = new Uint8Array(4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.readPixels(Math.round(x), CH - 1 - Math.round(y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, d); return [d[0], d[1], d[2]]; },
+  shown(x, y) { if (!shot) { render(); shot = new Uint8Array(CW * CH * 4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.readPixels(0, 0, CW, CH, gl.RGBA, gl.UNSIGNED_BYTE, shot); Promise.resolve().then(() => { shot = null; }); } // the whole paper read once per check (one read a pixel stalled the graphics card each time), kept until the check's script ends
+    const X = Math.round(x), Y = CH - 1 - Math.round(y); if (X < 0 || Y < 0 || X >= CW || Y >= CH) return [0, 0, 0]; const i = (Y * CW + X) * 4; return [shot[i], shot[i + 1], shot[i + 2]]; },
   cell(x, y, w, h) { render(); const d = new Uint8Array(w * h * 4); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.readPixels(x, CH - y - h, w, h, gl.RGBA, gl.UNSIGNED_BYTE, d); const c = document.createElement('canvas'); c.width = w; c.height = h; const x2 = c.getContext('2d'), im = x2.createImageData(w, h); for (let j = 0; j < h; j++) im.data.set(d.subarray((h - 1 - j) * w * 4, (h - j) * w * 4), j * w * 4); x2.putImageData(im, 0, 0); return c.toDataURL('image/png'); }, // tools/previews.py: a part of the picture as it shows
   paint(pts) { startStroke({ x: pts[0][0], y: pts[0][1] }, 1); for (let k = 1; k < pts.length; k++) { const [a, b] = [pts[k - 1], pts[k]], n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 4); for (let i = 1; i <= n; i++) moveStroke({ x: a[0] + (b[0] - a[0]) * i / n, y: a[1] + (b[1] - a[1]) * i / n }, 1); } endStroke(); }, // tools/previews.py: a stroke without waiting for a finger
   age(s) { clockShift += s; }, previews: PREVIEWS, palIndex(n) { return PALETTES.findIndex((p) => p.name === n); }, color() { return colorOf(st.color).map((v) => Math.round(v * 255)); }, pal(i) { return PALETTES[i] && PALETTES[i].colors; },
