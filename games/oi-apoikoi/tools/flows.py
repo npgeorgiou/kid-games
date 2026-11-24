@@ -333,9 +333,12 @@ def f_turn_shown(q):  # owner 24 Nov: "make it obvious who plays; now there is n
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); settle(q)
     lit = lambda: {d['o']: d['lit'] for d in drawn(q, 'panel')}
     mine = lit(); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); skip(q, 1200); waiting(q, 'jar'); tap(q, 'jar-0')
-    run_until(q, "()=>__dg.state().turn===1"); pcs = lit(); w = st(q)['wait']; h = q.evaluate("()=>__dg.sounds()"); q.clock.resume()
-    ok = mine == {0: True, 1: False} and pcs == {0: False, 1: True} and 'turn' in h
-    report(ok, 'turn: the player playing is lit, the other dimmed', 'kid playing %s; PC playing %s (wait %s); turn sound %s' % (mine, pcs, w, 'turn' in h))
+    run_until(q, "()=>__dg.state().turn===1"); pcs = lit(); w = st(q)['wait']; h = q.evaluate("()=>__dg.sounds()")
+    faces = {x['o']: x for x in drawn(q, 'avatar')}; light = [x for x in drawn(q, 'flight') if x['look'] == 'turnlight']; market = drawn(q, 'market')
+    travels = bool(light) and abs(light[0]['fx'] - faces[0]['x']) < 5 and abs(light[0]['tx'] - faces[1]['x']) < 5  # owner 24 Nov: "it's still not obvious who plays": the light flies from one face to the other
+    bigger = faces[1]['r'] > faces[0]['r'] and market and market[0]['o'] == 1; q.clock.resume()
+    ok = mine == {0: True, 1: False} and pcs == {0: False, 1: True} and 'turn' in h and travels and bigger
+    report(ok, 'turn: lit, the light flies over, his face bigger, the market his colour', 'kid playing %s; PC playing %s (wait %s); turn sound %s; light flies face to face %s; PC face bigger and market his %s' % (mine, pcs, w, 'turn' in h, travels, bool(bigger)))
 
 def f_screen_parts(q):  # owner 24 Nov: "the sidebar doesn't portray any info"; "what are these 9 vertical lines on top": each player's area has his face, a goods tray and a coins tray, everything spaced apart; the pile is a stack of tiles
     tiles = [[0, 0, 0, 0, 1, 0], [2, 0, 0, 0, 1, 0], [4, 0, 0, 0, 1, 0], [0, 1, 0, 2, 2, 0], [2, 1, 0, 2, 2, 0], [4, 1, 0, 2, 2, 0], [6, 0, 0, 2, 3, 0], [6, 1, 0, 3, 4, 0]]
