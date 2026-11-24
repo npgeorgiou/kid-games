@@ -74,7 +74,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Worth in coins used by the PC: 1 coin = 1; a jar = what jars hold on average (about 0.65); 1 of each good or 5 of one good = a jar's worth.
 - The slot pictures stay as they are (owner 24 Nov: no new icons).
 - Owner rule (24 Nov): the wheels roll fast, then slow down and stop one after another (first, second, third), with sounds.
-- Owner rule (24 Nov, said twice): each wheel looks like a turning many-sided drum, shaded, the wheels apart; only the face it lands on shows, not the faces above and below. Better buttons; no circular arrow (it read as a "C"). Proposal: tap a wheel to keep it (a clamp drops on it), pull a lever on the machine's side to pay a coin and spin the others, tap the tray under the wheels to take the prizes.
+- Owner rule (24 Nov, said twice): each wheel looks like a turning many-sided drum, shaded, the wheels apart; only the face it lands on shows, not the faces above and below. Better buttons; no circular arrow (it read as a "C"). Owner's task list (24 Nov): tap a wheel to keep it (a clamp drops on it), pull a lever on the machine's side to pay a coin and spin the others, tap the tray under the wheels to take the prizes.
 
 ### Points and winning
 - Owner rule: points are gold coins drawn one by one, with no numbers. At the end, the players' coins are lined up side by side and the longer row wins.
@@ -124,7 +124,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 ## 6. Built for now (not decided by the owner; to check)
 
 - The colour split (see Tiles and land).
-- The PC counts every jar as worth the same and judges a move by the jars it earns this turn.
+- The PC counts every good as worth the same and judges a move by the goods it earns this turn (until it plays the 24 Nov rules at its best).
 - The PC counts a jar as about 0.7 coins (its coin contents only) and a good as a third of a jar; with these values the best slot play is to stop at once, so the PC never re-spins.
 - Tiles nobody could place in a round go back under the pile.
 - Sounds (owner 24 Nov: simple built-in sounds until his own files come; no blips, a jar breaks when opened): one soft family: wood knocks for picking, snapping and a wheel stopping; a clay break for opening a jar; a clink for coins; soft chimes for bids, passes, jars made from goods and slot wins; a whoosh for the slot spinning and a steal.
