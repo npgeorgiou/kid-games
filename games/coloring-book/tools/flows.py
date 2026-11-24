@@ -351,8 +351,8 @@ def f_ink_splash_drawing(q):  # owner 23 Nov 22:37, point 6: ink as in the fabri
     tap(q, 'tool-ink'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-1'); tap(q, 'splash-2')
     jerk(q, 60, 840, 120, 600); body = q.evaluate("()=>{let n=0,k=0;for(let x=150;x<750;x+=3)for(let dy=-12;dy<=12;dy+=3){const c=S(x,120+dy);k++;if(0.3*c[0]+0.59*c[1]+0.11*c[2]<150)n++}return n/k}")
     jerk(q, 60, 840, 330, 1200)  # quick, still on the paper
-    still = width_across(q, 700, 330, 0, 1, 40) > 0  # splash drops fall at random: count them over two bands, not four rows
-    spl = q.evaluate("()=>{let n=0;for(let x=100;x<800;x+=3)for(let dy=-90;dy<=90;dy+=3){if(Math.abs(dy)<55)continue;const c=S(x,330+dy);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<150)n++}return n}")
+    still = width_across(q, 700, 330, 0, 1, 40) > 0  # splash drops fall at random, up to about 4 brush widths away: count them over all the paper they can reach beside the line (40 px off it), never a thin band
+    spl = q.evaluate("()=>{let n=0;for(let x=100;x<800;x+=3)for(let dy=-170;dy<=148;dy+=3){if(Math.abs(dy)<40)continue;const c=S(x,330+dy);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<150)n++}return n}")  # up to the first line's edge above, the paper's edge below
     report(body >= 0.85 and still and spl >= 3, 'ink: solid body, splashes while still painting', 'body %.2f covered, still painting %s, splash spots %d' % (body, still, spl))
 FLOWS['ink_splash_drawing'] = f_ink_splash_drawing
 PAPER['ink_splash_drawing'] = ('900x480', (0, 0))
@@ -921,7 +921,8 @@ def f_jerk_tail(q):  # owner 23 Nov 20:18: a jerk lifts the brush fast and leave
             ws = widths_along(q, range(110, 1500, 4), y, 30, 215 if t == 'pencil' else 150, (-4, 0, 4))  # a fast pencil line is light grey (about 145), not dark; the widest of three beside each place (the pastel's lumps and grain)
             end = max([j for j, w in enumerate(ws) if w > 0] or [0])
             gaps = [j for j in range(1, int(end * 0.9)) if max(ws[j - 1:j + 2]) == 0]  # a stretch with nothing, before the tip (grain alone leaves no 12 px hole)
-            grows = [j for j in range(8, end) if ws[j] > max(ws[j - 8:j]) + 3]
+            sm = [sum(ws[max(0, j - 3):j + 4]) / len(ws[max(0, j - 3):j + 4]) for j in range(len(ws))]  # width averaged over half a brush (28 px): a bead or ring is brush-sized, the pastel's lumps and grain are smaller and fall anywhere
+            grows = [j for j in range(8, end) if sm[j] > max(sm[j - 8:j]) + 3]
             lens.append(end * 4)
             if gaps or grows or end * 4 > 1300: bad.append('%s %d: gaps %d, widens %d, length %d' % (t, v, len(gaps), len(grows), end * 4))
         if not lens[0] < lens[1]: bad.append('%s: bigger jerk not shorter %s' % (t, lens))
