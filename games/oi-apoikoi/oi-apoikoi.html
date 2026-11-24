@@ -225,7 +225,7 @@ async function bonus(i, j) {
   else if (j.k === 'first') G.first = i;
   else if (j.k === 'jar') p.jars++;
   else if (j.k === 'set') p.goods = p.goods.map(g => g + 1);
-  else if (j.k === 'tile') { const t = freeTile(i); if (t) await place(i, t, [W / 2, L().T / 2]); }
+  else if (j.k === 'tile') { const t = freeTile(i); if (t) await place(i, t, shownSpot()); }  // the free tile lies where the jar showed it
   else if (j.k === 'steal') {
     const ids = stealable(i); if (!ids.length) { await pause(900); return; }
     const worthOf = id => { const t = G.tiles.get(id); lift(t); const m = jarsFor(t.cs, i); put(t); return m; };
@@ -305,6 +305,7 @@ function L() {
 function draftSlot(k) { const { T, ds } = L(), gap = 2 * ds + 46; return [W / 2 + (k - 1.5) * gap, T / 2]; }  // the 4 places in the top row
 function tileCentre(x, y, r) { const { s, ox, oy } = L(), d = DIRS[r]; return [ox + (x + 0.5 + d[0] / 2) * s, oy + (y + 0.5 + d[1] / 2) * s]; }
 function tileBox(cxm, cym, s, r) { const d = DIRS[r]; const w = d[0] ? 2 * s : s, h = d[1] ? 2 * s : s; return { x: cxm - w / 2, y: cym - h / 2, w, h }; }
+function shownSpot() { return [W / 2, H * 0.2 + 80]; }  // where an opened jar shows what it held
 function homeSpot() { const { P } = L(); return [W - P / 2, H * 0.72]; }  // the PC's hand rests in its panel
 function snapSpot() {  // the nearest place the tile in hand fits, if it lies close to it
   if (!wait || wait.kind !== 'place') return null;
@@ -456,7 +457,7 @@ function drawJars() {  // big jars in a row; tap one to open it
     jarShape(x, y, s * 0.85); drawn.push({ k: 'jar', o: who, new: fresh });
     if (wait && wait.kind === 'jar') btn('jar-' + k, x - s / 2, y - s / 2, s, s, () => answer());
   }
-  if (G.shown) { rrect(W / 2 - 130, H * 0.2, 260, 160, 24, '#fff8e8', BORDER[who], 6); content(G.shown.j, W / 2, H * 0.2 + 80, 170); }
+  if (G.shown) { const [x, y] = shownSpot(); rrect(x - 130, y - 80, 260, 160, 24, '#fff8e8', BORDER[who], 6); content(G.shown.j, x, y, 170); }
 }
 function drawSlot() {
   const S = G.slot, x = W / 2, y = H / 2, ww = 140, live = wait && wait.kind === 'slot';
