@@ -39,8 +39,12 @@ A playable prototype against the PC on one shared board, colours only. The scree
 
 ## Task list
 
-- General rethink of the whole screen (owner 24 Nov: "all UI is still shit"): grey sketches of every moment for the owner to approve first, then build. Proposed: a stockpile of 5 shelves (one per colour), goods packed in crates of 5, a full crate drawn small as one crate, so any amount fits; no tall jar outlines.
-- Replace bidding (too slow: every pick triggers it), still using groups of 5; the owner picks from the options offered on 24 Nov (sets buy the first pick / tiles priced in sets / a set reserves a tile / sets become coins).
-- Fewer jars; the owner picks from the options offered on 24 Nov (round-end jars only from sets / 10 of a colour per jar / one jar per colour per round / jars only from edges, with leftovers becoming coins). Measured: about 177 jars and 109 coins a game for the kid, almost all from jars.
-- Slot machine (said twice): each wheel a shaded, many-sided drum with its faces apart; only the face it lands on shows, not the ones above and below; new buttons, no circular arrow (the "C").
-- The turn sign flying from face to face at a round's start looks wrong: remove it or replace it (owner to answer).
+In this order, each one tested and merged before the next (the rules are in `design.md`, 24 Nov):
+1. Rules: no bidding; a placed tile gives one good per matching edge (the edge glows, its good flies out), nothing for its halves; 5 of a colour become a jar at once, opened at once; goods carry over between rounds.
+2. Stockpile: one row of 5 places per colour; no tall jar outlines.
+3. Sets: one of each colour lights up; at the start of his turn, tap it for a wild tile (rules in `design.md`); the jar's free tile becomes the same wild tile.
+4. Remove the turn sign flying from face to face.
+5. Slot machine (said twice): each wheel a shaded drum showing only the face it lands on, wheels apart; tap a wheel to keep it (a clamp), pull a lever to pay a coin and spin the others, tap the tray under the wheels to take the prizes; no circular arrow.
+6. Whole screen (owner: "MANY issues"): grey sketches of every moment for the owner's yes first, then build, then screenshots in grey and the full checklist.
+7. The PC plays the new rules at its best, sets included.
+8. Measure jars and coins per game and tell the owner.
