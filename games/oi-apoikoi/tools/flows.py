@@ -171,6 +171,20 @@ def f_bid_locks(q):  # owner 24 Nov: winning a bid does not take the tile, it lo
     pc_took = any(t[5] == 1 and t[3:5] == [0, 1] and t[:2] != [14, 6] for t in s['tiles'])
     report(locked and pc_took, 'bid: winner locks the tile, picks it later', 'locked for kid %s, PC took it later %s' % (locked, pc_took))
 
+def away_and_back(q, k):  # carry the tile in hand onto the board, leave it, then carry it back to its market place
+    path(q, held(q), [640, 600]); path(q, held(q), q.evaluate("(k)=>__dg.slot(k)", k))
+def f_put_back(q):  # owner 24 Nov: a picked tile can be put back on its market place and another picked; a tile won with a bid stays reserved for its winner, the sets stay spent
+    table(q, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8)
+    tap(q, 'draft-0'); waiting(q, 'place'); away_and_back(q, 0); waiting(q, 'pick'); s = st(q)
+    plain = s['draft'][0] == [0, 4] and s['players'][0]['got'] == 0 and q.evaluate("()=>!!__dg.btn('draft-1')")
+    kid, pc = [[4, 4, 0, 2, 3, 0], [4, 2, 0, 4, 4, 0]], [[14, 4, 0, 2, 3, 1], [14, 2, 0, 4, 4, 1]]
+    table(q, bag=[[0, 1], [0, 0], [0, 0], [0, 0]], tiles=kid + pc, jarQueue=[COIN] * 20)
+    tap(q, 'draft-0'); waiting(q, 'bid'); tap(q, 'bid'); waiting(q, 'place'); away_and_back(q, 0); waiting(q, 'pick'); s = st(q)
+    d = {x['id']: x for x in drawn(q, 'tile')}
+    kept = s['draft'][0] == [0, 1] and s['locks'][0] == 0 and d['draft-0']['look'] is None and s['players'][0]['goods'] == [0, 0, 0, 0, 1]
+    tap(q, 'draft-0'); waiting(q, 'place'); again = st(q)['players'][1]['bid'] == 0
+    report(plain and kept and again, 'put back: returns to the market, a won tile stays yours', 'plain %s, won tile kept for you with sets spent %s, taken again without a bid %s' % (plain, kept, again))
+
 def f_leftovers_jar(q):  # at the end of the round each 5 of the same leftover good make a jar (owner 24 Nov: 5, not 3); the rest are lost (placed tiles' goods count too, owner 24 Nov)
     table(q, bag=[[0, 0]] * 4, tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0], [6, 2, 0, 2, 2, 0], [2, 2, 0, 2, 2, 0]], jarQueue=[COIN] * 20)
     kid_plays(q, lambda s: s['phase'] == 'end'); waiting(q, 'jar'); p = st(q)['players'][0]  # the leftovers stay until his jars are opened (owner 24 Nov)

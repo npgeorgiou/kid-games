@@ -55,6 +55,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Owner rule: a jar's benefit is immediate, in this round. Nothing carries to a "next" round.
 - Owner rule, contents:
   - Per 100 jars (owner 24 Nov): 10 empty, 40 one gold coin, 10 two coins, 5 stealing a tile from the opponent, 5 a free extra tile "from nowhere" (not from the draft); the rest equal, 7.5 each: the slot machine, the first-player token, another jar, a free set.
+- Owner rule (24 Nov): winning a bid reserves the tile for the winner; the other can't have it. A picked tile can be put back on its market place; a reserved one stays reserved and its sets stay spent.
 - Owner rule: stealing takes a tile already in the opponent's land; you place it in yours. A tile with no place in your land can't be stolen. Whether the opponent's land stays connected does not matter.
 - Owner rule: a free tile is always one that can be placed. It appears on top of the pile, marked as the player's (owner 24 Nov), and he drags it from there.
 - Owner rule: nobody starts with the first-player token; a jar sometimes gives it. Without it, the human player goes first (with two humans, one of them). The holder opens his end-of-round jars first.
