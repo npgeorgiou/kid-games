@@ -235,6 +235,18 @@ def f_jars_apart(q):  # owner 24 Nov: "jar circles are touching": every jar and 
     ok = len(jars) == 2 and len(glows) == 2 and min(gaps) >= 12
     report(ok, 'jars: apart, with a gap between them', 'gaps between jars and between glows %s px' % [round(g) for g in gaps])
 
+def f_round_end_shown(q):  # owner 24 Nov: the round's end must be its own phase, clearly seen and heard, before anything else happens in it
+    pause_clock(q); table(q, fast=False, bag=[[2, 2]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); q.clock.run_for(1200); waiting(q, 'jar'); tap(q, 'jar-0')
+    shown, first_made, ms = [], None, 0
+    while ms < 4000 and first_made is None:
+        q.clock.run_for(100); ms += 100; settle(q)
+        if drawn(q, 'sunset'): shown.append(ms)
+        if 'made' in q.evaluate("()=>__dg.sounds()"): first_made = ms
+    q.clock.resume(); h = q.evaluate("()=>__dg.sounds()")
+    ok = len(shown) >= 10 and first_made is not None and max(shown) <= first_made and 'roundend' in h and h.index('roundend') < h.index('made')
+    report(ok, 'end: the round end is its own moment, seen and heard', 'sunset shown %d00 ms (from %s to %s), first jar made at %s ms, round end sound %s' % (len(shown), shown[:1], shown[-1:], first_made, 'roundend' in h))
+
 def f_pc_best(q):  # the PC picks and places for the most jars
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)
