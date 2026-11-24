@@ -47,6 +47,8 @@ def hear(q, n, secs, since=None): return until(q, "(m=>__rec.lines.slice(m?m[0]:
 def hear_end(q, n, secs, since=None): return until(q, "(m=>__rec.lines.slice(m?m[0]:0).some((l)=>l[0]===%d&&l[2]))(%s)" % (n, 'null' if since is None else list(since)), secs)
 def silent(q, secs=8): return until(q, "()=>!__tb.voice.cur&&!__tb.voice.queue.length", secs)  # waits for the voice to finish by itself
 def mode(q): return q.evaluate("()=>__tb.mode")
+def wait_game(q, secs):  # waits until the game's own time has moved on by secs (the test page runs the game faster than real time)
+    c0 = q.evaluate("()=>__tb.clock"); until(q, "()=>__tb.clock>=%f" % (c0 + secs), secs + 1)
 
 def button(q, bid):  # a screen button's middle, by its id, where it is drawn
     return q.evaluate("(id)=>{const b=__tb.screenButtons().find((x)=>x.id===id); if(!b) return null; return b.rect?[b.rect.x+b.rect.w/2,b.rect.y+b.rect.h/2]:[b.x,b.y];}", bid)
@@ -69,7 +71,7 @@ def carry(q, a, b, hold=0, beside=None):  # a piece picked up, lifted above the 
     # beside: the level height (metres) of b; then b moves sideways just clear of a piece already lying there, as a hand puts a brick beside its neighbour, not onto it
     q.mouse.move(*a); q.mouse.down()
     for pt in ((a[0], 60), (b[0], 60)): q.mouse.move(*pt, steps=2)
-    until(q, held_at(q, (b[0], 60), 20), 6, 0.02)
+    until(q, held_at(q, (b[0], 60), 20), 3, 0.02)
     if beside is not None:
         dx = q.evaluate("""([y,tx])=>{const T=__tb, box=(p)=>{let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; for(let f=p.body.getFixtureList();f;f=f.getNext()){const b=f.getAABB(0); x0=Math.min(x0,b.lowerBound.x); x1=Math.max(x1,b.upperBound.x); y0=Math.min(y0,b.lowerBound.y); y1=Math.max(y1,b.upperBound.y);} return [x0,x1,y0,y1];};
           const h=T.pieces.find((p)=>p.heldBy!=null); if(!h) return 0; let hw=0; for(let f=h.body.getFixtureList();f;f=f.getNext()) for(const v of f.getShape().m_vertices||[]) hw=Math.max(hw,Math.abs(v.x));
@@ -79,8 +81,8 @@ def carry(q, a, b, hold=0, beside=None):  # a piece picked up, lifted above the 
           return Math.max(-0.15,Math.min(0.15,x-cx))*(T.worldToScreen(1,0).x-T.worldToScreen(0,0).x);}""", [beside, (b[0] - q.evaluate("()=>__tb.worldToScreen(__tb.LEVEL_X0,0).x")) / q.evaluate("()=>__tb.worldToScreen(1,0).x-__tb.worldToScreen(0,0).x")])
         b = (b[0] + dx, b[1])
     above = (b[0], b[1] - 40)
-    q.mouse.move(b[0], 60, steps=2); q.mouse.move(*above, steps=2); until(q, held_at(q, above, 8), 6, 0.02)
-    q.mouse.move(*b, steps=15); until(q, held_at(q, b, 6), 4, 0.02); time.sleep(hold); q.mouse.up()
+    q.mouse.move(b[0], 60, steps=2); q.mouse.move(*above, steps=2); until(q, held_at(q, above, 8), 3, 0.02)
+    q.mouse.move(*b, steps=15); until(q, held_at(q, b, 6), 2, 0.02); time.sleep(hold); q.mouse.up()
 
 def fingers(q):  # touches as a hand's fingers make them: fingers(q)('touchStart', [(id, (x, y)), ...])
     s = q.context.new_cdp_session(q)
@@ -122,11 +124,9 @@ def place(q, kind, material, x, y):  # a pile piece of that kind carried to its 
         carry(q, p, screen(q, x, y + 0.02), beside=y); until(q, "()=>__tb.pieces.every((p)=>p.body.getLinearVelocity().length()<0.05)", 2, 0.02)
         if q.evaluate(count) > n0: break
     else: return False
-    for _ in range(3):  # it fell off its place: he picks it up and puts it right
-        at = q.evaluate("([x,y])=>{const T=__tb, P=T.pieces.filter((p)=>!p.demo&&!p.load&&p.heldBy==null), p=P[P.length-1], c=p.body.getPosition(), s=T.worldToScreen(c.x,c.y); return [Math.hypot(c.x-T.LEVEL_X0-x,c.y-y), s.x, s.y];}", [x, y])
-        if at[0] < 0.3: return True
-        carry(q, at[1:], screen(q, x, y + 0.02), beside=y); until(q, "()=>__tb.pieces.every((p)=>p.body.getLinearVelocity().length()<0.05)", 2, 0.02)
-    return True
+    at = q.evaluate("([x,y])=>{const T=__tb, P=T.pieces.filter((p)=>!p.demo&&!p.load&&p.heldBy==null), p=P[P.length-1], c=p.body.getPosition(), s=T.worldToScreen(c.x,c.y); return [Math.hypot(c.x-T.LEVEL_X0-x,c.y-y)+Math.abs(Math.sin(p.body.getAngle())), s.x, s.y];}", [x, y])
+    if at[0] < 0.3: return True
+    return place_turned(q, kind, material, x, y, 0, at[1:])  # it fell off its place or over: he takes it with two fingers and puts it right
 
 def place_turned(q, kind, material, x, y, ang, p=None, tries=2):  # a piece that lies turned in the plan (or lies turned in the pile): one finger takes it out of the pile and lifts it high above its place, a second finger on it turns it, both lower it onto its place and let go
     p = p or a_pile_piece(q, material, kind, flat=True) or a_pile_piece(q, material, kind, secs=1)
@@ -153,7 +153,8 @@ def place_turned(q, kind, material, x, y, ang, p=None, tries=2):  # a piece that
     return True
 
 def build(q, plan):  # the child builds piece by piece: plan is [(kind, material, x, y), ...] or with a turn [(kind, material, x, y, angle), ...]
-    return all(place_turned(q, *s) if len(s) > 4 and abs(s[4]) > 0.01 else place(q, *s[:4]) for s in plan)
+    # each piece a little apart from its neighbours (3% out from the middle of the site), as a hand leaves small gaps, so no piece is pressed onto its neighbour's edge
+    return all(place_turned(q, k, m, x * 1.03, y, *a) if a and abs(a[0]) > 0.01 else place(q, k, m, x * 1.03, y) for k, m, x, y, *a in plan)
 
 def suggested(q, key):  # the site's suggested build as the child sees it drawn in the plan
     return [tuple(s) for s in q.evaluate("(k)=>__tb.SOLUTIONS[k]", key)]
@@ -199,10 +200,10 @@ def later_sites(q, R):  # every site after the second, in the game's order
 # SECTION: THE WHOLE GAME -- its steps, in the game's order
 # --------------------------------------------------------------------
 class Run:  # one step's result line: PASS or FAIL, the step's name, what was seen when it failed
-    def __init__(self): self.n = 0
-    def step(self, name, ok, info=''):
-        self.n += 1
-        print(('PASS ' if ok else 'FAIL ') + name + ('' if ok else ' ' + str(info)[:900]), flush=True)
+    def __init__(self): self.n, self.t = 0, time.time()
+    def step(self, name, ok, info=''):  # each line ends with the seconds the run took to reach it from the step before
+        self.n += 1; t, self.t = self.t, time.time()
+        print(('PASS ' if ok else 'FAIL ') + name + ('' if ok else ' ' + str(info)[:900]) + ' (%.0f s)' % (self.t - t), flush=True)
         if os.environ.get('STOP') == name: raise SystemExit
 
 def start_and_map(q, R):
@@ -322,7 +323,7 @@ def first_site_build_and_test(q, R):
     w, s14 = L(104), L(14)
     pass_end = next((ev['ph'][k + 1][1] for k, (p, t) in enumerate(ev['ph'][:-1]) if p == 'pass'), None)  # "it withstood" is done when its line and the celebration are done
     told = w and w[2] and pass_end and max(w[2], pass_end)
-    R.step('cheer at the end of the earthquake, "it withstood" next, the site line 1 s after it', bool(cheer and quake_end and w and told and s14 and cheer - quake_end <= 700 and w[1] - cheer <= 1300 and 800 <= s14[1] - told <= 1300),
+    R.step('cheer at the end of the earthquake, "it withstood" next, the site line 1 s after it', bool(cheer and quake_end and w and told and s14 and cheer - quake_end <= 700 and w[1] - max([cheer] + [l[2] for l in ev['lines'] if l[2] and l[2] <= w[1]]) <= 1300 and 800 <= s14[1] - told <= 1300),
            dict(cheer_after_quake=cheer and quake_end and cheer - quake_end, withstood_after_cheer=w and cheer and w[1] - cheer, site_line_after_told=s14 and told and s14[1] - told))
     order = [l[0] for l in ev['lines']]; k = lambda n: order.index(n) if n in order else None
     R.step('the test result line before the site line, then "back to the map"', None not in (k(104), k(14), k(106)) and k(104) < k(14) < k(106), dict(order=order))
@@ -337,7 +338,7 @@ def finished_site(q, R):
     # moves an item. the same should be when reentering a finished level"
     seen = dict(after_pass=test_colour(q))
     silent(q, 15); click(q, 'home'); until(q, "()=>__tb.mode==='map'", 3); time.sleep(0.5)
-    click(q, 'site:mastaba'); until(q, "()=>__tb.mode==='build'&&__tb.loads.length===1", 5); time.sleep(1.5)
+    click(q, 'site:mastaba'); until(q, "()=>__tb.mode==='build'&&__tb.loads.length===1", 5); wait_game(q, 1.5)
     seen['back_at_the_finished_site'] = test_colour(q)
     click(q, 'test'); time.sleep(0.3); seen['grey_pressed_starts_test'] = q.evaluate("()=>!!__tb.test")
     R.step('test button grey after a pass and at the finished site, where pressing it starts nothing', seen['after_pass'] == 'grey' and seen['back_at_the_finished_site'] == 'grey' and not seen['grey_pressed_starts_test'], seen)
@@ -345,7 +346,7 @@ def finished_site(q, R):
     # of stone ... max the weight of 2x std stone blocks ... triple clicking it makes it disappear"; it knocks as stone when it lands
     st = q.evaluate("()=>{const T=__tb, l=T.loads[0], c=l.body.getPosition(), s=T.worldToScreen(c.x,c.y); return {x:s.x,y:s.y,cy:c.y,blocks:T.inBlocks(l.body,'stone')};}")
     m = mark(q); q.mouse.move(st['x'], st['y']); q.mouse.down(); q.mouse.move(st['x'] + 10, st['y'] - 120, steps=10)
-    until(q, "()=>__tb.loads[0].body.getPosition().y-%f>0.5" % st['cy'], 4); lifted = q.evaluate("()=>__tb.loads[0].body.getPosition().y") - st['cy']; q.mouse.up(); time.sleep(1.0)
+    until(q, "()=>__tb.loads[0].body.getPosition().y-%f>0.5" % st['cy'], 4); lifted = q.evaluate("()=>__tb.loads[0].body.getPosition().y") - st['cy']; q.mouse.up(); wait_game(q, 1.0)
     knock = [s for _, s in sounds(q, m) if s.startswith('hit-') and 'stone' in s]
     c = q.evaluate("()=>{const T=__tb, c=T.loads[0].body.getPosition(), s=T.worldToScreen(c.x,c.y); return [s.x,s.y];}")
     for _ in range(3): q.mouse.click(c[0], c[1]); time.sleep(0.03)
@@ -357,7 +358,7 @@ def damaged_site(q, R):
     # every time), the sound must play the first time they happen per site, and of course refreshing the page counts"
     silent(q, 8); click(q, 'home'); until(q, "()=>__tb.mode==='map'", 3)
     m = mark(q); first = hear(q, 39, 15, m); silent(q, 10)
-    m = mark(q); again = hear(q, 39, 21, m)
+    m = mark(q); wait_game(q, 21); again = 39 in said(q, m)
     # owner 18 Nov: "make checkbox option in setting for music": unticked, no music on the map, and it stays so after the page is opened again
     click(q, 'settings'); time.sleep(0.1); click(q, 'music'); click(q, 'settings-close'); time.sleep(0.3)
     off_map = q.evaluate("()=>__tb.musicDuck")
@@ -425,7 +426,7 @@ def second_site(q, R):
     until(q, "()=>!__tb.demo&&!__tb.voice.cur&&!__tb.voice.queue.length", 180)  # he watches the demo to its end
     # the dotted outline line is not said at the second site
     dots = q.evaluate("()=>{const T=__tb, r=T.grid.load[0], cx=r.reduce((a,p)=>a+p[0],0)/r.length, cy=r.reduce((a,p)=>a+p[1],0)/r.length, s=T.worldToScreen(cx,cy); return [s.x,s.y];}")
-    m = mark(q); carry(q, a_pile_piece(q, 'stone') or a_pile_piece(q, 'mudbrick'), dots); time.sleep(3)
+    m = mark(q); carry(q, a_pile_piece(q, 'stone') or a_pile_piece(q, 'mudbrick'), dots); wait_game(q, 3)
     R.step('no dotted outline line at the second site', 137 not in said(q, m), dict(said=said(q, m)))
     click(q, 'broom'); time.sleep(0.5)
     finish_site(q, R, 'djoser')
@@ -447,18 +448,21 @@ def map_boats_and_stones(q, R):
     a, t = boat_at(q, 0), q.evaluate("()=>{const T=__tb, v=T.mapView(), p=v.pt(T.boats[1].x,T.boats[1].y); return [p.x,p.y-T.BOAT_LIFT_H*v.k];}")
     q.mouse.move(*a); q.mouse.down()
     for k in range(1, 21): q.mouse.move(a[0] + (t[0] - a[0]) * k / 20, a[1] + (t[1] - a[1]) * k / 20); time.sleep(0.03)
-    t = q.evaluate("()=>{const T=__tb, v=T.mapView(), p=v.pt(T.boats[1].x,T.boats[1].y); return [p.x,p.y-T.BOAT_LIFT_H*v.k];}"); q.mouse.move(*t, steps=3)  # it may have sailed a little
-    time.sleep(0.4); m = mark(q); q.mouse.up(); time.sleep(0.6)
+    for _ in range(8):  # the other boat sails on: his hand follows it until the boat in his hand hangs over it
+        t = q.evaluate("()=>{const T=__tb, v=T.mapView(), p=v.pt(T.boats[1].x,T.boats[1].y); return [p.x,p.y-T.BOAT_LIFT_H*v.k];}"); q.mouse.move(*t, steps=2); time.sleep(0.03)
+    m = mark(q); q.mouse.up(); time.sleep(0.6)
     vol = q.evaluate("()=>[__tb.SOUNDS['map-boat-boat'], __tb.SOUNDS['map-stone-boat'], __tb.SOUNDS['hit-wood-wood']]")
     R.step('a boat dropped on a boat knocks as wood on wood, as loud as stone on a boat', 'map-boat-boat' in [s for _, s in sounds(q, m)] and vol[0][0][0] == vol[2][0][0] and vol[0][0][1] == vol[1][0][1], dict(sounds=[s for _, s in sounds(q, m)]))
     # owner 23 Nov: "The borders of the land, the edges, are considered navigable by boats. change that.": carried onto the land at the map's left edge
     until(q, "()=>__tb.boats.every((b)=>!b.held&&!b.drop)", 5)
-    edge = q.evaluate("()=>{const T=__tb, v=T.mapView(); for(let y=760;y>100;y-=10){const my=(y-v.oy)/v.k; if(T.isLand(6,my)) return [Math.max(0.5,v.ox+1*v.k),y];} return null;}")
-    a = boat_at(q, 0); q.mouse.move(*a); q.mouse.down()
+    edge = q.evaluate("()=>{const T=__tb, v=T.mapView(); for(let y=760;y>100;y-=10){const my=(y-v.oy)/v.k; if(T.isLand(6,my)&&T.isLand(6,my+T.BOAT_LIFT_H)) return [Math.max(0.5,v.ox+1*v.k),y-T.BOAT_LIFT_H*v.k];} return null;}")  # the finger above the land at the map's left edge: a held boat hangs below the finger
+    until(q, "()=>__tb.boats.some((b)=>__tb.crewOf(b))", 20)  # a boat with its travellers aboard (an empty boat stays where it is left)
+    i = q.evaluate("()=>__tb.boats.findIndex((b)=>__tb.crewOf(b))")
+    a = boat_at(q, i); q.mouse.move(*a); q.mouse.down()
     for k in range(1, 31): q.mouse.move(a[0] + (edge[0] - a[0]) * k / 30, a[1] + (edge[1] - a[1]) * k / 30); time.sleep(0.02)
-    time.sleep(0.4); q.mouse.up(); time.sleep(0.5)
-    st = q.evaluate("()=>{const T=__tb, b=T.boats[0], W=b.back; const sail=W?W.runs.filter((r)=>r.mode==='sail').flatMap((r)=>r.pts):[]; return {on_land:T.isLand(b.x,b.y), first_run:W&&W.runs[0].mode, on_edge:sail.filter(([x,y])=>x<8||y<8||x>2168||y>1400).length};}")
-    R.step('a boat left on the land by the map edge never sails along the edge', st['on_land'] and st['first_run'] == 'carry' and st['on_edge'] == 0, st)
+    time.sleep(0.4); q.mouse.up(); until(q, "()=>!!__tb.boats[%d].back" % i, 3)
+    st = q.evaluate("(i)=>{const T=__tb, b=T.boats[i], W=b.back;  /* its way back starts with its travellers carrying it: it lies on land */ const sail=W?W.runs.filter((r)=>r.mode==='sail').flatMap((r)=>r.pts):[]; return {first_run:W&&W.runs[0].mode, on_edge:sail.filter(([x,y])=>x<8||y<8||x>2168||y>1400).length};}", i)
+    R.step('a boat left on the land by the map edge never sails along the edge', st['first_run'] == 'carry' and st['on_edge'] == 0, st)
     # owner 17 Nov late: "grab stones from the mountain and drop them on the sea (many small splashes) or on the land (they stay there
     # ... and disappear after 1 min ...), they can pile up, or collide with the boats"; owner 18 Nov: "stones stand on water a bit and
     # then sink ... just sink"; "five stones into the water sound like one tap"; "the thrown stones slide too much on land"; "remove
@@ -472,7 +476,7 @@ def map_boats_and_stones(q, R):
     drag(q, rock, land, hold=0.3); time.sleep(0.15); piled = until(q, rest, 2) and q.evaluate("()=>__tb.mapStones.length===10&&__tb.mapStones.some((s)=>s.z>__tb.STONE*0.9)")
     R.step('stones from the mountain stay on land and pile up', five and piled, dict(stones=q.evaluate("()=>__tb.mapStones.length")))
     q.evaluate("()=>{window.__wet=0; const touch=new Map(); const end=__tb.clock+10; const f=()=>{ const now=__tb.clock*1000; for(const s of __tb.mapStones) if(!s.held&&s.z<1&&!s.on&&__tb.groundAt(s.x,s.y)==='water'&&!touch.has(s)) touch.set(s,now); for(const [s,t0] of touch) if(__tb.mapStones.includes(s)) __wet=Math.max(__wet,(now-t0)/1000); if(now<end*1000) requestAnimationFrame(f);}; requestAnimationFrame(f);}")
-    m = mark(q); drag(q, rock, sea, hold=0.3); time.sleep(1.2)
+    m = mark(q); drag(q, rock, sea, hold=0.3); wait_game(q, 1.2)
     splashes = [s for _, s in sounds(q, m)].count('map-tap-water')
     R.step('stones into the sea sink at once with one splash sound', q.evaluate("()=>window.__wet") < 0.05 and splashes == 1 and q.evaluate("()=>__tb.mapStones.length") == 10, dict(on_water=q.evaluate("()=>window.__wet"), splashes=splashes))
     # thrown on dry land: they land beyond where the finger let go, roll a little, one knock each
@@ -487,17 +491,20 @@ def map_boats_and_stones(q, R):
     R.step('stones thrown land beyond the finger, one knock each', thrown is not None and thrown > 30 and rocks <= 5, dict(thrown=thrown, knocks=rocks))
     # onto a boat at sea: a knock, they bounce off and sink, and the boat's people groan
     until(q, "()=>__tb.boats.every((b)=>!b.held&&!b.drop)", 10)
-    b = next((i for i in range(2) if q.evaluate("(i)=>{const T=__tb,b=T.boats[i]; return T.groundAt(b.x,b.y)==='water'&&!T.isLand(b.x,b.y)}", i)), 1)
-    m = mark(q); drag(q, rock, boat_at(q, b), hold=0.3)
+    until(q, "()=>__tb.boats.some((b)=>__tb.crewOf(b)&&!b.held&&!b.back&&__tb.groundAt(b.x,b.y)==='water'&&!__tb.isLand(b.x,b.y))", 30)  # a boat at sea with its travellers aboard
+    b = q.evaluate("()=>__tb.boats.findIndex((b)=>__tb.crewOf(b)&&!b.held&&!b.back&&__tb.groundAt(b.x,b.y)==='water'&&!__tb.isLand(b.x,b.y))")
+    m = mark(q); q.mouse.move(*rock); q.mouse.down(); time.sleep(0.05)
+    for _ in range(10): q.mouse.move(*boat_at(q, b), steps=2); time.sleep(0.03)  # his hand follows the sailing boat
+    q.mouse.up()
     hits = until(q, "(m=>__rec.snd.slice(m[1]).some((s)=>s[1]==='map-stone-boat'))(%s)" % list(m), 3)
     R.step('stones dropped on a boat knock, bounce off and sink; its people groan', hits and 'boat-left-on-land' in [s for _, s in sounds(q, m)] and [s for _, s in sounds(q, m)].count('map-stone-boat') <= 2, dict(sounds=sorted(set(s for _, s in sounds(q, m)))))
     return t_first
 
 def stones_gone(q, R, t_first):
-    # a minute (game time) after the first stones landed, they are gone, and a stone lying on one falls down; meanwhile sites were finished
+    # stones age only while the map is shown: after a minute of map time the first stones are gone, and the stones lying on them fall
     click(q, 'home') if mode(q) == 'build' else None; until(q, "()=>__tb.mode==='map'", 3)
-    until(q, "()=>__tb.clock-%f>61" % t_first, 60)
-    R.step('stones on land disappear after a minute; one on top falls when the one under it goes', q.evaluate("()=>__tb.mapStones.filter((s)=>s.z>0.01&&!s.held).length") == 0, dict(stones=q.evaluate("()=>__tb.mapStones.map((s)=>+s.z.toFixed(2))")))
+    gone = until(q, "()=>__tb.mapStones.length>0&&__tb.mapStones.every((s)=>s.z<=0.01||s.held)", 40)
+    R.step('stones on land disappear after a minute; one on top falls when the one under it goes', gone, dict(stones=q.evaluate("()=>__tb.mapStones.map((s)=>+s.z.toFixed(2))")))
 
 def restart_and_ticks_off(q, R):
     # owner 17 Nov: the restart button shows the load screen again, so the player sees the game start over
@@ -524,7 +531,7 @@ def restart_and_ticks_off(q, R):
     after = max(v[0] - v[1] for v in (pixel(q, box['out']) for _ in range(12) if time.sleep(0.04) is None))
     R.step('ticks off: the first mudbrick and the red button still speak', not any(ticks) and pick and red70, dict(ticks=ticks, mudbrick_line=pick, red_line=red70))
     R.step('the part of a piece outside the plan turns red', box['outW'] > 0.2 and box['inW'] > 0.2 and after - (before[0] - before[1]) > 12, dict(box=box, before=before, after=after))
-    silent(q, 6); click(q, 'broom'); time.sleep(1.5)
+    silent(q, 6); click(q, 'broom'); wait_game(q, 1.5)
 
 def hand_and_pile(q, R):
     W = q.evaluate("()=>__tb.buildingWidthPx"); gy = q.evaluate("()=>__tb.worldToScreen(0,0).y"); touch = fingers(q)
@@ -534,11 +541,11 @@ def hand_and_pile(q, R):
     touch('touchStart', [(1, f1)]); time.sleep(0.03); touch('touchStart', [(1, f1), (2, f2)])
     for k in range(1, 31): touch('touchMove', [(1, (f1[0] - 500 * k / 30, f1[1] - 100)), (2, (f2[0] - 500 * k / 30, f2[1] - 100))]); time.sleep(0.016)
     time.sleep(0.5); out = q.evaluate("()=>__tb.pieces.length") - n0
-    touch('touchEnd', []); time.sleep(1.0); ghosts = q.evaluate("()=>__tb.pieces.filter(p=>p.ghost).length")
+    touch('touchEnd', []); wait_game(q, 1.0); ghosts = q.evaluate("()=>__tb.pieces.filter(p=>p.ghost).length")
     R.step('two fingers on a pile piece bring out one piece', out == 1 and ghosts == 0, dict(out=out, ghosts=ghosts))
     # owner 18 Nov: "2 fingers can be used to carry a block, cause this way a kid can rotate the blocks better": a wooden block laid on
     # the ground, one finger near each end, turned a quarter round while lifting; one finger let go, the other still carries it
-    drag(q, a_pile_piece(q, 'wood'), (350, gy - 20), hold=0.3); time.sleep(1.0)
+    drag(q, a_pile_piece(q, 'wood'), (350, gy - 20), hold=0.3); wait_game(q, 1.0)
     st = q.evaluate("""()=>{const T=__tb, p=T.pieces[T.pieces.length-1], c=p.body.getPosition(); let x0=1e9,x1=-1e9; for(let f=p.body.getFixtureList();f;f=f.getNext()){const bb=f.getAABB(0); x0=Math.min(x0,bb.lowerBound.x); x1=Math.max(x1,bb.upperBound.x);} const hx=(x1-x0)/2;
       const a=T.worldToScreen(c.x-0.7*hx,c.y), z=T.worldToScreen(c.x+0.7*hx,c.y), m=T.worldToScreen(c.x,c.y); return {a:[a.x,a.y],z:[z.x,z.y],m:[m.x,m.y]};}""")
     (ax, ay), (zx, zy), (mx, my) = st['a'], st['z'], st['m']; r = (zx - ax) / 2
@@ -553,12 +560,12 @@ def hand_and_pile(q, R):
     touch('touchEnd', []); time.sleep(0.5)
     R.step('two fingers turn a piece; one finger let go, the other still carries it', two and 70 <= abs(turned) <= 110 and still, dict(two=two, turned=round(turned), still=still))
     # owner 21 Nov: "fix the piece stuck issue": a piece dragged back into the pile fast and low, five times; no pile piece stays in its walls
-    click(q, 'broom'); time.sleep(1.5); stuck = []
+    click(q, 'broom'); wait_game(q, 1.5); stuck = []
     for k, (dx, dy) in enumerate([(60, 120), (40, 90), (20, 140), (80, 60), (30, 110)]):
         drag(q, a_pile_piece(q, 'mudbrick'), [W * 0.3, gy - 25], hold=0.4); time.sleep(0.5)
         pc = site_pieces(q)
         if pc: drag(q, pc[-1], [W + dx, gy - dy], steps=10, hold=0.2)
-        time.sleep(2)
+        wait_game(q, 2)
         out = q.evaluate("""()=>{const T=__tb,r=T.pileBinRect,Wm=r.w/T.pileScale; return T.pileBodies().map((b)=>{let lo=1e9,hi=-1e9; for(let f=b.getFixtureList();f;f=f.getNext()){const bb=f.getAABB(0); lo=Math.min(lo,bb.lowerBound.x); hi=Math.max(hi,bb.upperBound.x);} return [+lo.toFixed(2), +(hi-Wm).toFixed(2)];}).filter(([lo,hi])=>lo<-0.05||hi>0.05);}""")
         if out: stuck.append([k, out])
     rests = until(q, "()=>Math.max(...__tb.pileBodies().map((b)=>b.getLinearVelocity().length()))<0.05", 5)
@@ -568,35 +575,37 @@ def first_site_ticks_off(q, R):
     # owner 18 Nov, his screenshot (2026-11-18-first-site-too-strict.png): bottom row four mudbricks, middle row a small square, three
     # mudbricks, a small square, top row three mudbricks, a narrow gap, and the last mudbrick sticking out past the plan's right edge
     # by about a quarter of its length: the button must turn green
-    click(q, 'broom'); time.sleep(1.5)
+    click(q, 'broom'); wait_game(q, 1.5)
     X = q.evaluate("()=>__tb.LEVEL_X0")
     his = [('block', 'mudbrick', x - X, 0.5) for x in (17, 19, 21, 23)] + [('square', 'mudbrick', 16.5 - X, 1.5)] + [('block', 'mudbrick', x - X, 1.5) for x in (18, 20, 22)] + [('square', 'mudbrick', 23.5 - X, 1.5)] + [('block', 'mudbrick', x - X, 2.5) for x in (17, 19, 21, 23.53)]
     build(q, his); green = until(q, "()=>__tb.testReady()", 6)
-    R.step("the owner's first-site build turns the button green", green, dict(colour=test_colour(q)))
+    R.step("the owner's first-site build turns the button green", green, dict(colour=test_colour(q), pieces=q.evaluate("()=>__tb.pieces.map((p)=>[p.defKey[0],p.material[0],+(p.body.getPosition().x-__tb.LEVEL_X0).toFixed(2),+p.body.getPosition().y.toFixed(2),+p.body.getAngle().toFixed(2)])")))
     # owner 18 Nov: "if a piece is on the headpiece place ... only its part that is inside the headpiece outline should be red": a
     # wooden block on top across the dots, the red button
     tgt = q.evaluate("()=>{const s=__tb.worldToScreen(18.6,3.6); return [s.x,s.y];}")
-    carry(q, a_pile_piece(q, 'wood'), tgt, hold=0.6); time.sleep(1.5)
+    carry(q, a_pile_piece(q, 'wood'), tgt, hold=0.6); wait_game(q, 1.5)
     pts = q.evaluate("""()=>{const T=__tb; const p=T.pieces[T.pieces.length-1]; let x0=1e9,x1=-1e9; for(let f=p.body.getFixtureList();f;f=f.getNext()){const bb=f.getAABB(0); x0=Math.min(x0,bb.lowerBound.x); x1=Math.max(x1,bb.upperBound.x);}
       const on=T.worldToScreen((Math.max(x0,18.4)+Math.min(x1,21.6))/2,3.25), off=x1<21.2?T.worldToScreen((x1+21.6)/2,3.25):T.worldToScreen((18.4+x0)/2,3.25); return {on:[on.x,on.y], off:[off.x,off.y]};}""")
     rb = lambda pt: (lambda v: v[0] - v[2])(pixel(q, pt))
     b_on, b_off = rb(pts['on']), rb(pts['off'])
-    click(q, 'test'); time.sleep(0.05); until(q, "()=>Math.sin(performance.now()/120)>0.9", 1, 0.005)
-    a_on, a_off = rb(pts['on']), rb(pts['off'])
-    R.step('only the part of a piece inside the headpiece outline turns red', q.evaluate("()=>!!(__tb.failShow&&__tb.failShow.loadZone)") and a_on - b_on > 12 and abs(a_off - b_off) < 8, dict(on=(b_on, a_on), off=(b_off, a_off)))
+    click(q, 'test'); zone = until(q, "()=>!!(__tb.failShow&&__tb.failShow.loadZone)", 2, 0.005)
+    seen_on, seen_off = [], []  # the red flashes: the most red seen at each point over a moment
+    for _ in range(12): seen_on.append(rb(pts['on'])); seen_off.append(rb(pts['off'])); time.sleep(0.02)
+    a_on, a_off = max(seen_on), max(seen_off)
+    R.step('only the part of a piece inside the headpiece outline turns red', zone and a_on - b_on > 12 and abs(a_off - b_off) < 8, dict(on=(b_on, a_on), off=(b_off, a_off)))
     # the wood taken off again; owner 17 Nov late: "i had teaching turned off, but the 'click here to go back to the map' and 'well
     # done, your monument withstood the tests' cues played"; the test runs with every tick off
-    time.sleep(1); p = site_pieces(q)[-1]; drag(q, p, [q.evaluate("()=>__tb.buildingWidthPx") + 60, p[1] - 120], hold=0.3)
+    wait_game(q, 1); p = site_pieces(q)[-1]; drag(q, p, [q.evaluate("()=>__tb.buildingWidthPx") + 60, p[1] - 120], hold=0.3)
     green = until(q, "()=>__tb.testReady()", 8); m = mark(q)
     if green: click(q, 'test')
-    started = until(q, "()=>!!__tb.test", 3); passed = until(q, "()=>!!__tb.progress.done.mastaba&&!__tb.test", 90); time.sleep(4); silent(q, 10)
+    started = until(q, "()=>!!__tb.test", 3); passed = until(q, "()=>!!__tb.progress.done.mastaba&&!__tb.test", 90); wait_game(q, 4); silent(q, 10)
     s = said(q, m)
     R.step('ticks off: the test runs and passes, without "it withstood" or "back to the map"', green and started and passed and 104 not in s and 106 not in s, dict(green=green, started=started, passed=passed, said=s))
     # owner 23 Nov: the test button grey after the pass "unless the kid presses the shovel, or moves an item"
     seen = dict(after_pass=test_colour(q))
     ps = site_pieces(q); ytop = min(p[1] for p in ps); top = min((p for p in ps if p[1] < ytop + 10), key=lambda p: p[0])
-    drag(q, top, (top[0], top[1] - 4), steps=4, hold=0.3); time.sleep(1.5); seen['after_moving_a_piece'] = test_colour(q)
-    click(q, 'broom'); time.sleep(1.5); seen['after_shovel'] = test_colour(q)
+    drag(q, top, (top[0], top[1] - 4), steps=4, hold=0.3); wait_game(q, 1.5); seen['after_moving_a_piece'] = test_colour(q)
+    click(q, 'broom'); wait_game(q, 1.5); seen['after_shovel'] = test_colour(q)
     R.step('test button grey after a pass, green once a piece moves, red after the shovel', seen == dict(after_pass='grey', after_moving_a_piece='green', after_shovel='red'), seen)
 
 def data_rules(q, R):

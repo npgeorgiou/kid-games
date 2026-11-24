@@ -4175,9 +4175,10 @@
 
   // SECTION: MAIN LOOP -- requestAnimationFrame driver
   // ---------------------------------------------------------------------
+  const GAME_SPEED = 1; // game seconds per real second; the test page sets it higher (owner 24 Nov: tests run the game faster)
   function frame(time) {
     if (lastTime == null) lastTime = time;
-    const dt = Math.min(0.1, (time - lastTime) / 1000);
+    const dt = Math.min(0.1, (time - lastTime) / 1000) * GAME_SPEED;
     lastTime = time;
     updateMusic(false);
     updateDragSounds();
@@ -4192,7 +4193,7 @@
     }
     if (!cueFrozen()) { // a blocking line freezes the game (SECTION CUES)
       const fast = test && test.fast && test.phase !== "fail" && test.phase !== "pass" ? TEST_FAST : 1;
-      stepPhysics(dt * fast, MAX_STEPS * fast);
+      stepPhysics(dt * fast, Math.ceil(MAX_STEPS * fast * GAME_SPEED));
       cleanupOutOfBounds();
       updateCheck(dt);
       updateFeel(dt);
