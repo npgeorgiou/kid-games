@@ -37,3 +37,4 @@
 - When a size or spacing grows with speed (shapes), check it against lifting: the flick flow needs the mark narrower half-way (shapes stop growing at SHAPE_TOP_V).
 - The full flow run is long (about 30 minutes): run it in the background with PYTHONUNBUFFERED=1 and a long timeout, never in the foreground.
 - water_speed can fail when the one-spot frame lands on 17 ms (headless frames come in 16.7 ms steps, so the ratio jumps): rerun it once before looking for a cause.
+- Palettes: never make, sample or reshuffle one; offer published 10-colour palettes (Coolors, Lospec, ColorBrewer) as a picture of current vs new, each with why, and change only what he picks.
