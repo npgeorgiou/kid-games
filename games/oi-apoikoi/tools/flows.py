@@ -195,7 +195,7 @@ def f_sounds(q):  # owner 24 Nov: "add some sounds, it's hard to follow what hap
     q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); a = q.evaluate("()=>__dg.sounds()")
     table(q, bag=[[0, 0]] * 4, tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0]], jarQueue=[COIN] * 20)
     kid_plays(q, lambda s: s['phase'] == 'end'); waiting(q, 'jar'); b = q.evaluate("()=>__dg.sounds()")
-    want = ['pick', 'snap', 'jar', 'spin', 'stop', 'stop', 'stop', 'spin', 'stop', 'win']
+    want = ['pick', 'snap', 'jar', 'roll', 'roll', 'roll', 'spin', 'stop', 'stop', 'stop', 'roll', 'spin', 'stop', 'win']  # each wheel ticks as it rolls (owner 24 Nov)
     made = sum(p['jars'] for p in st(q)['players'])  # both players' leftovers have become jars; none opened yet
     ok = a[:len(want)] == want and b.count('made') == made and {'pick', 'snap', 'jar', 'coin'} <= set(b) and b.index('made') > b.index('snap')
     report(ok, 'sounds: one for each thing, in order', 'slot jar: %s; round end: %d made sounds for %d jars, heard %s' % (a[:len(want)], b.count('made'), made, sorted(set(b))))
@@ -264,19 +264,22 @@ def f_coins2(q):  # the 2 coins bonus
     get_jar(q, [{'k': 'coins2'}]); c = st(q)['players'][0]['coins']
     report(c == 2, 'jar: 2 coins', 'coins %d' % c)
 
-def f_slot_rolls(q):  # owner 24 Nov: the slot machine actually rolls: the wheels spin, then stop one after another
+def f_slot_rolls(q):  # owner 24 Nov: the wheels roll fast, then slow down and stop one after another (first, second, third), ticking as they pass and knocking as they stop
     pause_clock(q)
     table(q, bag=[[0, 4]] * 4, fast=False, coins=[3, 0], jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 0, 1])
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')
-    stops, rolling_seen, ms = [None] * 3, False, 0
+    stops, rolling_seen, ms, at = [None] * 3, False, 0, []
     while ms < 4000 and None in stops:
         q.clock.run_for(100); ms += 100; settle(q)
-        for k, w in enumerate(sorted(drawn(q, 'wheel'), key=lambda d: d['n'])):
+        ws = sorted(drawn(q, 'wheel'), key=lambda d: d['n'])
+        if ws and ws[0]['rolling']: at.append(ws[0]['at'])
+        for k, w in enumerate(ws):
             rolling_seen = rolling_seen or w['rolling']
             if not w['rolling'] and stops[k] is None and rolling_seen: stops[k] = ms
-    q.clock.resume()
-    ok = rolling_seen and None not in stops and stops[0] < stops[1] < stops[2] and stops[0] >= 500
-    report(ok, 'slot: wheels roll, then stop one by one', 'rolling seen %s, stops at %s ms' % (rolling_seen, stops))
+    q.clock.resume(); h = q.evaluate("()=>__dg.sounds()")
+    steps = [b - a for a, b in zip(at, at[1:])]; slows = len(steps) >= 4 and steps[0] > 3 * steps[-1] > 0
+    ok = rolling_seen and None not in stops and stops[0] < stops[1] < stops[2] and stops[0] >= 500 and slows and h.count('roll') == 3 and h.count('stop') == 3
+    report(ok, 'slot: wheels roll fast, slow down, stop one by one', 'stops at %s ms; first wheel moves %s per 100 ms; roll sounds %d, stop sounds %d' % (stops, [round(x, 1) for x in steps], h.count('roll'), h.count('stop')))
 
 def f_slot_says_price(q):  # owner 24 Nov: "I can't even see what I pay": the spin button shows its price, the take button shows what you get
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[5, 5, 1]); waiting(q, 'slot'); tap(q, 'wheel-2')

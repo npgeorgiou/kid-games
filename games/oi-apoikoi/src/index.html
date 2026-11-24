@@ -46,14 +46,15 @@ const pause = ms => { const my = G; return fast ? Promise.resolve() : new Promis
 const SOUNDS = {  // kind and its notes (Hz)
   pick: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], bid: ['chime', [392, 523]], pass: ['chime', [392, 294]],
   jar: ['break', []], coin: ['clink', [1320, 1760]], made: ['chime', [392, 494, 587]], win: ['chime', [523, 659, 784, 1047]],
-  spin: ['whoosh', []], steal: ['whoosh', []],
+  spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
 };
 let audio = null, heard = [];  // heard: every sound played in this game, in order (the flows read it)
 function noise(len) { const b = audio.createBuffer(1, audio.sampleRate * len, audio.sampleRate), d = b.getChannelData(0); for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1; const n = audio.createBufferSource(); n.buffer = b; return n; }
 function env(t, peak, len, attack = 0.004) { const g = audio.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + len); g.connect(audio.destination); return g; }
 function tone(f, t, len, peak, type = 'sine', drop = 1) { const o = audio.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); if (drop !== 1) o.frequency.exponentialRampToValueAtTime(f * drop, t + len); o.connect(env(t, peak, len)); o.start(t); o.stop(t + len); }
 const MAKE = {
-  knock: (ns, t) => ns.forEach((f, k) => tone(f, t + k * 0.07, 0.12, 0.3, 'triangle', 0.55)),
+  knock: (ns, t, times) => times ? times.forEach(d => tone(ns[0], t + d, 0.04, 0.12, 'triangle', 0.6))  // a small click at each of the given times (a wheel's pictures passing)
+    : ns.forEach((f, k) => tone(f, t + k * 0.07, 0.12, 0.3, 'triangle', 0.55)),
   clink: (ns, t) => ns.forEach((f, k) => { tone(f, t + k * 0.06, 0.3, 0.1); tone(f * 2.76, t + k * 0.06, 0.15, 0.04); }),
   chime: (ns, t) => ns.forEach((f, k) => tone(f, t + k * 0.09, 0.45, 0.12)),
   break: (ns, t) => {
@@ -62,9 +63,9 @@ const MAKE = {
   },
   whoosh: (ns, t) => { const n = noise(0.35), bp = audio.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.2; bp.frequency.setValueAtTime(400, t); bp.frequency.exponentialRampToValueAtTime(1600, t + 0.3); n.connect(bp).connect(env(t, 0.2, 0.32, 0.06)); n.start(t); },
 };
-function sound(name) {
+function sound(name, times) {
   heard.push(name); if (fast) return;  // at test speed everything happens at once: sounds are only noted, not played
-  try { audio = audio || new AudioContext(); if (audio.state === 'suspended') audio.resume(); const [kind, ns] = SOUNDS[name]; MAKE[kind](ns, audio.currentTime); }
+  try { audio = audio || new AudioContext(); if (audio.state === 'suspended') audio.resume(); const [kind, ns] = SOUNDS[name]; MAKE[kind](ns, audio.currentTime, times); }
   catch (e) { /* no sound on this machine: the game goes on */ }
 }
 
@@ -297,17 +298,26 @@ function slotPlan(w0, coins) {  // the PC's best choice: stop, or pay 1 coin to 
   };
   const c = Math.min(coins, 4); V(w0, c); return memo.get(w0.join() + '|' + c).sel;
 }
-const ROLL_MS = [700, 1000, 1300];  // each wheel rolls this long, so they stop one after another
+// A wheel is a reel (the standard slot-machine model): a strip of the pictures in order, moving at a speed that starts high and eases out
+// (cubic) to rest exactly on its new picture; it ticks each time a picture passes, so the ticks slow down with it.
+const ROLL_MS = [1100, 1600, 2100], LAPS = [2, 3, 4];  // each wheel rolls longer than the one before, so they stop first, second, third
+const easeOut = u => 1 - Math.pow(1 - u, 3);
+function reelAt(r, now) { const u = Math.min(1, Math.max(0, (now - r.t0) / r.ms)); return r.from + (r.to - r.from) * easeOut(u); }  // the strip's place, in pictures
 async function roll(wheels) {  // the chosen wheels get their new pictures, roll, and stop one by one
   const now = performance.now();
-  wheels.forEach(k => { G.slot.w[k] = spin(); G.slot.until[k] = fast ? 0 : now + ROLL_MS[k]; });
+  wheels.forEach(k => {
+    const s = spin(), from = G.slot.reel[k].to, base = Math.floor(from), to = base + ((s - base) % SYMBOLS + SYMBOLS) % SYMBOLS + SYMBOLS * LAPS[k];
+    G.slot.w[k] = s; G.slot.reel[k] = { t0: now, ms: fast ? 0 : ROLL_MS[k], from, to };
+    const ticks = []; for (let m = Math.floor(from) + 1; m <= to; m++) ticks.push(ROLL_MS[k] / 1000 * (1 - Math.cbrt(1 - (m - from) / (to - from))));  // when picture m passes
+    sound('roll', ticks);
+  });
   sound('spin'); let t = 0;
   for (const k of wheels.slice().sort((a, b) => ROLL_MS[a] - ROLL_MS[b])) { await pause(ROLL_MS[k] - t); t = ROLL_MS[k]; sound('stop'); }
   await pause(100);
 }
 async function slot(i) {
   const p = G.players[i];
-  G.slot = { who: i, w: [0, 0, 0], sel: [false, false, false], until: [0, 0, 0] };
+  G.slot = { who: i, w: [0, 0, 0], sel: [false, false, false], reel: [0, 1, 2].map(() => ({ t0: 0, ms: 0, from: 0, to: 0 })) };
   await roll([0, 1, 2]);
   for (;;) {
     const w = G.slot.w;
@@ -544,12 +554,12 @@ function drawSlot() {  // three wheels; tap the ones to spin again, pay 1 coin t
   shade(0.4); rrect(x - 280, y - 210, 560, 420, 30, '#7a2f2f', BORDER[S.who], 6);
   coin(x - 230, y - 180, 14); label('' + p.coins, x - 200, y - 172, 24, '#ffe9a8', 'coins');  // the coins you have
   S.w.forEach((s, k) => {
-    const wx = x - 225 + k * (ww + 15), rolling = now < S.until[k];
+    const wx = x - 225 + k * (ww + 15), r = S.reel[k], rolling = now < r.t0 + r.ms, at = reelAt(r, now), gap = 84;
     rrect(wx, y - 150, ww, 170, 16, '#fff', S.sel[k] ? '#2f7de1' : '#555', S.sel[k] ? 8 : 3);
     cx.save(); cx.beginPath(); cx.rect(wx + 4, y - 146, ww - 8, 162); cx.clip();
-    if (rolling) { const off = (now / 2.2) % 70; for (let j = -1; j < 3; j++) symbol(Math.floor(now / 60 + j * 3 + k * 2) % SYMBOLS, wx + ww / 2, y - 65 + off - j * 70, 30); }  // pictures sliding past
-    else symbol(s, wx + ww / 2, y - 65, 46);
-    cx.restore(); drawn.push({ k: 'wheel', n: k, rolling });
+    const base = Math.floor(at), frac = at - base;  // the strip: picture i of the reel shows symbol i; the pictures slide down as the reel turns
+    for (let j = -1; j <= 1; j++) symbol(((base + j) % SYMBOLS + SYMBOLS) % SYMBOLS, wx + ww / 2, y - 65 + (frac - j) * gap, 46);
+    cx.restore(); drawn.push({ k: 'wheel', n: k, rolling, at });
     if (S.sel[k]) { cx.strokeStyle = '#2f7de1'; cx.lineWidth = 5; cx.beginPath(); cx.arc(wx + ww - 22, y - 128, 13, 0.6, 5.8); cx.stroke(); }  // marked to spin again
     if (live) btn('wheel-' + k, wx, y - 150, ww, 170, () => { S.sel[k] = !S.sel[k]; });
   });

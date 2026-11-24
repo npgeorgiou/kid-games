@@ -73,6 +73,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
   - Each machine shows only 3 of the 7 kinds (a 1 in 3 chance per reroll).
   - The first reroll is free.
 - Owner rule (for now): 7 pictures, each worth 1; 2 the same wins 2, 3 the same wins 3; you can stop at any time.
+- Owner rule (24 Nov): the wheels roll fast, then slow down and stop one after another (first, second, third), with sounds.
 
 ### Points and winning
 - Owner rule: points are gold coins drawn one by one, with no numbers. At the end, the players' coins are lined up side by side and the longer row wins.
