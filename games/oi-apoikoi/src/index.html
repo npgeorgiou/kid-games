@@ -14,7 +14,7 @@ canvas { display: block; width: 100vw; height: 100vh; }
 <script>
 // Οι Άποικοι: a prototype of the rules in design.md. Lands are colours only for now (owner 23 Nov).
 // The model, in plain words:
-// 1. A round: every square makes 1 good of its colour; 4 tiles are laid out; players pick in turn (the token holder first, else the kid).
+// 1. A round: every square makes 1 good of its colour (a tile placed during the round makes its 2 at once); 4 tiles are laid out; players pick in turn (the token holder first, else the kid).
 //    A tile you can't place is greyed for you; with nothing to pick your turn passes and the other plays again. The other may bid
 //    sets (5 goods, one of each) and they go on; a tie goes to the picker; the winner pays and places the tile.
 // 2. A tile fits on two free squares with at least one matching edge with your own land. Every matching edge, with any land, earns a jar,
@@ -201,6 +201,7 @@ async function place(i, cs, pos) {  // the tile lies at pos until it snaps
   const { x, y, r } = await choose('place', i, { tile: cs, pos }, () => pcPlace(bestPlace(cs, i)));
   const m = matchesAt(cs, x, y, r);
   put({ id: 't' + (tileNo++), cs, x, y, r, o: i });
+  cs.forEach(c => G.players[i].goods[c]++);  // a placed land makes its goods at once (owner 24 Nov), and again at each round's start
   G.players[i].jars += m; G.players[i].fresh = m;  // the jars this tile earned come first, shown apart from jars still waiting
   await openJars(i);
 }

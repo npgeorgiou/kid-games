@@ -39,7 +39,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 3. **Placing.** Each player places his tiles in his own land.
    - Owner rule: one jar per matching edge, so one tile can earn several, and edges with the opponent's land count too. They are opened at once, during the round.
    - Owner rule: a tile is one rectangle, coloured half and half. The won tile stays where it is (in the top row at first): tap it to turn it, drag it and leave it anywhere, as often as you like, until it snaps into a place; before it snaps, the place is shown.
-0. **Start of round.** Owner rule: each square of land makes 1 good of its terrain. All goods are worth the same.
+0. **Start of round.** Owner rule: each square of land makes 1 good of its terrain. All goods are worth the same. Owner rule (24 Nov): a tile placed during the round (picked, stolen or free) makes its 2 goods at once too.
 4. **End of round.**
    - Owner rule: goods not spent are lost at the end of the round, but each 3 of the same good (for example 3 grain) become a jar (6 make 2). Sets don't become jars.
    - Owner rule: jars from leftover goods are opened at the end of the round.
