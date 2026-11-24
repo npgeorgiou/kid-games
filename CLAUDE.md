@@ -42,7 +42,6 @@ Rules a machine can check are checked by the commit check (`.githooks/commit-msg
 - **Random play.** Every game has a seeded random-play flow that plays through the screen and checks, after every move, the rules he can see (for example: goods shown match the land shown; jars shown match the matching edges).
 - **The whole test set runs on every commit** and on every push; one FAIL refuses it. No failing tests, ever.
 - **Fast.** A game's full run, browser start included, takes at most 10 seconds; checked. Waits are on the game's state with short limits, never fixed sleeps; one browser and one page per run; a fake clock for real-speed checks; loops inside the page wait with promise steps (`await null`), not timers or messages. Time every run; a slow test is fixed before anything else.
-- **Mutation testing** runs daily: a script breaks the game in small ways one at a time; every break no flow catches is a hole, reported to the owner, and gets a flow.
 - Tests that guard owner rules are never loosened or deleted to fit a change. When the owner changes a rule, its flow changes in the same commit and the commit message names the rule he changed. A failing old test is a found conflict.
 - Never change the game to make a test pass. If a test fails, first decide from the failure detail whether the game or the test is wrong.
 - **One owner point per commit**: its flow, its code, the full run, commit, push.

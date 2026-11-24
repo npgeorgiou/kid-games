@@ -33,7 +33,6 @@ A playable prototype against the PC on one shared board, colours only. Tiles are
 
 - Waiting for the owner: sounds (built-in simple sounds for now, or only sound slots until his files come); whether a placed land's good appears in the stockpile at once (today goods are made at the start of each round, and at the end of the round they turn into jars or are lost).
 - Then: sounds; the stockpile answer (a flow repeating his steps first); a general refactor (one owner per behaviour: the turn being asked belongs to the game; the source split by part), tests passing throughout.
-- Daily mutation testing runs as a scheduled task; every hole it reports gets a flow.
 - The owner turns on branch protection for main (require the "tests" check and code-owner review).
 - See also `design.md` sections 6 and 7.
 
