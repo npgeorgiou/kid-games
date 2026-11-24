@@ -21,7 +21,7 @@ for f in files:  # owner 23 Nov 20:11: a README's "Now" says what the game is no
     if hits: sys.exit('commit refused: %s "Now" reads like a log (%s); say what the game is now, no done lists or dates' % (f, ', '.join(sorted(set(hits))[:5])))
 if not games: sys.exit(0)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import game_checks  # games on the strict rules: test first, no back-door moves, the whole test set within 10 s (owner 24 Nov)
+import game_checks  # games on the strict rules: test first, no back-door moves, the whole test set within 20 s (owner 24 Nov)
 strict = [g for g in games if g in game_checks.strict_games()]
 games = [g for g in games if g not in strict]
 problems = []

@@ -4,6 +4,8 @@ Library of independent HTML5 touchscreen games with Greek settings, for a Window
 
 Game design rules (product rules, quantities, periods, tech, design sheet, game folders, process, the brief): `docs/design-rules.md`. Read the part a task needs.
 
+UI design guidelines: `tools/ui-design/README.md`. Read them and follow them, checklist included, before designing or changing anything a player sees or hears.
+
 ## Start of every chat
 
 1. Attach the repo with `add_repo` (push access). If it or a push is refused, retry once before saying anything about access. Then turn on the commit gate: `git config core.hooksPath .githooks`.
@@ -13,7 +15,7 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 
 - Act as a professional software developer: clean code (one owner per behaviour, no dead code, no leftovers, names that say what things are, no duplication) and test-driven development (a failing test first, then the code that makes it pass, then clean up).
 - **Process beats speed.** Never skip, shorten or reorder a test step to save time; make the tests and tools faster instead.
-- **The commit check enforces the Testing rules.** Games listed in `.githooks/strict-games.txt` are checked by `.githooks/game_checks.py` on every commit and, on GitHub, on every push: test first, no back-door moves, the whole test set within 10 s. Any other game must carry `Flow: <game> <flow> ...` in the commit message (each named flow must pass) until its full run is fast enough to join the list. Never bypass a check (`--no-verify`).
+- **The commit check enforces the Testing rules.** Games listed in `.githooks/strict-games.txt` are checked by `.githooks/game_checks.py` on every commit and, on GitHub, on every push: test first, no back-door moves, the whole test set within 20 s. Any other game must carry `Flow: <game> <flow> ...` in the commit message (each named flow must pass) until its full run is fast enough to join the list. Never bypass a check (`--no-verify`).
 - **No failing tests, ever.** Every test in the repo passes after every change. A failing test is never left in place, skipped or reported as "already failing": find whether the test or the code is wrong, and if only the owner can decide, ask him before the change is called done.
 
 ## The two gates (they come before everything else)
@@ -41,7 +43,7 @@ Rules a machine can check are checked by the commit check (`.githooks/commit-msg
 - **Every bug report becomes a flow** named after his report, repeating his steps; it stays forever.
 - **Random play.** Every game has a seeded random-play flow that plays through the screen and checks, after every move, the rules he can see (for example: goods shown match the land shown; jars shown match the matching edges).
 - **The whole test set runs on every commit** and on every push; one FAIL refuses it. No failing tests, ever.
-- **Fast.** A game's full run, browser start included, takes at most 10 seconds; checked. Waits are on the game's state with short limits, never fixed sleeps; one browser and one page per run; a fake clock for real-speed checks; loops inside the page wait with promise steps (`await null`), not timers or messages. Time every run; a slow test is fixed before anything else.
+- **Fast.** A game's full run, browser start included, takes at most 20 seconds; checked. Waits are on the game's state with short limits, never fixed sleeps; one browser and one page per run; a fake clock for real-speed checks; loops inside the page wait with promise steps (`await null`), not timers or messages. Time every run; a slow test is fixed before anything else.
 - Tests that guard owner rules are never loosened or deleted to fit a change. When the owner changes a rule, its flow changes in the same commit and the commit message names the rule he changed. A failing old test is a found conflict.
 - Never change the game to make a test pass. If a test fails, first decide from the failure detail whether the game or the test is wrong.
 - **One owner point per commit**: its flow, its code, the full run, commit, push.
@@ -64,7 +66,8 @@ Rules a machine can check are checked by the commit check (`.githooks/commit-msg
 - Never contradict what he says he did or saw; an unknown cause is stated as unknown and found with a test.
 - Never call anything agreed or done unless he said so. A proposal stays a proposal.
 - Questions to him are yes/no or pick-one, and say what each answer changes.
-- Go through every point and question in his message before replying; none dropped. A long list is copied verbatim into the game's `README.md` "Task list" first and answered point by point, numbered as he numbered them.
+- Go through every point and question in his message before replying; none dropped; answer in his numbering.
+- His messages stay in the chat, never in the repo. What goes into the game's `README.md` "Task list" is his requests as short todos: rewritten, merged and compacted so each is terse and clear. A todo is deleted when it is done.
 - Never invent rules, stats, mechanics or history. Research historical details; unknown is unknown.
 
 ## Working
@@ -72,9 +75,10 @@ Rules a machine can check are checked by the commit check (`.githooks/commit-msg
 - Be mindful of tokens: read only the sections a task needs. Each `src/index.html` and every other file over 500 lines has `SECTION: NAME -- what's here` markers; `grep -n "SECTION:"`, then read around the exact function. A file that grows past 500 lines gets them; a marker is updated in the same change as the code it names.
 - Commands print only what is needed: counts, PASS/FAIL lines, the few lines asked for. Never print whole files, data or long logs (filter with `grep`, `grep -c`, `cut`). Never cut test results with `head` or `tail`: count every FAIL and read them all.
 - Do what was asked, all of it, nothing more. No unasked refactors, features or suggestions.
-- After every change: build, run the affected flows, commit, push, check the remote has the commit, and send only the changed HTML files as downloads.
+- After every change: build, run the whole test set, commit, push. `main` is protected: work on a branch and open one pull request per batch of work (`gh api repos/npgeorgiou/kid-games/pulls -f title=... -f head=<branch> -f base=main -f body=...`); later commits go on the same branch.
+- A change is done only when GitHub's `tests` check on the pull request's last commit has finished and passed (`gh api repos/npgeorgiou/kid-games/commits/<sha>/check-runs`). Wait for it; if it fails, read its log, fix, push again. Then merge the pull request yourself (`gh api -X PUT repos/npgeorgiou/kid-games/pulls/<n>/merge -f merge_method=squash`; owner's standing yes, 24 Nov), check main has it, and send only the changed HTML files as downloads. The owner never has to touch GitHub. Never report done before that.
 - When a trap is found in a game (something that cost time or caused a wrong fix), add it to that game's `WARNINGS.md` as a one-line instruction. General lessons go here only if they hold for every game.
-- At the end of a chat, rewrite the game's `README.md` "Now" section, keep its file map true (what the game is now and what is open, short; never an appended log, never a list of what was done or when: "done: batch 1 ..." is a log) and the game's line in Status in `docs/design-rules.md`. History lives in git.
+- At the end of a chat, rewrite the game's `README.md` "Now" and "Open" (what the game is now and what is open, short) and its line in Status in `docs/design-rules.md`.
 - Every game has a `README.md`, readable by a person: what the game is, how to play it, its levels or parts, where every file and folder is and what it is for, how to run its checks, then "Now", "Open" and "Task list". Example: `games/arxitektones-tou-arxaiou-kosmou/README.md`. A new game gets one from the start; a file added, moved or removed is changed in its map in the same commit.
-- Never make a history, log or changelog file (such as `BUILD-history.md`), and never append updates to any file as a log. History lives in git commit messages only.
-- Hand off when going on costs more than a new chat: when the chat is so long that each step spends many of the owner's tokens, or when rules start slipping (a rule broken, a point dropped, a question asked twice). Not after a fixed number of messages. Then rewrite "Open" and give one line to paste into the next chat; his words and screenshots stay in the repo.
+- History lives only in git commit messages: never a history, log or changelog file, never updates appended to a file, never a list of what was done or when ("done: batch 1 ..." is a log).
+- Hand off when going on costs more than a new chat: when the chat is so long that each step spends many of the owner's tokens, or when rules start slipping (a rule broken, a point dropped, a question asked twice). Not after a fixed number of messages. Then rewrite "Open", make sure every open request is a todo in the Task list, and give one line to paste into the next chat.

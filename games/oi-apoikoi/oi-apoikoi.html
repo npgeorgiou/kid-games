@@ -14,11 +14,11 @@ canvas { display: block; width: 100vw; height: 100vh; }
 <script>
 // Οι Άποικοι: a prototype of the rules in design.md. Lands are colours only for now (owner 23 Nov).
 // The model, in plain words:
-// 1. A round: every square makes 1 good of its colour; 4 tiles are laid out; players pick in turn (the token holder first, else the kid).
+// 1. A round: every square makes 1 good of its colour (a tile placed during the round makes its 2 at once); 4 tiles are laid out; players pick in turn (the token holder first, else the kid).
 //    A tile you can't place is greyed for you; with nothing to pick your turn passes and the other plays again. The other may bid
 //    sets (5 goods, one of each) and they go on; a tie goes to the picker; the winner pays and places the tile.
 // 2. A tile fits on two free squares with at least one matching edge with your own land. Every matching edge, with any land, earns a jar,
-//    opened at once; at the end of the round each 3 of the same leftover good make a jar, the rest are lost.
+//    opened at once; at the end of the round each 3 of the same leftover good fly into a jar, one group at a time, and the rest fade out, lost.
 // 3. Jars hold 1 coin (half the time) or a bonus. The game ends when no tile left can be placed by either player; the longer row of coins wins.
 // The tile you win stays where it is until it snaps: tap it to turn it, drag it and leave it anywhere, as often as you like.
 // The PC plays through the same taps and drags as the kid, with a hand you can see (Fluent Emoji hands, MIT, src/hands/).
@@ -33,11 +33,32 @@ const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half 
 const params = new URLSearchParams(location.search);
 let fast = params.has('fast');  // tests: the PC moves without waiting
 const HAND_SPEED = 450;  // px per second: slow enough to follow
+const MAKE_MS = 800, FADE_MS = 600;  // at the round's end: 3 goods flying into a jar; the leftovers fading out
 let rnd = Math.random;
 function seeded(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 // Time passes only for the game that asked: when a new game has started, an old game's pause or hand move never ends,
 // so whatever the old game was doing (a jar, a move, a turn) stops there and never touches the new game.
 const pause = ms => { const my = G; return fast ? Promise.resolve() : new Promise(r => setTimeout(() => { if (G === my) r(); }, ms)); };
+
+// SECTION: SOUNDS -- one simple built-in sound per thing that happens (owner 24 Nov), until his own files come
+const SOUNDS = {  // notes in Hz, one after another; wave shape; length of each note in seconds
+  pick: [[660], 'square', 0.07], bid: [[392, 523], 'triangle', 0.1], snap: [[180, 120], 'triangle', 0.09], pass: [[330, 247], 'sine', 0.18],
+  jar: [[523, 659, 784], 'sine', 0.09], coin: [[988, 1319], 'square', 0.07], made: [[392, 494, 587], 'triangle', 0.08],
+  spin: [[220, 260, 220, 260], 'square', 0.04], stop: [[440], 'triangle', 0.06], win: [[523, 659, 784, 1047], 'square', 0.09], steal: [[700, 350], 'sawtooth', 0.1],
+};
+let audio = null, heard = [];  // heard: every sound played in this game, in order (the flows read it)
+function sound(name) {
+  heard.push(name); if (fast) return;  // at test speed everything happens at once: sounds are only noted, not played
+  try {
+    audio = audio || new AudioContext(); if (audio.state === 'suspended') audio.resume();
+    const [notes, type, len] = SOUNDS[name], t0 = audio.currentTime;
+    notes.forEach((f, k) => {
+      const o = audio.createOscillator(), g = audio.createGain(), t = t0 + k * len;
+      o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + len * 0.95);
+      o.connect(g).connect(audio.destination); o.start(t); o.stop(t + len);
+    });
+  } catch (e) { /* no sound on this machine: the game goes on */ }
+}
 
 // SECTION: MODEL -- the shared board, tiles, matches, goods and sets
 let G = null, tileNo = 1;
@@ -151,6 +172,7 @@ async function play() {
       if (!G.draft.some((t, k) => pickable(k, turn))) { await pass(turn); passes++; passed = turn; turn = 1 - turn; continue; }
       passes = 0; passed = null;
       const k = await pick(turn); if (G !== my) return;
+      sound('pick');
       const tile = G.draft[k]; G.chosen = k;
       const winner = G.locks[k] === turn ? turn : await bidding(turn, tile); if (G !== my) return;  // a tile locked to you is yours without a bid
       G.chosen = -1;
@@ -162,14 +184,20 @@ async function play() {
     if (G !== my) return;
     G.bag.push(...G.draft.filter(t => t)); G.draft = [];  // tiles nobody could place are not thrown: they go back under the pile (built for now)
     G.phase = 'end';
-    for (const p of G.players) { p.jars += leftoverJars(p.goods); p.goods = [0, 0, 0, 0, 0]; }
+    for (const i of [G.first ?? 0, 1 - (G.first ?? 0)]) { await goodsToJars(i); if (G !== my) return; }
     for (const i of [G.first ?? 0, 1 - (G.first ?? 0)]) { await openJars(i); if (G !== my) return; }
   }
   if (G !== my) return;
   const [a, b] = G.players.map(p => p.coins);
   G.over = true; G.winner = a > b ? 0 : b > a ? 1 : -1;
 }
-async function pass(i) { G.players[i].passes++; G.passing = i; if (!G.players[i].human) G.hand.g = 'raised'; await pause(2400); G.passing = null; G.hand.g = 'point'; }
+async function goodsToJars(i) {  // each 3 of a colour fly into a jar, one group at a time; then the leftovers fade out and are lost
+  const p = G.players[i];
+  for (let c = 0; c < 5; c++) while (p.goods[c] >= 3) { G.making = { who: i, c, t0: performance.now() }; await pause(MAKE_MS); p.goods[c] -= 3; p.jars++; sound('made'); }
+  if (p.goods.some(g => g > 0)) { G.making = { who: i, c: -1, t0: performance.now() }; await pause(FADE_MS); }
+  p.goods = [0, 0, 0, 0, 0]; G.making = null;
+}
+async function pass(i) { G.players[i].passes++; sound('pass'); G.passing = i; if (!G.players[i].human) G.hand.g = 'raised'; await pause(2400); G.passing = null; G.hand.g = 'point'; }
 const pickable = (k, i) => fits(G.draft[k], i) && (G.locks[k] ?? i) === i;  // fits his land and is not locked to the other player
 function pick(i) {
   let best = -1, bm = -1; G.draft.forEach((t, k) => { if (pickable(k, i) && jarsFor(t, i) > bm) { bm = jarsFor(t, i); best = k; } });
@@ -181,9 +209,9 @@ async function bidding(picker, tile) {  // the opponent outbids by one; the pick
   let winner = picker;
   if (P[opp].got < 2) for (;;) {
     if (!await wantsBid(opp, tile, P[picker].bid + 1)) { winner = picker; break; }
-    P[opp].bid = P[picker].bid + 1;
+    P[opp].bid = P[picker].bid + 1; sound('bid');
     if (!await wantsBid(picker, tile, P[opp].bid)) { winner = opp; break; }
-    P[picker].bid = P[opp].bid;
+    P[picker].bid = P[opp].bid; sound('bid');
   }
   const n = P[winner].bid; P[winner].goods = P[winner].goods.map(g => g - n);
   P[0].bid = P[1].bid = 0;
@@ -201,6 +229,7 @@ async function place(i, cs, pos) {  // the tile lies at pos until it snaps
   const { x, y, r } = await choose('place', i, { tile: cs, pos }, () => pcPlace(bestPlace(cs, i)));
   const m = matchesAt(cs, x, y, r);
   put({ id: 't' + (tileNo++), cs, x, y, r, o: i });
+  sound('snap'); cs.forEach(c => G.players[i].goods[c]++);  // a placed land makes its goods at once (owner 24 Nov), and again at each round's start
   G.players[i].jars += m; G.players[i].fresh = m;  // the jars this tile earned come first, shown apart from jars still waiting
   await openJars(i);
 }
@@ -216,14 +245,14 @@ async function openJars(i) {
   const p = G.players[i], my = G;
   while (G === my && p.jars > 0) {
     await choose('jar', i, {}, () => pcTap('jar-0')); if (G !== my) return;
-    p.jars--; p.fresh = Math.max(0, p.fresh - 1); const j = rollJar(); G.shown = { who: i, j }; await pause(1100); G.shown = null;
+    p.jars--; p.fresh = Math.max(0, p.fresh - 1); const j = rollJar(); sound('jar'); G.shown = { who: i, j }; await pause(1100); G.shown = null;
     await bonus(i, j);
   }
 }
 async function bonus(i, j) {
   const p = G.players[i];
-  if (j.k === 'coins') p.coins += 1;
-  else if (j.k === 'coins2') p.coins += 2;
+  if (j.k === 'coins') { p.coins += 1; sound('coin'); }
+  else if (j.k === 'coins2') { p.coins += 2; sound('coin'); }
   else if (j.k === 'first') G.first = i;
   else if (j.k === 'jar') p.jars++;
   else if (j.k === 'set') p.goods = p.goods.map(g => g + 1);
@@ -233,7 +262,7 @@ async function bonus(i, j) {
     const worthOf = id => { const t = G.tiles.get(id); lift(t); const m = jarsFor(t.cs, i); put(t); return m; };
     const best = ids.reduce((a, b) => worthOf(b) > worthOf(a) ? b : a);
     const id = await choose('steal', i, { ids }, () => pcTap('steal-' + best));
-    const t = G.tiles.get(id), pos = tileCentre(t.x, t.y, t.r); lift(t); await place(i, t.cs, pos);  // the stolen tile is lifted where it lay
+    const t = G.tiles.get(id), pos = tileCentre(t.x, t.y, t.r); lift(t); sound('steal'); await place(i, t.cs, pos);  // the stolen tile is lifted where it lay
   }
   else if (j.k === 'slot') await slot(i);
 }
@@ -265,7 +294,9 @@ const ROLL_MS = [700, 1000, 1300];  // each wheel rolls this long, so they stop 
 async function roll(wheels) {  // the chosen wheels get their new pictures, roll, and stop one by one
   const now = performance.now();
   wheels.forEach(k => { G.slot.w[k] = spin(); G.slot.until[k] = fast ? 0 : now + ROLL_MS[k]; });
-  await pause(Math.max(...wheels.map(k => ROLL_MS[k])) + 100);
+  sound('spin'); let t = 0;
+  for (const k of wheels.slice().sort((a, b) => ROLL_MS[a] - ROLL_MS[b])) { await pause(ROLL_MS[k] - t); t = ROLL_MS[k]; sound('stop'); }
+  await pause(100);
 }
 async function slot(i) {
   const p = G.players[i];
@@ -286,7 +317,7 @@ async function slot(i) {
   }
   const w = G.slot.w, c = w.map(s => w.filter(t => t === s).length), best = c.indexOf(Math.max(...c)), n = c[best];
   G.slot = null;
-  if (n >= 2) { const s = w[best]; if (s < 5) p.goods[s] += n; else if (s === 5) p.coins += n; else p.jars += n; }
+  if (n >= 2) { sound('win'); const s = w[best]; if (s < 5) p.goods[s] += n; else if (s === 5) p.coins += n; else p.jars += n; }
 }
 
 // SECTION: START -- a new game, with a set table for tests
@@ -296,7 +327,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); G = { board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, shown: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; G = { board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, shown: null, making: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; });
@@ -430,18 +461,24 @@ function drawDraft() {
   });
   for (let k = 0; k < Math.ceil(G.bag.length / 4); k++) rrect(P + 14 + k * 16, T / 2 - ds / 2, 11, ds, 4, '#cdb991');  // rounds left
 }
+function stock(i) {  // where player i's goods stand: a column per colour, stacking upward from a base line
+  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, cw = (P - 24) / 5, r = Math.min(11, cw * 0.38), top = 84, base = H * 0.6, most = Math.max(1, ...p.goods), step = Math.min(r * 2.3, (base - top - r) / most);
+  return { r, step, base, colX: c => x0 + 12 + cw * (c + 0.5), rowY: k => base - r - k * step };
+}
+const progress = (m, ms) => Math.min(1, (performance.now() - m.t0) / (fast ? 1 : ms));
 function drawPanel(i) {
   const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, cxm = x0 + P / 2, turn = wait && wait.who === i;
   rrect(x0 + 6, 8, P - 12, H - 16, 16, turn ? '#fff8e8' : '#f6ecd6', BORDER[i], turn ? 6 : 3);
   dot(cxm, 44, 24, BORDER[i]); if (G.first === i) star(cxm, 44, 18);
   // goods: a column per colour, stacking upward from a base line (a tall column squeezes, it never widens the panel);
   // each row with one of every colour is a set (a gold band); each 3 of a colour, counted from the base, is a jar at the round's end (a frame)
-  const cw = (P - 24) / 5, r = Math.min(11, cw * 0.38), top = 84, base = H * 0.6, most = Math.max(1, ...p.goods), step = Math.min(r * 2.3, (base - top - r) / most), n = sets(p);
-  const colX = c => x0 + 12 + cw * (c + 0.5), rowY = k => base - r - k * step;
+  const { r, step, base, colX, rowY } = stock(i), n = sets(p), mk = G.making && G.making.who === i ? G.making : null, fade = mk && mk.c < 0 ? 1 - progress(mk, FADE_MS) : 1;
   for (let k = 0; k < n; k++) { rrect(x0 + 10, rowY(k) - step / 2, P - 20, step, step / 2, '#f4cf4a66', '#c99a1a', 1.5); drawn.push({ k: 'setrow', o: i }); }
   p.goods.forEach((g, c) => {
     for (let k = 0; k + 3 <= g; k += 3) { rrect(colX(c) - r - 3, rowY(k + 2) - r - 3, 2 * r + 6, 2 * step + 2 * r + 6, r, null, '#6e3418', 2); drawn.push({ k: 'jargroup', o: i, c }); }
-    for (let k = 0; k < g; k++) { dot(colX(c), rowY(k), r, COLOURS[c]); drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k) }); }
+    for (let k = mk && mk.c === c ? 3 : 0; k < g; k++) {  // the 3 flying into a jar are drawn with the jars
+      cx.globalAlpha = fade; dot(colX(c), rowY(k), r, COLOURS[c]); cx.globalAlpha = 1; drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), a: fade });
+    }
   });
   const cr = Math.min(12, (P - 24) / 11), cy0 = base + 24;  // coins, five to a row
   for (let k = 0; k < p.coins; k++) coin(x0 + 14 + cr + (k % 5) * cr * 2.15, cy0 + Math.floor(k / 5) * cr * 2.15, cr);
@@ -468,11 +505,17 @@ function drawBid() {  // match the bid with your sets, or let the tile go
   btn('letgo', x + 20, y + 20, 190, 94, () => answer(false));
 }
 function drawJars() {  // big jars in a row; tap one to open it
-  const who = wait ? wait.who : G.shown.who, p = G.players[who], n = p.jars, gap = p.fresh && p.fresh < n ? 0.6 : 0, s = Math.min(130, W * 0.7 / Math.max(1, n + gap));
+  const mk = !wait && !G.shown ? G.making : null, who = wait ? wait.who : G.shown ? G.shown.who : mk.who, p = G.players[who], growing = mk && mk.c >= 0, n = p.jars + (growing ? 1 : 0), gap = p.fresh && p.fresh < n ? 0.6 : 0, s = Math.min(130, W * 0.7 / Math.max(1, n + gap));
   shade(0.35);
   for (let k = 0; k < n; k++) {  // the jars just earned on the left, glowing; a gap; the jars still waiting
     const fresh = k < p.fresh, x = W / 2 + (k + (fresh ? 0 : gap) - (n + gap - 1) / 2) * s, y = H * 0.6 + (wait ? Math.sin(performance.now() / 300 + k) * 4 : 0);
     if (fresh) dot(x, y, s * 0.5, '#ffe27a88');
+    if (growing && k === n - 1) {  // 3 goods fly from the stockpile into this jar, which grows as they shrink
+      const t = progress(mk, MAKE_MS), e = t * t * (3 - 2 * t), sp = stock(who);
+      jarShape(x, y, s * 0.85 * e); drawn.push({ k: 'jar', o: who, growing: true });
+      for (let g = 0; g < 3; g++) { const gx = sp.colX(mk.c), gy = sp.rowY(g); dot(gx + (x - gx) * e, gy + (y - gy) * e, sp.r * (1 + 1.5 * e) * (1 - e) + 0.01, COLOURS[mk.c]); drawn.push({ k: 'flying', o: who, c: mk.c }); }
+      continue;
+    }
     jarShape(x, y, s * 0.85); drawn.push({ k: 'jar', o: who, new: fresh });
     if (wait && wait.kind === 'jar') btn('jar-' + k, x - s / 2, y - s / 2, s, s, () => answer());
   }
@@ -537,7 +580,7 @@ function render() {  // one picture of the game; it also lays out the buttons th
   drawBoard(); drawDraft(); drawPanel(0); drawPanel(1);
   if (wait && wait.kind === 'place') drawHeld();
   if (wait && wait.kind === 'bid') drawBid();
-  if ((wait && wait.kind === 'jar') || G.shown) drawJars();
+  if ((wait && wait.kind === 'jar') || G.shown || (G.making && (G.making.c >= 0 || G.players[G.making.who].jars))) drawJars();  // jars being made show with the jars already made
   if (G.slot) drawSlot();
   if (G.passing != null) drawPass();
   if (G.over) drawEnd();
@@ -568,6 +611,7 @@ window.__dg = {
   btn(id) { const b = buttons.find(b => b.id === id); return b ? [b.x + b.w / 2, b.y + b.h / 2] : null; },
   buttons() { return buttons.map(b => b.id); },
   drawn() { return drawn; },
+  sounds() { return heard.slice(); },
   held() { return wait && wait.kind === 'place' ? wait.pos.slice() : null; },
   tileAt: tileCentre,
   edge(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; },

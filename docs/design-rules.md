@@ -96,7 +96,7 @@ Sources: MDA for the middle rows, nested loops for the loop rows, self-determina
 
 ## Game folders
 
-Each game has `games/<game>/` holding everything a chat needs: `design.md` (approved sheet), `README.md` (what the game is and how to play it, where every file is, how to run its checks, "Now" and "Task list"), `WARNINGS.md` (the game's traps as instructions), `src/`, `lib/`, `tools/` and the built single HTML file. A chat on a game reads nothing outside its folder unless a file there says so.
+Each game has `games/<game>/` holding everything a chat needs: `design.md` (approved sheet), `README.md` (what the game is and how to play it, where every file is, how to run its checks, "Now", "Open" and "Task list"), `WARNINGS.md` (the game's traps as instructions), `src/`, `lib/`, `tools/` and the built single HTML file. A chat on a game reads nothing outside its folder unless a file there says so.
 
 ## Process
 

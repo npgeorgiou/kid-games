@@ -7,3 +7,4 @@
 - Never draw an SVG picture on the canvas every frame: draw it once onto its own canvas and draw that.
 - Time passes only for the current game: pause and hand moves never end for an old game, so old jars, moves and turns stop and never touch a new game. Never read the game state across an await without that.
 - The page's fake clock is paused with a date, not a number (a number after an earlier pause is refused); every fake second of real-speed play costs about half a real second.
+- Sounds at test speed are only noted (`__dg.sounds()`), never played: playing hundreds at once in random play cost about half a second.

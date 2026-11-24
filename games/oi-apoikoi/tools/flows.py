@@ -135,6 +135,12 @@ def f_goods_at_start(q):  # each square makes 1 good of its colour at the start 
     table(q, bag=[[0, 4]] * 4, tiles=[[4, 7, 0, 2, 2, 0]]); g = st(q)['players'][0]['goods']
     report(g == [1, 1, 2, 0, 0], 'goods: 1 per square at round start', str(g))
 
+def f_goods_on_place(q):  # owner 24 Nov: a land's goods appear in the stockpile as soon as it is placed, not only at the round's start
+    table(q, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); before = [sum(1 for x in drawn(q, 'good') if x['o'] == 0 and x['c'] == c) for c in range(5)]
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); settle(q)
+    after = [sum(1 for x in drawn(q, 'good') if x['o'] == 0 and x['c'] == c) for c in range(5)]
+    report(before == [1, 1, 0, 0, 0] and after == [2, 1, 0, 0, 1], 'goods: a placed land adds its goods at once', 'before %s after %s' % (before, after))
+
 def f_stockpile_columns(q):  # owner 24 Nov: goods stand in a column per colour (they never widen the panel); rows of one of each are marked as sets, each 3 of a colour as a jar at the round's end
     tiles = [[0, 0, 0, 0, 1, 0], [2, 0, 0, 0, 1, 0], [4, 0, 0, 0, 1, 0], [0, 1, 0, 2, 2, 0], [2, 1, 0, 2, 2, 0], [4, 1, 0, 2, 2, 0], [6, 0, 0, 2, 3, 0], [6, 1, 0, 3, 4, 0]]
     table(q, bag=[[0, 4]] * 4, tiles=tiles); g = drawn(q, 'good'); g = [x for x in g if x['o'] == 0]
@@ -163,10 +169,36 @@ def f_bid_locks(q):  # owner 24 Nov: winning a bid does not take the tile, it lo
     pc_took = any(t[5] == 1 and t[3:5] == [0, 1] and t[:2] != [14, 6] for t in s['tiles'])
     report(locked and pc_took, 'bid: winner locks the tile, picks it later', 'locked for kid %s, PC took it later %s' % (locked, pc_took))
 
-def f_leftovers_jar(q):  # at the end of the round each 3 of the same leftover good make a jar; the rest are lost
+def f_leftovers_jar(q):  # at the end of the round each 3 of the same leftover good make a jar; the rest are lost (placed tiles' goods count too, owner 24 Nov)
     table(q, bag=[[0, 0]] * 4, tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0]], jarQueue=[COIN] * 20)
     kid_plays(q, lambda s: s['phase'] == 'end'); waiting(q, 'jar'); p = st(q)['players'][0]
-    report(p['jars'] == 2 and p['goods'] == [0, 0, 0, 0, 0], 'end: each 3 same leftovers a jar', 'jars %d goods %s' % (p['jars'], p['goods']))
+    report(p['jars'] == 3 and p['goods'] == [0, 0, 0, 0, 0], 'end: each 3 same leftovers a jar', 'jars %d goods %s' % (p['jars'], p['goods']))
+
+def f_goods_become_jars(q):  # owner 24 Nov: at the round's end the goods turn into jars one by one, visibly; then the leftovers fade out
+    pause_clock(q)  # the kid's last tile ends the round: 8 goods, 6 of one colour (2 jars), 2 left over
+    table(q, fast=False, bag=[[2, 2]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); waiting(q, 'jar'); tap(q, 'jar-0')
+    made, flying, faded, shown_left, ms = {}, False, False, {}, 0
+    while ms < 5000:
+        q.clock.run_for(100); ms += 100; settle(q); d = q.evaluate("()=>__dg.drawn()")
+        jars = sum(1 for x in d if x['k'] == 'jar' and x['o'] == 0 and not x.get('growing'))
+        goods = sum(1 for x in d if x['k'] in ('good', 'flying') and x['o'] == 0)
+        flying = flying or any(x['k'] == 'flying' for x in d); faded = faded or any(x['k'] == 'good' and x.get('a', 1) < 1 for x in d)
+        if jars not in made: made[jars] = ms; shown_left[jars] = goods
+        if st(q)['wait'] and st(q)['wait']['kind'] == 'jar': break
+    q.clock.resume()
+    ok = sorted(made) == [0, 1, 2] and made[2] - made[1] >= 500 and flying and faded and shown_left[1] == 5 and st(q)['players'][0]['jars'] == 2
+    report(ok, 'end: goods become jars one by one', 'jar counts first seen at %s ms, goods then %s, flying %s, fading %s' % (made, shown_left, flying, faded))
+
+def f_sounds(q):  # owner 24 Nov: "add some sounds, it's hard to follow what happens": each thing that happens has its sound, in the order it happens
+    get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot'); tap(q, 'wheel-2'); tap(q, 'reroll')
+    q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); a = q.evaluate("()=>__dg.sounds()")
+    table(q, bag=[[0, 0]] * 4, tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0]], jarQueue=[COIN] * 20)
+    kid_plays(q, lambda s: s['phase'] == 'end'); waiting(q, 'jar'); b = q.evaluate("()=>__dg.sounds()")
+    want = ['pick', 'snap', 'jar', 'spin', 'stop', 'stop', 'stop', 'spin', 'stop', 'win']
+    made = sum(p['jars'] for p in st(q)['players'])  # both players' leftovers have become jars; none opened yet
+    ok = a[:len(want)] == want and b.count('made') == made and {'pick', 'snap', 'jar', 'coin'} <= set(b) and b.index('made') > b.index('snap')
+    report(ok, 'sounds: one for each thing, in order', 'slot jar: %s; round end: %d made sounds for %d jars, heard %s' % (a[:len(want)], b.count('made'), made, sorted(set(b))))
 
 def f_pc_best(q):  # the PC picks and places for the most jars
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
@@ -238,10 +270,10 @@ def f_slot_says_price(q):  # owner 24 Nov: "I can't even see what I pay": the sp
     ok = '1' in labels.get('reroll', '') and '2' in labels.get('collect', '') and str(3) in labels.get('coins', '')
     report(ok, 'slot: price and prize written on the buttons', str(labels))
 
-def f_slot_three(q):  # slot machine: pay 1 coin to reroll chosen wheels; 3 the same wins 3
+def f_slot_three(q):  # slot machine: pay 1 coin to reroll chosen wheels; 3 the same wins 3 (on top of the placed tile's own goods, owner 24 Nov)
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot')
     tap(q, 'wheel-2'); tap(q, 'reroll'); q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); p = st(q)['players'][0]
-    report(p['goods'][0] == 4 and p['coins'] == 2, 'slot: reroll costs a coin, 3 same win 3', 'goods %s coins %d' % (p['goods'], p['coins']))
+    report(p['goods'][0] == 5 and p['coins'] == 2, 'slot: reroll costs a coin, 3 same win 3', 'goods %s coins %d' % (p['goods'], p['coins']))
 
 def f_slot_two(q):  # 2 the same win 2; you can stop at any time
     get_jar(q, [{'k': 'slot'}], coins=0, slots=[5, 1, 5]); waiting(q, 'slot')
@@ -281,9 +313,9 @@ def f_another_jar(q):  # another jar, which you open yourself
     tap(q, 'jar-0'); c1 = st(q)['players'][0]['coins']
     report(c1 == c0 + 2, 'jar: another jar to open', 'coins %d -> %d' % (c0, c1))
 
-def f_free_set(q):  # a free set: one of each of the 5 goods
+def f_free_set(q):  # a free set: one of each of the 5 goods (on top of the placed tile's own 2, owner 24 Nov)
     get_jar(q, [{'k': 'set'}]); g = st(q)['players'][0]['goods']
-    report(g == [2, 2, 1, 1, 1], 'set: one of each good', str(g))
+    report(g == [3, 2, 1, 1, 2], 'set: one of each good', str(g))
 
 def f_borders(q):  # each player's land has a border all around: green for the kid, red for the PC; a tile is one rectangle, no gap between its halves
     table(q, bag=[[0, 4]] * 4); b = drawn(q, 'border'); kid = sum(1 for x in b if x['o'] == 0); pc = sum(1 for x in b if x['o'] == 1)
