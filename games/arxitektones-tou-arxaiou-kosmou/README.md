@@ -52,7 +52,7 @@ Each site also has one tempting wrong piece in its pile that makes the test fail
 | `WARNINGS.md` | Traps found while working on this game. **Read first.** |
 | `owner-shots/` | The owner's screenshots and recordings, named by date. |
 | `tools/harness.py` | Runs every check: `python3 tools/harness.py <mode>` (modes below). |
-| `tools/ci-checks.txt` | The list of every check of the game, run on GitHub on every push. |
+| `tools/ci-checks.txt` | The list of every check of the game, run on GitHub when a push or pull request changes this game or something shared. |
 | `tools/flows.py` | The whole-game test: one run from a fresh game to the last site, played as the child plays (the first site by hand with every lesson, the others with the quick build), every owner rule and bug report a checked step at its place. |
 | `tools/backdoors.txt` | What a shortcut through the game's insides looks like; GitHub refuses a test containing one. |
 | `tools/cue-tests.js` | The cue rules as pass/fail checks. |
@@ -90,7 +90,6 @@ The game is complete and playable. The tutorial never stops, whatever the child 
 ## Task list
 
 Owner, 24 Nov (verbatim):
-1. its unacceptable that all tests are not run on every push. unacceptable. provide solutions.
 2. anoter idea is to replace sound files for small files, ffs, its a test.
 3. also do improvements as long as you keep in mind that theya re feature tests, so dont mock things.
 4. and fix tests
