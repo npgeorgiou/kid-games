@@ -33,7 +33,7 @@ const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half 
 const params = new URLSearchParams(location.search);
 let fast = params.has('fast');  // tests: the PC moves without waiting
 const HAND_SPEED = 450;  // px per second: slow enough to follow
-const MAKE_MS = 800, FADE_MS = 600;  // at the round's end: 3 goods flying into a jar; the leftovers fading out
+const MAKE_MS = 800, FADE_MS = 600, FLY_MS = 700, EDGE_GAP = 250, GLOW_MS = 1800;  // ... ; a jar flying out of its matched edge, the next one after EDGE_GAP; the edge glows GLOW_MS  // at the round's end: 3 goods flying into a jar; the leftovers fading out
 let rnd = Math.random;
 function seeded(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 // Time passes only for the game that asked: when a new game has started, an old game's pause or hand move never ends,
@@ -46,7 +46,7 @@ const pause = ms => { const my = G; return fast ? Promise.resolve() : new Promis
 const SOUNDS = {  // kind and its notes (Hz)
   pick: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], bid: ['chime', [392, 523]], pass: ['chime', [392, 294]],
   jar: ['break', []], coin: ['clink', [1320, 1760]], made: ['chime', [392, 494, 587]], win: ['chime', [523, 659, 784, 1047]],
-  spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
+  edge: ['chime', [784]], spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
 };
 let audio = null, heard = [];  // heard: every sound played in this game, in order (the flows read it)
 function noise(len) { const b = audio.createBuffer(1, audio.sampleRate * len, audio.sampleRate), d = b.getChannelData(0); for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1; const n = audio.createBufferSource(); n.buffer = b; return n; }
@@ -56,7 +56,7 @@ const MAKE = {
   knock: (ns, t, times) => times ? times.forEach(d => tone(ns[0], t + d, 0.04, 0.12, 'triangle', 0.6))  // a small click at each of the given times (a wheel's pictures passing)
     : ns.forEach((f, k) => tone(f, t + k * 0.07, 0.12, 0.3, 'triangle', 0.55)),
   clink: (ns, t) => ns.forEach((f, k) => { tone(f, t + k * 0.06, 0.3, 0.1); tone(f * 2.76, t + k * 0.06, 0.15, 0.04); }),
-  chime: (ns, t) => ns.forEach((f, k) => tone(f, t + k * 0.09, 0.45, 0.12)),
+  chime: (ns, t, times) => (times || ns.map((f, k) => k * 0.09)).forEach((d, k) => tone(ns[k % ns.length], t + d, 0.45, 0.12)),
   break: (ns, t) => {
     const n = noise(0.4), bp = audio.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 0.7; n.connect(bp).connect(env(t, 0.45, 0.35, 0.002)); n.start(t);
     for (let k = 0; k < 4; k++) tone(1400 + Math.random() * 1400, t + 0.03 + Math.random() * 0.18, 0.06, 0.12, 'triangle', 0.7);  // shards
@@ -79,11 +79,12 @@ function mark(t) { halves(t.x, t.y, t.r).forEach(([a, b], h) => { G.board ^= cel
 function put(t) { mark(t); G.tiles.set(t.id, t); halves(t.x, t.y, t.r).forEach(([a, b], h) => G.cells.set(key(a, b), { x: a, y: b, c: t.cs[h], o: t.o, t: t.id })); }
 function lift(t) { mark(t); halves(t.x, t.y, t.r).forEach(([a, b]) => G.cells.delete(key(a, b))); G.tiles.delete(t.id); }
 const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS && !G.cells.has(key(x, y));
-function matchesAt(cs, x, y, r, owner) {  // edges where a half meets the same colour (owner: only that player's land)
-  let m = 0;
-  halves(x, y, r).forEach(([hx, hy], i) => { for (const d of DIRS) { const s = G.cells.get(key(hx + d[0], hy + d[1])); if (s && s.c === cs[i] && (owner == null || s.o === owner)) m++; } });
-  return m;
+function matchEdges(cs, x, y, r, owner) {  // the edges where a half meets the same colour (owner: only that player's land): the half's square and the side
+  const out = [];
+  halves(x, y, r).forEach(([hx, hy], i) => DIRS.forEach((d, side) => { const s = G.cells.get(key(hx + d[0], hy + d[1])); if (s && s.c === cs[i] && (owner == null || s.o === owner)) out.push({ x: hx, y: hy, d: side }); }));
+  return out;
 }
+const matchesAt = (cs, x, y, r, owner) => matchEdges(cs, x, y, r, owner).length;
 const spotMemo = new Map();  // the places for a tile only change when the board does: worked out once per board
 function spots(cs, r, i) {  // where player i can place a tile: two free squares, at least one matching edge with his own land; m = the jars it earns
   const mk = G.board + '|' + cs + '|' + r + '|' + i;
@@ -235,10 +236,13 @@ async function wantsBid(i, tile, n) {
 }
 async function place(i, cs, pos) {  // the tile lies at pos until it snaps
   const { x, y, r } = await choose('place', i, { tile: cs, pos }, () => pcPlace(bestPlace(cs, i)));
-  const m = matchesAt(cs, x, y, r);
+  const edges = matchEdges(cs, x, y, r), m = edges.length;
   put({ id: 't' + (tileNo++), cs, x, y, r, o: i });
   sound('snap'); cs.forEach(c => G.players[i].goods[c]++);  // a placed land makes its goods at once (owner 24 Nov), and again at each round's start
   G.players[i].jars += m; G.players[i].fresh = m;  // the jars this tile earned come first, shown apart from jars still waiting
+  G.burst = { who: i, edges, t0: performance.now() };  // each matched edge glows and a jar flies out of it to the jar row, one after another
+  edges.forEach((e, k) => sound('edge', [k * EDGE_GAP / 1000]));
+  if (m) await pause(FLY_MS + (m - 1) * EDGE_GAP);
   await openJars(i);
 }
 
@@ -344,7 +348,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); heard = []; G = { board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, shown: null, making: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; G = { board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, shown: null, making: null, burst: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; });
@@ -367,6 +371,7 @@ function L() {
 function draftSlot(k) { const { T, ds } = L(), gap = 2 * ds + 46; return [W / 2 + (k - 1.5) * gap, T / 2]; }  // the 4 places in the top row
 function tileCentre(x, y, r) { const { s, ox, oy } = L(), d = DIRS[r]; return [ox + (x + 0.5 + d[0] / 2) * s, oy + (y + 0.5 + d[1] / 2) * s]; }
 function tileBox(cxm, cym, s, r) { const d = DIRS[r]; const w = d[0] ? 2 * s : s, h = d[1] ? 2 * s : s; return { x: cxm - w / 2, y: cym - h / 2, w, h }; }
+function edgePoint(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; }  // the middle of a square's side
 function shownSpot() { return [W / 2, H * 0.2 + 80]; }  // where an opened jar shows what it held
 function homeSpot() { const { P } = L(); return [W - P / 2, H * 0.72]; }  // the PC's hand rests in its panel
 function snapSpot() {  // the nearest place the tile in hand fits, if it lies close to it
@@ -461,6 +466,12 @@ function drawBoard() {
     });
     cx.strokeStyle = BORDER[o]; cx.stroke();
   }
+  const B = G.burst, age = B ? performance.now() - B.t0 : GLOW_MS;  // the matched edges glow gold, then fade
+  if (age < GLOW_MS) B.edges.forEach(e => {
+    const [ex, ey] = edgePoint(e.x, e.y, e.d), [dx, dy] = DIRS[e.d], a = Math.min(1, (GLOW_MS - age) / 500);
+    cx.globalAlpha = a; cx.strokeStyle = '#ffe27a'; cx.lineWidth = s * 0.22; cx.beginPath(); cx.moveTo(ex - dy * s * 0.45, ey - dx * s * 0.45); cx.lineTo(ex + dy * s * 0.45, ey + dx * s * 0.45); cx.stroke();
+    cx.strokeStyle = '#fffbe6'; cx.lineWidth = s * 0.08; cx.stroke(); cx.globalAlpha = 1; drawn.push({ k: 'edgeglow', x: ex, y: ey });
+  });
   cx.lineCap = 'butt';
 }
 function drawDraft() {
@@ -483,6 +494,7 @@ function stock(i) {  // where player i's goods stand: a column per colour, stack
   const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, cw = (P - 24) / 5, r = Math.min(11, cw * 0.38), top = 84, base = H * 0.6, most = Math.max(1, ...p.goods), step = Math.min(r * 2.3, (base - top - r) / most);
   return { r, step, base, colX: c => x0 + 12 + cw * (c + 0.5), rowY: k => base - r - k * step };
 }
+const flying = () => G.burst && G.burst.edges.length && performance.now() < G.burst.t0 + FLY_MS + (G.burst.edges.length - 1) * EDGE_GAP;
 const progress = (m, ms) => Math.min(1, (performance.now() - m.t0) / (fast ? 1 : ms));
 function drawPanel(i) {
   const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, cxm = x0 + P / 2, turn = wait && wait.who === i;
@@ -523,18 +535,24 @@ function drawBid() {  // match the bid with your sets, or let the tile go
   btn('letgo', x + 20, y + 20, 190, 94, () => answer(false));
 }
 function drawJars() {  // big jars in a row; tap one to open it
-  const mk = !wait && !G.shown ? G.making : null, who = wait ? wait.who : G.shown ? G.shown.who : mk.who, p = G.players[who], growing = mk && mk.c >= 0, n = p.jars + (growing ? 1 : 0), gap = p.fresh && p.fresh < n ? 0.6 : 0, s = Math.min(130, W * 0.7 / Math.max(1, n + gap));
-  shade(0.35);
+  const mk = !wait && !G.shown ? G.making : null, fly = flying() ? G.burst : null, who = wait ? wait.who : G.shown ? G.shown.who : mk ? mk.who : fly.who, p = G.players[who], growing = mk && mk.c >= 0, n = p.jars + (growing ? 1 : 0), gap = p.fresh && p.fresh < n ? 0.6 : 0, s = Math.min(130, W * 0.7 / Math.max(1, n + gap));
+  if (!fly) shade(0.35);  // while jars fly out of their edges the board stays bright, so the glowing edges show
   for (let k = 0; k < n; k++) {  // the jars just earned on the left, glowing; a gap; the jars still waiting
     const fresh = k < p.fresh, x = W / 2 + (k + (fresh ? 0 : gap) - (n + gap - 1) / 2) * s, y = H * 0.6 + (wait ? Math.sin(performance.now() / 300 + k) * 4 : 0);
-    if (fresh) dot(x, y, s * 0.5, '#ffe27a88');
     if (growing && k === n - 1) {  // 3 goods fly from the stockpile into this jar, which grows as they shrink
       const t = progress(mk, MAKE_MS), e = t * t * (3 - 2 * t), sp = stock(who);
       jarShape(x, y, s * 0.85 * e); drawn.push({ k: 'jar', o: who, growing: true });
       for (let g = 0; g < 3; g++) { const gx = sp.colX(mk.c), gy = sp.rowY(g); dot(gx + (x - gx) * e, gy + (y - gy) * e, sp.r * (1 + 1.5 * e) * (1 - e) + 0.01, COLOURS[mk.c]); drawn.push({ k: 'flying', o: who, c: mk.c }); }
       continue;
     }
-    jarShape(x, y, s * 0.85); drawn.push({ k: 'jar', o: who, new: fresh });
+    if (fresh && G.burst && G.burst.who === who && G.burst.edges[k]) {  // a jar just earned flies out of its edge (eased, popping up), then sits in the row
+      const [ex, ey] = edgePoint(G.burst.edges[k].x, G.burst.edges[k].y, G.burst.edges[k].d), u = fast ? 1 : Math.min(1, Math.max(0, (performance.now() - G.burst.t0 - k * EDGE_GAP) / FLY_MS));
+      if (u <= 0) continue;
+      const e = easeOut(u), jx = ex + (x - ex) * e, jy = ey + (y - ey) * e - Math.sin(Math.PI * u) * 60, z = s * 0.85 * (0.3 + 0.7 * Math.min(1, u * 1.6));
+      if (u >= 1) dot(x, y, s * 0.5, '#ffe27a88');
+      jarShape(jx, jy, z); drawn.push({ k: 'jar', o: who, new: true, x: jx, y: jy });
+      if (u < 1) continue;
+    } else { if (fresh) dot(x, y, s * 0.5, '#ffe27a88'); jarShape(x, y, s * 0.85); drawn.push({ k: 'jar', o: who, new: fresh, x, y }); }
     if (wait && wait.kind === 'jar') btn('jar-' + k, x - s / 2, y - s / 2, s, s, () => answer());
   }
   if (G.shown) {  // what the jar held, and a short label saying what it means
@@ -598,7 +616,7 @@ function render() {  // one picture of the game; it also lays out the buttons th
   drawBoard(); drawDraft(); drawPanel(0); drawPanel(1);
   if (wait && wait.kind === 'place') drawHeld();
   if (wait && wait.kind === 'bid') drawBid();
-  if ((wait && wait.kind === 'jar') || G.shown || (G.making && (G.making.c >= 0 || G.players[G.making.who].jars))) drawJars();  // jars being made show with the jars already made
+  if ((wait && wait.kind === 'jar') || G.shown || flying() || (G.making && (G.making.c >= 0 || G.players[G.making.who].jars))) drawJars();  // jars being made show with the jars already made
   if (G.slot) drawSlot();
   if (G.passing != null) drawPass();
   if (G.over) drawEnd();
@@ -634,7 +652,7 @@ window.__dg = {
   soundKinds() { return [...new Set(Object.values(SOUNDS).map(v => v[0]))].sort(); },
   held() { return wait && wait.kind === 'place' ? wait.pos.slice() : null; },
   tileAt: tileCentre,
-  edge(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; },
+  edge: edgePoint,
   pixel(x, y) { const d = devicePixelRatio || 1; return [...cx.getImageData(Math.floor(x * d), Math.floor(y * d), 1, 1).data]; },
   sampleJars(n) { const m = {}; for (let k = 0; k < n; k++) { const j = rollJar(); m[j.k] = (m[j.k] || 0) + 1; } return m; },
   state() {

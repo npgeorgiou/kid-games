@@ -40,6 +40,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
    - Owner rule: tiles you can't place are greyed (colours still visible) and can't be picked. With none to pick, your turn passes, slowly and clearly, and the other player plays again. No tile is thrown.
 4. **Placing.** Each player places his tiles in his own land.
    - Owner rule: one jar per matching edge, so one tile can earn several, and edges with the opponent's land count too. They are opened at once, during the round.
+   - Owner rule (24 Nov): it is shown: when the tile snaps (with a snap sound) each matching edge glows, and each jar comes out of its edge and flies to the jar row, one after another.
    - Owner rule: a tile is one rectangle, coloured half and half. The won tile stays where it is (in the top row at first): tap it to turn it, drag it and leave it anywhere, as often as you like, until it snaps into a place; before it snaps, the place is shown.
 5. **End of round.**
    - Owner rule: goods not spent are lost at the end of the round, but each 3 of the same good (for example 3 grain) become a jar (6 make 2). Sets don't become jars.
