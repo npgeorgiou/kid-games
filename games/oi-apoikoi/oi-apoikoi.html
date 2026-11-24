@@ -34,7 +34,7 @@ const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half 
 const params = new URLSearchParams(location.search);
 let fast = params.has('fast');  // tests: the PC moves without waiting, and nothing travels: it is where it goes at once
 const HAND_SPEED = 450;  // px per second: slow enough to follow
-const STAGGER = 120, GOOD_FLY = 450;  // goods made at the round's start leave their squares one after another; each flies GOOD_FLY, its square lit meanwhile
+const STAGGER = 120, GOOD_FLY = 450, ROUND_GOODS_MS = 1200;  // goods made at the round's start leave their squares one after another; each flies GOOD_FLY, its square lit meanwhile
 const TURN_MS = 700;  // the turn's light flying from one face to the other
 const RISE_MS = 500, SHOW_MS = 900, GLIDE_MS = 300, REWARD_MS = 550;  // a jar opened: what it held rises out of it, shows, and its reward flies to its place; the other jars close up
 const DROP_MS = 600, INTO_MS = 450, DISSOLVE_MS = 700;  // at the round's end: a jar dropping from the top; each good flying into it; the leftovers breaking into specks
@@ -50,7 +50,7 @@ const pause = ms => { const my = G; return fast ? Promise.resolve() : new Promis
 // Made like real objects (the standard Web Audio recipes): a knock is a short tone that drops in pitch, like wood; a clink is a bell-like
 // pair of partials, like metal; a break is a burst of filtered noise with a few shards, like clay; a chime is soft sine notes; a whoosh is noise swept upward.
 const SOUNDS = {  // kind and its notes (Hz)
-  good: ['knock', [640]], pick: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], bid: ['chime', [392, 523]], pass: ['chime', [392, 294]],
+  good: ['knock', [640]], board: ['knock', [180]], pick: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], bid: ['chime', [392, 523]], pass: ['chime', [392, 294]],
   jar: ['break', []], coin: ['clink', [1320, 1760]], made: ['chime', [392, 494, 587]], win: ['chime', [523, 659, 784, 1047]],
   dawn: ['chime', [392, 523, 659]], token: ['chime', [523, 784]], into: ['knock', [460]], dissolve: ['whoosh', []], edge: ['chime', [784]], turn: ['chime', [587, 784]], roundend: ['chime', [784, 659, 523, 392]], spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
 };
@@ -156,6 +156,11 @@ async function pcTap(id) {  // the hand goes to the button, presses it, and the 
   if (G !== my) return;  // a new game started meanwhile: this move belonged to the old one
   b.fn(); await pause(250);
 }
+// A carried tile tilts toward where it moves (the standard "card sway" of digital card games, as in Hearthstone):
+// 1. each move sets the tilt from how fast the tile goes sideways (up to TILT degrees); 2. the tilt fades out once the tile stops moving.
+const TILT = 12, TILT_FADE = 120;  // degrees at most; ms for the tilt to fade to about a third
+function carry(w, pos) { const now = performance.now(), v = (pos[0] - w.pos[0]) / Math.max(8, now - (w.moved || 0)); w.tilt = Math.max(-TILT, Math.min(TILT, v * 6)); w.moved = now; w.pos = pos; }
+function tiltNow(w) { return w.tilt ? w.tilt * Math.exp(-(performance.now() - w.moved) / TILT_FADE) : 0; }
 async function pcPlace(sp) {  // tap the tile where it lies to turn it, then grab it, drag it to its place and let go
   const my = G, w = wait, live = () => G === my && wait === w;  // the move belongs to this game and this tile; a new game ends it
   while (live() && w.r !== sp.r) { await handTap(w.pos[0], w.pos[1]); if (live()) w.r = (w.r + 1) % 4; await pause(350); }
@@ -163,7 +168,7 @@ async function pcPlace(sp) {  // tap the tile where it lies to turn it, then gra
   await handTo(w.pos[0], w.pos[1]); my.hand.g = 'grab'; await pause(250);
   const [gx, gy] = tileCentre(sp.x, sp.y, sp.r), h = my.hand;
   my.dragging = true; const follow = handTo(gx, gy, fast ? 0 : 1300);
-  const track = () => { if (live() && my.dragging) { w.pos = [h.x, h.y]; requestAnimationFrame(track); } };
+  const track = () => { if (live() && my.dragging) { carry(w, [h.x, h.y]); requestAnimationFrame(track); } };
   if (!fast) requestAnimationFrame(track); await follow;
   my.dragging = false; if (!live()) return;
   w.pos = [gx, gy]; await pause(250);
@@ -193,6 +198,8 @@ function shatter(at, col, size) {  // a thing breaks where it is: its specks fly
   const t0 = performance.now(); for (let k = 0; k < 9; k++) { const a = rnd2() * 7, v = 60 + rnd2() * 120; specks.push({ x: at[0], y: at[1], vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, col, size: size * (0.3 + rnd2() * 0.3), t0 }); }
 }
 const rnd2 = Math.random;  // how specks scatter is looks only: it never touches the game's own random source
+const PUFF_MS = 320;  // a tap's dust: quick, it happens often
+function puff(at) { const t0 = performance.now(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4 + rnd2() * 0.4, v = 70 + rnd2() * 40; specks.push({ x: at[0], y: at[1], vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, col: '#c9b48a', size: 4 + rnd2() * 2, t0, ms: PUFF_MS }); } }  // a tap on the board raises a ring of dust
 function flightAt(f, now) { const u = Math.min(1, (now - f.t0) / f.ms), e = easeInOut(u); return [f.from[0] + (f.to[0] - f.from[0]) * e, f.from[1] + (f.to[1] - f.from[1]) * e - Math.sin(Math.PI * u) * f.arc, f.z0 + (f.z1 - f.z0) * e]; }
 async function goodFrom(i, c, from, square) {  // one good leaves where it is made (a square lights up) and flies to its place in player i's stockpile, with a sound
   const p = G.players[i], my = G, to = slotPos(i, c, p.goods[c] + p.coming[c]); p.coming[c]++;
@@ -211,7 +218,8 @@ async function makeGoods() {  // the round's start: morning light sweeps over (i
   const my = G, cells = [...G.cells.values()].sort((a, b) => a.o - b.o || a.y - b.y || a.x - b.x);
   for (const p of G.players) { p.goods = [0, 0, 0, 0, 0]; p.got = 0; }
   if (G.goodsIn) { G.goodsIn = false; cells.forEach(c => G.players[c.o].goods[c.c]++); return; }  // a test table that starts with its goods in
-  await Promise.all(cells.map((c, k) => pause(k * STAGGER).then(() => G === my && goodFrom(c.o, c.c, squareCentre(c.x, c.y), true))));
+  const gap = Math.min(STAGGER, ROUND_GOODS_MS / cells.length);  // routine: a big land's goods leave closer together, so all have left within ROUND_GOODS_MS
+  await Promise.all(cells.map((c, k) => pause(k * gap).then(() => G === my && goodFrom(c.o, c.c, squareCentre(c.x, c.y), true))));
 }
 
 // SECTION: ROUNDS -- start, picks and bids, passing, end of round, end of game
@@ -313,7 +321,7 @@ async function place(i, cs, pos, home) {  // the tile lies at pos until it snaps
   if (a === 'back') return false;
   const { x, y, r } = a;
   const edges = matchEdges(cs, x, y, r), m = edges.length;
-  put({ id: 't' + (tileNo++), cs, x, y, r, o: i });
+  put({ id: 't' + (tileNo++), cs, x, y, r, o: i, landed: performance.now() });
   sound('snap'); if (G.parked) { await parkJars(i, false); if (G !== my) return false; }
   cs.forEach(c => G.players[i].goods[c]++);  // a placed land makes its goods at once (owner 24 Nov), and again at each round's start
   G.players[i].jars += m; G.players[i].fresh = m;  // the jars this tile earned come first, shown apart from jars still waiting
@@ -450,17 +458,19 @@ function restart(o = {}) {
 }
 
 // SECTION: LAYOUT -- the draft on top, a player's panel each side (goods, sets, coins), the shared board between
+// Wireframe (24 Nov): first his hand and the market tile he takes (top middle, where the turn colour is), then the board where it goes, then the two panels (goods big enough to count);
+// the pile on the market's left, a bonus tile on its right, the bid card right under the tile it is about, in the gap above the board; nothing touchable along the bottom edge.
 const cv = document.getElementById('c'), cx = cv.getContext('2d');
 let W = 0, H = 0, buttons = [], drawn = [];
 function btn(id, x, y, w, h, fn) { buttons.push({ id, x, y, w, h, fn }); }
 function resize() { const d = devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; cx.setTransform(d, 0, 0, d, 0, 0); }
 addEventListener('resize', resize); resize();
 function L() {
-  const T = Math.round(H * 0.16), P = Math.round(W * 0.13);
-  const s = Math.floor(Math.min((W - 2 * P - 16) / COLS, (H - T - 10) / ROWS));
-  return { T, P, s, ox: Math.round((W - s * COLS) / 2), oy: T + Math.round((H - T - s * ROWS) / 2), ds: Math.round(Math.min(T * 0.42, 60)) };
+  const T = Math.round(H * 0.17), P = Math.round(W * 0.18), low = Math.round(H * 0.06);  // low: the bottom strip, where wrists rest, has nothing to touch
+  const s = Math.floor(Math.min((W - 2 * P - 16) / COLS, (H - T - low - 96) / ROWS));  // 96: room for the bid card between the market and the board
+  return { T, P, s, ox: Math.round((W - s * COLS) / 2), oy: H - low - s * ROWS, ds: Math.round(Math.min(T * 0.42, 50)) };
 }
-function draftSlot(k) { const { T, ds } = L(), gap = 2 * ds + 46; return [W / 2 + (k - 1.5) * gap, T / 2]; }  // the 4 places in the top row
+function draftSlot(k) { const { T, ds } = L(), gap = 2 * ds + 30; return [W / 2 + (k - 1.5) * gap, T / 2]; }  // the 4 places in the top row
 function tileCentre(x, y, r) { const { s, ox, oy } = L(), d = DIRS[r]; return [ox + (x + 0.5 + d[0] / 2) * s, oy + (y + 0.5 + d[1] / 2) * s]; }
 function tileBox(cxm, cym, s, r) { const d = DIRS[r]; const w = d[0] ? 2 * s : s, h = d[1] ? 2 * s : s; return { x: cxm - w / 2, y: cym - h / 2, w, h }; }
 function squareCentre(x, y) { const { s, ox, oy } = L(); return [ox + (x + 0.5) * s, oy + (y + 0.5) * s]; }
@@ -468,8 +478,10 @@ function starSpot(i) { const { P } = L(); return [(i ? W - P : 0) + P / 2 + 56, 
 function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { const sp = stock(i); return [sp.colX(c), sp.rowY(k)]; }  // where good number k of colour c stands in player i's stockpile
 function edgePoint(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; }  // the middle of a square's side
-function pileTop() { const { T, P, ds } = L(), layers = Math.max(1, Math.ceil(G.bag.length / 4)); return [P + 30 + ds, T / 2 + 6 - (layers - 1) * 6]; }  // the pile: a stack of face-down tiles beside the market, one layer per round left
-function giftSpot() { const { T, ds } = L(); return [draftSlot(3)[0] + 2 * ds + 56, T / 2]; }  // a bonus tile's place: just right of the market's 4 tiles
+const PILE_LAYERS = Math.ceil(HALVES.reduce((a, b) => a + b) / 2 / 4);  // a full pile: one layer per round
+function pileStep() { const { T, ds } = L(); return Math.min(6, (T / 2 + 2 - ds / 2) / (PILE_LAYERS - 1)); }  // the layers squeeze so that a full pile still ends 4 px below the screen's top
+function pileTop() { const { T, P, ds } = L(), layers = Math.max(1, Math.ceil(G.bag.length / 4)); return [(P + draftSlot(0)[0] - ds - 22) / 2, T / 2 + 6 - (layers - 1) * pileStep()]; }  // the pile: a stack of face-down tiles beside the market, one layer per round left
+function giftSpot() { const { T, ds, P } = L(); return [(W - P + draftSlot(3)[0] + ds + 22) / 2, T / 2]; }  // a bonus tile's place: just right of the market's 4 tiles
 function shownSpot() { return [W / 2, H * 0.2 + 80]; }  // where an opened jar shows what it held
 function homeSpot() { const { P } = L(); return [W - P / 2, H * 0.72]; }  // the PC's hand rests in its panel
 function snapSpot() {  // the nearest place the tile in hand fits, if it lies close to it
@@ -547,6 +559,10 @@ function hand(h) {  // the PC's hand, the only hand drawn; a press shows a ring 
 }
 
 // SECTION: DRAWING -- each screen part
+// A tile landing bounces (a damped spring, the standard squash and settle): 1. it arrives a little big, as it was carried;
+// 2. it swings below its size and back, the swing shrinking to nothing by LAND_MS.
+const LAND_MS = 280;  // routine: short
+function landing(t) { const u = fast || !t.landed ? 1 : (performance.now() - t.landed) / LAND_MS; return u >= 1 ? 1 : 1 + 0.08 * Math.cos(2 * Math.PI * u) * (1 - u); }
 function drawBoard() {
   const { s, ox, oy } = L();
   rrect(ox - 6, oy - 6, s * COLS + 12, s * ROWS + 12, 14, '#e2d3b0', '#c4b088', 2); drawn.push({ k: 'boardarea', x: ox, y: oy, w: s * COLS, h: s * ROWS });
@@ -558,7 +574,8 @@ function drawBoard() {
   for (const c of G.cells.values()) drawn.push({ k: 'square', x: c.x, y: c.y, c: c.c, o: c.o });  // what the board shows, for the checks
   for (const t of G.tiles.values()) {
     const [x, y] = tileCentre(t.x, t.y, t.r), mark = thief && t.o === 1 - thief.who && !t.start, b = tileBox(x, y, s, t.r);
-    tileShape(x, y, s, t.cs, t.r, mark && !thief.ids.includes(t.id) ? 'grey' : null, t.id);
+    const k = landing(t); if (k !== 1) drawn.push({ k: 'bounce', id: t.id, scale: k });
+    tileShape(x, y, s * k, t.cs, t.r, mark && !thief.ids.includes(t.id) ? 'grey' : null, t.id);
     if (mark && thief.ids.includes(t.id)) {
       rrect(b.x - 4, b.y - 4, b.w + 8, b.h + 8, s * 0.2, null, BORDER[thief.who], 4 + 2 * Math.sin(performance.now() / 180));
       btn('steal-' + t.id, b.x, b.y, b.w, b.h, () => answer(t.id));
@@ -600,18 +617,18 @@ function drawDraft() {
     });
   });
   const layers = Math.ceil(G.bag.length / 4), [px, top] = pileTop();
-  for (let k = 0; k < layers; k++) { const y = top + (layers - 1 - k) * 6; rrect(px - ds, y - ds / 2, 2 * ds, ds, ds * 0.14, '#c9ad7f', '#8a6d42', 2); }
-  drawn.push({ k: 'pile', layers, x: px, y: top });
+  for (let k = 0; k < layers; k++) { const y = top + (layers - 1 - k) * pileStep(); rrect(px - ds, y - ds / 2, 2 * ds, ds, ds * 0.14, '#c9ad7f', '#8a6d42', 2); }
+  drawn.push({ k: 'pile', layers, x: px, y: top, step: pileStep(), bottom: top + (layers - 1) * pileStep() + ds / 2 });
 }
 function stock(i) {  // player i's area, top to bottom: his face; the goods tray (a groove per colour, goods stacking upward, spaced apart); the coins tray
-  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, pad = 16, side = 22, cw = (P - 2 * pad - 8 - side) / 5, top = 104,  // side: a strip toward the board for the set signs
+  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, pad = 16, side = 30, cw = (P - 2 * pad - 8 - side) / 5, top = 104,  // side: a strip toward the board for the set signs
    inner = i ? x0 + pad + side : x0 + pad, signX = i ? x0 + pad + side / 2 : x0 + P - pad - side / 2;
   // coins (owner 24 Nov: easy to count, any number fits): rows of 5, apart, a wider gap after every 10, filling from the bottom up; the tray grows upward, smaller coins only when it is full
   const coinBottom = H - 80, rows = Math.max(2, Math.ceil(p.coins / 5)), tens = Math.floor((rows - 1) / 2), room = coinBottom - (top + 160 + 26);
   const tg = Math.min(8, room * 0.15 / Math.max(1, tens)), cr = Math.max(2, Math.min(11, ((room - tens * tg) / rows - 5) / 2)), pitch = Math.min(2 * cr + 5, (room - tens * tg) / rows);  // the coins never take the goods tray's room: past about 100 they get smaller
   const coinTop = coinBottom - rows * pitch - tens * tg, base = Math.min(Math.round(H * 0.62), coinTop - 26);
   const coinAt = k => { const row = Math.floor(k / 5); return [x0 + P / 2 + (k % 5 - 2) * (2 * cr + 5), coinBottom - cr - row * pitch - Math.floor(row / 2) * tg]; };
-  const most = Math.max(4, ...p.goods), step = Math.min(cw * 0.92, (base - top - 12) / most), r = Math.max(1.5, Math.min(cw * 0.36, step / 2 - 2.5));  // a tall column squeezes its goods, never the gaps between them; past about 80 a column the goods touch, but are still drawn
+  const most = Math.max(4, ...p.goods), step = Math.min(cw * 0.92, (base - top - 12) / most), r = Math.max(1.5, Math.min(cw * 0.34, step / 2 - 2.5));  // a tall column squeezes its goods, never the gaps between them; past about 80 a column the goods touch, but are still drawn
   return { x0, pad, cw, top, base, r, step, signX, colX: c => inner + 4 + cw * (c + 0.5), rowY: k => base - 8 - step / 2 - k * step, coinTop, coinBottom, cr, coinAt };
 }
 const flying = () => G.burst && G.burst.edges.length && performance.now() < G.burst.t0 + FLY_MS + (G.burst.edges.length - 1) * EDGE_GAP;
@@ -623,7 +640,7 @@ function drawPanel(i) {
   const { P } = L(), p = G.players[i], lit = G.turn === i, { x0, pad, cw, top, base, r, step, colX, rowY, coinTop } = stock(i), cxm = x0 + P / 2;
   if (lit) rrect(x0 + 2, 4, P - 4, H - 8, 20, null, BORDER[i] + '66', 10);  // the player whose turn it is: his area glows in his colour
   rrect(x0 + 6, 8, P - 12, H - 16, 16, lit ? TINT[i] : '#efe6d4', BORDER[i], lit ? 5 : 2);
-  drawn.push({ k: 'panel', o: i, lit });
+  drawn.push({ k: 'panel', o: i, lit, x: x0, w: P });
   const fr = lit ? 38 : 26; if (lit) dot(cxm, 54, fr + 8 + 3 * Math.sin(performance.now() / 250), BORDER[i] + '55');  // the player whose turn it is: a bigger face with a soft glow
   face(cxm, 54, fr, BORDER[i]); drawn.push({ k: 'avatar', o: i, x: cxm, y: 54, r: fr });
   if (G.first === i) { const [sx, sy] = starSpot(i); star(sx, sy, 16); drawn.push({ k: 'token', o: i, x: sx, y: sy }); }  // the first-player token, beside his face
@@ -633,10 +650,11 @@ function drawPanel(i) {
   const n = sets(p);
   for (let k = 0; k < n; k++) {  // a row with one of each colour is a set: a gold band, and the set's sign on its side
     rrect(x0 + pad + 2, rowY(k) - step / 2 + 1, P - 2 * pad - 4, step - 2, step / 2, '#f4cf4a77', '#c99a1a', 1.5); drawn.push({ k: 'setrow', o: i });
-    const sr = Math.min(10, step / 2); setShape(stock(i).signX, rowY(k), sr); drawn.push({ k: 'setsign', o: i, x: stock(i).signX - sr, y: rowY(k), r: sr });
+    const sr = Math.min(14, step / 2); setShape(stock(i).signX, rowY(k), sr); drawn.push({ k: 'setsign', o: i, x: stock(i).signX - sr, y: rowY(k), r: sr });
   }
   p.goods.forEach((g, c) => {
-    for (let k = 0; k + JAR_GOODS <= g; k += JAR_GOODS) { jarOutline(colX(c), rowY(k + JAR_GOODS - 1) - r - 2, rowY(k) + r + 3, r + 4); drawn.push({ k: 'jargroup', o: i, c, shape: 'jar', parts: ['lip', 'neck', 'handles', 'body', 'foot'] }); }  // each 5 of a colour: the jar they will become, drawn around them
+    const jw = Math.min(r + 4, (cw / 2 - 2) / 1.2);  // the outline's half width: its handles (1.2 of it) stay inside the column
+    for (let k = 0; k + JAR_GOODS <= g; k += JAR_GOODS) { jarOutline(colX(c), rowY(k + JAR_GOODS - 1) - r - 2, rowY(k) + r + 3, jw); drawn.push({ k: 'jargroup', o: i, c, x: colX(c), half: jw * 1.2, shape: 'jar', parts: ['lip', 'neck', 'handles', 'body', 'foot'] }); }  // each 5 of a colour: the jar they will become, drawn around them
     for (let k = 0; k < g; k++) { dot(colX(c), rowY(k), r, COLOURS[c]); drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), r }); }
   });
   const { cr, coinAt, coinBottom } = stock(i);
@@ -648,16 +666,18 @@ function drawPanel(i) {
 function drawHeld() {  // the tile in hand where it lies, and the place it will snap to
   const { s } = L(), sp = snapSpot(), [x, y] = wait.pos, b = tileBox(x, y, s, wait.r);
   if (sp) { const [gx, gy] = tileCentre(sp.x, sp.y, sp.r), g = tileBox(gx, gy, s, sp.r); tileShape(gx, gy, s, wait.tile, sp.r, 'ghost'); cx.setLineDash([8, 6]); rrect(g.x - 3, g.y - 3, g.w + 6, g.h + 6, s * 0.2, null, '#ffffff', 4); cx.setLineDash([]); }
+  const tilt = tiltNow(wait); cx.save(); cx.translate(x, y); cx.rotate(tilt * Math.PI / 180); cx.translate(-x, -y);
   rrect(b.x + 3, b.y + 7, b.w, b.h, s * 0.16, '#00000033'); tileShape(x, y, s * 1.06, wait.tile, wait.r, null, 'held');  // a plain offset shadow: a blurred one costs a lot to draw every frame
-  rrect(b.x - 5, b.y - 5, b.w + 10, b.h + 10, s * 0.22, null, BORDER[wait.who], 4); drawn.push({ k: 'heldmark', o: wait.who });  // his colour around it: this tile is his
+  rrect(b.x - 5, b.y - 5, b.w + 10, b.h + 10, s * 0.22, null, BORDER[wait.who], 4); cx.restore(); drawn.push({ k: 'heldmark', o: wait.who, tilt });  // his colour around it: this tile is his
   btn('held', b.x - 8, b.y - 8, b.w + 16, b.h + 16, e => { press = { x: e.clientX, y: e.clientY, dx: x - e.clientX, dy: y - e.clientY, moved: false }; });
 }
 function shade(a) { drawn.push({ k: 'shade' }); cx.fillStyle = 'rgba(40,25,10,' + a + ')'; cx.fillRect(0, 0, W, H); }
-function drawBid() {  // beside the market, over the pile: the sets asked, match them (a tick) or let the tile go (a cross); nothing darkened, both lands in view (owner 24 Nov)
-  const { T, P } = L(), me = wait.who, x0 = P + 8, x1 = draftSlot(0)[0] - L().ds - 10, w = x1 - x0, b = Math.min(84, (w - 20) / 2, T - 44), y0 = 6, h = T - 12;
+function drawBid() {  // right under the tile it is about, in the gap above the board: the sets asked, match them (a tick) or let the tile go (a cross); nothing darkened, both lands in view (owner 24 Nov)
+  const { T, P, ds } = L(), me = wait.who, b = 76, pad = 6, sw = wait.n * 30 + 10, w = sw + 2 * b + 8 + 2 * pad, h = b + 2 * pad;
+  const x0 = Math.max(P + 8, Math.min(W - P - 8 - w, draftSlot(G.chosen)[0] - w / 2)), y0 = T / 2 + ds / 2 + 22;
   rrect(x0, y0, w, h, 18, '#fff8e8', BORDER[me], 4); drawn.push({ k: 'bidcard', x: x0, y: y0, w, h });
-  for (let k = 0; k < wait.n; k++) setShape(x0 + w / 2 + (k - (wait.n - 1) / 2) * 30, y0 + 18, 12);
-  const by = y0 + h - b - 8, bx = x0 + (w - 2 * b - 8) / 2, ex = bx + b + 8;
+  for (let k = 0; k < wait.n; k++) setShape(x0 + pad + 20 + k * 30, y0 + h / 2, 13);
+  const by = y0 + pad, bx = x0 + pad + sw, ex = bx + b + 8;
   rrect(bx, by, b, b, 16, '#d8f0c8', '#3a8a2a', 3); btn('bid', bx, by, b, b, () => answer(true));
   cx.strokeStyle = '#3a8a2a'; cx.lineWidth = b * 0.11; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(bx + b * 0.25, by + b * 0.52); cx.lineTo(bx + b * 0.43, by + b * 0.7); cx.lineTo(bx + b * 0.76, by + b * 0.3); cx.stroke();
   rrect(ex, by, b, b, 16, '#f6d6d0', '#a83a2a', 3); btn('letgo', ex, by, b, b, () => answer(false));
@@ -734,7 +754,7 @@ function drawDusk() {  // evening: the sky darkens from the top down, lightly, s
   const my = T * 0.5 + (1 - easeInOut(u)) * T * 0.4, mx = W / 2;  // the moon rises a little as night comes
   cx.globalAlpha = u; cx.save(); cx.beginPath(); cx.rect(0, 0, W, H); cx.arc(mx + T * 0.13, my - T * 0.06, T * 0.27, 0, 7); cx.clip('evenodd');  // a crescent: the moon's disc with a round bite cut out
   dot(mx, my, T * 0.3, '#fdf3c8'); cx.restore();
-  for (const [sx, sy] of [[-0.32, 0.25], [-0.2, 0.7], [0.24, 0.2], [0.36, 0.62], [0.12, 0.85]]) star(mx + sx * W * 0.5, sy * T, 11);
+  for (const [sx, sy] of [[-0.32, 0.25], [-0.2, 0.7], [0.24, 0.2], [0.36, 0.62], [0.12, 0.85]]) { const x = mx + sx * W * 0.5, y = sy * T; star(x, y, 20); drawn.push({ k: 'skystar', x, y, r: 20 }); }  // big enough to see from across the room
   cx.globalAlpha = 1; drawn.push({ k: 'moon', shape: 'crescent' });
 }
 function drawDawn() {  // morning: a band of warm light sweeps over the screen from left to right
@@ -765,8 +785,8 @@ function drawLit() {  // a square giving a good lights up, then fades
   for (const l of G.lit) { const a = 1 - (now - l.t0) / GOOD_FLY; cx.globalAlpha = a; rrect(l.at[0] - s / 2, l.at[1] - s / 2, s, s, s * 0.14, '#fff6c8'); cx.globalAlpha = 1; drawn.push({ k: 'lit', x: l.at[0], y: l.at[1] }); }
 }
 function drawSpecks() {
-  const now = performance.now(); specks = specks.filter(p => now - p.t0 < DISSOLVE_MS);
-  for (const p of specks) { const t = (now - p.t0) / 1000, u = (now - p.t0) / DISSOLVE_MS; cx.globalAlpha = 1 - u; dot(p.x + p.vx * t, p.y + p.vy * t + 300 * t * t, p.size * (1 - 0.5 * u), p.col); cx.globalAlpha = 1; drawn.push({ k: 'speck', x: p.x, y: p.y }); }
+  const now = performance.now(); specks = specks.filter(p => now - p.t0 < (p.ms || DISSOLVE_MS));
+  for (const p of specks) { const t = (now - p.t0) / 1000, u = (now - p.t0) / (p.ms || DISSOLVE_MS); cx.globalAlpha = 1 - u; dot(p.x + p.vx * t, p.y + p.vy * t + 300 * t * t, p.size * (1 - 0.5 * u), p.col); cx.globalAlpha = 1; drawn.push({ k: 'speck', x: p.x, y: p.y }); }
 }
 function drawFlights() {  // everything on its way, at its point on its curve
   const now = performance.now();
@@ -801,13 +821,14 @@ function frame() { render(); requestAnimationFrame(frame); }
 // SECTION: INPUT -- taps press buttons at once; the tile in hand turns on a tap, moves on a drag, and stays where it is left
 const human = () => wait && G.players[wait.who].human;
 cv.addEventListener('pointerdown', e => {
-  if (!e.isPrimary || !human()) return;
-  for (let k = buttons.length - 1; k >= 0; k--) { const b = buttons[k]; if (e.clientX >= b.x && e.clientX <= b.x + b.w && e.clientY >= b.y && e.clientY <= b.y + b.h) { b.fn(e); return; } }
+  if (!e.isPrimary) return;  // a stray second finger does nothing
+  if (human()) for (let k = buttons.length - 1; k >= 0; k--) { const b = buttons[k]; if (e.clientX >= b.x && e.clientX <= b.x + b.w && e.clientY >= b.y && e.clientY <= b.y + b.h) { b.fn(e); return; } }
+  const { s, ox, oy } = L(); if (e.clientX >= ox && e.clientX <= ox + s * COLS && e.clientY >= oy && e.clientY <= oy + s * ROWS) { puff([e.clientX, e.clientY]); sound('board'); }  // the board answers any other tap, like a table: dust and a soft knock
 });
 cv.addEventListener('pointermove', e => {
   if (!press || !human() || wait.kind !== 'place') return;
   if (!press.moved && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 12) press.moved = true;
-  if (press.moved) wait.pos = [e.clientX + press.dx, e.clientY + press.dy];
+  if (press.moved) carry(wait, [e.clientX + press.dx, e.clientY + press.dy]);
 });
 cv.addEventListener('pointerup', () => {
   if (!press || !human() || wait.kind !== 'place') { press = null; return; }
