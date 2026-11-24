@@ -73,7 +73,8 @@ Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Word
 Do next, in this order (his words are in the Task list):
 - First, the tests (owner 24 Nov, Task list): make them one whole-game test that plays the game in the order it appears to the child, as `CLAUDE.md` Testing says. Check that every part of the game is tested (every tool, brush, colour, palette, the size dots, undo, Ctrl+Z and Ctrl+X, stickers, the gallery, the guide, saving), in that order, and that no two steps check the same thing. Read the page only, never write into it. Add `tools/backdoors.txt` listing what a shortcut through the game would look like, and set `tools/ci-checks.txt` to `flows 1`.
 - Lifting, spray, shapes, ink, pointer turning: waiting for his look.
-- 26: pencil needs work (his pencil pictures owner-shots/2026-11-23-pencil-*): only its grain curve was softened so a fast light line does not break.
+- Pencil (26), colour picker by touch, shape pictures: waiting for his look.
+- Tests that fail by chance on GitHub (slow runs): ink_splash_drawing (no drops) and jerk_tail (crayon widens): make them not depend on run speed.
 - p5.brush (https://p5-brush.cargo.site/, MIT): its page says it is meant for high-resolution artworks, maybe not live painting. Try it on one brush, measure stroke delay on a full paper at his screen size, show him, let him decide.
 - Batches 4-6: acrylic (11-14, 25), watercolour (17-21), crayon (22, his oil pastel pictures owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23).
 - The whole flow run now takes about 30 minutes (it was 4): find the slow flows.
