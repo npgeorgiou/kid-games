@@ -14,7 +14,8 @@ WAIT = 1500  # ms: the game answers in a few ms in fast mode, so a flow that wai
 
 # SECTION: HELPERS -- the page, a set table, taps and drags on what is drawn, the game's state
 def settle(q): q.evaluate("()=>__dg.render()")  # the game answers a tap at once; draw it now, so what is on screen (and its buttons) is current
-def table(q, **opts): opts.setdefault('fast', True); q.evaluate("(o)=>__dg.restart(o)", opts); settle(q)
+def table(q, **opts):  # a new game on a set table, its first round's goods already in (the round start's flight has its own flow)
+    opts.setdefault('fast', True); opts.setdefault('goodsIn', True); q.evaluate("(o)=>__dg.restart(o)", opts); settle(q)
 def st(q): return q.evaluate("()=>__dg.state()")
 def tap(q, bid):
     q.wait_for_function("(id)=>__dg.btn(id)", arg=bid, timeout=WAIT, polling=5)
@@ -137,6 +138,21 @@ def f_goods_at_start(q):  # each square makes 1 good of its colour at the start 
     table(q, bag=[[0, 4]] * 4, tiles=[[4, 7, 0, 2, 2, 0]]); g = st(q)['players'][0]['goods']
     report(g == [1, 1, 2, 0, 0], 'goods: 1 per square at round start', str(g))
 
+def f_round_start_goods_fly(q):  # owner 24 Nov: at the round's start goods come one by one: the square giving it lights up, the good flies from it on a curve to its place in the stockpile, with a sound
+    pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'bag': [[0, 4]] * 4, 'tiles': [[4, 7, 0, 2, 2, 0]]}); settle(q); seen, counts, ms = [], [], 0  # the kid's 4 squares, then the PC's 2 (not table: it runs through the start)
+    while ms < 2000:
+        d = q.evaluate("()=>__dg.drawn()"); fl = [x for x in d if x['k'] == 'flight' and x['look'] == 'good']; lit = [x for x in d if x['k'] == 'lit']
+        seen.append((len(fl), len(lit), fl)); counts.append(sum(1 for x in d if x['k'] == 'good' and x['o'] == 0))
+        if st(q)['wait']: break
+        q.clock.run_for(50); ms += 50; settle(q)
+    q.clock.resume(); starts = {(round(f['fx']), round(f['fy'])) for _, _, fl in seen for f in fl}
+    squares = {tuple(round(v) for v in q.evaluate("([x,y])=>__dg.square(x,y)", c)) for c in ([4, 6], [5, 6], [4, 7], [5, 7], [14, 6], [15, 6])}
+    arced = any(f['y'] < min(f['fy'], f['ty']) - 10 for _, _, fl in seen for f in fl)
+    grew = all(b - a in (0, 1) for a, b in zip(counts, counts[1:])) and counts[0] == 0 and counts[-1] == 4
+    lit_with = all(n_lit >= n for n, n_lit, _ in seen) and all(b[0] - a[0] <= 1 for a, b in zip(seen, seen[1:]))  # each good's square is lit while it flies; they leave one after another
+    ok = starts == squares and arced and grew and lit_with and q.evaluate("()=>__dg.sounds()").count('good') == 6
+    report(ok, 'round start: goods fly one by one from their squares', 'from the 6 squares %s, on a curve %s, stockpile one at a time %s (%s), square lit %s, sounds %d' % (starts == squares, arced, grew, counts[-1], lit_with, q.evaluate("()=>__dg.sounds()").count('good')))
+
 def f_goods_on_place(q):  # owner 24 Nov: a land's goods appear in the stockpile as soon as it is placed, not only at the round's start
     table(q, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); before = [sum(1 for x in drawn(q, 'good') if x['o'] == 0 and x['c'] == c) for c in range(5)]
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); settle(q)
@@ -224,7 +240,7 @@ def f_goods_become_jars(q):  # owner 24 Nov: at the round's end the goods turn i
 
 def f_sounds(q):  # owner 24 Nov: "add some sounds, it's hard to follow what happens": each thing that happens has its sound, in the order it happens
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot'); tap(q, 'wheel-2'); tap(q, 'reroll')
-    q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); a = [n for n in q.evaluate("()=>__dg.sounds()") if n != 'turn']  # the turn sound has its own flow
+    q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); a = [n for n in q.evaluate("()=>__dg.sounds()") if n not in ('turn', 'good')]  # the turn sound and the goods' sounds have their own flows
     table(q, bag=[[0, 0]] * 4, tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0]], jarQueue=[COIN] * 20)
     kid_plays(q, lambda s: s['phase'] == 'end'); waiting(q, 'jar'); b = q.evaluate("()=>__dg.sounds()")
     want = ['pick', 'snap', 'edge', 'jar', 'roll', 'roll', 'roll', 'spin', 'stop', 'stop', 'stop', 'roll', 'spin', 'stop', 'win']  # each wheel ticks as it rolls (owner 24 Nov)
@@ -241,7 +257,7 @@ def f_round_end_in_turn(q):  # owner 24 Nov: at the round's end one player turns
     report(ok, 'end: one player gains and opens, then the other', 'PC goods shown while the kid opens %d, PC jars made by then %d; PC coins %d then %d' % (pc_goods, pc_made, pc_coins, after['coins']))
 
 def f_sound_kinds(q):  # owner 24 Nov: "a weird blip when I tap a piece"; "jars must make a breaking sound": a tap knocks like wood, a jar breaks like clay, a coin clinks; no beeps anywhere
-    get_jar(q, [COIN]); settle(q); h = [k for n, k in zip(q.evaluate("()=>__dg.sounds()"), q.evaluate("()=>__dg.heardKinds()")) if n != 'turn']  # the turn sound has its own flow
+    get_jar(q, [COIN]); settle(q); h = [k for n, k in zip(q.evaluate("()=>__dg.sounds()"), q.evaluate("()=>__dg.heardKinds()")) if n not in ('turn', 'good')]  # the turn sound and the goods' sounds have their own flows
     ok = h[:5] == ['knock', 'knock', 'chime', 'break', 'clink']  # tap, snap, the jar out of its edge, the jar opened, its coin
     ok = ok and set(q.evaluate("()=>__dg.soundKinds()")) <= {'break', 'chime', 'clink', 'knock', 'whoosh'}
     report(ok, 'sounds: wood tap, clay break, coin clink', 'heard %s; kinds in the game %s' % (h[:5], q.evaluate("()=>__dg.soundKinds()")))
@@ -256,7 +272,7 @@ def f_jars_from_edges(q):  # owner 24 Nov: show which edges matched, and each ja
         for j in drawn(q, 'jar'):
             for n, e in enumerate(edges): seen[n] = seen[n] or ((j['x'] - e[0]) ** 2 + (j['y'] - e[1]) ** 2) ** 0.5 < size
     early = seen
-    q.clock.run_for(1500); settle(q); late = near([j for j in drawn(q, 'jar') if j['o'] == 0]); h = [n for n in q.evaluate("()=>__dg.sounds()") if n != 'turn']; q.clock.resume()
+    q.clock.run_for(1500); settle(q); late = near([j for j in drawn(q, 'jar') if j['o'] == 0]); h = [n for n in q.evaluate("()=>__dg.sounds()") if n not in ('turn', 'good')]; q.clock.resume()
     ok = glows == 2 and all(seen) and len(late) == 2 and min(late) > 3 * size and h[:3] == ['pick', 'snap', 'edge'] and h.count('edge') == 2
     report(ok, 'jars: matched edges glow, jars come out of them', 'edges glowing %d; a jar seen at each edge %s, then %s px away; sounds %s' % (glows, seen, [round(v) for v in late], h[:4]))
 
