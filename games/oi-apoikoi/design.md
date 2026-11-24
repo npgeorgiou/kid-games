@@ -31,7 +31,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Owner rule: each player starts with the same start tile, two halves in the two most common colours.
 - Owner rule: one shared board that fits the screen. The start tiles are at the centres of its two halves. Each player's own land has a border all around its edges.
 - Owner rule: the colours are scarce in a fixed ratio; tiles are random by that ratio (except the start tile). Built for now: 24/22/20/18/16% (the owner asked for scarcity based on the math and did not pick between equal and this). Note from the owner: if sets don't form easily, the split may need rethinking, or sets may get a bigger job in the game.
-- Owner rule: in the first round the tiles are not random: they are made so that each player has at least one tile he can place.
+- Owner rule (24 Nov): of the first round's 4 tiles, 2 surely fit (one for each player); the other 2 are truly random.
 - Owner rule: 4 tiles are laid out per round, 2 for each player; 10 rounds, 20 tiles each.
 
 ### A round
