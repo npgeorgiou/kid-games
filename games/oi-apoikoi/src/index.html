@@ -184,8 +184,7 @@ async function play() {
     if (G !== my) return;
     G.bag.push(...G.draft.filter(t => t)); G.draft = [];  // tiles nobody could place are not thrown: they go back under the pile (built for now)
     G.phase = 'end';
-    for (const i of [G.first ?? 0, 1 - (G.first ?? 0)]) { await goodsToJars(i); if (G !== my) return; }
-    for (const i of [G.first ?? 0, 1 - (G.first ?? 0)]) { await openJars(i); if (G !== my) return; }
+    for (const i of [G.first ?? 0, 1 - (G.first ?? 0)]) { await goodsToJars(i); if (G !== my) return; await openJars(i); if (G !== my) return; }  // one player gains and opens, then the other
   }
   if (G !== my) return;
   const [a, b] = G.players.map(p => p.coins);

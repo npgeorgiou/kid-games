@@ -200,6 +200,14 @@ def f_sounds(q):  # owner 24 Nov: "add some sounds, it's hard to follow what hap
     ok = a[:len(want)] == want and b.count('made') == made and {'pick', 'snap', 'jar', 'coin'} <= set(b) and b.index('made') > b.index('snap')
     report(ok, 'sounds: one for each thing, in order', 'slot jar: %s; round end: %d made sounds for %d jars, heard %s' % (a[:len(want)], b.count('made'), made, sorted(set(b))))
 
+def f_round_end_in_turn(q):  # owner 24 Nov: at the round's end one player turns his goods into jars and opens them, then the other; not mixed
+    table(q, bag=[[0, 0]] * 4, tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0]], jarQueue=[COIN] * 30)
+    kid_plays(q, lambda s: s['phase'] == 'end'); waiting(q, 'jar')
+    pc_goods = sum(1 for x in drawn(q, 'good') if x['o'] == 1); pc_made = q.evaluate("()=>__dg.sounds()").count('made') - st(q)['players'][0]['jars']; pc_coins = st(q)['players'][1]['coins']
+    kid_plays(q, lambda s: s['wait'] and s['wait']['who'] == 1 or s['round'] > 1); after = st(q)['players'][1]
+    ok = pc_goods > 0 and pc_made == 0 and after['coins'] > pc_coins
+    report(ok, 'end: one player gains and opens, then the other', 'PC goods shown while the kid opens %d, PC jars made by then %d; PC coins %d then %d' % (pc_goods, pc_made, pc_coins, after['coins']))
+
 def f_pc_best(q):  # the PC picks and places for the most jars
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)
