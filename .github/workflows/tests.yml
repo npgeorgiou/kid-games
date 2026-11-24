@@ -26,7 +26,7 @@ jobs:
         run: echo "jobs=$(python3 .githooks/ci_plan.py "${{ github.event.pull_request.base.sha || github.event.before }}")" >> "$GITHUB_OUTPUT"
   full:
     needs: plan
-    if: needs.plan.outputs.jobs != '{"include": []}'
+    if: fromJSON(needs.plan.outputs.jobs).include[0] != null
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     strategy:
