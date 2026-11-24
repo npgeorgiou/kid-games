@@ -38,3 +38,6 @@
 - The full flow run is long (about 30 minutes): run it in the background with PYTHONUNBUFFERED=1 and a long timeout, never in the foreground.
 - water_speed can fail when the one-spot frame lands on 17 ms (headless frames come in 16.7 ms steps, so the ratio jumps): rerun it once before looking for a cause.
 - Palettes: never make, sample or reshuffle one; offer published 10-colour palettes (Coolors, Lospec, ColorBrewer) as a picture of current vs new, each with why, and change only what he picks.
+- A check on spray drops must average a band of rows (new_tools did one row and passed or failed by chance).
+- Ink widths differ stroke to stroke by up to about a quarter: a width check on ink averages many places along the line (turn_every), and is still near its limit.
+- Pencil's grain contact: an edge term must move the grain value, never one smoothstep edge, or the edges cross near the rim and paint full-colour rings.
