@@ -16,6 +16,8 @@ WAIT = 1500  # ms: the game answers in a few ms in fast mode, so a flow that wai
 def settle(q): q.evaluate("()=>__dg.render()")  # the game answers a tap at once; draw it now, so what is on screen (and its buttons) is current
 def table(q, **opts):  # a new game on a set table, its first round's goods already in (the round start's flight has its own flow)
     opts.setdefault('fast', True); opts.setdefault('goodsIn', True); q.evaluate("(o)=>__dg.restart(o)", opts); settle(q)
+def skip(q, ms):  # jump the paused fake clock on (each due timer fires once, no frame in between): for waits whose middle nobody looks at
+    q.clock.fast_forward(ms); settle(q)
 def run_until(q, cond, limit=4000):  # move the paused fake clock on in short steps until the game is in the state asked
     for _ in range(limit // 100):
         if q.evaluate(cond): break
@@ -234,7 +236,7 @@ def f_more_jars_while_opening(q):  # owner 24 Nov: "if during jar opening at end
 def f_goods_become_jars(q):  # owner 24 Nov: at the round's end a jar drops from the top to its place, then the goods fly into it on curves, one by one; the leftovers dissolve after the jars are opened
     pause_clock(q)  # the kid's last tile ends the round: 6 of colour 2 make one jar; 3 goods are left over
     table(q, fast=False, bag=[[2, 2]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); q.clock.run_for(FLY_MS + 100); waiting(q, 'jar'); tap(q, 'jar-0')
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); skip(q, FLY_MS + 100); waiting(q, 'jar'); tap(q, 'jar-0')
     drops, intos, ms = [], [], 0
     while ms < 6000:
         q.clock.run_for(100); ms += 100; settle(q); d = q.evaluate("()=>__dg.drawn()")
@@ -317,7 +319,7 @@ def f_jars_apart(q):  # owner 24 Nov: "jar circles are touching": every jar and 
 
 def f_round_end_shown(q):  # owner 24 Nov: the round's end must be its own phase, clearly seen and heard, before anything else happens in it
     pause_clock(q); table(q, fast=False, bag=[[2, 2]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); q.clock.run_for(1200); waiting(q, 'jar'); tap(q, 'jar-0')
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); skip(q, 1200); waiting(q, 'jar'); tap(q, 'jar-0')
     shown, first_made, ms = [], None, 0
     while ms < 6000 and first_made is None:
         q.clock.run_for(100); ms += 100; settle(q)
@@ -330,7 +332,7 @@ def f_round_end_shown(q):  # owner 24 Nov: the round's end must be its own phase
 def f_turn_shown(q):  # owner 24 Nov: "make it obvious who plays; now there is no difference between me and the opponent playing": the player whose turn it is has his area lit, the other's is dimmed; a sound when the turn passes
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); settle(q)
     lit = lambda: {d['o']: d['lit'] for d in drawn(q, 'panel')}
-    mine = lit(); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); q.clock.run_for(1200); waiting(q, 'jar'); tap(q, 'jar-0')
+    mine = lit(); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); skip(q, 1200); waiting(q, 'jar'); tap(q, 'jar-0')
     run_until(q, "()=>__dg.state().turn===1"); pcs = lit(); w = st(q)['wait']; h = q.evaluate("()=>__dg.sounds()"); q.clock.resume()
     ok = mine == {0: True, 1: False} and pcs == {0: False, 1: True} and 'turn' in h
     report(ok, 'turn: the player playing is lit, the other dimmed', 'kid playing %s; PC playing %s (wait %s); turn sound %s' % (mine, pcs, w, 'turn' in h))
@@ -387,7 +389,7 @@ def f_empty_jar(q):  # owner 24 Nov: some jars hold nothing: it breaks, shows it
 
 def f_jar_breaks(q):  # owner 24 Nov: "jars should visually break and the revealed bonus comes from inside them"; "the you play first should fly to its place"; a coin flies to his coins
     pause_clock(q); table(q, fast=False, bag=[[0, 0]] * 4, tiles=[[4, 7, 0, 0, 0, 0]], jarQueue=[COIN, {'k': 'first'}] + [COIN] * 8)  # the tile meets 2 edges: 2 jars
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 1}); q.clock.run_for(FLY_MS + 400); waiting(q, 'jar')
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 1}); skip(q, FLY_MS + 400); waiting(q, 'jar')
     def watch(btn, until):  # tap a jar, then watch the screen until the reward has landed
         at = q.evaluate("(b)=>__dg.btn(b)", btn); tap(q, btn); seen, ms = [], 0
         while ms < 3000:
@@ -408,7 +410,7 @@ def f_jar_breaks(q):  # owner 24 Nov: "jars should visually break and the reveal
 
 def f_jars_step_aside(q):  # owner 24 Nov: "the extra tile bonus makes the jars I was opening disappear; it should temporarily fly them to some free area"
     pause_clock(q); table(q, fast=False, bag=[[0, 0]] * 4, tiles=[[4, 7, 0, 0, 0, 0]], jarQueue=[{'k': 'tile'}] + [COIN] * 8)  # 2 jars; the first holds a tile
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 1}); q.clock.run_for(FLY_MS + 400); waiting(q, 'jar'); tap(q, 'jar-1')
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 1}); skip(q, FLY_MS + 400); waiting(q, 'jar'); tap(q, 'jar-1')
     run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='place'}", 3000); q.clock.run_for(600); settle(q)
     T = q.evaluate("()=>innerHeight*0.16"); away = [j for j in drawn(q, 'jar') if j['o'] == 0]
     aside = len(away) == 1 and away[0]['y'] < T + 20
@@ -420,7 +422,7 @@ def f_jar_labels(q):  # owner 24 Nov: "for bonus jars add some text, I don't get
     seen = {}
     for k in ['empty', 'coins', 'coins2', 'slot', 'steal', 'first', 'tile', 'jar', 'set']:
         pause_clock(q); table(q, bag=[[0, 4]] * 4, fast=False, jarQueue=[{'k': k}] + [COIN] * 8)  # the fake clock moves the jar's flight on at once
-        tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); q.clock.run_for(FLY_MS + 100); waiting(q, 'jar'); tap(q, 'jar-0')
+        tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); skip(q, FLY_MS + 100); waiting(q, 'jar'); tap(q, 'jar-0')
         seen[k] = [d['text'] for d in drawn(q, 'label')]; q.clock.resume()
     ok = all(len(v) == 1 and v[0] for v in seen.values()) and len({v[0] for v in seen.values() if v}) == 9
     report(ok, 'jars: each content has its own label', str(seen))
@@ -428,7 +430,7 @@ def f_jar_labels(q):  # owner 24 Nov: "for bonus jars add some text, I don't get
 def f_new_game_mid_jar(q):  # found by the tests: a new game started while a jar is being shown: the old jar never pays into the new game
     pause_clock(q)
     table(q, bag=[[0, 4]] * 4, fast=False, jarQueue=[{'k': 'coins2'}] + [COIN] * 8)
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); q.clock.run_for(1200); waiting(q, 'jar'); tap(q, 'jar-0')  # the jars fly out of the matched edges first
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); skip(q, 1200); waiting(q, 'jar'); tap(q, 'jar-0')  # the jars fly out of the matched edges first
     table(q, bag=[[0, 4]] * 4); q.clock.run_for(2000); settle(q); s = st(q); q.clock.resume()
     report(s['players'][0]['coins'] == 0 and s['wait']['kind'] == 'pick', 'new game: an old jar pays nothing into it', 'coins %d, wait %s' % (s['players'][0]['coins'], s['wait']))
 
@@ -439,7 +441,7 @@ def f_coins2(q):  # the 2 coins bonus
 def f_slot_rolls(q):  # owner 24 Nov: the wheels roll fast, then slow down and stop one after another (first, second, third), ticking as they pass and knocking as they stop
     pause_clock(q)
     table(q, bag=[[0, 4]] * 4, fast=False, coins=[3, 0], jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 0, 1])
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); q.clock.run_for(1200); waiting(q, 'jar'); tap(q, 'jar-0')  # the jars fly out of the matched edges first
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); skip(q, 1200); waiting(q, 'jar'); tap(q, 'jar-0')  # the jars fly out of the matched edges first
     stops, rolling_seen, ms, at = [None] * 3, False, 0, []
     while ms < 4000 and None in stops:
         q.clock.run_for(100); ms += 100; settle(q)
