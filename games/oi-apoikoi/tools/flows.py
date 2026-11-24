@@ -142,13 +142,13 @@ def f_goods_on_place(q):  # owner 24 Nov: a land's goods appear in the stockpile
     after = [sum(1 for x in drawn(q, 'good') if x['o'] == 0 and x['c'] == c) for c in range(5)]
     report(before == [1, 1, 0, 0, 0] and after == [2, 1, 0, 0, 1], 'goods: a placed land adds its goods at once', 'before %s after %s' % (before, after))
 
-def f_stockpile_columns(q):  # owner 24 Nov: goods stand in a column per colour (they never widen the panel); rows of one of each are marked as sets, each 3 of a colour as a jar at the round's end
+def f_stockpile_columns(q):  # owner 24 Nov: goods stand in a column per colour (they never widen the panel); rows of one of each are marked as sets, each 5 of a colour as a jar at the round's end (owner 24 Nov: 5, not 3)
     tiles = [[0, 0, 0, 0, 1, 0], [2, 0, 0, 0, 1, 0], [4, 0, 0, 0, 1, 0], [0, 1, 0, 2, 2, 0], [2, 1, 0, 2, 2, 0], [4, 1, 0, 2, 2, 0], [6, 0, 0, 2, 3, 0], [6, 1, 0, 3, 4, 0]]
     table(q, bag=[[0, 4]] * 4, tiles=tiles); g = drawn(q, 'good'); g = [x for x in g if x['o'] == 0]
     cols = {c: {round(x['x']) for x in g if x['c'] == c} for c in range(5)}; counts = [sum(1 for x in g if x['c'] == c) for c in range(5)]
     panel = q.evaluate("()=>innerWidth*0.13"); inside = all(x['x'] < panel for x in g)
     jars = [sum(1 for x in drawn(q, 'jargroup') if x['o'] == 0 and x['c'] == c) for c in range(5)]; sets = sum(1 for x in drawn(q, 'setrow') if x['o'] == 0)
-    ok = counts == [4, 4, 7, 2, 1] and all(len(v) == 1 for c, v in cols.items() if counts[c]) and inside and jars == [1, 1, 2, 0, 0] and sets == 1
+    ok = counts == [4, 4, 7, 2, 1] and all(len(v) == 1 for c, v in cols.items() if counts[c]) and inside and jars == [0, 0, 1, 0, 0] and sets == 1
     report(ok, 'stockpile: columns, sets and jar groups shown', 'goods %s, one column each %s, jar groups %s, set rows %d' % (counts, all(len(v) == 1 for c, v in cols.items() if counts[c]), jars, sets))
 
 def f_sets_of_five(q):  # a set is 5 goods, one of each; the PC bids when it pays; a tie goes to the picker; only the winner pays
@@ -170,14 +170,14 @@ def f_bid_locks(q):  # owner 24 Nov: winning a bid does not take the tile, it lo
     pc_took = any(t[5] == 1 and t[3:5] == [0, 1] and t[:2] != [14, 6] for t in s['tiles'])
     report(locked and pc_took, 'bid: winner locks the tile, picks it later', 'locked for kid %s, PC took it later %s' % (locked, pc_took))
 
-def f_leftovers_jar(q):  # at the end of the round each 3 of the same leftover good make a jar; the rest are lost (placed tiles' goods count too, owner 24 Nov)
-    table(q, bag=[[0, 0]] * 4, tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0]], jarQueue=[COIN] * 20)
+def f_leftovers_jar(q):  # at the end of the round each 5 of the same leftover good make a jar (owner 24 Nov: 5, not 3); the rest are lost (placed tiles' goods count too, owner 24 Nov)
+    table(q, bag=[[0, 0]] * 4, tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0], [6, 2, 0, 2, 2, 0], [2, 2, 0, 2, 2, 0]], jarQueue=[COIN] * 20)
     kid_plays(q, lambda s: s['phase'] == 'end'); waiting(q, 'jar'); p = st(q)['players'][0]
-    report(p['jars'] == 3 and p['goods'] == [0, 0, 0, 0, 0], 'end: each 3 same leftovers a jar', 'jars %d goods %s' % (p['jars'], p['goods']))
+    report(p['jars'] == 3 and p['goods'] == [0, 0, 0, 0, 0], 'end: each 5 same leftovers a jar', 'jars %d goods %s' % (p['jars'], p['goods']))
 
 def f_goods_become_jars(q):  # owner 24 Nov: at the round's end the goods turn into jars one by one, visibly; then the leftovers fade out
-    pause_clock(q)  # the kid's last tile ends the round: 8 goods, 6 of one colour (2 jars), 2 left over
-    table(q, fast=False, bag=[[2, 2]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
+    pause_clock(q)  # the kid's last tile ends the round: 12 goods, 10 of one colour (2 jars of 5), 2 left over
+    table(q, fast=False, bag=[[2, 2]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0], [6, 7, 0, 2, 2, 0], [6, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); q.clock.run_for(1200); waiting(q, 'jar'); tap(q, 'jar-0')  # the jars fly out of the matched edges first
     made, flying, faded, shown_left, ms = {}, False, False, {}, 0
     while ms < 5000:
@@ -188,7 +188,7 @@ def f_goods_become_jars(q):  # owner 24 Nov: at the round's end the goods turn i
         if jars not in made: made[jars] = ms; shown_left[jars] = goods
         if st(q)['wait'] and st(q)['wait']['kind'] == 'jar': break
     q.clock.resume()
-    ok = sorted(made) == [0, 1, 2] and made[2] - made[1] >= 500 and flying and faded and shown_left[1] == 5 and st(q)['players'][0]['jars'] == 2
+    ok = sorted(made) == [0, 1, 2] and made[2] - made[1] >= 500 and flying and faded and shown_left[1] == 7 and st(q)['players'][0]['jars'] == 2
     report(ok, 'end: goods become jars one by one', 'jar counts first seen at %s ms, goods then %s, flying %s, fading %s' % (made, shown_left, flying, faded))
 
 def f_sounds(q):  # owner 24 Nov: "add some sounds, it's hard to follow what happens": each thing that happens has its sound, in the order it happens
@@ -361,11 +361,11 @@ def f_steal(q):  # steal a PC tile: it is lifted where it lay and you place it; 
     report(blocked and lifted and [0, 0] in mine and [0, 0] not in theirs, 'steal: tile moves to you, unfit one blocked', 'blocked %s, lifted there %s, mine %s' % (blocked, lifted, mine))
 
 def f_stolen_tile_jars(q):  # owner 24 Nov: "I stole a tile and made 2 connections, and 5 jars appear": the jars a tile earns are shown apart from jars still waiting
-    table(q, bag=[[2, 4], [2, 4]], tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0], [14, 7, 0, 0, 1, 1]], jarQueue=[COIN] * 2 + [{'k': 'steal'}] + [COIN] * 8)  # only the kid can place these: the PC passes
+    table(q, bag=[[2, 4], [2, 4]], tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0], [6, 2, 0, 2, 2, 0], [14, 7, 0, 0, 1, 1]], jarQueue=[COIN] * 2 + [{'k': 'steal'}] + [COIN] * 8)  # only the kid can place these: the PC passes
     for sp in ({'x': 8, 'y': 3, 'r': 0}, {'x': 3, 'y': 2, 'r': 2}):
         waiting(q, 'pick'); tap(q, 'draft-%d' % st(q)['fits'].index(True)); waiting(q, 'place'); drag_to(q, sp); waiting(q, 'jar'); tap(q, 'jar-0')
     q.wait_for_function("()=>__dg.state().phase==='end'", timeout=WAIT, polling=5); waiting(q, 'jar'); tap(q, 'jar-0'); waiting(q, 'steal')
-    tap(q, 'steal-t4'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); waiting(q, 'jar')
+    tap(q, 'steal-t5'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); waiting(q, 'jar')
     jars = drawn(q, 'jar'); new = sum(1 for j in jars if j.get('new'))
     report(len(jars) == 3 and new == 2, 'steal: 2 matches show 2 new jars apart', 'jars shown %d, new %d' % (len(jars), new))
 

@@ -18,7 +18,7 @@ canvas { display: block; width: 100vw; height: 100vh; }
 //    A tile you can't place is greyed for you; with nothing to pick your turn passes and the other plays again. The other may bid
 //    sets (5 goods, one of each) and they go on; a tie goes to the picker; the winner pays and places the tile.
 // 2. A tile fits on two free squares with at least one matching edge with your own land. Every matching edge, with any land, earns a jar,
-//    opened at once; at the end of the round each 3 of the same leftover good fly into a jar, one group at a time, and the rest fade out, lost.
+//    opened at once; at the end of the round each JAR_GOODS (5) of the same leftover good fly into a jar, one group at a time, and the rest fade out, lost.
 // 3. Jars hold 1 coin (half the time) or a bonus. The game ends when no tile left can be placed by either player; the longer row of coins wins.
 // The tile you win stays where it is until it snaps: tap it to turn it, drag it and leave it anywhere, as often as you like.
 // The PC plays through the same taps and drags as the kid, with a hand you can see (Fluent Emoji hands, MIT, src/hands/).
@@ -28,6 +28,7 @@ const COLOURS = ['#e8c547', '#3f86c8', '#8e5bb0', '#e27fb0', '#9a6a3a'];  // the
 const HALVES = [19, 18, 16, 14, 13];  // the 80 halves of the 40 tiles: about 24/22/20/18/16% (built for now)
 const BORDER = ['#22a33a', '#d42a2a'], TINT = ['#eef8e6', '#fbebe8'];  // the kid's land green, the PC's red; their areas' light tints
 const BONUSES = ['slot', 'steal', 'first', 'tile', 'jar', 'set', 'coins2'];  // the other half of jars, equal shares
+const JAR_GOODS = 5;  // this many leftover goods of one colour make a jar at the round's end (owner 24 Nov: 5, not 3)
 const COLS = 20, ROWS = 13, STARTS = [[4, 6], [14, 6]];  // the start tiles sit at the centres of the board's two halves
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half is, by turn
 const params = new URLSearchParams(location.search);
@@ -104,7 +105,7 @@ function bestPlace(cs, i) { let best = null; for (let r = 0; r < 4; r++) for (co
 const fits = (cs, i) => !!cs && !!bestPlace(cs, i);
 const jarsFor = (cs, i) => { const b = cs && bestPlace(cs, i); return b ? b.m : 0; };
 const sets = p => Math.min(...p.goods);
-const leftoverJars = g => g.reduce((a, n) => a + Math.floor(Math.max(0, n) / 3), 0);
+const leftoverJars = g => g.reduce((a, n) => a + Math.floor(Math.max(0, n) / JAR_GOODS), 0);
 function stealable(i) {  // the opponent's tiles that fit for you once lifted; whether his land stays connected does not matter
   return [...G.tiles.values()].filter(t => t.o === 1 - i && !t.start).filter(t => { lift(t); const ok = fits(t.cs, i); put(t); return ok; }).map(t => t.id);
 }
@@ -203,9 +204,9 @@ async function play() {
   G.over = true; G.winner = a > b ? 0 : b > a ? 1 : -1;
 }
 function setTurn(i) { if (G.turn !== i) { G.turn = i; sound('turn'); } }  // whose turn it is: the one place that says so; the screen lights his area
-async function goodsToJars(i) {  // each 3 of a colour fly into a jar, one group at a time; then the leftovers fade out and are lost
+async function goodsToJars(i) {  // each JAR_GOODS of a colour fly into a jar, one group at a time; then the leftovers fade out and are lost
   const p = G.players[i];
-  for (let c = 0; c < 5; c++) while (p.goods[c] >= 3) { G.making = { who: i, c, t0: performance.now() }; await pause(MAKE_MS); p.goods[c] -= 3; p.jars++; sound('made'); }
+  for (let c = 0; c < 5; c++) while (p.goods[c] >= JAR_GOODS) { G.making = { who: i, c, t0: performance.now() }; await pause(MAKE_MS); p.goods[c] -= JAR_GOODS; p.jars++; sound('made'); }
   if (p.goods.some(g => g > 0)) { G.making = { who: i, c: -1, t0: performance.now() }; await pause(FADE_MS); }
   p.goods = [0, 0, 0, 0, 0]; G.making = null;
 }
@@ -288,7 +289,7 @@ const JAR_LABELS = {  // shown under what a jar held (Greek, for the child)
 const SYMBOLS = 7;  // the 5 goods, coins, jars
 const spin = () => slotQ.length ? slotQ.shift() : Math.floor(rnd() * SYMBOLS);
 const JAR_WORTH = (0.5 + 2 / 14) / (1 - 1 / 14);  // what the PC counts a jar as, in coins: 1 coin half the time, 2 coins a fourteenth, another jar a fourteenth
-const worth = s => s === 5 ? 1 : s === 6 ? JAR_WORTH : JAR_WORTH / 3;  // a good: a third of a leftover jar
+const worth = s => s === 5 ? 1 : s === 6 ? JAR_WORTH : JAR_WORTH / JAR_GOODS;  // a good: its share of a leftover jar
 function prize(w) { const c = w.map(s => w.filter(t => t === s).length), n = Math.max(...c); return n >= 2 ? n * worth(w[c.indexOf(n)]) : 0; }
 const slotMemo = new Map();  // the best choice depends only on the wheels and the coins, so it is worked out once
 function slotPlan(w0, coins) {  // the PC's best choice: stop, or pay 1 coin to spin the wheels that give the most expected coins
@@ -516,14 +517,14 @@ function drawPanel(i) {
   drawn.push({ k: 'panel', o: i, lit });
   face(cxm, 54, 30, BORDER[i]); drawn.push({ k: 'avatar', o: i });
   if (G.first === i) star(cxm + 46, 34, 16);  // the first-player token, beside his face
-  // goods: each row with one of every colour is a set (a gold band); each 3 of a colour, counted from the base, is a jar at the round's end (a frame)
+  // goods: each row with one of every colour is a set (a gold band); each JAR_GOODS of a colour, counted from the base, is a jar at the round's end (a frame)
   rrect(x0 + pad, top - 10, P - 2 * pad, base - top + 10, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'goods' });
   for (let c = 0; c < 5; c++) rrect(colX(c) - cw * 0.42, top - 4, cw * 0.84, base - top - 2, cw * 0.42, '#ffffff55');  // a groove per colour
   const n = sets(p), mk = G.making && G.making.who === i ? G.making : null, fade = mk && mk.c < 0 ? 1 - progress(mk, FADE_MS) : 1;
   for (let k = 0; k < n; k++) { rrect(x0 + pad + 2, rowY(k) - step / 2 + 1, P - 2 * pad - 4, step - 2, step / 2, '#f4cf4a77', '#c99a1a', 1.5); drawn.push({ k: 'setrow', o: i }); }
   p.goods.forEach((g, c) => {
-    for (let k = 0; k + 3 <= g; k += 3) { rrect(colX(c) - r - 3, rowY(k + 2) - r - 3, 2 * r + 6, 2 * step + 2 * r + 6, r + 3, null, '#6e3418', 2); drawn.push({ k: 'jargroup', o: i, c }); }
-    for (let k = mk && mk.c === c ? 3 : 0; k < g; k++) {  // the 3 flying into a jar are drawn with the jars
+    for (let k = 0; k + JAR_GOODS <= g; k += JAR_GOODS) { rrect(colX(c) - r - 3, rowY(k + JAR_GOODS - 1) - r - 3, 2 * r + 6, (JAR_GOODS - 1) * step + 2 * r + 6, r + 3, null, '#6e3418', 2); drawn.push({ k: 'jargroup', o: i, c }); }
+    for (let k = mk && mk.c === c ? JAR_GOODS : 0; k < g; k++) {  // the JAR_GOODS flying into a jar are drawn with the jars
       cx.globalAlpha = fade; dot(colX(c), rowY(k), r, COLOURS[c]); cx.globalAlpha = 1; drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), r, a: fade });
     }
   });
@@ -559,10 +560,10 @@ function drawJars() {  // big jars in a row; tap one to open it
   if (!fly) shade(0.35);  // while jars fly out of their edges the board stays bright, so the glowing edges show
   for (let k = 0; k < n; k++) {  // the jars just earned on the left, glowing; a gap; the jars still waiting
     const fresh = k < p.fresh, x = W / 2 + (k + (fresh ? 0 : gap) - (n + gap - 1) / 2) * s, y = H * 0.6 + (wait ? Math.sin(performance.now() / 300 + k) * 4 : 0);
-    if (growing && k === n - 1) {  // 3 goods fly from the stockpile into this jar, which grows as they shrink
+    if (growing && k === n - 1) {  // JAR_GOODS goods fly from the stockpile into this jar, which grows as they shrink
       const t = progress(mk, MAKE_MS), e = t * t * (3 - 2 * t), sp = stock(who);
       jarShape(x, y, z * e); drawn.push({ k: 'jar', o: who, growing: true });
-      for (let g = 0; g < 3; g++) { const gx = sp.colX(mk.c), gy = sp.rowY(g); dot(gx + (x - gx) * e, gy + (y - gy) * e, sp.r * (1 + 1.5 * e) * (1 - e) + 0.01, COLOURS[mk.c]); drawn.push({ k: 'flying', o: who, c: mk.c }); }
+      for (let g = 0; g < JAR_GOODS; g++) { const gx = sp.colX(mk.c), gy = sp.rowY(g); dot(gx + (x - gx) * e, gy + (y - gy) * e, sp.r * (1 + 1.5 * e) * (1 - e) + 0.01, COLOURS[mk.c]); drawn.push({ k: 'flying', o: who, c: mk.c }); }
       continue;
     }
     if (fresh && G.burst && G.burst.who === who && G.burst.edges[k]) {  // a jar just earned flies out of its edge (eased, popping up), then sits in the row

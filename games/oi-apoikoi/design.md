@@ -10,7 +10,7 @@ Labels used below:
 
 ## 1. The game in short (draft)
 
-Two players each build their own land from tiles with two terrain halves. Each round, tiles are laid out and players get them in turn or by bidding sets of goods. Placing a half next to the same terrain earns a jar, which the child opens at once by tapping it. Every square of land makes one good of its terrain each round. Three of the same leftover good become a jar. Jars hold gold coins (the points) or bonuses: a slot machine, stealing a tile, the first-player token, or a free tile. When the tiles run out, the longest row of coins wins.
+Two players each build their own land from tiles with two terrain halves. Each round, tiles are laid out and players get them in turn or by bidding sets of goods. Placing a half next to the same terrain earns a jar, which the child opens at once by tapping it. Every square of land makes one good of its terrain each round. Five of the same leftover good become a jar. Jars hold gold coins (the points) or bonuses: a slot machine, stealing a tile, the first-player token, or a free tile. When the tiles run out, the longest row of coins wins.
 
 ## 2. Rules
 
@@ -45,9 +45,9 @@ Two players each build their own land from tiles with two terrain halves. Each r
    - Owner rule: a tile is one rectangle, coloured half and half. The won tile stays where it is (in the top row at first): tap it to turn it, drag it and leave it anywhere, as often as you like, until it snaps into a place; before it snaps, the place is shown.
 5. **End of round.**
    - Owner rule (24 Nov): the round's end is its own moment, seen and heard, before anything else in it (built for now: a sun sets behind a horizon, with a falling chime).
-   - Owner rule: goods not spent are lost at the end of the round, but each 3 of the same good (for example 3 grain) become a jar (6 make 2). Sets don't become jars.
+   - Owner rule: goods not spent are lost at the end of the round, but each 5 of the same good become a jar (10 make 2; owner 24 Nov: 5, not 3). Sets don't become jars.
    - Owner rule: jars from leftover goods are opened at the end of the round.
-   - Owner rule (24 Nov): this is shown one group at a time: each 3 of a colour fly from the stockpile into a jar; then the leftover goods fade out.
+   - Owner rule (24 Nov): this is shown one group at a time: each 5 of a colour fly from the stockpile into a jar; then the leftover goods fade out.
    - Owner rule (24 Nov): one player turns his goods into jars and opens them, then the other (the first-player token holder first).
 
 ### Jars
@@ -97,7 +97,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 
 - Placing one half well forces the other half somewhere.
 - Matching edges for jars pulls toward one terrain. Sets (5 goods, one of each) for bidding pull toward variety.
-- Bidding goods wins tiles, while keeping 3 of the same good makes a jar.
+- Bidding goods wins tiles, while keeping 5 of the same good makes a jar.
 
 ## 5. Design sheet rows (required by `docs/design-rules.md`)
 
