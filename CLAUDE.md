@@ -32,12 +32,20 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 
 ## Testing
 
+Rules a machine can check are checked by the commit check (`.githooks/commit-msg`) and by the same check on GitHub on every push; the owner reviews every change to either. Being refused is the normal way these rules are kept; never bypass a check (no `--no-verify`, no turning hooks off, no editing a check to let a change through).
+
 - Before every change, re-read this Testing section.
-- Test first, in the real game. A flow test (`games/<game>/tools/flows.py`, run by `tools/harness.py flows`) does what the owner does: real page, real clicks, keys and drags at a real rate, his settings. For a bug, first a flow repeating his exact steps that fails the way he says; it stays forever.
-- A check measures what he notices. If he reports a gap, a delay or an order, the check measures that gap, delay or order.
-- Tests that guard earlier owner rules are never edited, loosened or deleted to fit a change. A failing old test is a found conflict.
+- **Test first.** For every owner point and every bug: first a flow that repeats his exact steps on screen and fails, then the code that makes it pass, then clean up. Checked: a commit that changes a game's code must add or change a flow in the same commit.
+- **Feature tests only, played like the owner.** A flow (`games/<game>/tools/flows.py`, run by `tools/harness.py flows`) uses the real page and does what he does: taps, keys and drags on what is drawn, at a real rate, his settings. It may set up a starting table; it never makes a move through the game's insides. Checked: flows that make moves through the game's insides are refused.
+- **Check what he sees.** A flow checks what is on screen (what is drawn, what he can read or count), not only numbers inside the game. If he reports a gap, a delay or an order, the check measures that gap, delay or order.
+- **Every bug report becomes a flow** named after his report, repeating his steps; it fails before the fix and stays forever.
+- **Random play.** Every game has a seeded random-play flow that plays through the screen and checks, after every move, the rules he can see (for example: goods shown match the land shown; jars shown match the matching edges).
+- **The whole test set runs on every commit** and on every push; one FAIL refuses it. No failing tests, ever.
+- **Fast.** A game's full run, browser start included, takes at most 10 seconds; checked. Waits are on the game's state with short limits, never fixed sleeps; one browser and one page per run; a fake clock for real-speed checks; loops inside the page wait with messages, not timers. Time every run; a slow test is fixed before anything else.
+- **Mutation testing** runs daily: a script breaks the game in small ways one at a time; every break no flow catches is a hole, reported to the owner, and gets a flow.
+- Tests that guard owner rules are never loosened or deleted to fit a change. When the owner changes a rule, its flow changes in the same commit and the commit message names the rule he changed. A failing old test is a found conflict.
 - Never change the game to make a test pass. If a test fails, first decide from the failure detail whether the game or the test is wrong.
-- Keep runs short (seconds each). Run only what the change can affect, in the foreground. If a point takes more than about five minutes, stop and tell the owner why in one line.
+- **One owner point per commit**: its flow, its code, the full run, commit, push.
 
 ## Debugging (read before touching any bug)
 
