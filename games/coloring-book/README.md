@@ -43,6 +43,7 @@ Flat brushes are held at one fixed angle, unless the turn switch in the brush po
 | `WARNINGS.md` | Traps found while working on this game. **Read first.** |
 | `owner-shots/` | The owner's pictures, named by date. |
 | `tools/harness.py` | Builds the game and runs its play-through tests. |
+| `tools/ci-checks.txt` | The list of every check of the game, run on GitHub on every push. |
 | `tools/flows.py` | Play-through tests (`SECTION:` markers): the real page, real clicks, keys, drags and touches, at a finger's speed, each on a small test paper. |
 | `tools/previews.py` | Paints the brush previews straight through the game's stroke code (under 2 minutes). |
 | `tools/looks.py`, `tools/looks/` | Saves every brush's normal stroke as a picture; the `brush_looks` test fails when a brush no longer looks like its picture. |

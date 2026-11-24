@@ -19,6 +19,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `src/index.html`: the game source; `build.py` makes `oi-apoikoi.html` from it, with the hand pictures put in.
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
 - `tools/flows.py`: flow tests, one per owner rule and bug report, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 7 s).
+- `tools/ci-checks.txt`: the list of every check of the game, run on GitHub on every push.
 - `tools/backdoors.txt`: what a flow may never contain (moves through the game's insides); the commit check refuses it.
 
 ## Running the checks

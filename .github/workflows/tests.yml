@@ -1,8 +1,10 @@
-# The same checks as the commit check, on GitHub, on every push and pull request (owner 24 Nov). See .githooks/game_checks.py.
+# On every push and pull request (owner 24 Nov):
+# - strict: the strict checks of the commit check (see .githooks/game_checks.py);
+# - full: every check of every game (each game's tools/ci-checks.txt), split over machines that run at once (see .githooks/ci_plan.py).
 name: tests
 on: [push, pull_request]
 jobs:
-  tests:
+  strict:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -12,3 +14,31 @@ jobs:
       - run: pip install playwright && python -m playwright install --with-deps chromium
       - run: git config core.hooksPath .githooks
       - run: python3 .githooks/ci_check.py ${{ github.event.before || 'HEAD~1' }}
+  plan:
+    runs-on: ubuntu-latest
+    outputs: { jobs: '${{ steps.plan.outputs.jobs }}' }
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: echo "jobs=$(python3 .githooks/ci_plan.py)" >> "$GITHUB_OUTPUT"
+  full:
+    needs: plan
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.jobs) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: pip install playwright numpy pillow && python -m playwright install --with-deps chromium
+      - run: git config core.hooksPath .githooks
+      - run: python3 .githooks/ci_run.py "${{ matrix.game }}" "${{ matrix.check }}" ${{ matrix.shard }} ${{ matrix.of }}
+  tests:  # the check main requires before a merge: passes only when the strict check and every full job passed
+    needs: [strict, full]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.strict.result }}" = success && test "${{ needs.full.result }}" = success

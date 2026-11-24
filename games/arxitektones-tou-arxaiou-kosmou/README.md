@@ -52,6 +52,7 @@ Each site also has one tempting wrong piece in its pile that makes the test fail
 | `WARNINGS.md` | Traps found while working on this game. **Read first.** |
 | `owner-shots/` | The owner's screenshots and recordings, named by date. |
 | `tools/harness.py` | Runs every check: `python3 tools/harness.py <mode>` (modes below). |
+| `tools/ci-checks.txt` | The list of every check of the game, run on GitHub on every push. |
 | `tools/flows.py` | Play-through tests: the real page, real mouse and keys, as the owner plays. |
 | `tools/cue-tests.js` | The cue rules as pass/fail checks. |
 | `tools/owner-tests.js` | Checks from the owner's lists: hand, pieces, levels, sounds, map, boats. |
