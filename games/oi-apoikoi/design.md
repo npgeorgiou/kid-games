@@ -18,6 +18,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Owner rule: 2 players. By default you play against the PC; another human can play instead.
 - Owner rule: the PC always does what is mathematically optimal, in every choice (pick, bid, place, jars, slot machine). For now (owner yes): the best expected result for this turn, not planning whole rounds ahead. To improve later.
 - Owner rule: every PC (or second player) action is fully visible, done slowly by a moving hand, as if a person were doing it.
+- Owner rule (24 Nov): whose turn it is is obvious: that player's area is lit and the other's dimmed, with a sound when the turn passes.
 - Open: more than 2 players (the owner doesn't know if the screen is big enough).
 
 ### Tiles and land
@@ -40,11 +41,14 @@ Two players each build their own land from tiles with two terrain halves. Each r
    - Owner rule: tiles you can't place are greyed (colours still visible) and can't be picked. With none to pick, your turn passes, slowly and clearly, and the other player plays again. No tile is thrown.
 4. **Placing.** Each player places his tiles in his own land.
    - Owner rule: one jar per matching edge, so one tile can earn several, and edges with the opponent's land count too. They are opened at once, during the round.
+   - Owner rule (24 Nov): it is shown: when the tile snaps (with a snap sound) each matching edge glows, and each jar comes out of its edge and flies to the jar row, one after another.
    - Owner rule: a tile is one rectangle, coloured half and half. The won tile stays where it is (in the top row at first): tap it to turn it, drag it and leave it anywhere, as often as you like, until it snaps into a place; before it snaps, the place is shown.
 5. **End of round.**
+   - Owner rule (24 Nov): the round's end is its own moment, seen and heard, before anything else in it (built for now: a sun sets behind a horizon, with a falling chime).
    - Owner rule: goods not spent are lost at the end of the round, but each 3 of the same good (for example 3 grain) become a jar (6 make 2). Sets don't become jars.
    - Owner rule: jars from leftover goods are opened at the end of the round.
    - Owner rule (24 Nov): this is shown one group at a time: each 3 of a colour fly from the stockpile into a jar; then the leftover goods fade out.
+   - Owner rule (24 Nov): one player turns his goods into jars and opens them, then the other (the first-player token holder first).
 
 ### Jars
 - Owner rule: the child opens jars by tapping big jars lined up on screen. Opening one yourself is the fun.
@@ -72,6 +76,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
   - Each machine shows only 3 of the 7 kinds (a 1 in 3 chance per reroll).
   - The first reroll is free.
 - Owner rule (for now): 7 pictures, each worth 1; 2 the same wins 2, 3 the same wins 3; you can stop at any time.
+- Owner rule (24 Nov): the wheels roll fast, then slow down and stop one after another (first, second, third), with sounds.
 
 ### Points and winning
 - Owner rule: points are gold coins drawn one by one, with no numbers. At the end, the players' coins are lined up side by side and the longer row wins.
@@ -120,8 +125,8 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - The PC counts every jar as worth the same and judges a move by the jars it earns this turn.
 - The PC counts a jar as about 0.7 coins (its coin contents only) and a good as a third of a jar; with these values the best slot play is to stop at once, so the PC never re-spins.
 - Tiles nobody could place in a round go back under the pile.
-- Sounds (owner 24 Nov: simple built-in sounds until his own files come): one short tone pattern each for picking a tile, a bid, a tile snapping in, a pass, opening a jar, a coin, a jar made from goods, the slot machine spinning, each wheel stopping, a slot win, and a steal.
-- The PC's hand: Fluent Emoji pictures; it points to tap, grabs to carry a tile, opens to let go, is raised when the PC passes.
+- Sounds (owner 24 Nov: simple built-in sounds until his own files come; no blips, a jar breaks when opened): one soft family: wood knocks for picking, snapping and a wheel stopping; a clay break for opening a jar; a clink for coins; soft chimes for bids, passes, jars made from goods and slot wins; a whoosh for the slot spinning and a steal.
+- The PC's hand: Fluent Emoji pictures; it points to tap and to carry a tile (owner 24 Nov), opens to let go, is raised when the PC passes.
 
 ## 7. Still open (all in one place)
 

@@ -26,38 +26,47 @@ canvas { display: block; width: 100vw; height: 100vh; }
 // SECTION: SETUP -- colours, the board, the random source, speeds, test switches
 const COLOURS = ['#e8c547', '#3f86c8', '#8e5bb0', '#e27fb0', '#9a6a3a'];  // the five lands, most common first; what each land is comes later
 const HALVES = [19, 18, 16, 14, 13];  // the 80 halves of the 40 tiles: about 24/22/20/18/16% (built for now)
-const BORDER = ['#22a33a', '#d42a2a'];  // the kid's land green, the PC's red
+const BORDER = ['#22a33a', '#d42a2a'], TINT = ['#eef8e6', '#fbebe8'];  // the kid's land green, the PC's red; their areas' light tints
 const BONUSES = ['slot', 'steal', 'first', 'tile', 'jar', 'set', 'coins2'];  // the other half of jars, equal shares
 const COLS = 20, ROWS = 13, STARTS = [[4, 6], [14, 6]];  // the start tiles sit at the centres of the board's two halves
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half is, by turn
 const params = new URLSearchParams(location.search);
 let fast = params.has('fast');  // tests: the PC moves without waiting
 const HAND_SPEED = 450;  // px per second: slow enough to follow
-const MAKE_MS = 800, FADE_MS = 600;  // at the round's end: 3 goods flying into a jar; the leftovers fading out
+const SUNSET_MS = 1600, MAKE_MS = 800, FADE_MS = 600, FLY_MS = 700, EDGE_GAP = 250, GLOW_MS = 1800;  // ... ; a jar flying out of its matched edge, the next one after EDGE_GAP; the edge glows GLOW_MS  // at the round's end: 3 goods flying into a jar; the leftovers fading out
 let rnd = Math.random;
 function seeded(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 // Time passes only for the game that asked: when a new game has started, an old game's pause or hand move never ends,
 // so whatever the old game was doing (a jar, a move, a turn) stops there and never touches the new game.
 const pause = ms => { const my = G; return fast ? Promise.resolve() : new Promise(r => setTimeout(() => { if (G === my) r(); }, ms)); };
 
-// SECTION: SOUNDS -- one simple built-in sound per thing that happens (owner 24 Nov), until his own files come
-const SOUNDS = {  // notes in Hz, one after another; wave shape; length of each note in seconds
-  pick: [[660], 'square', 0.07], bid: [[392, 523], 'triangle', 0.1], snap: [[180, 120], 'triangle', 0.09], pass: [[330, 247], 'sine', 0.18],
-  jar: [[523, 659, 784], 'sine', 0.09], coin: [[988, 1319], 'square', 0.07], made: [[392, 494, 587], 'triangle', 0.08],
-  spin: [[220, 260, 220, 260], 'square', 0.04], stop: [[440], 'triangle', 0.06], win: [[523, 659, 784, 1047], 'square', 0.09], steal: [[700, 350], 'sawtooth', 0.1],
+// SECTION: SOUNDS -- one soft family of built-in sounds, one per thing that happens (owner 24 Nov), until his own files come
+// Made like real objects (the standard Web Audio recipes): a knock is a short tone that drops in pitch, like wood; a clink is a bell-like
+// pair of partials, like metal; a break is a burst of filtered noise with a few shards, like clay; a chime is soft sine notes; a whoosh is noise swept upward.
+const SOUNDS = {  // kind and its notes (Hz)
+  pick: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], bid: ['chime', [392, 523]], pass: ['chime', [392, 294]],
+  jar: ['break', []], coin: ['clink', [1320, 1760]], made: ['chime', [392, 494, 587]], win: ['chime', [523, 659, 784, 1047]],
+  edge: ['chime', [784]], turn: ['chime', [587, 784]], roundend: ['chime', [784, 659, 523, 392]], spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
 };
 let audio = null, heard = [];  // heard: every sound played in this game, in order (the flows read it)
-function sound(name) {
+function noise(len) { const b = audio.createBuffer(1, audio.sampleRate * len, audio.sampleRate), d = b.getChannelData(0); for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1; const n = audio.createBufferSource(); n.buffer = b; return n; }
+function env(t, peak, len, attack = 0.004) { const g = audio.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + len); g.connect(audio.destination); return g; }
+function tone(f, t, len, peak, type = 'sine', drop = 1) { const o = audio.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); if (drop !== 1) o.frequency.exponentialRampToValueAtTime(f * drop, t + len); o.connect(env(t, peak, len)); o.start(t); o.stop(t + len); }
+const MAKE = {
+  knock: (ns, t, times) => times ? times.forEach(d => tone(ns[0], t + d, 0.04, 0.12, 'triangle', 0.6))  // a small click at each of the given times (a wheel's pictures passing)
+    : ns.forEach((f, k) => tone(f, t + k * 0.07, 0.12, 0.3, 'triangle', 0.55)),
+  clink: (ns, t) => ns.forEach((f, k) => { tone(f, t + k * 0.06, 0.3, 0.1); tone(f * 2.76, t + k * 0.06, 0.15, 0.04); }),
+  chime: (ns, t, times) => (times || ns.map((f, k) => k * 0.09)).forEach((d, k) => tone(ns[k % ns.length], t + d, 0.45, 0.12)),
+  break: (ns, t) => {
+    const n = noise(0.4), bp = audio.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 0.7; n.connect(bp).connect(env(t, 0.45, 0.35, 0.002)); n.start(t);
+    for (let k = 0; k < 4; k++) tone(1400 + Math.random() * 1400, t + 0.03 + Math.random() * 0.18, 0.06, 0.12, 'triangle', 0.7);  // shards
+  },
+  whoosh: (ns, t) => { const n = noise(0.35), bp = audio.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.2; bp.frequency.setValueAtTime(400, t); bp.frequency.exponentialRampToValueAtTime(1600, t + 0.3); n.connect(bp).connect(env(t, 0.2, 0.32, 0.06)); n.start(t); },
+};
+function sound(name, times) {
   heard.push(name); if (fast) return;  // at test speed everything happens at once: sounds are only noted, not played
-  try {
-    audio = audio || new AudioContext(); if (audio.state === 'suspended') audio.resume();
-    const [notes, type, len] = SOUNDS[name], t0 = audio.currentTime;
-    notes.forEach((f, k) => {
-      const o = audio.createOscillator(), g = audio.createGain(), t = t0 + k * len;
-      o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + len * 0.95);
-      o.connect(g).connect(audio.destination); o.start(t); o.stop(t + len);
-    });
-  } catch (e) { /* no sound on this machine: the game goes on */ }
+  try { audio = audio || new AudioContext(); if (audio.state === 'suspended') audio.resume(); const [kind, ns] = SOUNDS[name]; MAKE[kind](ns, audio.currentTime, times); }
+  catch (e) { /* no sound on this machine: the game goes on */ }
 }
 
 // SECTION: MODEL -- the shared board, tiles, matches, goods and sets
@@ -70,11 +79,12 @@ function mark(t) { halves(t.x, t.y, t.r).forEach(([a, b], h) => { G.board ^= cel
 function put(t) { mark(t); G.tiles.set(t.id, t); halves(t.x, t.y, t.r).forEach(([a, b], h) => G.cells.set(key(a, b), { x: a, y: b, c: t.cs[h], o: t.o, t: t.id })); }
 function lift(t) { mark(t); halves(t.x, t.y, t.r).forEach(([a, b]) => G.cells.delete(key(a, b))); G.tiles.delete(t.id); }
 const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS && !G.cells.has(key(x, y));
-function matchesAt(cs, x, y, r, owner) {  // edges where a half meets the same colour (owner: only that player's land)
-  let m = 0;
-  halves(x, y, r).forEach(([hx, hy], i) => { for (const d of DIRS) { const s = G.cells.get(key(hx + d[0], hy + d[1])); if (s && s.c === cs[i] && (owner == null || s.o === owner)) m++; } });
-  return m;
+function matchEdges(cs, x, y, r, owner) {  // the edges where a half meets the same colour (owner: only that player's land): the half's square and the side
+  const out = [];
+  halves(x, y, r).forEach(([hx, hy], i) => DIRS.forEach((d, side) => { const s = G.cells.get(key(hx + d[0], hy + d[1])); if (s && s.c === cs[i] && (owner == null || s.o === owner)) out.push({ x: hx, y: hy, d: side }); }));
+  return out;
 }
+const matchesAt = (cs, x, y, r, owner) => matchEdges(cs, x, y, r, owner).length;
 const spotMemo = new Map();  // the places for a tile only change when the board does: worked out once per board
 function spots(cs, r, i) {  // where player i can place a tile: two free squares, at least one matching edge with his own land; m = the jars it earns
   const mk = G.board + '|' + cs + '|' + r + '|' + i;
@@ -169,6 +179,7 @@ async function play() {
     while (G === my && G.draft.some(t => t) && passes < 2) {
       const other = 1 - turn, P = G.players;
       if (P[turn].got >= 2 && P[other].got < 2 && passed !== other) turn = 1 - turn;  // 2 tiles each, unless the other has just passed
+      setTurn(turn);
       if (!G.draft.some((t, k) => pickable(k, turn))) { await pass(turn); passes++; passed = turn; turn = 1 - turn; continue; }
       passes = 0; passed = null;
       const k = await pick(turn); if (G !== my) return;
@@ -183,14 +194,15 @@ async function play() {
     }
     if (G !== my) return;
     G.bag.push(...G.draft.filter(t => t)); G.draft = [];  // tiles nobody could place are not thrown: they go back under the pile (built for now)
-    G.phase = 'end';
-    for (const i of [G.first ?? 0, 1 - (G.first ?? 0)]) { await goodsToJars(i); if (G !== my) return; }
-    for (const i of [G.first ?? 0, 1 - (G.first ?? 0)]) { await openJars(i); if (G !== my) return; }
+    G.phase = 'end'; G.sunset = performance.now(); sound('roundend');  // the round's end is its own moment: a sun sets, a falling chime
+    await pause(SUNSET_MS); if (G !== my) return; G.sunset = null;
+    for (const i of [G.first ?? 0, 1 - (G.first ?? 0)]) { setTurn(i); await goodsToJars(i); if (G !== my) return; await openJars(i); if (G !== my) return; }  // one player gains and opens, then the other
   }
   if (G !== my) return;
   const [a, b] = G.players.map(p => p.coins);
   G.over = true; G.winner = a > b ? 0 : b > a ? 1 : -1;
 }
+function setTurn(i) { if (G.turn !== i) { G.turn = i; sound('turn'); } }  // whose turn it is: the one place that says so; the screen lights his area
 async function goodsToJars(i) {  // each 3 of a colour fly into a jar, one group at a time; then the leftovers fade out and are lost
   const p = G.players[i];
   for (let c = 0; c < 5; c++) while (p.goods[c] >= 3) { G.making = { who: i, c, t0: performance.now() }; await pause(MAKE_MS); p.goods[c] -= 3; p.jars++; sound('made'); }
@@ -227,10 +239,13 @@ async function wantsBid(i, tile, n) {
 }
 async function place(i, cs, pos) {  // the tile lies at pos until it snaps
   const { x, y, r } = await choose('place', i, { tile: cs, pos }, () => pcPlace(bestPlace(cs, i)));
-  const m = matchesAt(cs, x, y, r);
+  const edges = matchEdges(cs, x, y, r), m = edges.length;
   put({ id: 't' + (tileNo++), cs, x, y, r, o: i });
   sound('snap'); cs.forEach(c => G.players[i].goods[c]++);  // a placed land makes its goods at once (owner 24 Nov), and again at each round's start
   G.players[i].jars += m; G.players[i].fresh = m;  // the jars this tile earned come first, shown apart from jars still waiting
+  G.burst = { who: i, edges, t0: performance.now() };  // each matched edge glows and a jar flies out of it to the jar row, one after another
+  edges.forEach((e, k) => sound('edge', [k * EDGE_GAP / 1000]));
+  if (m) await pause(FLY_MS + (m - 1) * EDGE_GAP);
   await openJars(i);
 }
 
@@ -290,17 +305,26 @@ function slotPlan(w0, coins) {  // the PC's best choice: stop, or pay 1 coin to 
   };
   const c = Math.min(coins, 4); V(w0, c); return memo.get(w0.join() + '|' + c).sel;
 }
-const ROLL_MS = [700, 1000, 1300];  // each wheel rolls this long, so they stop one after another
+// A wheel is a reel (the standard slot-machine model): a strip of the pictures in order, moving at a speed that starts high and eases out
+// (cubic) to rest exactly on its new picture; it ticks each time a picture passes, so the ticks slow down with it.
+const ROLL_MS = [1100, 1600, 2100], LAPS = [2, 3, 4];  // each wheel rolls longer than the one before, so they stop first, second, third
+const easeOut = u => 1 - Math.pow(1 - u, 3);
+function reelAt(r, now) { const u = Math.min(1, Math.max(0, (now - r.t0) / r.ms)); return r.from + (r.to - r.from) * easeOut(u); }  // the strip's place, in pictures
 async function roll(wheels) {  // the chosen wheels get their new pictures, roll, and stop one by one
   const now = performance.now();
-  wheels.forEach(k => { G.slot.w[k] = spin(); G.slot.until[k] = fast ? 0 : now + ROLL_MS[k]; });
+  wheels.forEach(k => {
+    const s = spin(), from = G.slot.reel[k].to, base = Math.floor(from), to = base + ((s - base) % SYMBOLS + SYMBOLS) % SYMBOLS + SYMBOLS * LAPS[k];
+    G.slot.w[k] = s; G.slot.reel[k] = { t0: now, ms: fast ? 0 : ROLL_MS[k], from, to };
+    const ticks = []; for (let m = Math.floor(from) + 1; m <= to; m++) ticks.push(ROLL_MS[k] / 1000 * (1 - Math.cbrt(1 - (m - from) / (to - from))));  // when picture m passes
+    sound('roll', ticks);
+  });
   sound('spin'); let t = 0;
   for (const k of wheels.slice().sort((a, b) => ROLL_MS[a] - ROLL_MS[b])) { await pause(ROLL_MS[k] - t); t = ROLL_MS[k]; sound('stop'); }
   await pause(100);
 }
 async function slot(i) {
   const p = G.players[i];
-  G.slot = { who: i, w: [0, 0, 0], sel: [false, false, false], until: [0, 0, 0] };
+  G.slot = { who: i, w: [0, 0, 0], sel: [false, false, false], reel: [0, 1, 2].map(() => ({ t0: 0, ms: 0, from: 0, to: 0 })) };
   await roll([0, 1, 2]);
   for (;;) {
     const w = G.slot.w;
@@ -327,7 +351,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); heard = []; G = { board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, shown: null, making: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; G = { board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, turn: null, shown: null, making: null, burst: null, sunset: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; });
@@ -350,6 +374,7 @@ function L() {
 function draftSlot(k) { const { T, ds } = L(), gap = 2 * ds + 46; return [W / 2 + (k - 1.5) * gap, T / 2]; }  // the 4 places in the top row
 function tileCentre(x, y, r) { const { s, ox, oy } = L(), d = DIRS[r]; return [ox + (x + 0.5 + d[0] / 2) * s, oy + (y + 0.5 + d[1] / 2) * s]; }
 function tileBox(cxm, cym, s, r) { const d = DIRS[r]; const w = d[0] ? 2 * s : s, h = d[1] ? 2 * s : s; return { x: cxm - w / 2, y: cym - h / 2, w, h }; }
+function edgePoint(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; }  // the middle of a square's side
 function shownSpot() { return [W / 2, H * 0.2 + 80]; }  // where an opened jar shows what it held
 function homeSpot() { const { P } = L(); return [W - P / 2, H * 0.72]; }  // the PC's hand rests in its panel
 function snapSpot() {  // the nearest place the tile in hand fits, if it lies close to it
@@ -402,8 +427,8 @@ function content(j, x, y, s) {  // what a jar held
   else if (j.k === 'set') setShape(x, y, s * 0.3);
 }
 const HANDS = /*HANDS*/{};  // the hand pictures, put in by build.py
-const GESTURES = {  // picture and its active point (of 32): point to tap, grab (a fist) to hold a tile, open to let go, raised to pass
-  point: ['backhand_index_pointing_up', 14.5, 2.5], grab: ['raised_fist', 16, 16], open: ['hand_with_fingers_splayed', 16, 9], raised: ['raised_hand', 16, 9],
+const GESTURES = {  // picture and its active point (of 32): point to tap and to hold a tile (owner 24 Nov), open to let go, raised to pass
+  point: ['backhand_index_pointing_up', 14.5, 2.5], grab: ['backhand_index_pointing_up', 14.5, 2.5], open: ['hand_with_fingers_splayed', 16, 9], raised: ['raised_hand', 16, 9],
 };
 const handPics = Object.fromEntries(Object.entries(GESTURES).map(([g, [f]]) => {  // each picture drawn once onto its own canvas: a picture drawn every frame would be redrawn from its shapes each time
   const c = document.createElement('canvas'); c.width = c.height = 256; const im = new Image();
@@ -413,6 +438,7 @@ function hand(h) {  // the PC's hand, the only hand drawn; a press shows a ring 
   const [, ax, ay] = GESTURES[h.g], im = handPics[h.g], z = h.down ? 84 : 92, k = z / 32;
   if (h.down) { cx.strokeStyle = '#ffffffcc'; cx.lineWidth = 4; cx.beginPath(); cx.arc(h.x, h.y, 20, 0, 7); cx.stroke(); }
   if (im.ready) cx.drawImage(im, h.x - ax * k, h.y - ay * k, z, z);
+  drawn.push({ k: 'hand', pic: GESTURES[h.g][0] });
 }
 
 // SECTION: DRAWING -- each screen part
@@ -443,10 +469,19 @@ function drawBoard() {
     });
     cx.strokeStyle = BORDER[o]; cx.stroke();
   }
+  const B = G.burst, age = B ? performance.now() - B.t0 : GLOW_MS;  // the matched edges glow gold, then fade
+  if (age < GLOW_MS) B.edges.forEach(e => {
+    const [ex, ey] = edgePoint(e.x, e.y, e.d), [dx, dy] = DIRS[e.d], a = Math.min(1, (GLOW_MS - age) / 500);
+    cx.globalAlpha = a; cx.strokeStyle = '#ffe27a'; cx.lineWidth = s * 0.22; cx.beginPath(); cx.moveTo(ex - dy * s * 0.45, ey - dx * s * 0.45); cx.lineTo(ex + dy * s * 0.45, ey + dx * s * 0.45); cx.stroke();
+    cx.strokeStyle = '#fffbe6'; cx.lineWidth = s * 0.08; cx.stroke(); cx.globalAlpha = 1; drawn.push({ k: 'edgeglow', x: ex, y: ey });
+  });
   cx.lineCap = 'butt';
 }
 function drawDraft() {
   const { T, P, ds } = L(), who = wait ? wait.who : 0;
+  const [ax] = draftSlot(0), [bx, by] = draftSlot(3);  // the market: a tray with a place for each tile on offer
+  rrect(ax - ds - 22, by - ds / 2 - 18, bx - ax + 2 * ds + 44, ds + 36, 18, '#ffffff30');
+  for (let k = 0; k < 4; k++) if (!G.draft[k]) { const [x, y] = draftSlot(k); rrect(x - ds, y - ds / 2, 2 * ds, ds, ds * 0.14, '#00000014'); }  // an empty place shows as a recess
   G.draft.forEach((t, k) => {
     const [x, y] = draftSlot(k), sel = k === G.chosen;
     if (sel) { rrect(x - ds - 12, y - ds / 2 - 12, 2 * ds + 24, ds + 24, 14, '#ffe9a8', '#e0a020', 4); drawn.push({ k: 'frame' }); }  // only the tile being bid on is framed
@@ -459,30 +494,44 @@ function drawDraft() {
       answer(k);
     });
   });
-  for (let k = 0; k < Math.ceil(G.bag.length / 4); k++) rrect(P + 14 + k * 16, T / 2 - ds / 2, 11, ds, 4, '#cdb991');  // rounds left
+  const layers = Math.ceil(G.bag.length / 4), px = P + 30 + ds, py = T / 2 + 6;  // the pile: a stack of face-down tiles, one layer per round left
+  for (let k = 0; k < layers; k++) { const y = py - k * 6; rrect(px - ds, y - ds / 2, 2 * ds, ds, ds * 0.14, '#c9ad7f', '#8a6d42', 2); }
+  drawn.push({ k: 'pile', layers });
 }
-function stock(i) {  // where player i's goods stand: a column per colour, stacking upward from a base line
-  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, cw = (P - 24) / 5, r = Math.min(11, cw * 0.38), top = 84, base = H * 0.6, most = Math.max(1, ...p.goods), step = Math.min(r * 2.3, (base - top - r) / most);
-  return { r, step, base, colX: c => x0 + 12 + cw * (c + 0.5), rowY: k => base - r - k * step };
+function stock(i) {  // player i's area, top to bottom: his face; the goods tray (a groove per colour, goods stacking upward, spaced apart); the coins tray
+  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, pad = 16, cw = (P - 2 * pad - 8) / 5, top = 104, base = Math.round(H * 0.62);
+  const most = Math.max(4, ...p.goods), step = Math.min(cw * 0.92, (base - top - 12) / most), r = Math.min(cw * 0.36, step / 2 - 2.5);  // a tall column squeezes its goods, never the gaps between them
+  return { x0, pad, cw, top, base, r, step, colX: c => x0 + pad + 4 + cw * (c + 0.5), rowY: k => base - 8 - step / 2 - k * step, coinTop: base + 18 };
 }
+const flying = () => G.burst && G.burst.edges.length && performance.now() < G.burst.t0 + FLY_MS + (G.burst.edges.length - 1) * EDGE_GAP;
 const progress = (m, ms) => Math.min(1, (performance.now() - m.t0) / (fast ? 1 : ms));
+function face(x, y, r, col) {  // a player: a round face in his colour
+  dot(x, y, r, col); dot(x - r * 0.35, y - r * 0.15, r * 0.13, '#fff'); dot(x + r * 0.35, y - r * 0.15, r * 0.13, '#fff');
+  cx.strokeStyle = '#fff'; cx.lineWidth = r * 0.12; cx.lineCap = 'round'; cx.beginPath(); cx.arc(x, y + r * 0.05, r * 0.45, 0.5, Math.PI - 0.5); cx.stroke(); cx.lineCap = 'butt';
+}
 function drawPanel(i) {
-  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, cxm = x0 + P / 2, turn = wait && wait.who === i;
-  rrect(x0 + 6, 8, P - 12, H - 16, 16, turn ? '#fff8e8' : '#f6ecd6', BORDER[i], turn ? 6 : 3);
-  dot(cxm, 44, 24, BORDER[i]); if (G.first === i) star(cxm, 44, 18);
-  // goods: a column per colour, stacking upward from a base line (a tall column squeezes, it never widens the panel);
-  // each row with one of every colour is a set (a gold band); each 3 of a colour, counted from the base, is a jar at the round's end (a frame)
-  const { r, step, base, colX, rowY } = stock(i), n = sets(p), mk = G.making && G.making.who === i ? G.making : null, fade = mk && mk.c < 0 ? 1 - progress(mk, FADE_MS) : 1;
-  for (let k = 0; k < n; k++) { rrect(x0 + 10, rowY(k) - step / 2, P - 20, step, step / 2, '#f4cf4a66', '#c99a1a', 1.5); drawn.push({ k: 'setrow', o: i }); }
+  const { P } = L(), p = G.players[i], lit = G.turn === i, { x0, pad, cw, top, base, r, step, colX, rowY, coinTop } = stock(i), cxm = x0 + P / 2;
+  if (lit) rrect(x0 + 2, 4, P - 4, H - 8, 20, null, BORDER[i] + '66', 10);  // the player whose turn it is: his area glows in his colour
+  rrect(x0 + 6, 8, P - 12, H - 16, 16, lit ? TINT[i] : '#efe6d4', BORDER[i], lit ? 5 : 2);
+  drawn.push({ k: 'panel', o: i, lit });
+  face(cxm, 54, 30, BORDER[i]); drawn.push({ k: 'avatar', o: i });
+  if (G.first === i) star(cxm + 46, 34, 16);  // the first-player token, beside his face
+  // goods: each row with one of every colour is a set (a gold band); each 3 of a colour, counted from the base, is a jar at the round's end (a frame)
+  rrect(x0 + pad, top - 10, P - 2 * pad, base - top + 10, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'goods' });
+  for (let c = 0; c < 5; c++) rrect(colX(c) - cw * 0.42, top - 4, cw * 0.84, base - top - 2, cw * 0.42, '#ffffff55');  // a groove per colour
+  const n = sets(p), mk = G.making && G.making.who === i ? G.making : null, fade = mk && mk.c < 0 ? 1 - progress(mk, FADE_MS) : 1;
+  for (let k = 0; k < n; k++) { rrect(x0 + pad + 2, rowY(k) - step / 2 + 1, P - 2 * pad - 4, step - 2, step / 2, '#f4cf4a77', '#c99a1a', 1.5); drawn.push({ k: 'setrow', o: i }); }
   p.goods.forEach((g, c) => {
-    for (let k = 0; k + 3 <= g; k += 3) { rrect(colX(c) - r - 3, rowY(k + 2) - r - 3, 2 * r + 6, 2 * step + 2 * r + 6, r, null, '#6e3418', 2); drawn.push({ k: 'jargroup', o: i, c }); }
+    for (let k = 0; k + 3 <= g; k += 3) { rrect(colX(c) - r - 3, rowY(k + 2) - r - 3, 2 * r + 6, 2 * step + 2 * r + 6, r + 3, null, '#6e3418', 2); drawn.push({ k: 'jargroup', o: i, c }); }
     for (let k = mk && mk.c === c ? 3 : 0; k < g; k++) {  // the 3 flying into a jar are drawn with the jars
-      cx.globalAlpha = fade; dot(colX(c), rowY(k), r, COLOURS[c]); cx.globalAlpha = 1; drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), a: fade });
+      cx.globalAlpha = fade; dot(colX(c), rowY(k), r, COLOURS[c]); cx.globalAlpha = 1; drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), r, a: fade });
     }
   });
-  const cr = Math.min(12, (P - 24) / 11), cy0 = base + 24;  // coins, five to a row
-  for (let k = 0; k < p.coins; k++) coin(x0 + 14 + cr + (k % 5) * cr * 2.15, cy0 + Math.floor(k / 5) * cr * 2.15, cr);
+  const cr = Math.min(12, (P - 2 * pad - 16) / 5 / 2 - 2.5), rows = Math.max(1, Math.ceil(p.coins / 5));  // coins: five to a row, spaced apart
+  rrect(x0 + pad, coinTop, P - 2 * pad, rows * (2 * cr + 6) + 14, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'coins' });
+  for (let k = 0; k < p.coins; k++) { const x = x0 + pad + 8 + cr + (k % 5) * (2 * cr + 5), y = coinTop + 10 + cr + Math.floor(k / 5) * (2 * cr + 6); coin(x, y, cr); drawn.push({ k: 'coin', o: i, x, y, r: cr }); }
   for (let k = 0; k < p.bid; k++) setShape(cxm + (k - (p.bid - 1) / 2) * 34, H - 60, 15);  // the sets bid now
+  if (!lit) { cx.fillStyle = 'rgba(120,110,95,0.38)'; cx.beginPath(); cx.roundRect(x0 + 6, 8, P - 12, H - 16, 16); cx.fill(); }  // the other player's area is dimmed
 }
 function drawHeld() {  // the tile in hand where it lies, and the place it will snap to
   const { s } = L(), sp = snapSpot(), [x, y] = wait.pos, b = tileBox(x, y, s, wait.r);
@@ -504,19 +553,26 @@ function drawBid() {  // match the bid with your sets, or let the tile go
   cx.strokeStyle = '#a83a2a'; cx.beginPath(); cx.moveTo(x + 92, y + 44); cx.lineTo(x + 138, y + 90); cx.moveTo(x + 138, y + 44); cx.lineTo(x + 92, y + 90); cx.stroke(); cx.lineCap = 'butt';
   btn('letgo', x + 20, y + 20, 190, 94, () => answer(false));
 }
+function glow(x, y, z) { dot(x, y, z * 0.6, '#ffe27a88'); drawn.push({ k: 'jarglow', x, y, r: z * 0.6 }); }  // a jar just earned glows
 function drawJars() {  // big jars in a row; tap one to open it
-  const mk = !wait && !G.shown ? G.making : null, who = wait ? wait.who : G.shown ? G.shown.who : mk.who, p = G.players[who], growing = mk && mk.c >= 0, n = p.jars + (growing ? 1 : 0), gap = p.fresh && p.fresh < n ? 0.6 : 0, s = Math.min(130, W * 0.7 / Math.max(1, n + gap));
-  shade(0.35);
+  const mk = !wait && !G.shown ? G.making : null, fly = flying() ? G.burst : null, who = wait ? wait.who : G.shown ? G.shown.who : mk ? mk.who : fly.who, p = G.players[who], growing = mk && mk.c >= 0, n = p.jars + (growing ? 1 : 0), gap = p.fresh && p.fresh < n ? 0.6 : 0, z = Math.min(110, W * 0.7 / Math.max(1, n + gap) / 1.5), s = z * 1.5;  // z: a jar's size; s: the space each jar has (its glow fits inside with room to spare)
+  if (!fly) shade(0.35);  // while jars fly out of their edges the board stays bright, so the glowing edges show
   for (let k = 0; k < n; k++) {  // the jars just earned on the left, glowing; a gap; the jars still waiting
     const fresh = k < p.fresh, x = W / 2 + (k + (fresh ? 0 : gap) - (n + gap - 1) / 2) * s, y = H * 0.6 + (wait ? Math.sin(performance.now() / 300 + k) * 4 : 0);
-    if (fresh) dot(x, y, s * 0.5, '#ffe27a88');
     if (growing && k === n - 1) {  // 3 goods fly from the stockpile into this jar, which grows as they shrink
       const t = progress(mk, MAKE_MS), e = t * t * (3 - 2 * t), sp = stock(who);
-      jarShape(x, y, s * 0.85 * e); drawn.push({ k: 'jar', o: who, growing: true });
+      jarShape(x, y, z * e); drawn.push({ k: 'jar', o: who, growing: true });
       for (let g = 0; g < 3; g++) { const gx = sp.colX(mk.c), gy = sp.rowY(g); dot(gx + (x - gx) * e, gy + (y - gy) * e, sp.r * (1 + 1.5 * e) * (1 - e) + 0.01, COLOURS[mk.c]); drawn.push({ k: 'flying', o: who, c: mk.c }); }
       continue;
     }
-    jarShape(x, y, s * 0.85); drawn.push({ k: 'jar', o: who, new: fresh });
+    if (fresh && G.burst && G.burst.who === who && G.burst.edges[k]) {  // a jar just earned flies out of its edge (eased, popping up), then sits in the row
+      const [ex, ey] = edgePoint(G.burst.edges[k].x, G.burst.edges[k].y, G.burst.edges[k].d), u = fast ? 1 : Math.min(1, Math.max(0, (performance.now() - G.burst.t0 - k * EDGE_GAP) / FLY_MS));
+      if (u <= 0) continue;
+      const e = easeOut(u), jx = ex + (x - ex) * e, jy = ey + (y - ey) * e - Math.sin(Math.PI * u) * 60, zz = z * (0.3 + 0.7 * Math.min(1, u * 1.6));
+      if (u >= 1) glow(x, y, z);
+      jarShape(jx, jy, zz); drawn.push({ k: 'jar', o: who, new: true, x: jx, y: jy, size: zz });
+      if (u < 1) continue;
+    } else { if (fresh) glow(x, y, z); jarShape(x, y, z); drawn.push({ k: 'jar', o: who, new: fresh, x, y, size: z }); }
     if (wait && wait.kind === 'jar') btn('jar-' + k, x - s / 2, y - s / 2, s, s, () => answer());
   }
   if (G.shown) {  // what the jar held, and a short label saying what it means
@@ -530,32 +586,47 @@ function slotPrize(w) {  // what taking now gives: 2 or 3 of the picture that re
   const c = w.map(s => w.filter(t => t === s).length), n = Math.max(...c);
   return n >= 2 ? { s: w[c.indexOf(n)], n } : null;
 }
-function label(text, x, y, size, col, forWhat) { cx.fillStyle = col; cx.font = 'bold ' + size + 'px sans-serif'; cx.textAlign = 'center'; cx.fillText(text, x, y); cx.textAlign = 'start'; drawn.push({ k: 'label', text, for: forWhat }); }
 function drawSlot() {  // three wheels; tap the ones to spin again, pay 1 coin to spin them, or take what the wheels show
   const S = G.slot, x = W / 2, y = H / 2, ww = 140, live = wait && wait.kind === 'slot', now = performance.now(), p = G.players[S.who];
   shade(0.4); rrect(x - 280, y - 210, 560, 420, 30, '#7a2f2f', BORDER[S.who], 6);
-  coin(x - 230, y - 180, 14); label('' + p.coins, x - 200, y - 172, 24, '#ffe9a8', 'coins');  // the coins you have
+  for (let k = 0; k < p.coins; k++) coin(x - 250 + 14 + (k % 16) * 30, y - 186 + Math.floor(k / 16) * 26, 12);  // the coins you have, as coins
+  drawn.push({ k: 'pic', for: 'coins', n: p.coins });
   S.w.forEach((s, k) => {
-    const wx = x - 225 + k * (ww + 15), rolling = now < S.until[k];
+    const wx = x - 225 + k * (ww + 15), r = S.reel[k], rolling = now < r.t0 + r.ms, at = reelAt(r, now), gap = 84;
     rrect(wx, y - 150, ww, 170, 16, '#fff', S.sel[k] ? '#2f7de1' : '#555', S.sel[k] ? 8 : 3);
     cx.save(); cx.beginPath(); cx.rect(wx + 4, y - 146, ww - 8, 162); cx.clip();
-    if (rolling) { const off = (now / 2.2) % 70; for (let j = -1; j < 3; j++) symbol(Math.floor(now / 60 + j * 3 + k * 2) % SYMBOLS, wx + ww / 2, y - 65 + off - j * 70, 30); }  // pictures sliding past
-    else symbol(s, wx + ww / 2, y - 65, 46);
-    cx.restore(); drawn.push({ k: 'wheel', n: k, rolling });
+    const base = Math.floor(at), frac = at - base;  // the strip: picture i of the reel shows symbol i; the pictures slide down as the reel turns
+    for (let j = -1; j <= 1; j++) symbol(((base + j) % SYMBOLS + SYMBOLS) % SYMBOLS, wx + ww / 2, y - 65 + (frac - j) * gap, 46);
+    cx.restore(); drawn.push({ k: 'wheel', n: k, rolling, at });
     if (S.sel[k]) { cx.strokeStyle = '#2f7de1'; cx.lineWidth = 5; cx.beginPath(); cx.arc(wx + ww - 22, y - 128, 13, 0.6, 5.8); cx.stroke(); }  // marked to spin again
     if (live) btn('wheel-' + k, wx, y - 150, ww, 170, () => { S.sel[k] = !S.sel[k]; });
   });
   if (!live) return;
   const n = S.sel.filter(v => v).length, can = p.coins > 0 && n > 0, prize = slotPrize(S.w);
-  rrect(x - 240, y + 40, 230, 140, 18, can ? '#d8f0c8' : '#d6d0c8', '#3a8a2a', 4);  // spin again: costs 1 coin
-  label(n ? 'Γύρνα ' + n + (n > 1 ? ' ρόδες' : ' ρόδα') : 'Διάλεξε ρόδες', x - 125, y + 80, 22, '#1f4d16', 'spin');
-  label('−1', x - 140, y + 140, 34, '#7a2f2f', 'reroll'); coin(x - 95, y + 128, 16);
+  cx.globalAlpha = can ? 1 : 0.45;  // spin again: a turning arrow, and one coin going in
+  rrect(x - 240, y + 40, 230, 140, 18, '#d8f0c8', '#3a8a2a', 4);
+  cx.strokeStyle = '#2f6a22'; cx.lineWidth = 9; cx.lineCap = 'round'; cx.beginPath(); cx.arc(x - 170, y + 110, 34, -2.4, 2.2); cx.stroke();
+  const ax = x - 170 + 34 * Math.cos(2.2), ay = y + 110 + 34 * Math.sin(2.2); cx.beginPath(); cx.moveTo(ax - 16, ay - 2); cx.lineTo(ax, ay); cx.lineTo(ax + 4, ay - 17); cx.stroke();
+  coin(x - 80, y + 128, 20); arrow(x - 80, y + 62, x - 80, y + 96, '#7a2f2f', 6); cx.lineCap = 'butt'; cx.globalAlpha = 1;
+  drawn.push({ k: 'pic', for: 'reroll', coins: 1 });
   if (can) btn('reroll', x - 240, y + 40, 230, 140, () => answer('reroll'));
-  rrect(x + 10, y + 40, 230, 140, 18, '#ffe9a8', '#e0a020', 4);  // take what the wheels show
-  label('Πάρε', x + 125, y + 80, 22, '#6e4a08', 'take');
-  if (prize) { label('+' + prize.n, x + 100, y + 140, 34, '#3a5a10', 'collect'); symbol(prize.s, x + 160, y + 128, 20); }
-  else label('τίποτα', x + 125, y + 140, 26, '#6e4a08', 'collect');
+  rrect(x + 10, y + 40, 230, 140, 18, '#ffe9a8', '#e0a020', 4);  // take what the wheels show: the pictures you get, or an empty circle
+  if (prize) for (let k = 0; k < prize.n; k++) symbol(prize.s, x + 125 + (k - (prize.n - 1) / 2) * 64, y + 110, 30);
+  else { cx.setLineDash([8, 7]); cx.strokeStyle = '#a07810'; cx.lineWidth = 4; cx.beginPath(); cx.arc(x + 125, y + 110, 30, 0, 7); cx.stroke(); cx.setLineDash([]); }
+  drawn.push({ k: 'pic', for: 'collect', s: prize ? prize.s : null, n: prize ? prize.n : 0 });
   btn('collect', x + 10, y + 40, 230, 140, () => answer('collect'));
+}
+function drawSunset() {  // the round's end: the screen dims warmly while a big sun sinks behind the horizon
+  const u = Math.min(1, (performance.now() - G.sunset) / SUNSET_MS), a = Math.min(1, u * 4, (1 - u) * 4), x = W / 2, hy = H * 0.58, R = Math.min(W, H) * 0.16;
+  cx.globalAlpha = a; cx.fillStyle = 'rgba(70,30,10,0.45)'; cx.fillRect(0, 0, W, H);
+  cx.save(); cx.beginPath(); cx.rect(0, 0, W, hy); cx.clip();
+  const sy = hy - R * 0.9 + easeOut(u) * R * 1.3;  // the sun sinks, eased
+  cx.strokeStyle = '#ffd27a'; cx.lineWidth = 9; cx.lineCap = 'round'; cx.beginPath();  // the rays
+  for (let k = 0; k < 12; k++) { const g = k * Math.PI / 6 + u * 0.4; cx.moveTo(x + Math.cos(g) * R * 1.25, sy + Math.sin(g) * R * 1.25); cx.lineTo(x + Math.cos(g) * R * 1.6, sy + Math.sin(g) * R * 1.6); }
+  cx.stroke(); cx.lineCap = 'butt';
+  dot(x, sy, R, '#f39c3a'); dot(x, sy, R * 0.82, '#ffc35a'); cx.restore();
+  cx.fillStyle = '#7a4a2a'; cx.beginPath(); cx.roundRect(x - R * 2.6, hy, R * 5.2, 10, 5); cx.fill();
+  cx.globalAlpha = 1; drawn.push({ k: 'sunset' });
 }
 function drawPass() {  // nothing fits: this turn passes to the other player
   const i = G.passing, x = W / 2, y = H * 0.5, k = Math.min(1, (performance.now() % 1200) / 900);
@@ -580,9 +651,10 @@ function render() {  // one picture of the game; it also lays out the buttons th
   drawBoard(); drawDraft(); drawPanel(0); drawPanel(1);
   if (wait && wait.kind === 'place') drawHeld();
   if (wait && wait.kind === 'bid') drawBid();
-  if ((wait && wait.kind === 'jar') || G.shown || (G.making && (G.making.c >= 0 || G.players[G.making.who].jars))) drawJars();  // jars being made show with the jars already made
+  if ((wait && wait.kind === 'jar') || G.shown || flying() || (G.making && (G.making.c >= 0 || G.players[G.making.who].jars))) drawJars();  // jars being made show with the jars already made
   if (G.slot) drawSlot();
   if (G.passing != null) drawPass();
+  if (G.sunset != null) drawSunset();
   if (G.over) drawEnd();
   hand(G.hand);
 }
@@ -612,9 +684,11 @@ window.__dg = {
   buttons() { return buttons.map(b => b.id); },
   drawn() { return drawn; },
   sounds() { return heard.slice(); },
+  heardKinds() { return heard.map(n => SOUNDS[n][0]); },
+  soundKinds() { return [...new Set(Object.values(SOUNDS).map(v => v[0]))].sort(); },
   held() { return wait && wait.kind === 'place' ? wait.pos.slice() : null; },
   tileAt: tileCentre,
-  edge(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; },
+  edge: edgePoint,
   pixel(x, y) { const d = devicePixelRatio || 1; return [...cx.getImageData(Math.floor(x * d), Math.floor(y * d), 1, 1).data]; },
   sampleJars(n) { const m = {}; for (let k = 0; k < n; k++) { const j = rollJar(); m[j.k] = (m[j.k] || 0) + 1; } return m; },
   state() {
