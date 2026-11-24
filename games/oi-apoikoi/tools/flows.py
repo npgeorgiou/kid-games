@@ -109,6 +109,13 @@ def f_tile_bounces(q):  # owner 24 Nov ("rethink all UI": pieces do not feel phy
     ok = flat[0] > 1.04 and min(flat) < 0.99 and not after
     report(ok, 'a landing tile bounces', 'size every 70 ms %s, then %s' % ([round(v, 3) for v in flat], after or 'still'))
 
+def f_board_tap(q):  # owner 24 Nov ("rethink all UI": the board does not answer a tap): a tap on the board puffs dust where it lands, with a soft knock, and changes nothing
+    table(q, bag=[[0, 4]] * 4); before = st(q); p = q.evaluate("()=>__dg.square(10,1)")
+    q.mouse.click(p[0], p[1]); settle(q); after = st(q)
+    dust = [x for x in drawn(q, 'speck') if abs(x['x'] - p[0]) < 30 and abs(x['y'] - p[1]) < 30]; h = q.evaluate("()=>__dg.sounds()")
+    ok = len(dust) >= 6 and 'board' in h and after['wait'] == before['wait'] and after['tiles'] == before['tiles']
+    report(ok, 'a tap on the board answers', '%d dust specks at the tap, sounds %s, nothing else changed %s' % (len(dust), h, after['wait'] == before['wait']))
+
 def f_drag_leave(q):  # drag, leave it anywhere, turn it there, drag again: it is placed only when it snaps
     table(q, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place')
     far = q.evaluate("()=>__dg.tileAt(9,1,0)"); path(q, held(q), far); h1 = held(q); left = h1 is not None and abs(h1[0] - far[0]) < 2 and abs(h1[1] - far[1]) < 2
@@ -678,7 +685,6 @@ def f_random_play(q):  # seeded games played through the screen (taps and drags 
 
 # SECTION: RUN -- one browser, one page (with a fake clock that runs normally until a flow pauses it), every flow on a new game
 # The browser does not wait for the screen's refresh: each step of a finger drag otherwise waits a whole frame (16 ms); the game's own time is the fake clock either way.
-# It draws without the emulated graphics card, which cost more processor time than drawing directly.
 FLOWS = {n[2:]: f for n, f in list(globals().items()) if n.startswith('f_')}
 def run(names):
     with sync_playwright() as p:
