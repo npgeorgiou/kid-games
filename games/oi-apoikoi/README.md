@@ -27,13 +27,13 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 
 ## Now
 
-A playable prototype against the PC on one shared board, colours only. Tiles are dragged straight from the pile and stay where they are left until they snap; a won bid locks a tile for its winner; the stockpile stands in colour columns with set bands and jar frames; jars have labels; the slot machine rolls and shows price and prize; the PC plays with a visible hand (points, grabs with a fist). Rules and built-for-now choices are in `design.md`.
+A playable prototype against the PC on one shared board, colours only. Tiles are dragged straight from the pile and stay where they are left until they snap; a won bid locks a tile for its winner; a placed tile adds its 2 goods at once, and every land makes goods again at each round's start; the stockpile stands in colour columns with set bands and jar frames; at the round's end each 3 of a colour fly into a jar one group at a time and the leftovers fade out; jars have labels; the slot machine rolls and shows price and prize; simple built-in sounds for each thing that happens; the PC plays with a visible hand (points, grabs with a fist). Rules and built-for-now choices are in `design.md`.
 
 ## Open
 
-- Waiting for the owner: sounds (built-in simple sounds for now, or only sound slots until his files come); whether a placed land's good appears in the stockpile at once (today goods are made at the start of each round, and at the end of the round they turn into jars or are lost).
-- Then: sounds; the stockpile answer (a flow repeating his steps first); a general refactor (one owner per behaviour: the turn being asked belongs to the game; the source split by part), tests passing throughout.
-- The owner turns on branch protection for main (require the "tests" check and code-owner review).
+- Main is protected: changes go on a branch with a pull request for the owner to merge.
+- Then: a general refactor (one owner per behaviour: the turn being asked belongs to the game; the source split by part), tests passing throughout.
+- The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` sections 6 and 7.
 
 ## Task list
