@@ -156,3 +156,18 @@ also, the palette that is generated from the image, must show its colors by orde
   5. your shape brush is wrong, mimic the example I gave you, you can look at the code if its hard for you, but for sure you ahve done it wrong. for once, the shapes there are very close to each other. https://av01d.github.io/fabric-brushes/index.html.
   6. same for ink: shit. splashes only when its off teh paper, etch. maybe it will be fixed when you increase the speed threshold for lifting up. see examples in page I had given: https://av01d.github.io/fabric-brushes/index.html
   7. when the pointer is rotating in circular motions, make it visually rotate too."
+- Owner 2026-11-24 08:50, verbatim: "coloring book: work through README "Open" in order, test-first, verify in real game at my screen size. also, i tested previous work and have comments: "1. explain the brush speed -> lifting logic. I still find it hard to control it, I cant make long lifts, the lift happens too fast. 
+
+  2. I also want an option in the brush, whether to use speed as lift or no. default no.
+
+  3. its the fifth time you try to order the palettes my hue (1 hue, 2, 3, many) and you always fail. how is number 1, 2 after the rainbows, less complex than 16 and 17? . you cant do simple things. also, the previous chat said: "Near-duplicates and my suggested replacements:
+  Earthy Woodland ≈ Brown and Sage → replace with ColorBrewer PuOr (two hues).
+  Mediterranean Berry ≈ Coral to Steel Blue → replace with ColorBrewer Paired (many hues).
+  Terracotta, Sand and Sage ≈ Earth, Sage and Sky / Olive, Sand and Clay: I haven't found a checked replacement yet.
+  Retro Primary Mix ≈ Standard rainbow: same, no checked replacement yet." I dont know what these games are, show them in this caht in a simple and cheap way.
+
+  4. the spray is not correct, it seems that smaller brush sizes also make the dots get spreyed closer to each other. aso add ability to spray other shapes.
+
+  5. the shapes brush, errors: a single dot makes a tiny shape, not the size that a normal drawing speed would make. also, the same problem where the lift happens too early happens here (its a general thing) and I also cant start a shape line as small, it starts as big no matter what. also, the brush previews all show a dot, not the shape's shape, and the last 2 brushes are stupid, add normal star and normal heart, also something like grass or hair.
+
+  6: ink: your splashing is excessive, reduce across all brush options.""
