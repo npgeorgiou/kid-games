@@ -26,7 +26,7 @@ canvas { display: block; width: 100vw; height: 100vh; }
 // SECTION: SETUP -- colours, the board, the random source, speeds, test switches
 const COLOURS = ['#e8c547', '#3f86c8', '#8e5bb0', '#e27fb0', '#9a6a3a'];  // the five lands, most common first; what each land is comes later
 const HALVES = [19, 18, 16, 14, 13];  // the 80 halves of the 40 tiles: about 24/22/20/18/16% (built for now)
-const BORDER = ['#22a33a', '#d42a2a'];  // the kid's land green, the PC's red
+const BORDER = ['#22a33a', '#d42a2a'], TINT = ['#eef8e6', '#fbebe8'];  // the kid's land green, the PC's red; their areas' light tints
 const BONUSES = ['slot', 'steal', 'first', 'tile', 'jar', 'set', 'coins2'];  // the other half of jars, equal shares
 const COLS = 20, ROWS = 13, STARTS = [[4, 6], [14, 6]];  // the start tiles sit at the centres of the board's two halves
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half is, by turn
@@ -479,6 +479,9 @@ function drawBoard() {
 }
 function drawDraft() {
   const { T, P, ds } = L(), who = wait ? wait.who : 0;
+  const [ax] = draftSlot(0), [bx, by] = draftSlot(3);  // the market: a tray with a place for each tile on offer
+  rrect(ax - ds - 22, by - ds / 2 - 18, bx - ax + 2 * ds + 44, ds + 36, 18, '#ffffff30');
+  for (let k = 0; k < 4; k++) if (!G.draft[k]) { const [x, y] = draftSlot(k); rrect(x - ds, y - ds / 2, 2 * ds, ds, ds * 0.14, '#00000014'); }  // an empty place shows as a recess
   G.draft.forEach((t, k) => {
     const [x, y] = draftSlot(k), sel = k === G.chosen;
     if (sel) { rrect(x - ds - 12, y - ds / 2 - 12, 2 * ds + 24, ds + 24, 14, '#ffe9a8', '#e0a020', 4); drawn.push({ k: 'frame' }); }  // only the tile being bid on is framed
@@ -491,32 +494,42 @@ function drawDraft() {
       answer(k);
     });
   });
-  for (let k = 0; k < Math.ceil(G.bag.length / 4); k++) rrect(P + 14 + k * 16, T / 2 - ds / 2, 11, ds, 4, '#cdb991');  // rounds left
+  const layers = Math.ceil(G.bag.length / 4), px = P + 30 + ds, py = T / 2 + 6;  // the pile: a stack of face-down tiles, one layer per round left
+  for (let k = 0; k < layers; k++) { const y = py - k * 6; rrect(px - ds, y - ds / 2, 2 * ds, ds, ds * 0.14, '#c9ad7f', '#8a6d42', 2); }
+  drawn.push({ k: 'pile', layers });
 }
-function stock(i) {  // where player i's goods stand: a column per colour, stacking upward from a base line
-  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, cw = (P - 24) / 5, r = Math.min(11, cw * 0.38), top = 84, base = H * 0.6, most = Math.max(1, ...p.goods), step = Math.min(r * 2.3, (base - top - r) / most);
-  return { r, step, base, colX: c => x0 + 12 + cw * (c + 0.5), rowY: k => base - r - k * step };
+function stock(i) {  // player i's area, top to bottom: his face; the goods tray (a groove per colour, goods stacking upward, spaced apart); the coins tray
+  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, pad = 16, cw = (P - 2 * pad - 8) / 5, top = 104, base = Math.round(H * 0.62);
+  const most = Math.max(4, ...p.goods), step = Math.min(cw * 0.92, (base - top - 12) / most), r = Math.min(cw * 0.36, step / 2 - 2.5);  // a tall column squeezes its goods, never the gaps between them
+  return { x0, pad, cw, top, base, r, step, colX: c => x0 + pad + 4 + cw * (c + 0.5), rowY: k => base - 8 - step / 2 - k * step, coinTop: base + 18 };
 }
 const flying = () => G.burst && G.burst.edges.length && performance.now() < G.burst.t0 + FLY_MS + (G.burst.edges.length - 1) * EDGE_GAP;
 const progress = (m, ms) => Math.min(1, (performance.now() - m.t0) / (fast ? 1 : ms));
+function face(x, y, r, col) {  // a player: a round face in his colour
+  dot(x, y, r, col); dot(x - r * 0.35, y - r * 0.15, r * 0.13, '#fff'); dot(x + r * 0.35, y - r * 0.15, r * 0.13, '#fff');
+  cx.strokeStyle = '#fff'; cx.lineWidth = r * 0.12; cx.lineCap = 'round'; cx.beginPath(); cx.arc(x, y + r * 0.05, r * 0.45, 0.5, Math.PI - 0.5); cx.stroke(); cx.lineCap = 'butt';
+}
 function drawPanel(i) {
-  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, cxm = x0 + P / 2, lit = G.turn === i;
+  const { P } = L(), p = G.players[i], lit = G.turn === i, { x0, pad, cw, top, base, r, step, colX, rowY, coinTop } = stock(i), cxm = x0 + P / 2;
   if (lit) rrect(x0 + 2, 4, P - 4, H - 8, 20, null, BORDER[i] + '66', 10);  // the player whose turn it is: his area glows in his colour
-  rrect(x0 + 6, 8, P - 12, H - 16, 16, lit ? '#fffaf0' : '#efe6d4', BORDER[i], lit ? 5 : 2);
+  rrect(x0 + 6, 8, P - 12, H - 16, 16, lit ? TINT[i] : '#efe6d4', BORDER[i], lit ? 5 : 2);
   drawn.push({ k: 'panel', o: i, lit });
-  dot(cxm, 44, 24, BORDER[i]); if (G.first === i) star(cxm, 44, 18);
-  // goods: a column per colour, stacking upward from a base line (a tall column squeezes, it never widens the panel);
-  // each row with one of every colour is a set (a gold band); each 3 of a colour, counted from the base, is a jar at the round's end (a frame)
-  const { r, step, base, colX, rowY } = stock(i), n = sets(p), mk = G.making && G.making.who === i ? G.making : null, fade = mk && mk.c < 0 ? 1 - progress(mk, FADE_MS) : 1;
-  for (let k = 0; k < n; k++) { rrect(x0 + 10, rowY(k) - step / 2, P - 20, step, step / 2, '#f4cf4a66', '#c99a1a', 1.5); drawn.push({ k: 'setrow', o: i }); }
+  face(cxm, 54, 30, BORDER[i]); drawn.push({ k: 'avatar', o: i });
+  if (G.first === i) star(cxm + 46, 34, 16);  // the first-player token, beside his face
+  // goods: each row with one of every colour is a set (a gold band); each 3 of a colour, counted from the base, is a jar at the round's end (a frame)
+  rrect(x0 + pad, top - 10, P - 2 * pad, base - top + 10, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'goods' });
+  for (let c = 0; c < 5; c++) rrect(colX(c) - cw * 0.42, top - 4, cw * 0.84, base - top - 2, cw * 0.42, '#ffffff55');  // a groove per colour
+  const n = sets(p), mk = G.making && G.making.who === i ? G.making : null, fade = mk && mk.c < 0 ? 1 - progress(mk, FADE_MS) : 1;
+  for (let k = 0; k < n; k++) { rrect(x0 + pad + 2, rowY(k) - step / 2 + 1, P - 2 * pad - 4, step - 2, step / 2, '#f4cf4a77', '#c99a1a', 1.5); drawn.push({ k: 'setrow', o: i }); }
   p.goods.forEach((g, c) => {
-    for (let k = 0; k + 3 <= g; k += 3) { rrect(colX(c) - r - 3, rowY(k + 2) - r - 3, 2 * r + 6, 2 * step + 2 * r + 6, r, null, '#6e3418', 2); drawn.push({ k: 'jargroup', o: i, c }); }
+    for (let k = 0; k + 3 <= g; k += 3) { rrect(colX(c) - r - 3, rowY(k + 2) - r - 3, 2 * r + 6, 2 * step + 2 * r + 6, r + 3, null, '#6e3418', 2); drawn.push({ k: 'jargroup', o: i, c }); }
     for (let k = mk && mk.c === c ? 3 : 0; k < g; k++) {  // the 3 flying into a jar are drawn with the jars
-      cx.globalAlpha = fade; dot(colX(c), rowY(k), r, COLOURS[c]); cx.globalAlpha = 1; drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), a: fade });
+      cx.globalAlpha = fade; dot(colX(c), rowY(k), r, COLOURS[c]); cx.globalAlpha = 1; drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), r, a: fade });
     }
   });
-  const cr = Math.min(12, (P - 24) / 11), cy0 = base + 24;  // coins, five to a row
-  for (let k = 0; k < p.coins; k++) coin(x0 + 14 + cr + (k % 5) * cr * 2.15, cy0 + Math.floor(k / 5) * cr * 2.15, cr);
+  const cr = Math.min(12, (P - 2 * pad - 16) / 5 / 2 - 2.5), rows = Math.max(1, Math.ceil(p.coins / 5));  // coins: five to a row, spaced apart
+  rrect(x0 + pad, coinTop, P - 2 * pad, rows * (2 * cr + 6) + 14, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'coins' });
+  for (let k = 0; k < p.coins; k++) { const x = x0 + pad + 8 + cr + (k % 5) * (2 * cr + 5), y = coinTop + 10 + cr + Math.floor(k / 5) * (2 * cr + 6); coin(x, y, cr); drawn.push({ k: 'coin', o: i, x, y, r: cr }); }
   for (let k = 0; k < p.bid; k++) setShape(cxm + (k - (p.bid - 1) / 2) * 34, H - 60, 15);  // the sets bid now
   if (!lit) { cx.fillStyle = 'rgba(120,110,95,0.38)'; cx.beginPath(); cx.roundRect(x0 + 6, 8, P - 12, H - 16, 16); cx.fill(); }  // the other player's area is dimmed
 }

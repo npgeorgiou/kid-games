@@ -113,8 +113,9 @@ def f_jar_per_edge(q):  # one jar per matching edge: one tile can earn several
 
 def f_pile_no_frames(q):  # owner 24 Nov: no outline around the pile's tiles
     table(q, bag=[[0, 4]] * 4); c = q.evaluate("()=>__dg.btn('draft-0')"); ds = round(min(q.evaluate("()=>innerHeight*0.16") * 0.42, 60))
-    beside = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [c[0] - ds - 6, c[1]])  # just left of the tile: nothing drawn there (the page shows through), not a frame
-    report(beside[3] == 0, 'pile: tiles have no outline', 'beside the tile %s' % beside)
+    beside = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [c[0] - ds - 6, c[1]])  # just left of the tile: the market tray's own colour, not a frame
+    tray = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [c[0] - ds - 14, c[1] - ds / 2 - 10])  # the tray, away from the tile
+    report(beside == tray, 'pile: tiles have no outline', 'beside the tile %s, the tray %s' % (beside, tray))
 
 def f_greyed(q):  # tiles you can't pick are greyed but keep their colour, and can't be tapped
     table(q, bag=[[0, 4], [2, 3], [0, 4], [0, 4]]); s = st(q); d = {x['id']: x for x in drawn(q, 'tile')}
@@ -254,6 +255,18 @@ def f_turn_shown(q):  # owner 24 Nov: "make it obvious who plays; now there is n
     q.clock.run_for(1500); settle(q); pcs = lit(); w = st(q)['wait']; h = q.evaluate("()=>__dg.sounds()"); q.clock.resume()
     ok = mine == {0: True, 1: False} and pcs == {0: False, 1: True} and 'turn' in h
     report(ok, 'turn: the player playing is lit, the other dimmed', 'kid playing %s; PC playing %s (wait %s); turn sound %s' % (mine, pcs, w, 'turn' in h))
+
+def f_screen_parts(q):  # owner 24 Nov: "the sidebar doesn't portray any info"; "what are these 9 vertical lines on top": each player's area has his face, a goods tray and a coins tray, everything spaced apart; the pile is a stack of tiles
+    tiles = [[0, 0, 0, 0, 1, 0], [2, 0, 0, 0, 1, 0], [4, 0, 0, 0, 1, 0], [0, 1, 0, 2, 2, 0], [2, 1, 0, 2, 2, 0], [4, 1, 0, 2, 2, 0], [6, 0, 0, 2, 3, 0], [6, 1, 0, 3, 4, 0]]
+    table(q, bag=[[0, 4]] * 12, tiles=tiles, coins=[13, 2]); d = q.evaluate("()=>__dg.drawn()")
+    kinds = lambda k, o: [x for x in d if x['k'] == k and x.get('o') == o]
+    def min_gap(items):  # the smallest gap between any two round things
+        return min((((a['x'] - b['x']) ** 2 + (a['y'] - b['y']) ** 2) ** 0.5 - a['r'] - b['r'] for i, a in enumerate(items) for b in items[i + 1:]), default=99)
+    pile = [x for x in d if x['k'] == 'pile']; bars = [x for x in d if x['k'] == 'roundsleft']
+    parts = {o: (len(kinds('avatar', o)), sorted(x['for'] for x in kinds('tray', o))) for o in (0, 1)}
+    gaps = (min_gap(kinds('good', 0)), min_gap(kinds('coin', 0)))
+    ok = parts == {0: (1, ['coins', 'goods']), 1: (1, ['coins', 'goods'])} and min(gaps) >= 3 and len(pile) == 1 and pile[0]['layers'] == 2 and not bars
+    report(ok, 'screen: faces, goods and coins trays, things apart, a pile', 'parts %s, smallest gaps goods/coins %s px, pile %s' % (parts, [round(g, 1) for g in gaps], pile))
 
 def f_pc_best(q):  # the PC picks and places for the most jars
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
