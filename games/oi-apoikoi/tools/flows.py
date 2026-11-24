@@ -91,7 +91,7 @@ def f_drag_from_pile(q):  # owner 24 Nov: no tap first: press a tile in the pile
     path(q, q.evaluate("()=>__dg.btn('draft-0')"), q.evaluate("()=>__dg.tileAt(4,5,0)"))
     placed = [4, 5, 0, 0, 4] in [t[:5] for t in st(q)['tiles'] if t[5] == 0]
     table(q, bag=[[0, 4]] * 4); tap(q, 'draft-0'); w = st(q)['wait']
-    report(placed and w == {'kind': 'place', 'who': 0, 'r': 0}, 'pile: drag straight from the pile', 'placed %s; after a tap %s' % (placed, w))
+    report(placed and (w['kind'], w['who'], w['r']) == ('place', 0, 0), 'pile: drag straight from the pile', 'placed %s; after a tap %s' % (placed, w))
 
 def f_carried_tilts(q):  # owner 24 Nov ("rethink all UI": pieces do not feel physical): a carried tile tilts toward where it is going, and straightens when it stops
     table(q, bag=[[0, 4]] * 4); tap(q, 'draft-0'); waiting(q, 'place'); h = held(q)
@@ -214,6 +214,31 @@ def f_row_never_overflows(q):  # owner 24 Nov: a row never needs more than 5 pla
 
 def away_and_back(q, k):  # carry the tile in hand onto the board, leave it, then carry it back to its market place
     path(q, held(q), [640, 600]); path(q, held(q), q.evaluate("(k)=>__dg.slot(k)", k))
+def f_set_buys_wild(q):  # owner 24 Nov: with one of each colour those 5 goods light up; at the start of his turn, before he picks, he taps them: they fly into a wild tile from nowhere (not one of the market's 4), he places it, then picks and places as usual
+    table(q, bag=[[0, 4]] * 4, goods=[[2, 2, 2, 2, 2], [0] * 5], jarQueue=[COIN] * 8); settle(q)
+    lit = [x for x in drawn(q, 'setrow') if x['o'] == 0 and x.get('live')]; box = q.evaluate("()=>__dg.btnBox('set')")
+    tap(q, 'set'); waiting(q, 'place'); s = st(q); spent = s['players'][0]['goods'] == [1, 1, 1, 1, 1] and s['draft'] == [[0, 4]] * 4 and s['players'][0]['got'] == 0 and s['wait']['wild']
+    drag_to(q, {'x': 4, 'y': 7, 'r': 0}); waiting(q, 'pick'); s = st(q); placed = [4, 7, 0, 0, 1, 0] in [t[:6] for t in s['tiles']] and s['players'][0]['goods'] == [2, 2, 1, 1, 1]
+    again = q.evaluate("()=>!!__dg.btn('set')"); tap(q, 'draft-0'); waiting(q, 'place'); after_pick = q.evaluate("()=>!__dg.btn('set')")
+    ok = bool(lit) and box and box['w'] >= 75 and spent and placed and again and after_pick
+    report(ok, 'set: tap the lit set for a wild tile, then pick', 'set lit %s, button %s, spent 5 goods and kept the market %s, wild tile placed and its edges paid %s, set again before the pick %s, none after it %s' % (bool(lit), box and (round(box['w']), round(box['h'])), spent, placed, again, after_pick))
+
+def f_wild_colours(q):  # owner 24 Nov: a wild tile goes on any 2 free squares touching his land; each half takes the colour most of its neighbours have; a half with no neighbours takes its other half's colour;
+    # ties: the colour he has fewest of in his stockpile, then the rarer colour
+    out = []
+    for goods, sp, want in (([1, 1, 2, 1, 1], {'x': 4, 'y': 7, 'r': 0}, [0, 1]), ([1, 1, 1, 1, 1], {'x': 4, 'y': 7, 'r': 0}, [2, 1]), ([1, 1, 1, 1, 1], {'x': 4, 'y': 5, 'r': 3}, [0, 0])):
+        table(q, bag=[[3, 3]] * 3 + [[0, 4]], tiles=[[2, 7, 0, 2, 2, 0]], goods=[goods, [0] * 5], jarQueue=[COIN] * 8)  # (4, 7) has colour 0 above and colour 2 on its left
+        tap(q, 'set'); waiting(q, 'place'); drag_to(q, sp); waiting(q, 'pick')
+        got = next((t[3:5] for t in st(q)['tiles'] if t[:3] == [sp['x'], sp['y'], sp['r']]), None); out.append((got, want))
+    report(all(a == b for a, b in out), 'wild tile: colours from its neighbours, ties by the rules', 'placed / wanted %s (tie by fewest in his stockpile; tie by the rarer colour; a half alone takes its other half\'s)' % out)
+
+def f_wild_shows_colours(q):  # owner 24 Nov: while carried, the wild tile shows the colours it will take; far from any place it has none
+    table(q, bag=[[0, 4]] * 4, goods=[[1] * 5, [0] * 5]); tap(q, 'set'); waiting(q, 'place'); settle(q)
+    held = lambda: next(x for x in drawn(q, 'tile') if x['id'] == 'held')
+    far = held(); path(q, q.evaluate("()=>__dg.held()"), q.evaluate("()=>__dg.tileAt(4,7,0)"), up=False); near = held(); q.mouse.up(); settle(q)
+    ok = far['look'] == 'wild' and near['cs'] == [0, 1]
+    report(ok, 'wild tile: shows the colours it will take', 'far: %s %s; over (4, 7): %s' % (far['look'], far['cs'], near['cs']))
+
 def f_put_back(q):  # owner 24 Nov: a picked tile can be put back on its market place and another picked
     table(q, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8)
     tap(q, 'draft-0'); waiting(q, 'place'); away_and_back(q, 0); waiting(q, 'pick'); s = st(q)
@@ -471,8 +496,8 @@ def f_stolen_tile_jars(q):  # owner 24 Nov: "I stole a tile and made 2 connectio
 def f_first_token(q):  # the first-player token comes from a jar
     get_jar(q, [{'k': 'first'}]); report(st(q)['first'] == 0, 'first: token comes to you', 'first %s' % st(q)['first'])
 
-def f_free_tile(q):  # a free extra tile from nowhere, always one that fits, placed at once
-    get_jar(q, [{'k': 'tile'}]); waiting(q, 'place'); n0 = tile_count(q, 0); ok = len(st(q)['spots']) > 0; drag_to(q, best_spot(q))
+def f_free_tile(q):  # a free extra tile from nowhere, always one that fits, placed at once; owner 24 Nov: it is the wild tile
+    get_jar(q, [{'k': 'tile'}]); waiting(q, 'place'); n0 = tile_count(q, 0); ok = len(st(q)['spots']) > 0 and st(q)['wait']['wild']; drag_to(q, best_spot(q))
     report(ok and tile_count(q, 0) == n0 + 1, 'tile: free tile fits and is placed', 'tiles %d -> %d' % (n0, tile_count(q, 0)))
 
 def f_free_tile_from_jar(q):  # owner 24 Nov: "the bonus tile should not appear on the board, but marked as yours", and then "not on top of the deck: next to the 4 tiles of the market"
@@ -531,6 +556,7 @@ def f_main_game(q):  # owner 24 Nov: one main test plays a whole game with a fix
           s.fits.forEach((f, k) => { if (f || !s.draft[k]) return; const d = seen('tile').find(t => t.id === 'draft-' + k);  // a tile he can't pick: greyed, its colours kept, not tappable
             did.unusable = true;
             if (!d || d.look !== 'grey' || d.cs.join() !== s.draft[k].join() || __dg.btn('draft-' + k)) err('greyed: tile ' + k + ' ' + JSON.stringify(d)); });
+          if (!did.wildSet && btn('set')) { did.wildSet = true; await tap(btn('set')); continue; }  // once, his set buys a wild tile before he picks
           const k = s.fits.indexOf(true); picked = k; await tap(btn('draft-' + k));
           if (!putBack && s.round >= 2 && __dg.state().wait && __dg.state().wait.kind === 'place') { await drag(__dg.held(), [innerWidth - 60, 400]); await drag(__dg.held(), __dg.slot(k)); putBack = did.putBack = __dg.state().draft[k] !== null && __dg.state().wait.kind === 'pick'; }
         }
@@ -538,7 +564,7 @@ def f_main_game(q):  # owner 24 Nov: one main test plays a whole game with a fix
           if (picked < 0) did.bonusTile = true; picked = -1;
           const sp = s.spots.reduce((a, b) => b.m > a.m ? b : a);
           while (__dg.state().wait.r !== sp.r) { await tap(__dg.held()); __dg.render(); }
-          const sq = seen('square'), at = (x, y) => sq.find(d => d.x === x && d.y === y), held = __dg.drawn().find(e => e.id === 'held').cs, d = DIRS[sp.r];  // matching edges with any land, counted on the board shown
+          const sq = seen('square'), at = (x, y) => sq.find(d => d.x === x && d.y === y), held = sp.cs, d = DIRS[sp.r];  // the colours it gets there (a wild tile takes its neighbours')  // matching edges with any land, counted on the board shown
           let edges = 0; [[sp.x, sp.y], [sp.x + d[0], sp.y + d[1]]].forEach(([x, y], h) => DIRS.forEach(([dx, dy]) => { const n = at(x + dx, y + dy); if (n && n.c === held[h]) edges++; }));
           const g0 = sum(s.players[0].goods);
           await drag(__dg.held(), __dg.tileAt(sp.x, sp.y, sp.r)); __dg.render();
@@ -551,7 +577,7 @@ def f_main_game(q):  # owner 24 Nov: one main test plays a whole game with a fix
       }
       return { errs: errs.slice(0, 5), did, left: __dg.state().queued };
     }""", [MAIN_SEED, MAIN_JARS])
-    want = ['unusable', 'pass', 'putBack', 'bonusTile', 'steal', 'slot', 'reroll', 'moreJars', 'end']
+    want = ['unusable', 'pass', 'wildSet', 'putBack', 'bonusTile', 'steal', 'slot', 'reroll', 'moreJars', 'end']
     missing = [k for k in want if not out['did'].get(k)]
     report(not out['errs'] and not missing and out['left'] == 0, 'main game: every situation, what he sees adds up', 'missing %s, errors %s, jar contents left %s' % (missing, out['errs'], out['left']))
 
@@ -574,12 +600,13 @@ def f_random_play(q):  # seeded games played through the screen (taps and drags 
           if (step > 3000) { errs.push('seed ' + seed + ' stuck at ' + JSON.stringify(w)); break; }
           if (!w || w.who !== 0) continue;
           __dg.render(); const btn = id => __dg.btn(id);  // draw first: buttons are where the last picture put them
-          if (w.kind === 'pick') { const ok = s.fits.map((f, i) => f ? i : -1).filter(i => i >= 0); if (!ok.length) { errs.push('seed ' + seed + ' pick with nothing to pick'); break; } await tap(btn('draft-' + ok[rand(ok.length)])); }
+          if (w.kind === 'pick' && btn('set') && !rand(3)) await tap(btn('set'));
+          else if (w.kind === 'pick') { const ok = s.fits.map((f, i) => f ? i : -1).filter(i => i >= 0); if (!ok.length) { errs.push('seed ' + seed + ' pick with nothing to pick'); break; } await tap(btn('draft-' + ok[rand(ok.length)])); }
           else if (w.kind === 'place') {
             if (!s.spots.length) { errs.push('seed ' + seed + ' a tile with no place'); break; }
             const sp = s.spots[rand(s.spots.length)];
             while (__dg.state().wait.r !== sp.r) { await tap(__dg.held()); __dg.render(); }
-            const sq = seen('square'), at = (x, y) => sq.find(d => d.x === x && d.y === y), d = [[1, 0], [0, 1], [-1, 0], [0, -1]][sp.r], cs = [__dg.drawn().find(e => e.id === 'held').cs[0], __dg.drawn().find(e => e.id === 'held').cs[1]];
+            const sq = seen('square'), at = (x, y) => sq.find(d => d.x === x && d.y === y), d = [[1, 0], [0, 1], [-1, 0], [0, -1]][sp.r], cs = sp.cs;  // the colours it gets there (a wild tile takes its neighbours')
             const hs = [[sp.x, sp.y], [sp.x + d[0], sp.y + d[1]]]; let edges = 0;
             hs.forEach(([x, y], h) => [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([dx, dy]) => { const n = at(x + dx, y + dy); if (n && n.c === cs[h]) edges++; }));
             const g0 = s.players[0].goods.reduce((a, b) => a + b, 0);
