@@ -9,3 +9,4 @@
 - The page's fake clock is paused with a date, not a number (a number after an earlier pause is refused); every fake second of real-speed play costs about half a real second.
 - Sounds at test speed are only noted (`__dg.sounds()`), never played: playing hundreds at once in random play cost about half a second.
 - Flows that only need the end of a wait jump the fake clock (skip: fast_forward, each due timer once); run_for steps every frame and costs about half a real second per fake second.
+- Build (run the harness) before staging: the committed page must be built from the committed source; a page staged before the build goes in stale.

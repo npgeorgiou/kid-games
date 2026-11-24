@@ -27,18 +27,21 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 
 ## Now
 
-A playable prototype against the PC on one shared board, colours only. Tiles are dragged straight from the pile and stay where they are left until they snap; a won bid locks a tile for its winner; a placed tile adds its 2 goods at once, and every land makes goods again at each round's start. Each player's area has his face, a goods tray (a groove per colour, set bands, jar frames) and a coins tray; the player whose turn it is has his area lit, the other's is dimmed. The pile is a stack of face-down tiles beside the market tray. When a tile snaps its matched edges glow and each jar flies out of its edge. The round's end is its own moment (a sunset); then one player turns his goods into jars one group at a time and opens them, then the other. The slot machine has no text; its wheels roll fast, slow down and stop one by one. Sounds are one soft built-in family (wood, clay, coins, chimes). The PC plays with a visible pointing hand. Rules and built-for-now choices are in `design.md`; the screen follows `tools/ui-design/README.md`.
+A playable prototype against the PC on one shared board, colours only. Tiles are dragged straight from the pile and snap where they fit; a picked tile can be put back on its market place; a won bid reserves a tile for its winner. Each round starts with every square lighting up in turn and its good flying to the stockpile. A placed tile adds its 2 goods at once; its matched edges glow and each jar flies out of its edge. Jars break where tapped, what they held rises out of them with a short label, and the reward flies to its place (coins to the coin stacks, the star beside the face, goods to the stockpile). Jars hold the owner's mix (10% empty). At the round's end (a sunset), each 5 goods of a colour become a jar: it drops from the top, the goods fly into it; jars are opened, again if opening makes new groups of 5; then the leftovers break into specks. Waiting jars step aside over the market while a bonus tile is placed. Whose turn it is: a light flies between the faces, the player playing has a bigger glowing face, the market takes his colour. The bid is a small card beside the market. Jars stand 6 to a row; coins in stacks of 10. Rules and built-for-now choices are in `design.md`; the screen follows `tools/ui-design/README.md`.
 
 ## Open
 
 - Main is protected: work goes on a branch with a pull request, merged by Claude once its tests pass.
+- The full test run is about 16 s of the 20 s limit: real-speed flows cost about half a real second per fake second (see WARNINGS.md); the main test should replace small flows where it can.
 - The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` sections 6 and 7.
 
 ## Task list
 
-- Main test: one flow plays a whole game with a fixed pile and fixed jar contents, so every situation happens in order; small flows stay only for versions of one thing; the rest merge into it.
-- Screen pass with `tools/ui-design/README.md` (new motion rules): whose turn is obvious, the turn and the first-player star fly; the bid panel never hides the boards; round start: each land lights and its good flies to the stockpile, one by one, with sound; round end: jars drop from the top to the centre, goods fly into them on arcs; leftovers dissolve; jars break and the bonus comes out of them; jars step aside to a free place during a bonus tile and come back; a jar outline (not an oval) around each 5 of a colour; a set sign beside each set; a better round's end than the sunset.
-- Jars: 6 to a row, more rows, never smaller. Coins: any number fits.
-- Slot machine: pictures that mean something (no letters, no unclear marks); a right spin-again picture. Waiting for the owner: which new gifts, and 3, 4 or 5 pictures per wheel (2 the same win 2, 3 win 3).
+- Main test (owner yes): one flow plays a whole game with a fixed pile and fixed jar contents, so every situation happens in order (a tile that can't be used, a bid won and lost, a pass, a tile put back, every jar kind, the slot machine, a steal, an extra tile, more jars made while opening, the end); small flows stay only for versions of one thing; the rest merge into it.
+- Round's end: a better moment than the sunset (owner: "the sunset is weird"), from the UI research.
+- Slot machine: pictures that mean something (no letters, no unclear marks, a right spin-again picture; the chosen-wheel mark looks like a blue C). Waiting for the owner: which new gifts (take a good from the PC, change a good's colour, move a placed tile, lock a market tile) and 3, 4 or 5 pictures per wheel; 2 the same win 2, 3 win 3.
 - Waiting for the owner: should a tile need more to fit (after round 2 almost every tile fits)?
+- Waiting for the owner: coins in stacks of 10 (they overlap inside a stack) instead of every coin apart: yes or no.
+- Stockpile goods and their jar outlines are small: the panel may need to be wider.
+- Screen pass with `tools/ui-design/README.md`'s checklist (13 points) over the whole game, with screenshots.
