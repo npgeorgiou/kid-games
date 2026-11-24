@@ -120,11 +120,11 @@ async function pcTap(id) {  // the hand goes to the button, presses it, and the 
   if (G !== my) return;  // a new game started meanwhile: this move belonged to the old one
   b.fn(); await pause(250);
 }
-async function pcPlace(sp) {  // tap the tile where it lies to turn it, then pinch it, drag it to its place and let go
+async function pcPlace(sp) {  // tap the tile where it lies to turn it, then grab it, drag it to its place and let go
   const my = G, w = wait, live = () => G === my && wait === w;  // the move belongs to this game and this tile; a new game ends it
   while (live() && w.r !== sp.r) { await handTap(w.pos[0], w.pos[1]); if (live()) w.r = (w.r + 1) % 4; await pause(350); }
   if (!live()) return;
-  await handTo(w.pos[0], w.pos[1]); my.hand.g = 'pinch'; await pause(250);
+  await handTo(w.pos[0], w.pos[1]); my.hand.g = 'grab'; await pause(250);
   const [gx, gy] = tileCentre(sp.x, sp.y, sp.r), h = my.hand;
   my.dragging = true; const follow = handTo(gx, gy, fast ? 0 : 1300);
   const track = () => { if (live() && my.dragging) { w.pos = [h.x, h.y]; requestAnimationFrame(track); } };
@@ -363,8 +363,8 @@ function content(j, x, y, s) {  // what a jar held
   else if (j.k === 'set') setShape(x, y, s * 0.3);
 }
 const HANDS = /*HANDS*/{};  // the hand pictures, put in by build.py
-const GESTURES = {  // picture and its active point (of 32): point to tap, pinch to hold a tile, open to let go, raised to pass
-  point: ['backhand_index_pointing_up', 14.5, 2.5], pinch: ['pinching_hand', 21, 9], open: ['hand_with_fingers_splayed', 16, 9], raised: ['raised_hand', 16, 9],
+const GESTURES = {  // picture and its active point (of 32): point to tap, grab (a fist) to hold a tile, open to let go, raised to pass
+  point: ['backhand_index_pointing_up', 14.5, 2.5], grab: ['raised_fist', 16, 16], open: ['hand_with_fingers_splayed', 16, 9], raised: ['raised_hand', 16, 9],
 };
 const handPics = Object.fromEntries(Object.entries(GESTURES).map(([g, [f]]) => {  // each picture drawn once onto its own canvas: a picture drawn every frame would be redrawn from its shapes each time
   const c = document.createElement('canvas'); c.width = c.height = 256; const im = new Image();

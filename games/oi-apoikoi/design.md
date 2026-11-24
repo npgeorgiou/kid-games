@@ -122,7 +122,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - The PC counts every jar as worth the same and judges a move by the jars it earns this turn.
 - The PC counts a jar as about 0.7 coins (its coin contents only) and a good as a third of a jar; with these values the best slot play is to stop at once, so the PC never re-spins.
 - Tiles nobody could place in a round go back under the pile.
-- The PC's hand: Fluent Emoji pictures; it points to tap, pinches to carry a tile, opens to let go, is raised when the PC passes.
+- The PC's hand: Fluent Emoji pictures; it points to tap, grabs to carry a tile, opens to let go, is raised when the PC passes.
 
 ## 7. Still open (all in one place)
 

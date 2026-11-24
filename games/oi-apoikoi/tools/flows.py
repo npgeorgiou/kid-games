@@ -174,7 +174,7 @@ def f_pc_best(q):  # the PC picks and places for the most jars
     pc = [t[3:5] for t in s['tiles'] if t[5] == 1 and t[:2] != [14, 6]]
     report(pc == [[0, 1]] and s['players'][1]['coins'] == 2, 'pc: best tile, best place', 'pc tiles %s coins %d' % (pc, s['players'][1]['coins']))
 
-def f_pc_hand(q):  # the PC's moves are slow and done by a moving hand: it points to tap, pinches to drag (a fake clock runs the real timings at once);
+def f_pc_hand(q):  # the PC's moves are slow and done by a moving hand: it points to tap, grabs to drag (a fake clock runs the real timings at once);
     # a new game started while that hand still carries a tile: the old move never touches the new game
     pause_clock(q)
     q.evaluate("()=>__dg.restart({fast:false,bag:[[0,1],[0,0],[0,4],[0,4]],first:1,jarQueue:Array(8).fill({k:'coins'})})")
@@ -182,8 +182,8 @@ def f_pc_hand(q):  # the PC's moves are slow and done by a moving hand: it point
     while ms < 20000:
         q.clock.run_for(200); ms += 200; s = st(q)
         xs.add(round(s['hand']['x'])); gs.add(s['hand']['g']); dragged = dragged or s['handDrag']
-        if ms >= 2500 and dragged and {'point', 'pinch'} <= gs: break  # slow enough, and seen pointing, pinching and dragging
-    slow = ms >= 2500 and len(xs) > 10 and dragged and {'point', 'pinch'} <= gs
+        if ms >= 2500 and dragged and {'point', 'grab'} <= gs: break  # slow enough, and seen pointing, grabbing and dragging
+    slow = ms >= 2500 and len(xs) > 10 and dragged and {'point', 'grab'} <= gs
     table(q, bag=[[0, 4]] * 4); tap(q, 'draft-0'); waiting(q, 'place'); h0 = held(q)
     q.clock.run_for(1800); settle(q); h1 = held(q); q.clock.resume()  # longer than the rest of the PC's drag
     report(slow and h0 == h1, 'pc: slow, by a moving hand; a new game is left alone', '%d ms, hand at %d places, gestures %s; new game tile %s then %s' % (ms, len(xs), sorted(gs), h0, h1))
