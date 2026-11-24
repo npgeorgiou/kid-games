@@ -690,7 +690,7 @@ def f_new_tools(q):  # owner 23 Nov: new drawing tools: spray, shapes, ink, penc
     for k, t in enumerate(('spray', 'shapes', 'ink', 'pencil')):
         tap(q, 'tool-' + t); tap(q, 'size-2'); tap(q, 'color-6'); y = 35 + 60 * k
         drag(q, [(40, y), (360, y)]); got[t] = round(lum(across(q, 200, y, 10)))
-    report(all(v < 200 for v in got.values()), 'new drawing tools paint', 'brightness on each stroke %s' % got)
+    report(all(v < (238 if t == 'spray' else 200) for t, v in got.items()), 'new drawing tools paint', 'brightness on each stroke %s' % got)  # spray: loose drops, as far apart at every size (owner 24 Nov), so a small size is light
 
 def f_shapes_vary(q):  # owner 23 Nov: shape stamps along the stroke, each a slightly different colour from the chosen one
     tap(q, 'tool-shapes'); tap(q, 'shape-1'); tap(q, 'size-2'); tap(q, 'color-2'); drag(q, [(30, 125), (370, 125)])
@@ -919,3 +919,22 @@ def f_spray_sizes(q):  # owner 24 Nov 08:50, point 4: smaller spray sizes put th
     report(max(out) < min(out) * 1.6 and min(out) > 0, 'spray: drops as far apart at every size', 'share of the middle painted, small to big %s' % ['%.2f' % v for v in out])
 FLOWS['spray_sizes'] = f_spray_sizes
 PAPER['spray_sizes'] = ('500x300', (0, 0))
+
+def f_shapes_tap_start(q):  # owner 24 Nov 08:50, point 5: a single tap makes a tiny shape, not the size his usual speed makes; he cannot start a shapes line small (what he did there is unknown: here a slow start)
+    tap(q, 'tool-shapes'); tap(q, 'shape-0'); tap(q, 'size-1'); tap(q, 'color-1')
+    def wd(x, y): return max(width_across(q, x + dx, y, 0, 1, 30, 200) for dx in range(-12, 13, 3))  # within the paper (past its edge reads black)
+    jerk(q, 40, 360, 50, 550); usual = wd(200, 50)
+    x, y = scr(q, 100, 125); q.mouse.click(x, y); time.sleep(0.1); dot = wd(100, 125)
+    glide(q, lambda d: (40 + d, 200), 320, 120, 900); start, later = wd(55, 200), wd(330, 200)
+    ok = dot >= usual * 0.7 and 0 < start < later * 0.5
+    report(ok, 'shapes: a tap is the usual size; a slow start is small', 'across: usual speed %d, tap %d; slow start %d, fast later %d' % (usual, dot, start, later))
+FLOWS['shapes_tap_start'] = f_shapes_tap_start
+
+def f_shapes_brushes(q):  # owner 24 Nov 08:50, point 5: the brush pictures all show a dot, not the shape; a normal star and heart, and grass
+    tap(q, 'tool-shapes'); tap(q, 'brush'); time.sleep(0.15)
+    sig = q.evaluate("""()=>[...document.querySelectorAll('[data-id^="shape-"]')].map(b=>{const c=b.querySelector('canvas'),g=c.getContext('2d'),w=c.width,h=c.height,d=g.getImageData(0,0,w*0.48|0,h*0.48|0).data,W=w*0.48|0,H=h*0.48|0;let s='';
+        for(let j=0;j<8;j++)for(let i=0;i<8;i++){const x=(i+0.5)*W/8|0,y=(j+0.5)*H/8|0,k=(y*W+x)*4;s+=d[k+3]>128&&d[k]<120?'1':'0'}return s})""")
+    ids = q.evaluate("()=>__cb.shapes.shapes.map(s=>s.id)")
+    ok = ids == ['square', 'circle', 'triangle', 'star', 'heart', 'grass'] and len(sig) == 6 and len(set(sig)) == 6
+    report(ok, 'shapes: brushes square, circle, triangle, star, heart, grass, each pictured as its shape', 'brushes %s, different pictures %d of %d' % (ids, len(set(sig)), len(sig)))
+FLOWS['shapes_brushes'] = f_shapes_brushes
