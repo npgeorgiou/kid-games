@@ -119,13 +119,12 @@ function freeTile(i) {  // a tile from nowhere, by the colour split, always one 
   for (let k = 0; k < 400; k++) { const t = [randomColour(), randomColour()]; if (fits(t, i)) return t; }
   return null;
 }
-function makeBag() {  // the 80 halves shuffled into 40 tiles; the first round's 4 meet a start colour, so each player can place them
-  const hs = HALVES.flatMap((n, c) => Array(n).fill(c));
-  for (let k = hs.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [hs[k], hs[j]] = [hs[j], hs[k]]; }
-  const tiles = []; for (let k = 0; k < hs.length; k += 2) tiles.push([hs[k], hs[k + 1]]);
-  const first = [], rest = [];
-  for (const t of tiles) (first.length < 4 && (t[0] < 2 || t[1] < 2) ? first : rest).push(t);
-  return first.concat(rest);
+function makeBag() {  // the 80 halves shuffled into 40 tiles; of the first round's 4, 2 meet a start colour (one for each player, owner 24 Nov), the other 2 come as shuffled, in random places
+  const hs = HALVES.flatMap((n, c) => Array(n).fill(c)), shuffle = a => { for (let k = a.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [a[k], a[j]] = [a[j], a[k]]; } return a; };
+  shuffle(hs); const tiles = []; for (let k = 0; k < hs.length; k += 2) tiles.push([hs[k], hs[k + 1]]);
+  const sure = [], rest = [];
+  for (const t of tiles) (sure.length < 2 && (t[0] < 2 || t[1] < 2) ? sure : rest).push(t);
+  return shuffle(sure.concat(rest.splice(0, 2))).concat(rest);
 }
 
 // SECTION: TURNS -- the game waits for a tap or a drag; the PC makes the same taps and drags with its hand

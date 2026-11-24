@@ -68,11 +68,12 @@ def f_start(q):  # the same start tile for both, the two most common colours, at
 def f_colour_split(q):  # colours are scarce in a fixed ratio: 80 halves, about 24/22/20/18/16%
     s = st(q); report(s['halves'] == [19, 18, 16, 14, 13], 'colours: fixed scarce split', str(s['halves']))
 
-def f_first_round_fits(q):  # in the first round every tile can be placed by each player
-    bad = 0
-    for seed in range(1, 21):
-        table(q, seed=seed); bad += q.evaluate("()=>__dg.state().draft.length") - sum(st(q)['fits'])
-    report(bad == 0, 'first round: every tile fits', 'tiles that fit nowhere: %d' % bad)
+def f_first_round_fits(q):  # owner 24 Nov: of the first round's 4 tiles, 2 surely fit (one for each player); the other 2 are truly random
+    fits, unfit_seen, places = [], 0, set()
+    for seed in range(1, 41):
+        table(q, seed=seed); f = st(q)['fits']; fits.append(sum(f)); unfit_seen += f.count(False); places.add(tuple(k for k, v in enumerate(f) if v))
+    ok = min(fits) >= 2 and unfit_seen > 0 and len(places) > 1
+    report(ok, 'first round: 2 surely fit, 2 random', 'fewest fitting %d, tiles that fit nowhere in 40 games %d, fitting tiles in %d different places' % (min(fits), unfit_seen, len(places)))
 
 def f_tap_turns(q):  # tap the won tile where it lies (in the top row) to turn it
     table(q, bag=[[0, 4]] * 4); tap(q, 'draft-0'); waiting(q, 'place'); h = held(q)
