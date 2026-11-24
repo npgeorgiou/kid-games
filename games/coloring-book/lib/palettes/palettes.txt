@@ -1,6 +1,6 @@
 # Palettes shown in the palettes popup, 12 to a column. A line starts with its column (1-4); "---" draws a divider line there (it takes no row of its own). From the owner's files in lib/owner-palettes (owner 23 Nov 10:27): Inside every palette (not his rainbows, not Basic) the colours go like the spectrum, reddish first (owner 24 Nov 13:31): a gradient running the other way is turned round, a palette that runs along the spectrum neither way keeps its own order (owner 24 Nov 14:00).
 # 1 the monochromes (Payne's grey between Blue and Purple), a grey scale, each spread a bit darker and lighter than his files (owner 24 Nov 13:31); 2 the 5 rainbows, a divider, then the extras; 3 and 4 the extras. The extras go down the columns by what they hold (owner 24 Nov 08:50: one hue, two, three, many): one smooth progression, two hues, three hues, many hues; the group is the last field;
-# Basic is one of them (no top row); Red, Yellow and Green replaces Coral, Citrus and Olive; Brown and Sage and Coral to Steel Blue are the two Coolors palettes he gave as examples (21 Nov). Orange and Purple is ColorBrewer PuOr (10 classes). Sunset, Autumn, City, Beach, Spring garden, Meadow, Orchard, Harbour town, Mountain landscape, Harvest field and Summer lake are Coolors popular and trending 10-colour palettes he chose (24 Nov 14:00, 14:11; the names are ours).
+# Basic is one of them (no top row); Brown and Sage and Coral to Steel Blue are the two Coolors palettes he gave as examples (21 Nov). Orange and Purple is ColorBrewer PuOr (10 classes). Sunset, Autumn, City, Beach, Spring garden, Orchard, Harbour town, Mountain landscape, Harvest field are Coolors popular and trending 10-colour palettes he chose (24 Nov 14:00, 14:11; the names are ours); Wheat Field, Mushfairy, LTRO-1 and Breathless Calm are Lospec 10-colour palettes he chose (24 Nov 14:28).
 1 Red | 540000 750000 960009 BD0017 E10023 FF2938 FF6E68 FF9991 FFBFB9 FFE4DF
 1 Orange | 7F3100 973F00 AE4B00 C65A00 DF6800 F97607 FF9045 FFAC77 FFC7A1 FFE0C6
 1 Yellow | A86700 BD7B00 CD8E00 DDA100 EDB508 F7C514 FFD61D FFE625 FFF32A FFFB3E
@@ -32,13 +32,12 @@
 3 Olive, Sand and Clay | CABBB1 BDAA9D AD9585 997B66 D08C60 D9AE94 F1DCA7 FFCB69 9B9B7A 797D62 | three
 3 City | 71093B 990B52 CB8B15 EAAA34 FFFFFF F1F4F9 749ED2 467EC3 023578 022450 | three
 3 Beach | B55200 FF9300 B0EBEB 00BFBF 007877 004242 FBA071 FFE3D3 FFB092 FF8A72 | three
-3 Red, Yellow and Green | A50026 D73027 F46D43 FDAE61 FEE08B D9EF8B A6D96A 66BD63 1A9850 006837 | three
 3 Teal, Sand and Ember | 9B2226 AE2012 BB3E03 CA6702 EE9B00 E9D8A6 94D2BD 0A9396 005F73 001219 | three
 3 Aqua, Berry and Gold | AF1D3C DC244B D23F0F F05A29 F3B816 F6CB52 76C8B1 50B99B 73B7B8 52A1A3 | three
 3 Scandi Brick and Slate | C4594C C8A095 D5C9A4 A6A56E F2F4F7 C2C9CD 88A6B3 6BAFC9 5D86B5 394143 | many
 3 Jewel Burgundy and Gold | EDFFAD D4AF37 5B7436 096377 463A49 63141C 9E0F1E AD382B 94214B BD959D | many
 3 Earth, Sage and Sky | A85918 BA7631 DBAB5D EDD5AE FAFAFA AEC4AF 5B7865 CDE0F0 9DD5EB 9C96BD | many
-4 Basic | F7F7F2 0A0A0D DB0F12 FA730D FFE00F 1A8C26 0D33BF 731F99 FA8CB3 73401A | many
+3 Basic | F7F7F2 0A0A0D DB0F12 FA730D FFE00F 1A8C26 0D33BF 731F99 FA8CB3 73401A | many
 4 Coral to Steel Blue | F94144 F3722C F8961E F9844A F9C74F 90BE6D 43AA8B 4D908E 577590 277DA1 | many
 4 Sunset | FFFFFF FFF04C FFC545 FF9B3E FF7037 D15053 A3306F 75108B 110015 B8D14B | many
 4 Autumn | F2636A DC4B4F C63333 E94900 EF6803 F58606 C1B225 72A85F 229E99 36A7A2 | many
@@ -47,6 +46,7 @@
 4 Harbour town | F5F5DC E6D27E 1B263B 415A77 D90429 FB8500 8ECAE6 E9C46A 8A9A5B 387780 | many
 4 Mountain landscape | 86B9E4 A1C0EF 125792 BF271E C46B31 B6973D B8A668 31602A 517B6D AA9C93 | many
 4 Harvest field | 233D4D FE7F2D FE8E32 FCCA46 EAC852 A1C181 94B983 619B8A 81AFA1 9ABFB4 | many
-4 Summer lake | E07748 FABD23 FDD248 799C54 8FBA61 198AA6 0A3C5F ECEFF5 9FAACD 3958A1 | many
-4 Ocean to Sunset Spectrum | 0450B4 046DC8 1184A7 15A2A2 6FB1A0 B4418E D94A8C EA515F FE7434 FEA802 | many
-4 Meadow | F29E4C F1C453 EFEA5A B9E769 83E377 16DB93 0DB39E 048BA8 2C699A 54478C | many
+4 Wheat Field | 97C89B 3E8E92 305472 1C1F2B 2C313C 625E60 999172 DFCD6D B78F43 895C35 | many
+4 Mushfairy | 27234C 733C7C B296FF DDE4FF D3D37C E88DC3 F2504B 225091 007582 39B8A3 | many
+4 LTRO-1 | EAE1F0 7E7185 37313B 1D1C1F 89423F F63F4C FDBB27 8D902E 4159CB 59A7AF | many
+4 Breathless Calm | 181818 292831 333F58 4A7A96 EE8695 F9F9F9 CF7862 A75252 773A4D 543246 | many
