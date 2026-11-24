@@ -13,3 +13,5 @@
 - A flow that samples the game's randomness is seeded (table(seed=...)): unseeded shares wander out of any tight band now and then, and the run fails at random.
 - At test speed timings are 0: never divide by a duration without guarding it (a reel with 0 ms gave NaN, drew an unknown face and stopped the PC's turn).
 - Run the main game on many seeds (MAIN_SEED 1..30) after a rule change: it finds crashes no small flow reaches (negative radii with very many goods or coins).
+- The test run is bound by the browser's processor time: every drawn picture (settle) and every round trip costs; a running fake clock draws 60 frames a second, so fast tables stop it. Count round trips before adding a sampling loop.
+- Layout numbers in flows are read from the screen (the panel's width, a tile button's size), never copied from the game's formulas: copied numbers broke five flows when the panels widened.

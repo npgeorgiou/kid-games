@@ -18,7 +18,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `WARNINGS.md`: traps found in this game.
 - `src/index.html`: the game source; `build.py` makes `oi-apoikoi.html` from it, with the hand pictures put in.
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
-- `tools/flows.py`: flow tests, one per owner rule and bug report, a main test playing a whole fixed game, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 7 s).
+- `tools/flows.py`: flow tests, one per owner rule and bug report, a main test playing a whole fixed game, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 18 s on a 2-core machine).
 - `tools/backdoors.txt`: what a flow may never contain (moves through the game's insides); the commit check refuses it.
 
 ## Running the checks
@@ -27,22 +27,16 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 
 ## Now
 
-A playable prototype against the PC on one shared board, colours only. Tiles are dragged straight from the pile and snap where they fit; a picked tile can be put back on its market place; a won bid reserves a tile for its winner. Each round starts with every square lighting up in turn and its good flying to the stockpile. A placed tile adds its 2 goods at once; its matched edges glow and each jar flies out of its edge. Jars break where tapped, what they held rises out of them with a short label, and the reward flies to its place (coins to the coin stacks, the star beside the face, goods to the stockpile). Jars hold the owner's mix (10% empty). The slot machine has 4 random faces per wheel (one shared by all three), each face several things; you win what the wheels show, three the same double it. At the round's end (leftover market tiles fly back to the pile, evening falls, a moon over the market), each 5 goods of a colour become a jar: it drops from the top, the goods fly into it; jars are opened, again if opening makes new groups of 5; then the leftovers break into specks. Waiting jars step aside over the market while a bonus tile is placed; a bonus tile appears beside the market's 4 tiles. A jar never holds a steal when nothing can be stolen. Whose turn it is: a light flies between the faces, the player playing has a bigger glowing face, the market takes his colour. The bid is a small card beside the market. Jars stand 6 to a row; coins in rows of 5, apart, a wider gap after every 10. A main test plays a whole game from a set pile in which every situation happens, checking each situation's rules where it happens. Rules and built-for-now choices are in `design.md`; the screen follows `tools/ui-design/README.md`.
+A playable prototype against the PC on one shared board, colours only. The screen follows `tools/ui-design/README.md`: the market on top (the pile on its left, a bonus tile on its right), the bid card right under the tile it is about, the board below with a free strip along the bottom edge, and each player's panel at a side with goods big enough to count (a column per colour, each 5 outlined as the jar it will become, set rows marked) and coins in rows of 5. Tiles feel like objects: a carried tile tilts with the drag, a placed tile bounces as it lands, a tap on the board puffs dust with a knock. Each round starts with morning light and every square giving its good (all within about a second), and ends with evening (moon and big stars), goods flying into jars and leftovers breaking into specks. Jars break where tapped and their reward flies to its place; the slot machine has 4 random faces per wheel. Whose turn it is: a light flies between the faces, the player playing has a bigger glowing face, the market takes his colour. A main test plays a whole game from a set pile in which every situation happens. Rules and built-for-now choices are in `design.md`.
 
 ## Open
 
 - Main is protected: work goes on a branch with a pull request, merged by Claude once its tests pass.
-- The full test run is about 16 s of the 20 s limit: real-speed flows cost about half a real second per fake second (see WARNINGS.md); jump the clock (skip) wherever nobody looks at the middle of a wait.
+- The full test run is about 18-20 s of the 20 s limit on a 2-core machine; the cost is the browser's processor time per action. Keep flows sampling with skip, not run_for.
+- Coins (measured 24 Nov, 30 seeded games, the kid taking the first fitting tile and the best place): kid 109, PC 137 coins a game; of the kid's, 106 come from jars and 4 from the slot machine; about 177 jars are opened per game, most from goods at the round's end. Waiting for the owner's choice.
 - The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` sections 6 and 7.
 
 ## Task list
 
-- Redo the whole screen with `tools/ui-design/README.md` (owner 24 Nov: "rethink all UI"; he finds it still poor and wants it found without his pointing). Read the guidelines in full first, especially the 24 Nov rules: wireframe first, squint test, shapes carry states, fixed sizes with designed capacity, the turn sign where he looks, physical pieces, routine short and rare longer, nothing touchable at the bottom edge. Method: a grey-block wireframe of each moment (picking, bidding, placing, jars, slot, round's end, end), then draw, then screenshot each moment and look at it in grey, go through all 17 checklist points, fix, look again. Known so far:
-  - Goods are tiny (the side panels are 13% wide: about 20 px per colour column) and the jar outlines around each 5 are cramped: widen the panels or rethink the stockpile.
-  - The pile stacks one layer per round up from the top-left and runs off the top of the screen.
-  - The stars in the evening sky and the set signs are small.
-  - Pieces do not feel physical yet: no tilt while carried, no bounce when they land, no answer when the board is tapped.
-  - Check every animation's time against how often it happens (late-game round starts lift one good per square, 120 ms apart).
-  - The slot machine is a big dark panel over the board; its pictures stay as they are (owner), but check its layout against the rules.
-- Coins: the main game ended with 151 coins for the kid with the new slot machine; measure coins per game over many seeds and tell the owner whether the slot or the jars give too much.
+- Coins: the jars, not the slot machine, give most coins (see Open); the owner decides what to change.
