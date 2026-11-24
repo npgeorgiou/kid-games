@@ -348,7 +348,7 @@ async function bonus(i, j) {  // the reward flies from where the jar showed it t
   else if (j.k === 'first') { await fly({ k: 'star' }, from, starSpot(i), REWARD_MS, { arc: 100 }); if (G !== my) return; G.first = i; sound('token'); }
   else if (j.k === 'jar') { await fly({ k: 'jar' }, from, jarSpot(p.jars, p.jars + 1, p.fresh), REWARD_MS); if (G !== my) return; p.jars++; }
   else if (j.k === 'set') await Promise.all([0, 1, 2, 3, 4].map(c => pause(c * STAGGER).then(() => G === my && goodFrom(i, c, from))));
-  else if (j.k === 'tile') { const t = freeTile(i); if (t) await place(i, t, pileTop()); }  // the free tile lies on top of the pile, marked as his (owner 24 Nov)
+  else if (j.k === 'tile') { const t = freeTile(i); if (t) { await fly({ k: 'tile', cs: t }, from, giftSpot(), REWARD_MS); if (G !== my) return; await place(i, t, giftSpot()); } }  // the free tile flies to its place beside the market, marked as his (owner 24 Nov)
   else if (j.k === 'steal') {
     const ids = stealable(i); if (!ids.length) { await pause(900); return; }
     const worthOf = id => { const t = G.tiles.get(id); lift(t); const m = jarsFor(t.cs, i); put(t); return m; };
@@ -457,6 +457,7 @@ function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { const sp = stock(i); return [sp.colX(c), sp.rowY(k)]; }  // where good number k of colour c stands in player i's stockpile
 function edgePoint(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; }  // the middle of a square's side
 function pileTop() { const { T, P, ds } = L(), layers = Math.max(1, Math.ceil(G.bag.length / 4)); return [P + 30 + ds, T / 2 + 6 - (layers - 1) * 6]; }  // the pile: a stack of face-down tiles beside the market, one layer per round left
+function giftSpot() { const { T, ds } = L(); return [draftSlot(3)[0] + 2 * ds + 56, T / 2]; }  // a bonus tile's place: just right of the market's 4 tiles
 function shownSpot() { return [W / 2, H * 0.2 + 80]; }  // where an opened jar shows what it held
 function homeSpot() { const { P } = L(); return [W - P / 2, H * 0.72]; }  // the PC's hand rests in its panel
 function snapSpot() {  // the nearest place the tile in hand fits, if it lies close to it
@@ -569,7 +570,7 @@ function drawBoard() {
 function drawDraft() {
   const { ds } = L(), who = wait ? wait.who : 0;
   const [ax] = draftSlot(0), [bx, by] = draftSlot(3);  // the market: a tray with a place for each tile on offer
-  rrect(ax - ds - 22, by - ds / 2 - 18, bx - ax + 2 * ds + 44, ds + 36, 18, G.turn != null ? TINT[G.turn] : '#ffffff30', G.turn != null ? BORDER[G.turn] + '88' : null, 3); drawn.push({ k: 'market', o: G.turn });  // the market takes the colour of the player whose turn it is
+  rrect(ax - ds - 22, by - ds / 2 - 18, bx - ax + 2 * ds + 44, ds + 36, 18, G.turn != null ? TINT[G.turn] : '#ffffff30', G.turn != null ? BORDER[G.turn] + '88' : null, 3); drawn.push({ k: 'market', o: G.turn, x: ax - ds - 22, y: by - ds / 2 - 18, w: bx - ax + 2 * ds + 44, h: ds + 36 });  // the market takes the colour of the player whose turn it is
   for (let k = 0; k < 4; k++) if (!G.draft[k]) { const [x, y] = draftSlot(k); rrect(x - ds, y - ds / 2, 2 * ds, ds, ds * 0.14, '#00000014'); }  // an empty place shows as a recess
   G.draft.forEach((t, k) => {
     const [x, y] = draftSlot(k), sel = k === G.chosen;
@@ -759,6 +760,7 @@ function drawFlights() {  // everything on its way, at its point on its curve
     else if (L0.k === 'shown') shownCard(L0.j, L0.o, x, y, z);
     else if (L0.k === 'coin') coin(x, y, 12 * z);
     else if (L0.k === 'star') star(x, y, 16 * z);
+    else if (L0.k === 'tile') tileShape(x, y, L().ds * z, L0.cs, 0);
     else if (L0.k === 'turnlight') { dot(x, y, 34, BORDER[L0.o] + '44'); dot(x, y, 20, BORDER[L0.o] + '99'); dot(x, y, 9, '#fffbe6'); }
     drawn.push({ k: 'flight', look: L0.k, x, y, fx: f.from[0], fy: f.from[1], tx: f.to[0], ty: f.to[1] });
   }
