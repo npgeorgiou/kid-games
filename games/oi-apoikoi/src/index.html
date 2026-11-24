@@ -40,24 +40,32 @@ function seeded(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math
 // so whatever the old game was doing (a jar, a move, a turn) stops there and never touches the new game.
 const pause = ms => { const my = G; return fast ? Promise.resolve() : new Promise(r => setTimeout(() => { if (G === my) r(); }, ms)); };
 
-// SECTION: SOUNDS -- one simple built-in sound per thing that happens (owner 24 Nov), until his own files come
-const SOUNDS = {  // notes in Hz, one after another; wave shape; length of each note in seconds
-  pick: [[660], 'square', 0.07], bid: [[392, 523], 'triangle', 0.1], snap: [[180, 120], 'triangle', 0.09], pass: [[330, 247], 'sine', 0.18],
-  jar: [[523, 659, 784], 'sine', 0.09], coin: [[988, 1319], 'square', 0.07], made: [[392, 494, 587], 'triangle', 0.08],
-  spin: [[220, 260, 220, 260], 'square', 0.04], stop: [[440], 'triangle', 0.06], win: [[523, 659, 784, 1047], 'square', 0.09], steal: [[700, 350], 'sawtooth', 0.1],
+// SECTION: SOUNDS -- one soft family of built-in sounds, one per thing that happens (owner 24 Nov), until his own files come
+// Made like real objects (the standard Web Audio recipes): a knock is a short tone that drops in pitch, like wood; a clink is a bell-like
+// pair of partials, like metal; a break is a burst of filtered noise with a few shards, like clay; a chime is soft sine notes; a whoosh is noise swept upward.
+const SOUNDS = {  // kind and its notes (Hz)
+  pick: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], bid: ['chime', [392, 523]], pass: ['chime', [392, 294]],
+  jar: ['break', []], coin: ['clink', [1320, 1760]], made: ['chime', [392, 494, 587]], win: ['chime', [523, 659, 784, 1047]],
+  spin: ['whoosh', []], steal: ['whoosh', []],
 };
 let audio = null, heard = [];  // heard: every sound played in this game, in order (the flows read it)
+function noise(len) { const b = audio.createBuffer(1, audio.sampleRate * len, audio.sampleRate), d = b.getChannelData(0); for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1; const n = audio.createBufferSource(); n.buffer = b; return n; }
+function env(t, peak, len, attack = 0.004) { const g = audio.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + len); g.connect(audio.destination); return g; }
+function tone(f, t, len, peak, type = 'sine', drop = 1) { const o = audio.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); if (drop !== 1) o.frequency.exponentialRampToValueAtTime(f * drop, t + len); o.connect(env(t, peak, len)); o.start(t); o.stop(t + len); }
+const MAKE = {
+  knock: (ns, t) => ns.forEach((f, k) => tone(f, t + k * 0.07, 0.12, 0.3, 'triangle', 0.55)),
+  clink: (ns, t) => ns.forEach((f, k) => { tone(f, t + k * 0.06, 0.3, 0.1); tone(f * 2.76, t + k * 0.06, 0.15, 0.04); }),
+  chime: (ns, t) => ns.forEach((f, k) => tone(f, t + k * 0.09, 0.45, 0.12)),
+  break: (ns, t) => {
+    const n = noise(0.4), bp = audio.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 0.7; n.connect(bp).connect(env(t, 0.45, 0.35, 0.002)); n.start(t);
+    for (let k = 0; k < 4; k++) tone(1400 + Math.random() * 1400, t + 0.03 + Math.random() * 0.18, 0.06, 0.12, 'triangle', 0.7);  // shards
+  },
+  whoosh: (ns, t) => { const n = noise(0.35), bp = audio.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.2; bp.frequency.setValueAtTime(400, t); bp.frequency.exponentialRampToValueAtTime(1600, t + 0.3); n.connect(bp).connect(env(t, 0.2, 0.32, 0.06)); n.start(t); },
+};
 function sound(name) {
   heard.push(name); if (fast) return;  // at test speed everything happens at once: sounds are only noted, not played
-  try {
-    audio = audio || new AudioContext(); if (audio.state === 'suspended') audio.resume();
-    const [notes, type, len] = SOUNDS[name], t0 = audio.currentTime;
-    notes.forEach((f, k) => {
-      const o = audio.createOscillator(), g = audio.createGain(), t = t0 + k * len;
-      o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + len * 0.95);
-      o.connect(g).connect(audio.destination); o.start(t); o.stop(t + len);
-    });
-  } catch (e) { /* no sound on this machine: the game goes on */ }
+  try { audio = audio || new AudioContext(); if (audio.state === 'suspended') audio.resume(); const [kind, ns] = SOUNDS[name]; MAKE[kind](ns, audio.currentTime); }
+  catch (e) { /* no sound on this machine: the game goes on */ }
 }
 
 // SECTION: MODEL -- the shared board, tiles, matches, goods and sets
@@ -612,6 +620,8 @@ window.__dg = {
   buttons() { return buttons.map(b => b.id); },
   drawn() { return drawn; },
   sounds() { return heard.slice(); },
+  heardKinds() { return heard.map(n => SOUNDS[n][0]); },
+  soundKinds() { return [...new Set(Object.values(SOUNDS).map(v => v[0]))].sort(); },
   held() { return wait && wait.kind === 'place' ? wait.pos.slice() : null; },
   tileAt: tileCentre,
   edge(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; },

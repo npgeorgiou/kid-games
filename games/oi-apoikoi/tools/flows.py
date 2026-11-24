@@ -208,6 +208,11 @@ def f_round_end_in_turn(q):  # owner 24 Nov: at the round's end one player turns
     ok = pc_goods > 0 and pc_made == 0 and after['coins'] > pc_coins
     report(ok, 'end: one player gains and opens, then the other', 'PC goods shown while the kid opens %d, PC jars made by then %d; PC coins %d then %d' % (pc_goods, pc_made, pc_coins, after['coins']))
 
+def f_sound_kinds(q):  # owner 24 Nov: "a weird blip when I tap a piece"; "jars must make a breaking sound": a tap knocks like wood, a jar breaks like clay, a coin clinks; no beeps anywhere
+    get_jar(q, [COIN]); settle(q); h = q.evaluate("()=>__dg.heardKinds()")
+    ok = h[:4] == ['knock', 'knock', 'break', 'clink'] and set(q.evaluate("()=>__dg.soundKinds()")) <= {'break', 'chime', 'clink', 'knock', 'whoosh'}
+    report(ok, 'sounds: wood tap, clay break, coin clink', 'heard %s; kinds in the game %s' % (h[:4], q.evaluate("()=>__dg.soundKinds()")))
+
 def f_pc_best(q):  # the PC picks and places for the most jars
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)
