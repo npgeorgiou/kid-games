@@ -513,9 +513,13 @@ def f_palettes(q):  # owner 22 Nov 00:21, changed by him 23 Nov 10:27 and 22:37:
     grey_ok = len(grey) == 10 and all(max(g) - min(g) <= 2 for g in grey) and all(grey[i][0] < grey[i + 1][0] for i in range(9))
     above = q.evaluate("()=>document.querySelectorAll('.palpic .pal').length")
     box = q.evaluate("()=>{const r=document.querySelector('.popbox').getBoundingClientRect();return [r.width/innerWidth,r.height/innerHeight]}")
-    ok = [len(x) for x in c] == [12] * 4 and c[0][:7] + c[0][8:11] == mono and c[0][7] == payne and grey_ok  # owner 23 Nov 22:37: Payne's grey between Blue and Purple and c[1][:5] == rainbow and above == 0 and box[0] > 0.8 and box[1] > 0.75
-    report(ok, 'palettes: four columns of 12, monochromes then Payne\'s grey and a grey scale, nothing above',
-           'columns %s, monochromes his %s, Payne %s, grey scale %s, rainbows %s, above %d, popup %.0f%% x %.0f%%' % ([len(x) for x in c], c[0][:7] + c[0][8:11] == mono, len(c[0]) > 7 and c[0][7] == payne, grey_ok, c[1][:5] == rainbow, above, box[0] * 100, box[1] * 100))
+    # owner 24 Nov 13:31, point 2: every monochrome (Payne's grey and the grey scale too) spread a bit wider than his: its darkest darker, its lightest lighter, still dark to light
+    his_mono = mono[:7] + [payne] + mono[7:] + [[[v] * 3 for v in (38, 56, 74, 94, 115, 136, 158, 180, 203, 226)]]
+    lum = lambda k: 0.3 * k[0] + 0.59 * k[1] + 0.11 * k[2]
+    wider = len(c[0]) == 12 and all(lum(n[0]) < lum(o[0]) - 6 and (lum(n[-1]) > lum(o[-1]) + 6 or lum(n[-1]) > 245) and all(lum(n[i]) < lum(n[i + 1]) for i in range(9)) for n, o in zip(c[0], his_mono))
+    ok = [len(x) for x in c] == [12] * 4 and wider and grey_ok  # owner 23 Nov 22:37: Payne's grey between Blue and Purple and c[1][:5] == rainbow and above == 0 and box[0] > 0.8 and box[1] > 0.75
+    report(ok, 'palettes: four columns of 12, monochromes (a bit wider than his) then Payne\'s grey and a grey scale, nothing above',
+           'columns %s, monochromes wider than his %s, grey scale %s, rainbows %s, above %d, popup %.0f%% x %.0f%%' % ([len(x) for x in c], wider, grey_ok, c[1][:5] == rainbow, above, box[0] * 100, box[1] * 100))
 FLOWS['palettes'] = f_palettes
 
 def f_acrylic_scrub(q):  # owner 21 Nov 18:29: a 3rd acrylic brush like the Brusheezy acrylic packs (broad scrubbed strokes breaking into dry streaks), clearly unlike the flat
