@@ -32,9 +32,11 @@ A playable prototype against the PC on one shared board, colours only. The scree
 
 ## Open
 
-- Main is protected: work goes on a branch with a pull request, merged by Claude once its tests pass.
-- The full test run is about 18-20 s of the 20 s limit on a 2-core machine; the cost is the browser's processor time per action. Keep flows sampling with skip, not run_for.
-- Coins (measured 24 Nov, 30 seeded games, the kid taking the first fitting tile and the best place): kid 109, PC 137 coins a game; of the kid's, 106 come from jars and 4 from the slot machine; about 177 jars are opened per game, most from goods at the round's end. Waiting for the owner's choice.
+- Pull request 19 (tasks: no bidding, goods from edges, rows of 5, sets and the wild tile, no turn sign, slot drums) passed GitHub's tests; Claude's merge was refused by the session's safety check: the owner merges it, or tells Claude to retry.
+- Whole screen: grey sketches of every moment sent to the owner; waiting for his yes before building (task 1).
+- The PC does not spend sets yet (task 2).
+- The full test run is about 16-17 s of the 20 s limit on a 2-core machine; keep flows sampling with skip, not run_for.
+- Coins and jars per game under the new rules not measured yet (task 3); the 24 Nov measure (old rules: kid 109 coins, about 177 jars a game) no longer holds.
 - The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` sections 6 and 7.
 
