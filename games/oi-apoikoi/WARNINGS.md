@@ -11,3 +11,5 @@
 - Flows that only need the end of a wait jump the fake clock (skip: fast_forward, each due timer once); run_for steps every frame and costs about half a real second per fake second.
 - Build (run the harness) before staging: the committed page must be built from the committed source; a page staged before the build goes in stale.
 - A flow that samples the game's randomness is seeded (table(seed=...)): unseeded shares wander out of any tight band now and then, and the run fails at random.
+- At test speed timings are 0: never divide by a duration without guarding it (a reel with 0 ms gave NaN, drew an unknown face and stopped the PC's turn).
+- Run the main game on many seeds (MAIN_SEED 1..30) after a rule change: it finds crashes no small flow reaches (negative radii with very many goods or coins).

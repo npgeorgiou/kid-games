@@ -67,14 +67,11 @@ Two players each build their own land from tiles with two terrain halves. Each r
   - A free tile from the draft.
 
 ### Slot machine (a jar bonus)
-- Owner rule: it has 3 wheels. Their pictures are all the game's resources: the 5 goods, points (coins) and jars.
-- Owner rule: it spins once. Then you pay 1 coin to reroll whichever wheels you choose, as many times as you want.
-- Owner idea: wheel pictures can show amounts, such as 2 grain or 3 coins. To be worked out later.
-- Known odds: with 7 pictures, once two wheels match, each reroll has a 1 in 7 chance, so a third match costs about 7 coins on average. The first spin shows a pair about 4 times in 10.
-- Proposals, not chosen:
-  - Each machine shows only 3 of the 7 kinds (a 1 in 3 chance per reroll).
-  - The first reroll is free.
-- Owner rule (for now): 7 pictures, each worth 1; 2 the same wins 2, 3 the same wins 3; you can stop at any time.
+- Owner rule (24 Nov): 3 wheels, 4 faces each, drawn at random for each machine from: 1 coin, 1 jar, 1 of each good, 5 of one good (one per colour). One face is on all three wheels, so three the same is always possible.
+- Owner rule (24 Nov): you win what the 3 wheels show; three the same double it. It spins once; then you pay 1 coin to respin whichever wheels you choose, as many times as you want, and stop when you like.
+- Why (24 Nov, the owner chose it): something is always won; what you see is what you get; a respin risks a face you already have to chase the double. With 4 faces per wheel, a coin pair chasing the third is close to an even bet (2.49 against 2.65 for stopping), which is the tension he asked for.
+- Worth in coins used by the PC: 1 coin = 1; a jar = what jars hold on average (about 0.65); 1 of each good or 5 of one good = a jar's worth.
+- The slot pictures stay as they are (owner 24 Nov: no new icons).
 - Owner rule (24 Nov): the wheels roll fast, then slow down and stop one after another (first, second, third), with sounds.
 
 ### Points and winning

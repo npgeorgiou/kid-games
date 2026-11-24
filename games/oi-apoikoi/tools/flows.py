@@ -44,8 +44,9 @@ def best_spot(q): return max(st(q)['spots'], key=lambda p: p['m'])
 def tile_count(q, who): return sum(1 for t in st(q)['tiles'] if t[5] == who)
 def drawn(q, kind): return [d for d in q.evaluate("()=>__dg.drawn()") if d['k'] == kind]
 def report(ok, name, seen): print('%-4s [%s] %-40s %s' % ('PASS' if ok else 'FAIL', NOW[0], name, seen))
-def get_jar(q, contents, coins=0, slots=()):  # place a tile with one matching edge, then open the jar it earns
-    table(q, bag=[[0, 4]] * 4, coins=[coins, 0], jarQueue=contents + [COIN] * 8, slotQueue=list(slots))
+FACES = [['coin', 'jar', 'set', 'g2']] * 3  # a slot machine's faces, wheel by wheel: 1 coin, 1 jar, 1 of each good, 5 of good 2 (owner 24 Nov)
+def get_jar(q, contents, coins=0, slots=(), faces=FACES):  # place a tile with one matching edge, then open the jar it earns (slots: the face each spin lands on)
+    table(q, bag=[[0, 4]] * 4, coins=[coins, 0], jarQueue=contents + [COIN] * 8, slotQueue=list(slots), slotFaces=faces)
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')
 def kid_plays(q, until, steps=80):  # the kid takes the first tile that fits, places it where it earns most, opens his jars
     for _ in range(steps):
@@ -254,14 +255,15 @@ def f_many_jars_rows(q):  # owner 24 Nov: "when a lot of jars exist, make more r
 
 def f_many_coins(q):  # owner 24 Nov: "make sure more coins than you predicted can fit", then "coins are too stacked and squeezed, make them easier to count": rows of 5, apart, a gap after every 10
     out = {}
-    for n in (12, 100):
+    for n in (12, 100, 160):  # 160: found by the main game, more than the tray was made for: they shrink but stay apart and leave the goods their room
         table(q, bag=[[0, 4]] * 4, coins=[n, 0]); c = [x for x in drawn(q, 'coin') if x['o'] == 0]
         P, H = q.evaluate("()=>[innerWidth*0.13, innerHeight]")
         inside = all(x['x'] - x['r'] > 0 and x['x'] + x['r'] < P and x['y'] + x['r'] < H for x in c)
         gap = min(((a['x'] - b['x']) ** 2 + (a['y'] - b['y']) ** 2) ** 0.5 - a['r'] - b['r'] for i, a in enumerate(c) for b in c[i + 1:])
         rows = sorted({round(x['y']) for x in c}, reverse=True); per = [sum(1 for x in c if round(x['y']) == y) for y in rows]
-        steps = [a - b for a, b in zip(rows, rows[1:])]; tens = all(steps[k] > steps[0] + 3 for k in range(1, len(steps), 2))
-        out[n] = (len(c) == n and inside and gap >= 3 and all(v == 5 for v in per[:-1]) and tens, len(c), inside, round(gap, 1), per[:3], tens)
+        steps = [a - b for a, b in zip(rows, rows[1:])]; tens = all(steps[k] > steps[0] + 2 for k in range(1, len(steps), 2))
+        goods_room = q.evaluate("()=>{const t=__dg.drawn().filter(d=>d.k==='tray'&&d.o===0);return t.length}") == 2
+        out[n] = (len(c) == n and inside and gap >= 1 and goods_room and all(v == 5 for v in per[:-1]) and tens, len(c), inside, round(gap, 1), per[:3], tens)
     report(all(v[0] for v in out.values()), 'coins: rows of 5, apart, a gap after every 10', str(out))
 
 def f_jars_apart(q):  # owner 24 Nov: "jar circles are touching": every jar and its glow stands apart, with a clear gap
@@ -335,10 +337,10 @@ def f_pc_hand(q):  # the PC's moves are slow and done by a moving hand: it point
     q.clock.run_for(1800); settle(q); h1 = held(q); q.clock.resume()  # longer than the rest of the PC's drag
     report(slow and h0 == h1, 'pc: slow, by a moving hand; a new game is left alone', '%d ms, hand at %d places, gestures %s, pictures while dragging %s; new game tile %s then %s' % (ms, len(xs), sorted(gs), sorted(drag_pics), h0, h1))
 
-def f_pc_slot(q):  # the PC takes the best expected result on the slot machine too
-    table(q, bag=[[0, 4]] * 4, first=1, coins=[0, 5], jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[5, 5, 1])
+def f_pc_slot(q):  # the PC takes the best expected result on the slot machine too (here: chasing the third coin is worth a little less than stopping, so it stops and takes 2 coins and a jar)
+    table(q, bag=[[0, 4]] * 4, first=1, coins=[0, 5], jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 0, 1], slotFaces=FACES)  # coin, coin, jar: chasing the third coin is worth a little less than stopping
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); c = st(q)['players'][1]['coins']
-    report(c == 7, 'pc: slot machine played for the most', 'pc coins %d' % c)
+    report(c == 5 + 2 + 1, 'pc: slot machine played for the most', 'pc coins %d (5, plus 2 coins shown, plus the coin in the jar shown; no coin paid)' % c)
 
 def f_jar_mix(q):  # owner 24 Nov, per 100 jars: 10 empty, 40 one coin, 10 two coins, 5 steal, 5 extra tile, the rest equal (7.5 each: slot, first, another jar, set)
     table(q, bag=[[0, 4]] * 4, tiles=[[14, 7, 0, 0, 1, 1]], seed=11)  # the PC has a tile the kid could steal; seeded: an unseeded sample missed the 1.5% band about once in 15 runs
@@ -431,20 +433,28 @@ def f_slot_rolls(q):  # owner 24 Nov: the wheels roll fast, then slow down and s
     report(ok, 'slot: wheels roll fast, slow down, stop one by one', 'stops at %s ms; first wheel moves %s per 100 ms; roll sounds %d, stop sounds %d' % (stops, [round(x, 1) for x in steps], h.count('roll'), h.count('stop')))
 
 def f_slot_says_price(q):  # owner 24 Nov: "I can't even see what I pay", and then "no text; the slot machine should have none": price, prize and coins are pictures
-    get_jar(q, [{'k': 'slot'}], coins=3, slots=[5, 5, 1]); waiting(q, 'slot'); tap(q, 'wheel-2')
+    get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 1, 3]); waiting(q, 'slot'); tap(q, 'wheel-2')
     pics = {d['for']: d for d in drawn(q, 'pic')}; texts = drawn(q, 'label')
-    ok = not texts and pics.get('reroll', {}).get('coins') == 1 and pics.get('collect', {}).get('n') == 2 and pics.get('collect', {}).get('s') == 5 and pics.get('coins', {}).get('n') == 3
+    ok = not texts and pics.get('reroll', {}).get('coins') == 1 and pics.get('collect', {}).get('faces') == ['coin', 'jar', 'g2'] and pics.get('coins', {}).get('n') == 3
     report(ok, 'slot: price, prize and coins as pictures, no text', 'texts %s, pictures %s' % ([t['text'] for t in texts], pics))
 
-def f_slot_three(q):  # slot machine: pay 1 coin to reroll chosen wheels; 3 the same wins 3 (on top of the placed tile's own goods, owner 24 Nov)
+def f_slot_three(q):  # owner 24 Nov: pay 1 coin to respin chosen wheels; three the same double what you see
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot')
     tap(q, 'wheel-2'); tap(q, 'reroll'); q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); p = st(q)['players'][0]
-    report(p['goods'][0] == 5 and p['coins'] == 2, 'slot: reroll costs a coin, 3 same win 3', 'goods %s coins %d' % (p['goods'], p['coins']))
+    report(p['coins'] == 3 - 1 + 6, 'slot: respin costs a coin, three the same double', 'coins %d (3, paid 1, three coins doubled)' % p['coins'])
 
-def f_slot_two(q):  # 2 the same win 2; you can stop at any time
-    get_jar(q, [{'k': 'slot'}], coins=0, slots=[5, 1, 5]); waiting(q, 'slot')
+def f_slot_two(q):  # owner 24 Nov: you win what the 3 wheels show (each face several things); you can stop at any time
+    get_jar(q, [{'k': 'slot'}], coins=0, slots=[0, 2, 3]); waiting(q, 'slot'); g0 = st(q)['players'][0]['goods']
     tap(q, 'collect'); q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); p = st(q)['players'][0]
-    report(p['coins'] == 2, 'slot: stop with 2 the same wins 2', 'coins %d' % p['coins'])
+    gained = [a - b for a, b in zip(p['goods'], g0)]
+    report(p['coins'] == 1 and gained == [1, 1, 6, 1, 1], 'slot: win what you see', 'coins %d, goods gained %s (1 of each, and 5 of good 2)' % (p['coins'], gained))
+
+def f_slot_faces(q):  # owner 24 Nov: each wheel has 4 faces drawn at random (not every option on every wheel), and at least one face is on all three wheels
+    seen, shared = set(), True
+    for seed in range(1, 13):
+        table(q, seed=seed, bag=[[0, 4]] * 4, jarQueue=[{'k': 'slot'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0'); waiting(q, 'slot')
+        f = st(q)['slot']['faces']; seen.add(tuple(map(tuple, f))); shared = shared and bool(set(f[0]) & set(f[1]) & set(f[2])) and all(len(set(w)) == 4 for w in f)
+    report(len(seen) > 6 and shared, 'slot: 4 random faces per wheel, one on all three', '%d different machines in 12, each with 4 faces and a shared one %s' % (len(seen), shared))
 
 def f_steal(q):  # steal a PC tile: it is lifted where it lay and you place it; a tile with no place for you can't be stolen
     table(q, bag=[[0, 4]] * 4, tiles=[[14, 7, 0, 0, 0, 1], [14, 2, 0, 3, 3, 1]], jarQueue=[{'k': 'steal'}] + [COIN] * 8)
