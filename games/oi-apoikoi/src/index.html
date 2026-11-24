@@ -520,7 +520,7 @@ function hand(h) {  // the PC's hand, the only hand drawn; a press shows a ring 
 // SECTION: DRAWING -- each screen part
 function drawBoard() {
   const { s, ox, oy } = L();
-  rrect(ox - 6, oy - 6, s * COLS + 12, s * ROWS + 12, 14, '#e2d3b0', '#c4b088', 2);
+  rrect(ox - 6, oy - 6, s * COLS + 12, s * ROWS + 12, 14, '#e2d3b0', '#c4b088', 2); drawn.push({ k: 'boardarea', x: ox, y: oy, w: s * COLS, h: s * ROWS });
   cx.strokeStyle = '#d6c49c'; cx.lineWidth = 1; cx.beginPath();  // the grid, as one path
   for (let x = 1; x < COLS; x++) { cx.moveTo(ox + x * s, oy); cx.lineTo(ox + x * s, oy + ROWS * s); }
   for (let y = 1; y < ROWS; y++) { cx.moveTo(ox, oy + y * s); cx.lineTo(ox + COLS * s, oy + y * s); }
@@ -615,18 +615,16 @@ function drawHeld() {  // the tile in hand where it lies, and the place it will 
   rrect(b.x - 5, b.y - 5, b.w + 10, b.h + 10, s * 0.22, null, BORDER[wait.who], 4); drawn.push({ k: 'heldmark', o: wait.who });  // his colour around it: this tile is his
   btn('held', b.x - 8, b.y - 8, b.w + 16, b.h + 16, e => { press = { x: e.clientX, y: e.clientY, dx: x - e.clientX, dy: y - e.clientY, moved: false }; });
 }
-function shade(a) { cx.fillStyle = 'rgba(40,25,10,' + a + ')'; cx.fillRect(0, 0, W, H); }
-function drawBid() {  // match the bid with your sets, or let the tile go
-  const x = W / 2, y = H * 0.5, me = wait.who, tile = G.draft[G.chosen];
-  shade(0.3); rrect(x - 240, y - 130, 480, 260, 26, '#fff8e8', BORDER[me], 6);
-  if (tile) tileShape(x, y - 70, 44, tile, 0);
-  for (let k = 0; k < wait.n; k++) setShape(x + (k - (wait.n - 1) / 2) * 44, y - 10, 18);
-  rrect(x - 210, y + 20, 190, 94, 20, '#d8f0c8', '#3a8a2a', 4);
-  cx.strokeStyle = '#3a8a2a'; cx.lineWidth = 10; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(x - 145, y + 66); cx.lineTo(x - 122, y + 88); cx.lineTo(x - 80, y + 44); cx.stroke();
-  btn('bid', x - 210, y + 20, 190, 94, () => answer(true));
-  rrect(x + 20, y + 20, 190, 94, 20, '#f6d6d0', '#a83a2a', 4);
-  cx.strokeStyle = '#a83a2a'; cx.beginPath(); cx.moveTo(x + 92, y + 44); cx.lineTo(x + 138, y + 90); cx.moveTo(x + 138, y + 44); cx.lineTo(x + 92, y + 90); cx.stroke(); cx.lineCap = 'butt';
-  btn('letgo', x + 20, y + 20, 190, 94, () => answer(false));
+function shade(a) { drawn.push({ k: 'shade' }); cx.fillStyle = 'rgba(40,25,10,' + a + ')'; cx.fillRect(0, 0, W, H); }
+function drawBid() {  // beside the market, over the pile: the sets asked, match them (a tick) or let the tile go (a cross); nothing darkened, both lands in view (owner 24 Nov)
+  const { T, P } = L(), me = wait.who, x0 = P + 8, x1 = draftSlot(0)[0] - L().ds - 10, w = x1 - x0, b = Math.min(84, (w - 20) / 2, T - 44), y0 = 6, h = T - 12;
+  rrect(x0, y0, w, h, 18, '#fff8e8', BORDER[me], 4); drawn.push({ k: 'bidcard', x: x0, y: y0, w, h });
+  for (let k = 0; k < wait.n; k++) setShape(x0 + w / 2 + (k - (wait.n - 1) / 2) * 30, y0 + 18, 12);
+  const by = y0 + h - b - 8, bx = x0 + (w - 2 * b - 8) / 2, ex = bx + b + 8;
+  rrect(bx, by, b, b, 16, '#d8f0c8', '#3a8a2a', 3); btn('bid', bx, by, b, b, () => answer(true));
+  cx.strokeStyle = '#3a8a2a'; cx.lineWidth = b * 0.11; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(bx + b * 0.25, by + b * 0.52); cx.lineTo(bx + b * 0.43, by + b * 0.7); cx.lineTo(bx + b * 0.76, by + b * 0.3); cx.stroke();
+  rrect(ex, by, b, b, 16, '#f6d6d0', '#a83a2a', 3); btn('letgo', ex, by, b, b, () => answer(false));
+  cx.strokeStyle = '#a83a2a'; cx.beginPath(); cx.moveTo(ex + b * 0.3, by + b * 0.3); cx.lineTo(ex + b * 0.7, by + b * 0.7); cx.moveTo(ex + b * 0.7, by + b * 0.3); cx.lineTo(ex + b * 0.3, by + b * 0.7); cx.stroke(); cx.lineCap = 'butt';
 }
 const PARKED = 0.6;  // a jar stepped aside is this much smaller
 function parkSpot(k, n) { const { T } = L(), per = 10, sp = JAR_SIZE() * PARKED * 1.4, row = Math.floor(k / per), inRow = Math.min(per, n - row * per); return [W / 2 + (k % per - (inRow - 1) / 2) * sp, T / 2 + row * sp * 0.8]; }
@@ -782,6 +780,7 @@ cv.addEventListener('pointerup', () => {
 window.__dg = {
   ready: false, restart, render,
   btn(id) { const b = buttons.find(b => b.id === id); return b ? [b.x + b.w / 2, b.y + b.h / 2] : null; },
+  btnBox(id) { const b = buttons.find(b => b.id === id); return b ? { x: b.x, y: b.y, w: b.w, h: b.h } : null; },
   buttons() { return buttons.map(b => b.id); },
   drawn() { return drawn; },
   sounds() { return heard.slice(); },

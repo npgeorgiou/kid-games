@@ -181,6 +181,15 @@ def f_sets_of_five(q):  # a set is 5 goods, one of each; the PC bids when it pay
     ok = pc_bid == 1 and s['players'][0]['goods'] == [0, 0, 0, 0, 1] and s['players'][1]['goods'] == [1, 1, 1, 1, 2]
     report(ok, 'bid: sets of 5, tie to picker, winner pays', 'pc bid %d, kid %s, pc %s' % (pc_bid, s['players'][0]['goods'], s['players'][1]['goods']))
 
+def f_bid_shows_board(q):  # owner 24 Nov: "the big screen hides my board, how can I see if I want to bid, if it matches my board?": the bid is a small card beside the market; the board and both areas stay in view, not darkened
+    kid, pc = [[4, 4, 0, 2, 3, 0], [4, 2, 0, 4, 4, 0]], [[14, 4, 0, 2, 3, 1], [14, 2, 0, 4, 4, 1]]
+    table(q, bag=[[0, 1], [0, 0], [0, 0], [0, 0]], tiles=kid + pc); tap(q, 'draft-0'); waiting(q, 'bid')
+    d = q.evaluate("()=>__dg.drawn()"); card = [x for x in d if x['k'] == 'bidcard']; board = [x for x in d if x['k'] == 'boardarea'][0]; P = q.evaluate("()=>innerWidth*0.13")
+    over = lambda a, b: a['x'] < b['x'] + b['w'] and b['x'] < a['x'] + a['w'] and a['y'] < b['y'] + b['h'] and b['y'] < a['y'] + a['h']
+    btns = q.evaluate("()=>['bid','letgo'].map(id=>__dg.btnBox(id))")
+    ok = len(card) == 1 and not over(card[0], board) and card[0]['x'] >= P and not [x for x in d if x['k'] == 'shade'] and all(b['w'] >= 75 and b['h'] >= 75 for b in btns)
+    report(ok, 'bid: a small card, the board stays in view', 'card %s, board %s, darkened %s, buttons %s' % (card, board, bool([x for x in d if x['k'] == 'shade']), [(b['w'], b['h']) for b in btns]))
+
 def f_bid_locks(q):  # owner 24 Nov: winning a bid does not take the tile, it locks it: greyed for the other player, only the winner can pick it later
     kid, pc = [[4, 4, 0, 2, 3, 0], [4, 2, 0, 4, 4, 0]], [[14, 4, 0, 2, 3, 1], [14, 2, 0, 4, 4, 1]]
     table(q, bag=[[0, 1], [0, 0], [0, 0], [0, 0]], tiles=kid + pc, jarQueue=[COIN] * 20)
