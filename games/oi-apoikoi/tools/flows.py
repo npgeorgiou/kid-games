@@ -173,10 +173,21 @@ def f_bid_locks(q):  # owner 24 Nov: winning a bid does not take the tile, it lo
 
 def f_leftovers_jar(q):  # at the end of the round each 5 of the same leftover good make a jar (owner 24 Nov: 5, not 3); the rest are lost (placed tiles' goods count too, owner 24 Nov)
     table(q, bag=[[0, 0]] * 4, tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0], [6, 2, 0, 2, 2, 0], [2, 2, 0, 2, 2, 0]], jarQueue=[COIN] * 20)
-    kid_plays(q, lambda s: s['phase'] == 'end'); waiting(q, 'jar'); p = st(q)['players'][0]
-    report(p['jars'] == 3 and p['goods'] == [0, 0, 0, 0, 0], 'end: each 5 same leftovers a jar', 'jars %d goods %s' % (p['jars'], p['goods']))
+    kid_plays(q, lambda s: s['phase'] == 'end'); waiting(q, 'jar'); p = st(q)['players'][0]  # the leftovers stay until his jars are opened (owner 24 Nov)
+    s = kid_plays(q, lambda s: s['wait'] and s['wait']['who'] == 1 or s['round'] > 1 or s['over']); gone = s['players'][0]['goods']
+    report(p['jars'] == 3 and p['goods'] == [0, 1, 0, 0, 0] and gone == [0, 0, 0, 0, 0], 'end: each 5 same leftovers a jar', 'jars %d, left over %s, after opening %s' % (p['jars'], p['goods'], gone))
 
-def f_goods_become_jars(q):  # owner 24 Nov: at the round's end the goods turn into jars one by one, visibly; then the leftovers fade out
+def f_more_jars_while_opening(q):  # owner 24 Nov: "if during jar opening at end of round you make more groups, more jars come; the leftovers dissolve after all jars are opened"
+    tiles = [[2, 2, 0, 2, 2, 0], [2, 3, 0, 2, 2, 0], [6, 2, 0, 2, 2, 0], [6, 3, 0, 2, 3, 0], [8, 2, 0, 2, 2, 0]]  # 9 of colour 2: one jar, 4 left over
+    table(q, bag=[[3, 4]], tiles=tiles, jarQueue=[COIN, {'k': 'set'}, COIN] + [COIN] * 4)  # the edge jar; the end jar holds a set: colour 2 reaches 5 again
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 8, 'y': 3, 'r': 0}); waiting(q, 'jar'); tap(q, 'jar-0')
+    waiting(q, 'jar'); tap(q, 'jar-0'); waiting(q, 'jar'); kept = [x for x in drawn(q, 'good') if x['o'] == 0 and x.get('a', 1) == 1]
+    tap(q, 'jar-0'); q.wait_for_function("()=>__dg.state().over", timeout=WAIT, polling=5)
+    heard = q.evaluate("()=>__dg.sounds()"); after = heard[heard.index('roundend'):]; kid = after[:after.index('turn')] if 'turn' in after else after
+    ok = kid.count('made') == 2 and len(kept) > 0 and st(q)['players'][0]['coins'] == 2
+    report(ok, 'end: a set while opening makes another jar', 'made %d, goods still shown before the last jar %d, coins %d' % (kid.count('made'), len(kept), st(q)['players'][0]['coins']))
+
+def f_goods_become_jars(q):  # owner 24 Nov: at the round's end the goods turn into jars one by one, visibly; the leftovers fade out after the jars are opened
     pause_clock(q)  # the kid's last tile ends the round: 12 goods, 10 of one colour (2 jars of 5), 2 left over
     table(q, fast=False, bag=[[2, 2]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0], [6, 7, 0, 2, 2, 0], [6, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); q.clock.run_for(1200); waiting(q, 'jar'); tap(q, 'jar-0')  # the jars fly out of the matched edges first
@@ -188,9 +199,14 @@ def f_goods_become_jars(q):  # owner 24 Nov: at the round's end the goods turn i
         flying = flying or any(x['k'] == 'flying' for x in d); faded = faded or any(x['k'] == 'good' and x.get('a', 1) < 1 for x in d)
         if jars not in made: made[jars] = ms; shown_left[jars] = goods
         if st(q)['wait'] and st(q)['wait']['kind'] == 'jar': break
+    opened = 0
+    while ms < 12000 and not faded:  # open his jars; then the leftovers fade
+        w = st(q)['wait']
+        if w and w['kind'] == 'jar' and w['who'] == 0: tap(q, 'jar-0'); opened += 1
+        q.clock.run_for(100); ms += 100; settle(q); faded = any(x['k'] == 'good' and x['o'] == 0 and x.get('a', 1) < 1 for x in q.evaluate("()=>__dg.drawn()"))
     q.clock.resume()
-    ok = sorted(made) == [0, 1, 2] and made[2] - made[1] >= 500 and flying and faded and shown_left[1] == 7 and st(q)['players'][0]['jars'] == 2
-    report(ok, 'end: goods become jars one by one', 'jar counts first seen at %s ms, goods then %s, flying %s, fading %s' % (made, shown_left, flying, faded))
+    ok = sorted(made) == [0, 1, 2] and made[2] - made[1] >= 500 and flying and faded and opened == 2 and shown_left[1] == 7
+    report(ok, 'end: goods become jars one by one', 'jar counts first seen at %s ms, goods then %s, flying %s, fading after %d opened %s' % (made, shown_left, flying, opened, faded))
 
 def f_sounds(q):  # owner 24 Nov: "add some sounds, it's hard to follow what happens": each thing that happens has its sound, in the order it happens
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot'); tap(q, 'wheel-2'); tap(q, 'reroll')

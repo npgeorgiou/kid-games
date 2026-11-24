@@ -47,7 +47,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
    - Owner rule (24 Nov): the round's end is its own moment, seen and heard, before anything else in it (built for now: a sun sets behind a horizon, with a falling chime).
    - Owner rule: goods not spent are lost at the end of the round, but each 5 of the same good become a jar (10 make 2; owner 24 Nov: 5, not 3). Sets don't become jars.
    - Owner rule: jars from leftover goods are opened at the end of the round.
-   - Owner rule (24 Nov): this is shown one group at a time: each 5 of a colour fly from the stockpile into a jar; then the leftover goods fade out.
+   - Owner rule (24 Nov): this is shown one group at a time: each 5 of a colour fly from the stockpile into a jar; the jars are opened, and if that makes new groups of 5 they become jars too; only then the leftover goods fade out.
    - Owner rule (24 Nov): one player turns his goods into jars and opens them, then the other (the first-player token holder first).
 
 ### Jars
