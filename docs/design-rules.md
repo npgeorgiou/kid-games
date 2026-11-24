@@ -116,7 +116,7 @@ Shared event system in `tools/cues/` (engine `engine.js`, pattern `README.md`, d
 ## Status
 
 - Αρχιτέκτονες του αρχαίου κόσμου, was Tower Builder (`games/arxitektones-tou-arxaiou-kosmou`): done (owner, 18 Nov 2026; cue and tutorial fixes, framework separation, 21 Nov 2026; test button, headpiece line, map edges, 23 Nov 2026); what it is: its `README.md`.
-- Coloring Book (`games/coloring-book`): sheet approved 20 Nov 2026; sandbox prototype on the graphics card for a Rebelle-like look: 10 drawing tools with their brushes, canvases, the owner's palettes, guide picture; open: spray, shapes, ink and pencil looks, p5.brush trial, acrylic, watercolour, crayon and marker reworks.
+- Coloring Book (`games/coloring-book`): sheet approved 20 Nov 2026; sandbox prototype on the graphics card for a Rebelle-like look, nine drawing tools with their brushes, canvases, palettes, guide picture, gallery; what is open is in its README.
 - Οι Άποικοι (`games/oi-apoikoi`), Dragomino-like: playable prototype against the PC on one shared board, colours only; built-for-now choices and open points in `games/oi-apoikoi/design.md` sections 6 and 7.
 
 ## Decided

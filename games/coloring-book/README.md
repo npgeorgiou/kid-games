@@ -66,20 +66,27 @@ Every check passes. A commit that changes the game must name its flow (`Flow: co
 
 ## Now
 
-Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Words: "drawing tool" = acrylic, watercolour, crayon (oil pastel), marker, simple, spray, shapes, ink, pencil; "brush" = the brush shape inside one drawing tool; "colour button" = a paint bucket filled to the paint amount. Palettes are stripe bars in four columns of 12 with dividers: monochromes (Payne's grey between Blue and Purple) and a grey scale, rainbows, then the extras by number of hues (one, two, three, more); no palette colour is ever dropped (a palette's own near-white or near-black is its white or black bucket, always first). The chosen bucket is a little bigger and ringed, and fits between the paper and the screen edge. Brushes and the pointer turn with the stroke (switch in the brush popup). Speed acts as pressure, and with the lift switch on a fast hand lifts the brush (numbers LIFT_FROM 2000, LIFT_FAST 4000, LIFT_TIME 0.17 in src K: paper dots a second, about 36 a cm); once off the paper it stays off until a new touch. Spray is an airbrush puffing on the clock; shapes are the Squares Brush; ink is fine strands that splash at quick (not lifting) speed. Tests include every brush's look (tools/looks) and every brush picture. The full flow run takes about 9 minutes (checks read the paper once per check).
+Sandbox paper with nine drawing tools on the graphics card, aiming at Rebelle's look. Words: "drawing tool" (left side), "brush" (its shape, in the brush popup), "colour button" (a paint bucket).
+Speed acts as pressure; the lift switch in the brush popup makes a fast hand lift the brush (src K: LIFT_FROM, LIFT_FAST, LIFT_TIME).
+Palettes: monochromes, rainbows, then the extras ordered by the hues they show (tools/palette_groups.py).
+Every brush's look and brush picture is tested; the full test run takes about 9 minutes.
 
 ## Open
 
-Do next, in this order (his words are in the Task list):
-- 24 Nov point 3: his pick of the near-duplicate replacements (shown to him as stripes: Earthy Woodland or Brown and Sage -> ColorBrewer PuOr; Mediterranean Berry -> ColorBrewer Paired; Terracotta, Sand and Sage / Earth, Sage and Sky / Olive, Sand and Clay and Retro Primary Mix / Standard rainbow: no checked replacement yet), and whether any palette is in the wrong group.
-- 24 Nov point 4: "spray other shapes": asked him whether each drop is a shape (star, heart, square); waiting.
-- 24 Nov point 5: "a shapes line starts big no matter what" was not seen here (a slow start is small); what he did is unknown.
-- Lifting, spray, shapes, ink: waiting for his look at the 24 Nov changes.
-- 26: pencil needs work (his pencil pictures owner-shots/2026-11-23-pencil-*).
-- p5.brush (https://p5-brush.cargo.site/, MIT): try it on one brush, measure stroke delay on a full paper at his screen size (1536x960 at 125%), show him, let him decide.
-- Batches 4-6: acrylic (11-14, 25), watercolour (17-21), crayon (22, owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23).
-- Changes go to main through a pull request now (main refuses direct pushes); PR 2 holds the 24 Nov work.
-- Drying times; outline pictures later.
+In this order (his words are in the Task list):
+1. Palettes: waiting for his yes/no on three replacements shown in chat: Olive, Sand and Clay -> ColorBrewer Spectral; Terracotta, Sand and Sage -> ColorBrewer RdGy; Retro Primary Mix -> ColorBrewer Set3.
+2. Lifting: the three lift numbers adjustable on screen, so he can try combinations.
+3. Spray: a brush choice of what it sprays: dots, shapes, leaves, stars, long grass blades, and more (propose them).
+4. Shapes: remove the grass brush; no squeezed shapes (the square too); the pointer on the paper shows the shape as it paints; the start of a line (square brush) has the wrong size or turn: find it with a test.
+5. Arrows left and right he liked are gone: asked him which button; waiting.
+6. README guard (a commit check on the size and wording of "Now" and "Open"): asked him yes/no.
+7. Speed: the three slowest tests under 10 s each; brush pictures remade only for the changed tool.
+8. Pencil needs work (owner-shots/2026-11-23-pencil-*).
+9. p5.brush (https://p5-brush.cargo.site/, MIT): try on one brush, measure stroke delay at his screen size (1536x960 at 125%), let him decide.
+10. Acrylic (Task list 11-14, 25), watercolour (17-21), crayon (22, owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23).
+11. Drying times; outline pictures.
+
+Changes reach main through a pull request (main refuses direct pushes).
 
 ## Task list
 
@@ -174,3 +181,18 @@ also, the palette that is generated from the image, must show its colors by orde
   5. the shapes brush, errors: a single dot makes a tiny shape, not the size that a normal drawing speed would make. also, the same problem where the lift happens too early happens here (its a general thing) and I also cant start a shape line as small, it starts as big no matter what. also, the brush previews all show a dot, not the shape's shape, and the last 2 brushes are stupid, add normal star and normal heart, also something like grass or hair.
 
   6: ink: your splashing is excessive, reduce across all brush options.""
+- Owner 2026-11-24 10:32, verbatim: "the readme if the coloring book folder has again become a wall of text, a log of previous work. i want you to tell me what makes you do that, i ahve repeatedly added words on calude.md against that. look, its crazy. why cant you do it? what isntructions do I need to give? maybe guards? I dont know, i am hopeless. 
+
+  1. try, also make these values configurable in the UI, so I can test combinations myself. 
+
+  3: replace brawn and sage with PuOr, replace coral to steel blue with Paired, Pair 3 and 4 I cant understand and you dont have suggestions, about the groups, I know you dont have eyes, but "Red, Yellow and Green" seems to humans a 2 hue, so change your scripts to produce that, dont hardcode shit. same for "Citrus to Deep Ocean". "Steel Blue and Red" is 3 hues. 
+
+  4: yes.
+
+  also: why did you remove the arrows pointing left and right? I liked them. also: remove the last brush you did for teh sahpes, the one you thinka re like grass but are like crown. 
+
+  also: generally you wrk too slowly in this project, simple cahnge requests like the previous one take usually 1.5 hours. dont tell me about the tests again, I suspect your working speed is slowly for some reason. examine adn tell me, and find ways to work faster. in this game you fucking drag your feet. 
+
+  also: make sprey able to sptray different things: shapes, leaves, stars, grass (long blades of grass), think of more things. 
+
+  also: shapes brush: your previous are squeezed, your cursor previews on teh canvas dont correspond to the drawn shapes. also the beginning of a line is weird, i cant describe it, as if orientation and size are not always set as I would expect, I see that with teh rectangular shapes brush. NOW: we settle on the palettes, only  one more chat exchagne, so be smart in your suggestion. the rest of the points write them clearly in the docs, so a handover will do that"
