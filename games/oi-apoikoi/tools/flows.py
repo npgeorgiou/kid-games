@@ -19,10 +19,10 @@ def table(q, **opts):  # a new game on a set table, its first round's goods alre
     q.evaluate("(o)=>__dg.restart(o)", opts); settle(q)
 def skip(q, ms):  # jump the paused fake clock on (each due timer fires once, no frame in between): for waits whose middle nobody looks at
     q.clock.fast_forward(ms); settle(q)
-def run_until(q, cond, limit=4000):  # move the paused fake clock on in short steps until the game is in the state asked
+def run_until(q, cond, limit=4000):  # jump the paused fake clock on in short steps (no frames between: they cost about half a real second per fake second) until the game is in the state asked
     for _ in range(limit // 100):
         if q.evaluate(cond): break
-        q.clock.run_for(100)
+        skip(q, 100)
     settle(q)
 def st(q): return q.evaluate("()=>__dg.state()")
 def tap(q, bid):
@@ -122,7 +122,7 @@ def f_round_start_goods_fly(q):  # owner 24 Nov: at the round's start goods come
         if dawn is None and [x for x in d if x['k'] == 'dawn']: dawn = ms  # a new round begins with morning light sweeping over (owner 24 Nov: rounds are their own moments)
         if first is None and fl: first = ms
         if st(q)['wait']: break
-        q.clock.run_for(50); ms += 50; settle(q)
+        skip(q, 50); ms += 50
     q.clock.resume(); starts = {(round(f['fx']), round(f['fy'])) for _, _, fl in seen for f in fl}
     squares = {tuple(round(v) for v in q.evaluate("([x,y])=>__dg.square(x,y)", c)) for c in ([4, 6], [5, 6], [4, 7], [5, 7], [14, 6], [15, 6])}
     arced = any(f['y'] < min(f['fy'], f['ty']) - 10 for _, _, fl in seen for f in fl)
@@ -197,14 +197,14 @@ def f_goods_become_jars(q):  # owner 24 Nov: at the round's end a jar drops from
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); skip(q, FLY_MS + 100); waiting(q, 'jar'); tap(q, 'jar-0')
     drops, intos, ms = [], [], 0
     while ms < 6000:
-        q.clock.run_for(100); ms += 100; settle(q); d = q.evaluate("()=>__dg.drawn()")
+        skip(q, 100); ms += 100; d = q.evaluate("()=>__dg.drawn()")
         drops += [(ms, x) for x in d if x['k'] == 'flight' and x['look'] == 'jar']; intos += [(ms, x) for x in d if x['k'] == 'flight' and x['look'] == 'good']
         w = st(q)['wait']
         if w and w['kind'] == 'jar': break
     jar = [x for x in drawn(q, 'jar') if x['o'] == 0]; left = [(round(x['x']), round(x['y'])) for x in drawn(q, 'good') if x['o'] == 0]
     tap(q, 'jar-0'); dissolved, ms2 = set(), 0
     while ms2 < 3000 and not set(left) <= dissolved:  # the jar's own break makes specks too; wait for the leftovers'
-        q.clock.run_for(100); ms2 += 100; settle(q); dissolved |= {(round(x['x']), round(x['y'])) for x in drawn(q, 'speck')}
+        skip(q, 100); ms2 += 100; dissolved |= {(round(x['x']), round(x['y'])) for x in drawn(q, 'speck')}
     gone = not [x for x in drawn(q, 'good') if x['o'] == 0]; q.clock.resume()
     from_top = bool(drops) and drops[0][1]['fy'] < 0 and len(jar) == 1 and abs(drops[0][1]['tx'] - jar[0]['x']) < 2
     first = bool(intos) and intos[0][0] > drops[-1][0]  # the jar is in its place before any good flies
@@ -235,7 +235,7 @@ def f_jars_from_edges(q):  # owner 24 Nov: show which edges matched, and each ja
     near = lambda js: sorted(min(((j['x'] - e[0]) ** 2 + (j['y'] - e[1]) ** 2) ** 0.5 for e in edges) for j in js)
     size, glows, seen = 40, 0, [False, False]  # each edge seen with a jar just out of it
     for n_ in range(16):
-        q.clock.run_for(10 if n_ == 0 else 50); settle(q); glows = max(glows, len(drawn(q, 'edgeglow')))
+        skip(q, 10 if n_ == 0 else 50); glows = max(glows, len(drawn(q, 'edgeglow')))
         for j in drawn(q, 'jar'):
             for n, e in enumerate(edges): seen[n] = seen[n] or ((j['x'] - e[0]) ** 2 + (j['y'] - e[1]) ** 2) ** 0.5 < size
     early = seen
@@ -281,7 +281,7 @@ def f_round_end_shown(q):  # owner 24 Nov: the round's end is its own moment, se
         skip(q, 200)
     pile = drawn(q, 'pile')[0]; back, shown, moon, first_made, ms, light = [], [], False, None, 0, True
     while ms < 6000 and first_made is None:
-        q.clock.run_for(100); ms += 100; settle(q); d = q.evaluate("()=>__dg.drawn()")
+        skip(q, 100); ms += 100; d = q.evaluate("()=>__dg.drawn()")
         tiles = [x for x in d if x['k'] == 'flight' and x['look'] == 'tile']; back += [(ms, x) for x in tiles]
         dusk = [x for x in d if x['k'] == 'dusk']
         if dusk: shown.append(ms); light = light and dusk[0]['a'] <= 0.5 and not [x for x in d if x['k'] == 'shade']
@@ -364,7 +364,7 @@ def f_jar_breaks(q):  # owner 24 Nov: "jars should visually break and the reveal
     def watch(btn, until):  # tap a jar, then watch the screen until the reward has landed
         at = q.evaluate("(b)=>__dg.btn(b)", btn); tap(q, btn); seen, ms = [], 0
         while ms < 3000:
-            q.clock.run_for(50); ms += 50; settle(q); d = q.evaluate("()=>__dg.drawn()"); seen.append((d, st(q)))
+            skip(q, 50); ms += 50; d = q.evaluate("()=>__dg.drawn()"); seen.append((d, st(q)))
             if until(st(q)): break
         return at, seen
     at1, seen1 = watch('jar-1', lambda s: s['players'][0]['coins'] == 1)
@@ -421,7 +421,7 @@ def f_slot_rolls(q):  # owner 24 Nov: the wheels roll fast, then slow down and s
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); skip(q, 1200); waiting(q, 'jar'); tap(q, 'jar-0')  # the jars fly out of the matched edges first
     stops, rolling_seen, ms, at = [None] * 3, False, 0, []
     while ms < 4000 and None in stops:
-        q.clock.run_for(100); ms += 100; settle(q)
+        skip(q, 100); ms += 100
         ws = sorted(drawn(q, 'wheel'), key=lambda d: d['n'])
         if ws and ws[0]['rolling']: at.append(ws[0]['at'])
         for k, w in enumerate(ws):
