@@ -172,8 +172,11 @@ def f_stockpile_columns(q):  # owner 24 Nov: goods stand in a column per colour 
     cols = {c: {round(x['x']) for x in g if x['c'] == c} for c in range(5)}; counts = [sum(1 for x in g if x['c'] == c) for c in range(5)]
     panel = q.evaluate("()=>innerWidth*0.13"); inside = all(x['x'] < panel for x in g)
     jars = [sum(1 for x in drawn(q, 'jargroup') if x['o'] == 0 and x['c'] == c) for c in range(5)]; sets = sum(1 for x in drawn(q, 'setrow') if x['o'] == 0)
-    ok = counts == [4, 4, 7, 2, 1] and all(len(v) == 1 for c, v in cols.items() if counts[c]) and inside and jars == [0, 0, 1, 0, 0] and sets == 1
-    report(ok, 'stockpile: columns, sets and jar groups shown', 'goods %s, one column each %s, jar groups %s, set rows %d' % (counts, all(len(v) == 1 for c, v in cols.items() if counts[c]), jars, sets))
+    shaped = all(x['shape'] == 'jar' for x in drawn(q, 'jargroup'))  # owner 24 Nov: "the sets of 5 should be outlined not by this oval, but by a jar"
+    signs = [x for x in drawn(q, 'setsign') if x['o'] == 0]; side = max(x['x'] + x['r'] for x in g)  # owner 24 Nov: "the sets should on their side make a set symbol appear"
+    signed = len(signs) == 1 and signs[0]['x'] > side and abs(signs[0]['y'] - min(x['y'] for x in g if x['c'] == 4)) < 2
+    ok = counts == [4, 4, 7, 2, 1] and all(len(v) == 1 for c, v in cols.items() if counts[c]) and inside and jars == [0, 0, 1, 0, 0] and sets == 1 and shaped and signed
+    report(ok, 'stockpile: columns, sets and jar groups shown', 'goods %s, one column each %s, jar groups %s outlined as jars %s, set rows %d with a set sign beside %s' % (counts, all(len(v) == 1 for c, v in cols.items() if counts[c]), jars, shaped, sets, signed))
 
 def f_sets_of_five(q):  # a set is 5 goods, one of each; the PC bids when it pays; a tie goes to the picker; only the winner pays
     kid, pc = [[4, 4, 0, 2, 3, 0], [4, 2, 0, 4, 4, 0]], [[14, 4, 0, 2, 3, 1], [14, 2, 0, 4, 4, 1]]
