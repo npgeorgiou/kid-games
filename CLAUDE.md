@@ -32,29 +32,31 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 
 ## Testing
 
-Rules a machine can check are checked by the commit check (`.githooks/commit-msg`) and by the same check on GitHub on every push; the owner reviews every change to either. Being refused is the normal way these rules are kept; never bypass a check (no `--no-verify`, no turning hooks off, no editing a check to let a change through).
+Rules a machine can check are checked by the commit check (`.githooks/commit-msg`) and by GitHub on every push (`.github/workflows/tests.yml`); the owner reviews every change to either. Being refused is the normal way these rules are kept; never bypass a check (no `--no-verify`, no turning hooks off, no editing a check to let a change through).
 
 - Before every change, re-read this Testing section.
-- **Test first.** For every owner point and every bug: first a flow that repeats his exact steps on screen and fails, then the code that makes it pass, then clean up. Checked: a commit that changes a game's code must add or change a flow in the same commit.
-- **Feature tests only, played like the owner.** A flow (`games/<game>/tools/flows.py`, run by `tools/harness.py flows`) uses the real page and does what he does: taps, keys and drags on what is drawn, at a real rate, his settings. It may set up a starting table; it never makes a move through the game's insides. Checked: flows that make moves through the game's insides are refused.
-- **Check what he sees.** A flow checks what is on screen (what is drawn, what he can read or count), not only numbers inside the game. If he reports a gap, a delay or an order, the check measures that gap, delay or order.
-- **Every bug report becomes a flow** named after his report, repeating his steps; it stays forever.
-- **Random play.** Every game has a seeded random-play flow that plays through the screen and checks, after every move, the rules he can see (for example: goods shown match the land shown; jars shown match the matching edges).
-- **The whole test set runs on every commit** and on every push; one FAIL refuses it. No failing tests, ever.
-- **Fast.** A game's full run, browser start included, takes at most 10 seconds; checked. Waits are on the game's state with short limits, never fixed sleeps; one browser and one page per run; a fake clock for real-speed checks; loops inside the page wait with promise steps (`await null`), not timers or messages. Time every run; a slow test is fixed before anything else.
-- Tests that guard owner rules are never loosened or deleted to fit a change. When the owner changes a rule, its flow changes in the same commit and the commit message names the rule he changed. A failing old test is a found conflict.
-- Never change the game to make a test pass. If a test fails, first decide from the failure detail whether the game or the test is wrong.
-- **One owner point per commit**: its flow, its code, the full run, commit, push.
+- **One whole-game test per game** (`games/<game>/tools/flows.py`, run by `tools/harness.py flows`; owner 24 Nov). It starts from a fresh game, with nothing saved, and plays the whole game in the game's own order, the way the child plays it. It covers the start, the menus or map and their interactions, then every part or level in turn. Every owner rule and every bug report is a checked step at the place in the game where it happens, named in his words, with his words in a comment. Each step prints PASS or FAIL and the run goes on. There are no separate tests repeating the same steps, and no step is checked twice. A rule that needs another state (ticks off, a restart, a reopened page) gets there the way the child would: through the settings, the restart button, a reload.
+- **Test first.** For every owner point and every bug: first the step that repeats his exact steps on screen and fails, then the code that makes it pass, then clean up. Checked: a commit that changes a game's code must change its test in the same commit.
+- **Only what the child does.** Taps, drags, two-finger touches and keys on what is drawn, at a hand's rate, waiting as he waits (for a line to end, a demo to finish, a heavy piece to come). Never a parent's shortcut (such as the Ctrl quick build or the Ctrl fast test), never a line or cue cut off or skipped from inside the game, never a call or a write into the game's state (no setting a tutorial's place, a site as done, a memory, a piece's position). The page is only read: to find where things are drawn, what is heard (the line playing), what sounds were asked for and what is shown. Checked on GitHub: each game's `tools/backdoors.txt` lists what such a shortcut looks like, and a test containing one is refused.
+- **Check what he sees and hears.** A step checks what is on screen (colours drawn, pieces where he can see them, buttons) and what he hears and when. If he reports a gap, a delay or an order, the step measures that gap, delay or order.
+- **Every bug report becomes a step** at its place in the run, repeating his steps and his timing; it stays forever.
+- **Random play.** Every game also has a seeded random-play part that plays through the screen and checks, after every move, the rules he can see.
+- **Test sounds are short.** The test page gets the same short silent sound for every sound and voice line: what matters is what waits for them, not how long they are (owner 24 Nov).
+- **The whole test runs on every push** (GitHub runs every game's checks, listed in its `tools/ci-checks.txt`, on machines that run at once), and the parts a change touches run before its commit. One FAIL refuses it. No failing tests, ever.
+- **Fast.** Waits are on what the screen shows, with short limits, never fixed sleeps longer than a hand's pause; one browser and one page per run. Time every run; a slow step is made faster before anything else, never shortened or skipped.
+- Tests that guard owner rules are never loosened or deleted to fit a change. When the owner changes a rule, its step changes in the same commit and the commit message names the rule he changed. A failing old step is a found conflict.
+- Never change the game to make a test pass. If a step fails, first decide from the failure detail whether the game or the test is wrong; if only the owner can decide, ask him.
+- **One owner point per commit**: its step, its code, the run, commit, push.
 
 ## Debugging (read before touching any bug)
 
 1. **Read the code before writing a test.** Follow the owner's action through the code by reading it: the input handler, the events it fires, the engine functions they reach. Write down every place that can change the state involved (adds it, ends it, removes it, skips it). The bug is almost always in one of those places, usually where something is removed or skipped.
 2. **Name the broken invariant, then fix every path that breaks it.** E.g. "a running tutorial always has exactly one live step". Find every code path that can break it and fix them all, not only the first one found. Prefer making it impossible (one owner of the state) over guarding each path.
-3. **Repeat his action exactly, then vary its timing.** His order, his speed ("fast", "at once", "during the line"). Write the same flow with the action before, during and after the moment he names. A test that never does what he did proves nothing.
+3. **Repeat his action exactly, then vary its timing.** His order, his speed ("fast", "at once", "during the line"). Write the same step with the action before, during and after the moment he names. A test that never does what he did proves nothing.
 4. **Anything odd in a test is a bug until the code proves otherwise.** A step skipped, a line cut, a stuck state, a repeat: never call it "how the test clicks" without showing the code path that makes it harmless.
 5. **Look, don't guess.** Log the events and the state around the action once (event names, what fired, what was removed), read the log, then remove the logging.
 6. **Test the invariant, not only the story.** Add a check that drives many random action orders and timings (seeded, fast) and fails when the invariant breaks.
-7. **Never say "fixed" until a flow repeating his exact steps passes**, and say what was fixed in his terms. If what he did is unknown, say so; never present a guessed path as his.
+7. **Never say "fixed" until a test step repeating his exact steps passes**, and say what was fixed in his terms. If what he did is unknown, say so; never present a guessed path as his.
 8. **Time box.** If the cause is not found in 15 minutes of reading, tell him in one line what is known and what is being checked.
 
 ## Talking to the owner
@@ -72,7 +74,7 @@ Rules a machine can check are checked by the commit check (`.githooks/commit-msg
 - Be mindful of tokens: read only the sections a task needs. Each `src/index.html` and every other file over 500 lines has `SECTION: NAME -- what's here` markers; `grep -n "SECTION:"`, then read around the exact function. A file that grows past 500 lines gets them; a marker is updated in the same change as the code it names.
 - Commands print only what is needed: counts, PASS/FAIL lines, the few lines asked for. Never print whole files, data or long logs (filter with `grep`, `grep -c`, `cut`). Never cut test results with `head` or `tail`: count every FAIL and read them all.
 - Do what was asked, all of it, nothing more. No unasked refactors, features or suggestions.
-- After every change: build, run the affected flows, commit, push, check the remote has the commit, and send only the changed HTML files as downloads.
+- After every change: build, run the affected test steps, commit, push, check the remote has the commit, and send only the changed HTML files as downloads.
 - When a trap is found in a game (something that cost time or caused a wrong fix), add it to that game's `WARNINGS.md` as a one-line instruction. General lessons go here only if they hold for every game.
 - At the end of a chat, rewrite the game's `README.md` "Now" section, keep its file map true (what the game is now and what is open, short; never an appended log, never a list of what was done or when: "done: batch 1 ..." is a log) and the game's line in Status in `docs/design-rules.md`. History lives in git.
 - Every game has a `README.md`, readable by a person: what the game is, how to play it, its levels or parts, where every file and folder is and what it is for, how to run its checks, then "Now", "Open" and "Task list". Example: `games/arxitektones-tou-arxaiou-kosmou/README.md`. A new game gets one from the start; a file added, moved or removed is changed in its map in the same commit.

@@ -71,6 +71,7 @@ Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Word
 ## Open
 
 Do next, in this order (his words are in the Task list):
+- First, the tests (owner 24 Nov, Task list): make them one whole-game test that plays the game in the order it appears to the child, as `CLAUDE.md` Testing says. Check that every part of the game is tested (every tool, brush, colour, palette, the size dots, undo, Ctrl+Z and Ctrl+X, stickers, the gallery, the guide, saving), in that order, and that no two steps check the same thing. Read the page only, never write into it. Add `tools/backdoors.txt` listing what a shortcut through the game would look like, and set `tools/ci-checks.txt` to `flows 1`.
 - 22:37 point 2: near-duplicate palettes flagged to him with replacements (Earthy Woodland ~ Brown and Sage: ColorBrewer PuOr; Mediterranean Berry ~ Coral to Steel Blue: ColorBrewer Paired; Terracotta, Sand and Sage ~ Earth, Sage and Sky / Olive, Sand and Clay and Retro Primary Mix ~ Standard rainbow: no checked replacement yet). Waiting for his pick.
 - Lifting, spray, shapes, ink, pointer turning: waiting for his look.
 - 26: pencil needs work (his pencil pictures owner-shots/2026-11-23-pencil-*): only its grain curve was softened so a fast light line does not break.
@@ -157,3 +158,4 @@ also, the palette that is generated from the image, must show its colors by orde
   5. your shape brush is wrong, mimic the example I gave you, you can look at the code if its hard for you, but for sure you ahve done it wrong. for once, the shapes there are very close to each other. https://av01d.github.io/fabric-brushes/index.html.
   6. same for ink: shit. splashes only when its off teh paper, etch. maybe it will be fixed when you increase the speed threshold for lifting up. see examples in page I had given: https://av01d.github.io/fabric-brushes/index.html
   7. when the pointer is rotating in circular motions, make it visually rotate too."
+- Owner 2026-11-24, verbatim: "for drawing, check that every think is tested, in the order it appears in the game, adn that there re no duplicate tests. I find no reason why the whole game is not tested in one big feature tests that does things in order."

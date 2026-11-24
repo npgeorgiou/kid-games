@@ -53,7 +53,8 @@ Each site also has one tempting wrong piece in its pile that makes the test fail
 | `owner-shots/` | The owner's screenshots and recordings, named by date. |
 | `tools/harness.py` | Runs every check: `python3 tools/harness.py <mode>` (modes below). |
 | `tools/ci-checks.txt` | The list of every check of the game, run on GitHub on every push. |
-| `tools/flows.py` | Play-through tests: the real page, real mouse and keys, as the owner plays. |
+| `tools/flows.py` | The whole-game test: one run from a fresh game to the last site, played as the child plays (the first site by hand with every lesson, the others with the quick build), every owner rule and bug report a checked step at its place. |
+| `tools/backdoors.txt` | What a shortcut through the game's insides looks like; GitHub refuses a test containing one. |
 | `tools/cue-tests.js` | The cue rules as pass/fail checks. |
 | `tools/owner-tests.js` | Checks from the owner's lists: hand, pieces, levels, sounds, map, boats. |
 | `tools/motion-ref.json` | The hand's approved feel (timings), recorded with `harness.py owner motion record` after the owner's yes. |
@@ -69,7 +70,7 @@ Shared with other games, at the repo root: `tools/cues/` (the cue engine and its
 From this folder, after `python3 build.py` (and once per clone: `git config core.hooksPath .githooks`):
 
 - `python3 tools/harness.py cuetest` -- the cue rules (seconds).
-- `python3 tools/harness.py flows [names]` -- the play-through tests (each 5-120 s; name a few).
+- `python3 tools/harness.py flows` -- the whole-game test (about 12 minutes here; the test page runs the game 4 times faster with short silent sounds). `STOP="<step name>"` ends it after that step.
 - `python3 tools/harness.py owner [names]` -- the owner's lists (about 5 min for all).
 - `python3 tools/harness.py spec [level numbers]` -- every level: the suggested build passes, every wrong piece fails, the pile (about 10 min for all).
 - `python3 tools/harness.py map | real | sandbox | loudness | sizes | realwave | realintro | mapbuttons` -- the map on 14 screen sizes, the real game loop, free play, sound loudness, sizes, real taps, the intro, the map buttons.

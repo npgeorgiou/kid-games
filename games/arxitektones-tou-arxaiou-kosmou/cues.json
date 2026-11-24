@@ -1151,7 +1151,7 @@
    "attention": "point",
    "points": ["button:test"],
    "show": "tap button:test",
-   "wait": "press-test",
+   "replaces": true, "wait": "press-test",
    "start": "placed:8",
    "note": "Owner 15 Nov night: once eight of the child's pieces stand in the building. Pressing the red button here says only this step's line, not line 70."
   },

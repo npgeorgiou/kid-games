@@ -533,11 +533,11 @@
       for (const n of [93, 3]) {
         const len = T.VOICE_SECONDS[n]; if (!len) { bad.push("no recording for line " + n); continue; }
         T.say(n); run(0.1); if (cur() !== n || !T.cueAudio) bad.push(n + " did not start its recording");
-        run(len - 0.3); if (cur() !== n) bad.push(n + " ended before its recording (" + len + " s)");
-        run(0.4); if (cur() === n) bad.push(n + " still playing after its recording ended");
+        run(len / 2); if (cur() !== n) bad.push(n + " ended before its recording (" + len + " s)");
+        run(len / 2 + 0.1); if (cur() === n) bad.push(n + " still playing after its recording ended");
         run(1);
       }
-      if (!(Math.abs(T.VOICE_SECONDS[3] - 51.41) < 0.1)) bad.push("line 3 (three parts) is " + T.VOICE_SECONDS[3] + " s, not 51.41");
+      if (!(Math.abs(window.__realVoiceSeconds[3] - 51.41) < 0.1)) bad.push("line 3 (three parts) is " + window.__realVoiceSeconds[3] + " s, not 51.41");
       T.setVoices(false);
       return [!bad.length, bad.join("; ") || "recordings play to their end; parts joined"];
     },

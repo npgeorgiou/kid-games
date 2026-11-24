@@ -1,6 +1,6 @@
 # Every check of this game, run on GitHub on every push (see .githooks/ci_plan.py): a harness mode and its arguments per line; "flows N" splits the play-through tests over N machines.
 cuetest
-flows 8
+flows 1
 owner
 spec 0 1
 spec 2 3

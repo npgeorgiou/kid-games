@@ -1,0 +1,15 @@
+# Patterns the whole-game test may never contain: they play through the game's insides instead of the screen (owner 24 Nov: "never use these hacks in tests", "NEVER").
+endLine(
+cutLine(
+cueMem(
+spawnPiece(
+startLevel(
+clearAllPieces(
+setDemos(
+runCheck(
+.fast=
+active.length=0
+mapStones.splice
+mapStones.push
+progress.done.mastaba={
+mode='

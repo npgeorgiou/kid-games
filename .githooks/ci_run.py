@@ -6,7 +6,11 @@ import os, re, subprocess, sys
 game, check, shard, of = sys.argv[1], sys.argv[2].split(), int(sys.argv[3]), int(sys.argv[4])
 gamedir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'games', game)
 if os.path.exists(os.path.join(gamedir, 'build.py')): subprocess.run([sys.executable, 'build.py'], cwd=gamedir, check=True, stdout=subprocess.DEVNULL)
-if check == ['flows']:
+if check == ['flows']:  # every game: its tests never play through the game's insides (owner 24 Nov); its tools/backdoors.txt lists what that looks like
+    bd = os.path.join(gamedir, 'tools', 'backdoors.txt')
+    src = open(os.path.join(gamedir, 'tools', 'flows.py'), encoding='utf-8').read()
+    found = [l.strip() for l in open(bd, encoding='utf-8') if l.strip() and not l.startswith('#') and l.strip() in src] if os.path.exists(bd) else []
+    if found: sys.exit('FAIL %s: the tests play through the game\'s insides: %s; play through the screen' % (game, ', '.join(found)))
     sys.path.insert(0, os.path.join(gamedir, 'tools'))
     import flows
     check = ['flows'] + list(flows.FLOWS)[shard::of]

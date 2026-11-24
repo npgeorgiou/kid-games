@@ -118,8 +118,11 @@
     if (CUES_OFF) return out;
     // a step waiting for this action is done, and finished at once: its line stops and the next step starts now, so nothing
     // between this moment and the next frame (the child's next touch, a test starting) can lose it (owner 21 Nov)
-    for (const s of active.slice()) if (s.waitEvent === name && waiting(s)) { s.done = true; out.ended = true; if (voice.cur === s) endLine(s); finish(s); }
-    if (out.ended) return out;
+    // A step waiting for this event ends with it; the event's own lines still play, unless the step's cue "replaces" them
+    // (owner 15 Nov: pressing the red button in its lesson says only the lesson's line; owner 24 Nov: "let's see" plays after the green-button lesson).
+    let replaced = false;
+    for (const s of active.slice()) if (s.waitEvent === name && waiting(s)) { s.done = true; out.ended = true; replaced = replaced || !!(s.cue && s.cue.replaces); if (voice.cur === s) endLine(s); finish(s); }
+    if (replaced) return out;
     const x = Object.assign(cueContext(), ctx);
     const hits = CUE_TABLE.cues.filter((c) => c.on === name && !isMarked(onceKey(c, x)) && (c.if || []).every((k) => cond(k, x)));
     // what the child does wins (cues.json rules): a cue fired by the child's own action stops the cue playing, line and visuals together
