@@ -260,6 +260,23 @@ def f_jars_from_edges(q):  # owner 24 Nov: show which edges matched, and each ja
     ok = glows == 2 and all(seen) and len(late) == 2 and min(late) > 3 * size and h[:3] == ['pick', 'snap', 'edge'] and h.count('edge') == 2
     report(ok, 'jars: matched edges glow, jars come out of them', 'edges glowing %d; a jar seen at each edge %s, then %s px away; sounds %s' % (glows, seen, [round(v) for v in late], h[:4]))
 
+def f_many_jars_rows(q):  # owner 24 Nov: "when a lot of jars exist, make more rows, 6 jars per row; don't reduce their size"
+    table(q, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); one = drawn(q, 'jar')[0]['size']  # one jar alone: its size
+    block = [[x, y, 0, 2, 2, 0] for y in range(5) for x in range(0, 14, 2)]  # 70 goods of one colour: 14 jars at the round's end
+    table(q, bag=[[0, 0]] * 2, tiles=block, jarQueue=[COIN] * 40)
+    kid_plays(q, lambda s: s['phase'] == 'end' and s['wait'] and s['wait']['kind'] == 'jar'); jars = drawn(q, 'jar')
+    rows = {}; [rows.setdefault(j['row'], []).append(j) for j in jars]
+    W, H = q.evaluate("()=>[innerWidth, innerHeight]")
+    ok = len(jars) >= 14 and max(len(r) for r in rows.values()) == 6 and all(abs(j['size'] - one) < 0.5 for j in jars) and all(0 < j['y'] - j['size'] / 2 and j['y'] + j['size'] / 2 < H for j in jars)
+    report(ok, 'jars: 6 to a row, more rows, same size', '%d jars in rows of %s, sizes %s (one alone %.0f)' % (len(jars), [len(r) for r in rows.values()], sorted({round(j['size']) for j in jars}), one))
+
+def f_many_coins(q):  # owner 24 Nov: "make sure more coins than you predicted can fit": stacks of 10, all inside his area, none hidden
+    table(q, bag=[[0, 4]] * 4, coins=[200, 0]); c = [x for x in drawn(q, 'coin') if x['o'] == 0]
+    P, H = q.evaluate("()=>[innerWidth*0.13, innerHeight]")
+    inside = all(x['x'] - x['r'] > 0 and x['x'] + x['r'] < P and x['y'] + x['r'] < H for x in c)
+    stacks = {}; [stacks.setdefault((round(x['x']), x['stack']), 0) for x in c]
+    report(len(c) == 200 and inside and len(stacks) == 20, 'coins: 200 fit, in stacks of 10', '%d coins drawn, inside %s, stacks %d' % (len(c), inside, len(stacks)))
+
 def f_jars_apart(q):  # owner 24 Nov: "jar circles are touching": every jar and its glow stands apart, with a clear gap
     table(q, bag=[[0, 1]] * 4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); waiting(q, 'jar'); settle(q)
     jars = sorted((d['x'], d['size'] / 2) for d in drawn(q, 'jar')); glows = sorted((d['x'], d['r']) for d in drawn(q, 'jarglow'))
@@ -295,9 +312,10 @@ def f_screen_parts(q):  # owner 24 Nov: "the sidebar doesn't portray any info"; 
         return min((((a['x'] - b['x']) ** 2 + (a['y'] - b['y']) ** 2) ** 0.5 - a['r'] - b['r'] for i, a in enumerate(items) for b in items[i + 1:]), default=99)
     pile = [x for x in d if x['k'] == 'pile']; bars = [x for x in d if x['k'] == 'roundsleft']
     parts = {o: (len(kinds('avatar', o)), sorted(x['for'] for x in kinds('tray', o))) for o in (0, 1)}
-    gaps = (min_gap(kinds('good', 0)), min_gap(kinds('coin', 0)))
+    stacks = {}; [stacks.setdefault(x['stack'], x) for x in kinds('coin', 0)]  # coins stand in stacks (owner 24 Nov: any number fits): the stacks are apart
+    gaps = (min_gap(kinds('good', 0)), min_gap(list(stacks.values())))
     ok = parts == {0: (1, ['coins', 'goods']), 1: (1, ['coins', 'goods'])} and min(gaps) >= 3 and len(pile) == 1 and pile[0]['layers'] == 2 and not bars
-    report(ok, 'screen: faces, goods and coins trays, things apart, a pile', 'parts %s, smallest gaps goods/coins %s px, pile %s' % (parts, [round(g, 1) for g in gaps], pile))
+    report(ok, 'screen: faces, goods and coins trays, things apart, a pile', 'parts %s, smallest gaps goods/coin stacks %s px, pile %s' % (parts, [round(g, 1) for g in gaps], pile))
 
 def f_pc_best(q):  # the PC picks and places for the most jars
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)

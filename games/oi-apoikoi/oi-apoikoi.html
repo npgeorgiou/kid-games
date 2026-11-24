@@ -540,9 +540,12 @@ function drawPanel(i) {
       cx.globalAlpha = fade; dot(colX(c), rowY(k), r, COLOURS[c]); cx.globalAlpha = 1; drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), r, a: fade });
     }
   });
-  const cr = Math.min(12, (P - 2 * pad - 16) / 5 / 2 - 2.5), rows = Math.max(1, Math.ceil(p.coins / 5));  // coins: five to a row, spaced apart
-  rrect(x0 + pad, coinTop, P - 2 * pad, rows * (2 * cr + 6) + 14, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'coins' });
-  for (let k = 0; k < p.coins; k++) { const x = x0 + pad + 8 + cr + (k % 5) * (2 * cr + 5), y = coinTop + 10 + cr + Math.floor(k / 5) * (2 * cr + 6); coin(x, y, cr); drawn.push({ k: 'coin', o: i, x, y, r: cr }); }
+  const cr = Math.min(12, (P - 2 * pad - 16) / 5 / 2 - 2.5), lift = 4, sh = 2 * cr + 9 * lift + 8, rows = Math.max(1, Math.ceil(p.coins / 50));  // coins: stacks of 10, five stacks to a row (owner 24 Nov: any number fits)
+  rrect(x0 + pad, coinTop, P - 2 * pad, rows * sh + 12, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'coins' });
+  for (let k = 0; k < p.coins; k++) {
+    const st = Math.floor(k / 10), x = x0 + pad + 8 + cr + (st % 5) * (2 * cr + 5), y = coinTop + 6 + sh - 8 - cr + Math.floor(st / 5) * sh - (k % 10) * lift;
+    coin(x, y, cr); drawn.push({ k: 'coin', o: i, x, y, r: cr, stack: st });
+  }
   for (let k = 0; k < p.bid; k++) setShape(cxm + (k - (p.bid - 1) / 2) * 34, H - 60, 15);  // the sets bid now
   if (!lit) { cx.fillStyle = 'rgba(120,110,95,0.38)'; cx.beginPath(); cx.roundRect(x0 + 6, 8, P - 12, H - 16, 16); cx.fill(); }  // the other player's area is dimmed
 }
@@ -566,12 +569,19 @@ function drawBid() {  // match the bid with your sets, or let the tile go
   cx.strokeStyle = '#a83a2a'; cx.beginPath(); cx.moveTo(x + 92, y + 44); cx.lineTo(x + 138, y + 90); cx.moveTo(x + 138, y + 44); cx.lineTo(x + 92, y + 90); cx.stroke(); cx.lineCap = 'butt';
   btn('letgo', x + 20, y + 20, 190, 94, () => answer(false));
 }
+const JARS_PER_ROW = 6, JAR_SIZE = () => Math.min(110, W * 0.7 / JARS_PER_ROW / 1.5);  // owner 24 Nov: 6 to a row, more rows, never smaller
+function jarSpot(k, n, fresh) {  // jar k of n: the jars just earned first, then the jars still waiting from a new row; rows centred, the block around 60% down
+  const s = JAR_SIZE() * 1.5, split = fresh && fresh < n, row = k < fresh || !split ? Math.floor(k / JARS_PER_ROW) : Math.ceil(fresh / JARS_PER_ROW) + Math.floor((k - fresh) / JARS_PER_ROW);
+  const first = k < fresh || !split ? Math.floor(k / JARS_PER_ROW) * JARS_PER_ROW : fresh + Math.floor((k - fresh) / JARS_PER_ROW) * JARS_PER_ROW, end = k < fresh && split ? fresh : n, inRow = Math.min(JARS_PER_ROW, end - first);
+  const rows = split ? Math.ceil(fresh / JARS_PER_ROW) + Math.ceil((n - fresh) / JARS_PER_ROW) : Math.ceil(n / JARS_PER_ROW), y0 = Math.max(L().T + s / 2, H * 0.6 - (rows - 1) * s / 2);
+  return [W / 2 + (k - first - (inRow - 1) / 2) * s, y0 + row * s, row];
+}
 function glow(x, y, z) { dot(x, y, z * 0.6, '#ffe27a88'); drawn.push({ k: 'jarglow', x, y, r: z * 0.6 }); }  // a jar just earned glows
 function drawJars() {  // big jars in a row; tap one to open it
-  const mk = !wait && !G.shown ? G.making : null, fly = flying() ? G.burst : null, who = wait ? wait.who : G.shown ? G.shown.who : mk ? mk.who : fly.who, p = G.players[who], growing = mk && mk.c >= 0, n = p.jars + (growing ? 1 : 0), gap = p.fresh && p.fresh < n ? 0.6 : 0, z = Math.min(110, W * 0.7 / Math.max(1, n + gap) / 1.5), s = z * 1.5;  // z: a jar's size; s: the space each jar has (its glow fits inside with room to spare)
+  const mk = !wait && !G.shown ? G.making : null, fly = flying() ? G.burst : null, who = wait ? wait.who : G.shown ? G.shown.who : mk ? mk.who : fly.who, p = G.players[who], growing = mk && mk.c >= 0, n = p.jars + (growing ? 1 : 0), z = JAR_SIZE(), s = z * 1.5;  // z: a jar's size, always the same; s: the space each jar has (its glow fits inside with room to spare)
   if (!fly) shade(0.35);  // while jars fly out of their edges the board stays bright, so the glowing edges show
   for (let k = 0; k < n; k++) {  // the jars just earned on the left, glowing; a gap; the jars still waiting
-    const fresh = k < p.fresh, x = W / 2 + (k + (fresh ? 0 : gap) - (n + gap - 1) / 2) * s, y = H * 0.6 + (wait ? Math.sin(performance.now() / 300 + k) * 4 : 0);
+    const fresh = k < p.fresh, [x, y0, row] = jarSpot(k, n, p.fresh), y = y0 + (wait ? Math.sin(performance.now() / 300 + k) * 4 : 0);
     if (growing && k === n - 1) {  // JAR_GOODS goods fly from the stockpile into this jar, which grows as they shrink
       const t = progress(mk, MAKE_MS), e = t * t * (3 - 2 * t), sp = stock(who);
       jarShape(x, y, z * e); drawn.push({ k: 'jar', o: who, growing: true });
@@ -583,9 +593,9 @@ function drawJars() {  // big jars in a row; tap one to open it
       if (u <= 0) continue;
       const e = easeOut(u), jx = ex + (x - ex) * e, jy = ey + (y - ey) * e - Math.sin(Math.PI * u) * 60, zz = z * (0.3 + 0.7 * Math.min(1, u * 1.6));
       if (u >= 1) glow(x, y, z);
-      jarShape(jx, jy, zz); drawn.push({ k: 'jar', o: who, new: true, x: jx, y: jy, size: zz });
+      jarShape(jx, jy, zz); drawn.push({ k: 'jar', o: who, new: true, x: jx, y: jy, size: zz, row });
       if (u < 1) continue;
-    } else { if (fresh) glow(x, y, z); jarShape(x, y, z); drawn.push({ k: 'jar', o: who, new: fresh, x, y, size: z }); }
+    } else { if (fresh) glow(x, y, z); jarShape(x, y, z); drawn.push({ k: 'jar', o: who, new: fresh, x, y, size: z, row }); }
     if (wait && wait.kind === 'jar') btn('jar-' + k, x - s / 2, y - s / 2, s, s, () => answer());
   }
   if (G.shown) {  // what the jar held, and a short label saying what it means
