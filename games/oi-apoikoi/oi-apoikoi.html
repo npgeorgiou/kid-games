@@ -404,7 +404,7 @@ function drawDraft() {
   const { T, P, ds } = L(), who = wait ? wait.who : 0;
   G.draft.forEach((t, k) => {
     const [x, y] = draftSlot(k), sel = k === G.chosen;
-    rrect(x - ds - 12, y - ds / 2 - 12, 2 * ds + 24, ds + 24, 14, sel ? '#ffe9a8' : '#fbf3e2', sel ? '#e0a020' : '#cdb991', sel ? 4 : 2);
+    if (sel) { rrect(x - ds - 12, y - ds / 2 - 12, 2 * ds + 24, ds + 24, 14, '#ffe9a8', '#e0a020', 4); drawn.push({ k: 'frame' }); }  // only the tile being bid on is framed
     if (!t) return;
     const ok = pickable(k, who), lock = G.locks[k];
     if (lock != null) rrect(x - ds - 6, y - ds / 2 - 6, 2 * ds + 12, ds + 12, 10, null, BORDER[lock], 5);  // locked: the winner's colour around it

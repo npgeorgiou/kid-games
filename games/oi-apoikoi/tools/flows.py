@@ -111,6 +111,11 @@ def f_jar_per_edge(q):  # one jar per matching edge: one tile can earn several
     waiting(q, 'jar'); j = st(q)['players'][0]['jars']; tap(q, 'jar-0'); tap(q, 'jar-0')
     report(j == 2 and st(q)['players'][0]['coins'] == 2, 'jars: one per matching edge', 'jars %d coins %d' % (j, st(q)['players'][0]['coins']))
 
+def f_pile_no_frames(q):  # owner 24 Nov: no outline around the pile's tiles
+    table(q, bag=[[0, 4]] * 4); c = q.evaluate("()=>__dg.btn('draft-0')"); ds = round(min(q.evaluate("()=>innerHeight*0.16") * 0.42, 60))
+    beside = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [c[0] - ds - 6, c[1]])  # just left of the tile: nothing drawn there (the page shows through), not a frame
+    report(beside[3] == 0, 'pile: tiles have no outline', 'beside the tile %s' % beside)
+
 def f_greyed(q):  # tiles you can't pick are greyed but keep their colour, and can't be tapped
     table(q, bag=[[0, 4], [2, 3], [0, 4], [0, 4]]); s = st(q); d = {x['id']: x for x in drawn(q, 'tile')}
     ok = s['fits'] == [True, False, True, True] and q.evaluate("()=>!__dg.btn('draft-1')") and d['draft-1']['look'] == 'grey' and d['draft-1']['cs'] == [2, 3] and d['draft-0']['look'] is None
