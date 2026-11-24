@@ -339,7 +339,7 @@ def f_round_end_shown(q):  # owner 24 Nov: the round's end is its own moment, se
         tiles = [x for x in d if x['k'] == 'flight' and x['look'] == 'tile']; back += [(ms, x) for x in tiles]
         dusk = [x for x in d if x['k'] == 'dusk']
         if dusk: shown.append(ms); light = light and dusk[0]['a'] <= 0.5 and not [x for x in d if x['k'] == 'shade']
-        moon = moon or bool([x for x in d if x['k'] == 'moon'])
+        moon = moon or bool([x for x in d if x['k'] == 'moon' and x['shape'] == 'crescent'])
         if [x for x in d if x['k'] == 'flight' and x['look'] == 'jar' and x['fy'] < 0]: first_made = ms  # the first jar dropping in
     run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 3000); evening = bool(drawn(q, 'dusk'))
     q.clock.resume(); h = q.evaluate("()=>__dg.sounds()")

@@ -726,9 +726,10 @@ function drawDusk() {  // evening: the sky darkens from the top down, lightly, s
   const g = cx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(30,35,90,' + a + ')'); g.addColorStop(0.35, 'rgba(60,50,110,' + a * 0.6 + ')'); g.addColorStop(1, 'rgba(60,50,110,' + a * 0.25 + ')');
   cx.fillStyle = g; cx.fillRect(0, 0, W, u < 1 ? H : T); drawn.push({ k: 'dusk', a });  // once night has fallen only the sky over the market stays dark: the jars are opened in full light
   const my = T * 0.5 + (1 - easeInOut(u)) * T * 0.4, mx = W / 2;  // the moon rises a little as night comes
-  cx.globalAlpha = u; dot(mx, my, T * 0.3, '#fdf3c8'); dot(mx + T * 0.12, my - T * 0.06, T * 0.27, 'rgba(45,45,100,1)');  // a crescent: a full disc with the night sky over one side
-  for (const [sx, sy] of [[-0.32, 0.25], [-0.2, 0.7], [0.24, 0.2], [0.36, 0.62], [0.12, 0.85]]) star(mx + sx * W * 0.5, sy * T, 7);
-  cx.globalAlpha = 1; drawn.push({ k: 'moon' });
+  cx.globalAlpha = u; cx.save(); cx.beginPath(); cx.rect(0, 0, W, H); cx.arc(mx + T * 0.13, my - T * 0.06, T * 0.27, 0, 7); cx.clip('evenodd');  // a crescent: the moon's disc with a round bite cut out
+  dot(mx, my, T * 0.3, '#fdf3c8'); cx.restore();
+  for (const [sx, sy] of [[-0.32, 0.25], [-0.2, 0.7], [0.24, 0.2], [0.36, 0.62], [0.12, 0.85]]) star(mx + sx * W * 0.5, sy * T, 11);
+  cx.globalAlpha = 1; drawn.push({ k: 'moon', shape: 'crescent' });
 }
 function drawDawn() {  // morning: a band of warm light sweeps over the screen from left to right
   const u = Math.min(1, (performance.now() - G.dawn) / DAWN_MS); if (u >= 1) return;
