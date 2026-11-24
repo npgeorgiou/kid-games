@@ -16,7 +16,7 @@ for line in (here / "lib" / "palettes" / "palettes.txt").read_text().splitlines(
     if not line.strip() or line.startswith("#"): continue
     grp, rest = line[0], line[2:]  # its column in the palettes popup
     if rest.strip() == "---": div = True; continue  # a divider line before the next palette
-    name, hx = [t.strip() for t in rest.split("|")]
+    name, hx = [t.strip() for t in rest.split("|")][:2]  # a third field is the extras' group (one progression, two, three, many hues), for the order check
     pals.append({"name": name, "hex": " ".join(hx.split()), "grp": grp, "div": div}); div = False
 out = out.replace("/*%PALETTES%*/[]", json.dumps(pals))
 prev = {f.stem: json.loads(f.read_text()) for f in sorted((here / "lib" / "previews").glob("*.json"))}  # brush previews, made by tools/previews.py
