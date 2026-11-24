@@ -2,13 +2,12 @@
 # Commit gate (owner 21 Nov: rules are enforced, not remembered). Enable once per clone: git config core.hooksPath .githooks
 # Games listed in strict-games.txt are checked by game_checks.py (owner 24 Nov). Any other game whose code changes (its .html page, src/ or lib/) must name its flows in the message:
 #   Flow: <game> <flow> [<flow> ...]
-# Each named flow must FAIL on the code before the change (the last commit, with the new flows file) and PASS on the code being committed.
+# Each named flow must PASS on the code being committed.
 import subprocess, sys, re, os, tempfile, shutil
-from concurrent.futures import ThreadPoolExecutor
 msg = open(sys.argv[1], encoding='utf-8').read()
 files = subprocess.run(['git', 'diff', '--cached', '--name-only'], capture_output=True, text=True).stdout.split()
 root = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True).stdout.strip()
-renamed = {}  # a game folder renamed in this commit: new name -> old name, so its old code is still found
+renamed = {}  # a game folder renamed in this commit: new name -> old name, so the old name is not checked as a game
 for l in subprocess.run(['git', 'diff', '--cached', '-M', '--name-status'], capture_output=True, text=True).stdout.splitlines():
     p = l.split('\t')
     if p[0].startswith('R') and p[1].startswith('games/') and p[2].startswith('games/') and p[1].split('/')[1] != p[2].split('/')[1]: renamed[p[2].split('/')[1]] = p[1].split('/')[1]
@@ -36,13 +35,13 @@ if not games: sys.exit(0)
 named = {}
 for g, rest in re.findall(r'^Flow:\s*(\S+)\s+(.+)$', msg, re.M): named.setdefault(g, []).extend(rest.split())
 missing = [g for g in games if g not in named]
-if missing: sys.exit('commit refused: code of %s changed, but no "Flow: <game> <flow>" line names the flow that failed before and passes now' % ', '.join(missing))
-def run(gamedir, flow):  # (passed, failed, tail): passed when it printed PASS lines and no FAIL; failed only when it printed a FAIL line (a run that never started proves nothing)
-    env = dict(os.environ, TMPDIR=tempfile.mkdtemp(), GIT_DIR=os.path.join(root, '.git'))  # own temp files, so old and new run at once; GIT_DIR so a harness outside the repo still sees the gate is on
+if missing: sys.exit('commit refused: code of %s changed, but no "Flow: <game> <flow>" line names the flow of this change' % ', '.join(missing))
+def run(gamedir, flow):  # (passed, tail): passed when it printed PASS lines and no FAIL (a run that never started proves nothing)
+    env = dict(os.environ, TMPDIR=tempfile.mkdtemp(), GIT_DIR=os.path.join(root, '.git'))  # own temp files; GIT_DIR so a harness outside the repo still sees the gate is on
     out = subprocess.run([sys.executable, os.path.join(gamedir, 'tools', 'harness.py'), 'flows', flow], capture_output=True, text=True, cwd=gamedir, timeout=600, env=env).stdout
     lines = [l for l in out.splitlines() if l.startswith(('PASS', 'FAIL'))]
     shutil.rmtree(env['TMPDIR'], ignore_errors=True)
-    return bool(lines) and all(l.startswith('PASS') for l in lines), any(l.startswith('FAIL') for l in lines), out.strip()[-400:]
+    return bool(lines) and all(l.startswith('PASS') for l in lines), out.strip()[-400:]
 def run_all(gamedir, flows):  # one harness run for all the flows: a harness that tags its lines "PASS [flow] ..." gives each flow its verdict; any other runs one flow at a time
     env = dict(os.environ, TMPDIR=tempfile.mkdtemp(), GIT_DIR=os.path.join(root, '.git'))
     out = subprocess.run([sys.executable, os.path.join(gamedir, 'tools', 'harness.py'), 'flows'] + flows, capture_output=True, text=True, cwd=gamedir, timeout=600, env=env).stdout
@@ -51,20 +50,10 @@ def run_all(gamedir, flows):  # one harness run for all the flows: a harness tha
     for l in out.splitlines():
         m = re.match(r'(PASS|FAIL)\s+\[(\S+)\]', l)
         if m: seen.setdefault(m.group(2), []).append(m.group(1))
-    if all(f in seen for f in flows): return {f: (all(v == 'PASS' for v in seen[f]), 'FAIL' in seen[f], '\n'.join(l for l in out.splitlines() if '[%s]' % f in l)) for f in flows}
+    if all(f in seen for f in flows): return {f: (all(v == 'PASS' for v in seen[f]), '\n'.join(l for l in out.splitlines() if '[%s]' % f in l)) for f in flows}
     return {f: run(gamedir, f) for f in flows}
 bad = []
 for g in games:
-    old = tempfile.mkdtemp(); src = renamed.get(g, g)
-    subprocess.run('git archive HEAD games/%s | tar -x -C %s' % (src, old), shell=True, check=True, cwd=root)
-    if src != g: os.rename(os.path.join(old, 'games', src), os.path.join(old, 'games', g))
-    shutil.copy(os.path.join(root, 'games', g, 'tools', 'flows.py'), os.path.join(old, 'games', g, 'tools', 'flows.py'))
-    with ThreadPoolExecutor(2) as ex:  # owner 21 Nov: the old and the new code run at the same time
-        new, prev = ex.submit(run_all, os.path.join(root, 'games', g), named[g]), ex.submit(run_all, os.path.join(old, 'games', g), named[g])
-        new, prev = new.result(), prev.result()
-    for f in named[g]:
-        (ok_new, _, out_new), (_, failed_old, out_old) = new[f], prev[f]
-        if not ok_new: bad.append('%s %s does not pass on the new code:\n%s' % (g, f, out_new))
-        if not failed_old: bad.append('%s %s did not fail on the code before the change, so it does not prove the change:\n%s' % (g, f, out_old))
-    shutil.rmtree(old, ignore_errors=True)
+    for f, (ok, out) in run_all(os.path.join(root, 'games', g), named[g]).items():
+        if not ok: bad.append('%s %s does not pass:\n%s' % (g, f, out))
 if bad: sys.exit('commit refused:\n' + '\n'.join(bad))

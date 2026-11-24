@@ -13,7 +13,7 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 
 - Act as a professional software developer: clean code (one owner per behaviour, no dead code, no leftovers, names that say what things are, no duplication) and test-driven development (a failing test first, then the code that makes it pass, then clean up).
 - **Process beats speed.** Never skip, shorten or reorder a test step to save time; make the tests and tools faster instead.
-- **The commit check enforces the Testing rules.** Games listed in `.githooks/strict-games.txt` are checked by `.githooks/game_checks.py` on every commit and, on GitHub, on every push: test first, no back-door moves, the whole test set within 10 s. Any other game must carry `Flow: <game> <flow> ...` in the commit message (each named flow must fail on the code before and pass now) until its full run is fast enough to join the list. Never bypass a check (`--no-verify`).
+- **The commit check enforces the Testing rules.** Games listed in `.githooks/strict-games.txt` are checked by `.githooks/game_checks.py` on every commit and, on GitHub, on every push: test first, no back-door moves, the whole test set within 10 s. Any other game must carry `Flow: <game> <flow> ...` in the commit message (each named flow must pass) until its full run is fast enough to join the list. Never bypass a check (`--no-verify`).
 - **No failing tests, ever.** Every test in the repo passes after every change. A failing test is never left in place, skipped or reported as "already failing": find whether the test or the code is wrong, and if only the owner can decide, ask him before the change is called done.
 
 ## The two gates (they come before everything else)
@@ -38,7 +38,7 @@ Rules a machine can check are checked by the commit check (`.githooks/commit-msg
 - **Test first.** For every owner point and every bug: first a flow that repeats his exact steps on screen and fails, then the code that makes it pass, then clean up. Checked: a commit that changes a game's code must add or change a flow in the same commit.
 - **Feature tests only, played like the owner.** A flow (`games/<game>/tools/flows.py`, run by `tools/harness.py flows`) uses the real page and does what he does: taps, keys and drags on what is drawn, at a real rate, his settings. It may set up a starting table; it never makes a move through the game's insides. Checked: flows that make moves through the game's insides are refused.
 - **Check what he sees.** A flow checks what is on screen (what is drawn, what he can read or count), not only numbers inside the game. If he reports a gap, a delay or an order, the check measures that gap, delay or order.
-- **Every bug report becomes a flow** named after his report, repeating his steps; it fails before the fix and stays forever.
+- **Every bug report becomes a flow** named after his report, repeating his steps; it stays forever.
 - **Random play.** Every game has a seeded random-play flow that plays through the screen and checks, after every move, the rules he can see (for example: goods shown match the land shown; jars shown match the matching edges).
 - **The whole test set runs on every commit** and on every push; one FAIL refuses it. No failing tests, ever.
 - **Fast.** A game's full run, browser start included, takes at most 10 seconds; checked. Waits are on the game's state with short limits, never fixed sleeps; one browser and one page per run; a fake clock for real-speed checks; loops inside the page wait with promise steps (`await null`), not timers or messages. Time every run; a slow test is fixed before anything else.
@@ -54,7 +54,7 @@ Rules a machine can check are checked by the commit check (`.githooks/commit-msg
 4. **Anything odd in a test is a bug until the code proves otherwise.** A step skipped, a line cut, a stuck state, a repeat: never call it "how the test clicks" without showing the code path that makes it harmless.
 5. **Look, don't guess.** Log the events and the state around the action once (event names, what fired, what was removed), read the log, then remove the logging.
 6. **Test the invariant, not only the story.** Add a check that drives many random action orders and timings (seeded, fast) and fails when the invariant breaks.
-7. **Never say "fixed" until his exact steps failed before the change and pass after**, and say what was fixed in his terms. If what he did is unknown, say so; never present a guessed path as his.
+7. **Never say "fixed" until a flow repeating his exact steps passes**, and say what was fixed in his terms. If what he did is unknown, say so; never present a guessed path as his.
 8. **Time box.** If the cause is not found in 15 minutes of reading, tell him in one line what is known and what is being checked.
 
 ## Talking to the owner

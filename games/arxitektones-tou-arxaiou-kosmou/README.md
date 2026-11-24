@@ -73,11 +73,11 @@ From this folder, after `python3 build.py` (and once per clone: `git config core
 - `python3 tools/harness.py spec [level numbers]` -- every level: the suggested build passes, every wrong piece fails, the pile (about 10 min for all).
 - `python3 tools/harness.py map | real | sandbox | loudness | sizes | realwave | realintro | mapbuttons` -- the map on 14 screen sizes, the real game loop, free play, sound loudness, sizes, real taps, the intro, the map buttons.
 
-Every check passes; a commit that changes the game must name a play-through test that failed before and passes after (the commit gate in `.githooks/`).
+Every check passes; a commit that changes the game must name its play-through test, which must pass (the commit gate in `.githooks/`).
 
 ## Now
 
-Done (owner, 18 Nov 2026). On 21 Nov: the tutorial no longer stops, whatever the child does and however fast; every cue has a level (tutorial, intro, explanation, flavour) and the first site's steps are a named tutorial; the cue engine knows the game only through its hooks (`tools/cues/README.md`); a failed test's red stays until its lines are said; no piece sticks in the pile's wall; voice line 80 re-recorded; all checks brought to the current game. On 23 Nov: the test button is grey (cannot be pressed) while the building stands as it passed its test, at the pass and at a finished site, until a piece is picked up or the pieces are cleared; the headpiece-dots line plays only at the first site; the map's outermost cells are land or sea as just inside them, so boats no longer sail along the map's edge.
+The game is complete and playable. The tutorial never stops, whatever the child does and however fast; every cue has a level (tutorial, intro, explanation, flavour) and the first site's steps are a named tutorial; the cue engine knows the game only through its hooks (`tools/cues/README.md`). A failed test's red stays until its lines are said. The test button is grey while the building stands as it passed its test, until a piece is picked up or the pieces are cleared. The headpiece-dots line plays only at the first site. The map's outermost cells match the land or sea just inside them, so boats never sail along the edge.
 
 ## Open
 

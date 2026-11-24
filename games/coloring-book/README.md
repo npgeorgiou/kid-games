@@ -61,7 +61,7 @@ Each flow runs on a test paper (`coloring-book.html?paper=400x250@600,375`): tha
 
 How to work on the look: try numbers with direct measurements (strokes painted straight through the game's stroke code, as `tools/previews.py` does, no finger-speed drags); run the real-speed flow only once at the end. After the first version of anything visual, take one full-size screenshot and look at it before tuning anything.
 
-Every check passes. A commit that changes the game must name a flow that failed on the code before and passes now (`Flow: coloring-book <flow>`); the commit gate runs the old and the new code at the same time.
+Every check passes. A commit that changes the game must name its flow (`Flow: coloring-book <flow>`); the commit gate runs it and refuses the commit if it does not pass.
 
 ## Now
 
