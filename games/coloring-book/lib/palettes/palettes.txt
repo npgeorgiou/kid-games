@@ -1,6 +1,6 @@
 # Palettes shown in the palettes popup, 12 to a column. A line starts with its column (1-4); "---" draws a divider line there (it takes no row of its own). From the owner's files in lib/owner-palettes (owner 23 Nov 10:27):
 # 1 the monochromes (Payne's grey between Blue and Purple), a grey scale, each spread a bit darker and lighter than his files (owner 24 Nov 13:31); 2 the 5 rainbows, a divider, then the extras; 3 and 4 the extras. The extras go down the columns by what they hold (owner 24 Nov 08:50: one hue, two, three, many): one smooth progression, two hues, three hues, many hues; the group is the last field;
-# Basic is one of them (no top row); Red, Yellow and Green replaces Coral, Citrus and Olive; Brown and Sage and Coral to Steel Blue are the two Coolors palettes he gave as examples (21 Nov).
+# Basic is one of them (no top row); Red, Yellow and Green replaces Coral, Citrus and Olive; Brown and Sage and Coral to Steel Blue are the two Coolors palettes he gave as examples (21 Nov). Orange and Purple (ColorBrewer PuOr, 10 classes) and Cyan and Magenta (Matplotlib cool, 10 even steps) replace Sienna to Sky and Lemon and Magenta, near-duplicates (owner 24 Nov 13:31, suggested).
 1 Red | 540000 750000 960009 BD0017 E10023 FF2938 FF6E68 FF9991 FFBFB9 FFE4DF
 1 Orange | 7F3100 973F00 AE4B00 C65A00 DF6800 F97607 FF9045 FFAC77 FFC7A1 FFE0C6
 1 Yellow | A86700 BD7B00 CD8E00 DDA100 EDB508 F7C514 FFD61D FFE625 FFF32A FFFB3E
@@ -25,7 +25,7 @@
 2 Midnight Red and Flame | 03071E 370617 6A040F 9D0208 D00000 DC2F02 E85D04 F48C06 FAA307 FFBA08 | progression
 2 Brown and Sage | 582F0E 7F4F24 936639 A68A64 B6AD90 C2C5AA A4AC86 656D4A 414833 333D29 | two
 2 Earthy Woodland | 532A09 7B4618 915C27 AD8042 BFAB67 BFC882 A4B75C 647332 3E4C22 2E401C | two
-2 Sienna to Sky | 76451D B1682C EC8A3A F09F5E F8CFAF B1D8F8 63B1F1 48A3EE 367BB3 245277 | two
+2 Orange and Purple | 7F3B08 B35806 E08214 FDB863 FEE0B6 D8DAEB B2ABD2 8073AC 542788 2D004B | two
 3 Brown and Teal | 543005 8C510A BF812D DFC27D F6E8C3 C7EAE5 80CDC1 35978F 01665E 003C30 | two
 3 Purple and Green | 40004B 762A83 9970AB C2A5CF E7D4E8 D9F0D3 A6DBA0 5AAE61 1B7837 00441B | two
 3 Pink and Green | 8E0152 C51B7D DE77AE F1B6DA FDE0EF E6F5D0 B8E186 7FBC41 4D9221 276419 | two
@@ -33,7 +33,7 @@
 3 Steel Blue and Red | A3151A 726464 B09F9E 8D8896 AFB6C3 E7EDF1 8CAED8 6081AC 447CB2 294364 | two
 3 Sky Blue and Amber | 023047 126782 219EBC 58B4D1 73BFDC 8ECAE6 FFB703 FD9E02 FB9017 FB8500 | two
 3 Electric Blue and Yellow | 072AC8 1360E2 1E96FC 60B6FB A2D6F9 CFE57D FCF300 FEDD00 FFC600 FFCB17 | two
-3 Lemon and Magenta | 901447 C21E65 E02A7A FD358F FD5DA5 FFC60A FFDA47 FFEE33 FFFF5C FFFFAD | two
+3 Cyan and Magenta | 00FFFF 1CE3FF 38C7FF 55AAFF 718EFF 8E71FF AA55FF C738FF E31CFF FF00FF | two
 3 Violet and Lime | 421869 491A74 721CB8 995BD5 BF99F2 9CF945 8EDF34 80C423 509724 1F6924 | two
 3 Olive, Sand and Clay | 797D62 9B9B7A FFCB69 F1DCA7 D9AE94 D08C60 997B66 AD9585 BDAA9D CABBB1 | three
 3 Terracotta, Sand and Sage | A85633 CF6E41 D37C4D D68A58 DEA66F E5C185 F0DAA5 FBF2C4 DAE0B8 B8CDAB | three
