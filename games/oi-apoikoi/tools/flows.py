@@ -190,6 +190,16 @@ def f_goods_become_jars(q):  # owner 24 Nov: at the round's end the goods turn i
     ok = sorted(made) == [0, 1, 2] and made[2] - made[1] >= 500 and flying and faded and shown_left[1] == 5 and st(q)['players'][0]['jars'] == 2
     report(ok, 'end: goods become jars one by one', 'jar counts first seen at %s ms, goods then %s, flying %s, fading %s' % (made, shown_left, flying, faded))
 
+def f_sounds(q):  # owner 24 Nov: "add some sounds, it's hard to follow what happens": each thing that happens has its sound, in the order it happens
+    get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot'); tap(q, 'wheel-2'); tap(q, 'reroll')
+    q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); a = q.evaluate("()=>__dg.sounds()")
+    table(q, bag=[[0, 0]] * 4, tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0]], jarQueue=[COIN] * 20)
+    kid_plays(q, lambda s: s['phase'] == 'end'); waiting(q, 'jar'); b = q.evaluate("()=>__dg.sounds()")
+    want = ['pick', 'snap', 'jar', 'spin', 'stop', 'stop', 'stop', 'spin', 'stop', 'win']
+    made = sum(p['jars'] for p in st(q)['players'])  # both players' leftovers have become jars; none opened yet
+    ok = a[:len(want)] == want and b.count('made') == made and {'pick', 'snap', 'jar', 'coin'} <= set(b) and b.index('made') > b.index('snap')
+    report(ok, 'sounds: one for each thing, in order', 'slot jar: %s; round end: %d made sounds for %d jars, heard %s' % (a[:len(want)], b.count('made'), made, sorted(set(b))))
+
 def f_pc_best(q):  # the PC picks and places for the most jars
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)
