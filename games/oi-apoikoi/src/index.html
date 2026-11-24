@@ -566,11 +566,11 @@ function slotPrize(w) {  // what taking now gives: 2 or 3 of the picture that re
   const c = w.map(s => w.filter(t => t === s).length), n = Math.max(...c);
   return n >= 2 ? { s: w[c.indexOf(n)], n } : null;
 }
-function label(text, x, y, size, col, forWhat) { cx.fillStyle = col; cx.font = 'bold ' + size + 'px sans-serif'; cx.textAlign = 'center'; cx.fillText(text, x, y); cx.textAlign = 'start'; drawn.push({ k: 'label', text, for: forWhat }); }
 function drawSlot() {  // three wheels; tap the ones to spin again, pay 1 coin to spin them, or take what the wheels show
   const S = G.slot, x = W / 2, y = H / 2, ww = 140, live = wait && wait.kind === 'slot', now = performance.now(), p = G.players[S.who];
   shade(0.4); rrect(x - 280, y - 210, 560, 420, 30, '#7a2f2f', BORDER[S.who], 6);
-  coin(x - 230, y - 180, 14); label('' + p.coins, x - 200, y - 172, 24, '#ffe9a8', 'coins');  // the coins you have
+  for (let k = 0; k < p.coins; k++) coin(x - 250 + 14 + (k % 16) * 30, y - 186 + Math.floor(k / 16) * 26, 12);  // the coins you have, as coins
+  drawn.push({ k: 'pic', for: 'coins', n: p.coins });
   S.w.forEach((s, k) => {
     const wx = x - 225 + k * (ww + 15), r = S.reel[k], rolling = now < r.t0 + r.ms, at = reelAt(r, now), gap = 84;
     rrect(wx, y - 150, ww, 170, 16, '#fff', S.sel[k] ? '#2f7de1' : '#555', S.sel[k] ? 8 : 3);
@@ -583,14 +583,17 @@ function drawSlot() {  // three wheels; tap the ones to spin again, pay 1 coin t
   });
   if (!live) return;
   const n = S.sel.filter(v => v).length, can = p.coins > 0 && n > 0, prize = slotPrize(S.w);
-  rrect(x - 240, y + 40, 230, 140, 18, can ? '#d8f0c8' : '#d6d0c8', '#3a8a2a', 4);  // spin again: costs 1 coin
-  label(n ? 'Γύρνα ' + n + (n > 1 ? ' ρόδες' : ' ρόδα') : 'Διάλεξε ρόδες', x - 125, y + 80, 22, '#1f4d16', 'spin');
-  label('−1', x - 140, y + 140, 34, '#7a2f2f', 'reroll'); coin(x - 95, y + 128, 16);
+  cx.globalAlpha = can ? 1 : 0.45;  // spin again: a turning arrow, and one coin going in
+  rrect(x - 240, y + 40, 230, 140, 18, '#d8f0c8', '#3a8a2a', 4);
+  cx.strokeStyle = '#2f6a22'; cx.lineWidth = 9; cx.lineCap = 'round'; cx.beginPath(); cx.arc(x - 170, y + 110, 34, -2.4, 2.2); cx.stroke();
+  const ax = x - 170 + 34 * Math.cos(2.2), ay = y + 110 + 34 * Math.sin(2.2); cx.beginPath(); cx.moveTo(ax - 16, ay - 2); cx.lineTo(ax, ay); cx.lineTo(ax + 4, ay - 17); cx.stroke();
+  coin(x - 80, y + 128, 20); arrow(x - 80, y + 62, x - 80, y + 96, '#7a2f2f', 6); cx.lineCap = 'butt'; cx.globalAlpha = 1;
+  drawn.push({ k: 'pic', for: 'reroll', coins: 1 });
   if (can) btn('reroll', x - 240, y + 40, 230, 140, () => answer('reroll'));
-  rrect(x + 10, y + 40, 230, 140, 18, '#ffe9a8', '#e0a020', 4);  // take what the wheels show
-  label('Πάρε', x + 125, y + 80, 22, '#6e4a08', 'take');
-  if (prize) { label('+' + prize.n, x + 100, y + 140, 34, '#3a5a10', 'collect'); symbol(prize.s, x + 160, y + 128, 20); }
-  else label('τίποτα', x + 125, y + 140, 26, '#6e4a08', 'collect');
+  rrect(x + 10, y + 40, 230, 140, 18, '#ffe9a8', '#e0a020', 4);  // take what the wheels show: the pictures you get, or an empty circle
+  if (prize) for (let k = 0; k < prize.n; k++) symbol(prize.s, x + 125 + (k - (prize.n - 1) / 2) * 64, y + 110, 30);
+  else { cx.setLineDash([8, 7]); cx.strokeStyle = '#a07810'; cx.lineWidth = 4; cx.beginPath(); cx.arc(x + 125, y + 110, 30, 0, 7); cx.stroke(); cx.setLineDash([]); }
+  drawn.push({ k: 'pic', for: 'collect', s: prize ? prize.s : null, n: prize ? prize.n : 0 });
   btn('collect', x + 10, y + 40, 230, 140, () => answer('collect'));
 }
 function drawPass() {  // nothing fits: this turn passes to the other player

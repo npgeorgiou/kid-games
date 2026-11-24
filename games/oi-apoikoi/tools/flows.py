@@ -296,11 +296,11 @@ def f_slot_rolls(q):  # owner 24 Nov: the wheels roll fast, then slow down and s
     ok = rolling_seen and None not in stops and stops[0] < stops[1] < stops[2] and stops[0] >= 500 and slows and h.count('roll') == 3 and h.count('stop') == 3
     report(ok, 'slot: wheels roll fast, slow down, stop one by one', 'stops at %s ms; first wheel moves %s per 100 ms; roll sounds %d, stop sounds %d' % (stops, [round(x, 1) for x in steps], h.count('roll'), h.count('stop')))
 
-def f_slot_says_price(q):  # owner 24 Nov: "I can't even see what I pay": the spin button shows its price, the take button shows what you get
+def f_slot_says_price(q):  # owner 24 Nov: "I can't even see what I pay", and then "no text; the slot machine should have none": price, prize and coins are pictures
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[5, 5, 1]); waiting(q, 'slot'); tap(q, 'wheel-2')
-    labels = {d.get('for'): d['text'] for d in drawn(q, 'label')}
-    ok = '1' in labels.get('reroll', '') and '2' in labels.get('collect', '') and str(3) in labels.get('coins', '')
-    report(ok, 'slot: price and prize written on the buttons', str(labels))
+    pics = {d['for']: d for d in drawn(q, 'pic')}; texts = drawn(q, 'label')
+    ok = not texts and pics.get('reroll', {}).get('coins') == 1 and pics.get('collect', {}).get('n') == 2 and pics.get('collect', {}).get('s') == 5 and pics.get('coins', {}).get('n') == 3
+    report(ok, 'slot: price, prize and coins as pictures, no text', 'texts %s, pictures %s' % ([t['text'] for t in texts], pics))
 
 def f_slot_three(q):  # slot machine: pay 1 coin to reroll chosen wheels; 3 the same wins 3 (on top of the placed tile's own goods, owner 24 Nov)
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot')
