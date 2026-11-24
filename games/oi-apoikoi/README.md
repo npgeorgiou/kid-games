@@ -43,4 +43,3 @@ A playable prototype against the PC on one shared board, colours only. Tiles are
 - Waiting for the owner: should a tile need more to fit (after round 2 almost every tile fits)?
 - Stockpile goods and their jar outlines are small: the panel may need to be wider.
 - Screen pass with `tools/ui-design/README.md`'s checklist (13 points) over the whole game, with screenshots.
-- One full test run failed once (which flow is unknown); find it.
