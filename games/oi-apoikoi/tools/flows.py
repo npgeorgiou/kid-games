@@ -98,6 +98,16 @@ def f_carried_tilts(q):  # owner 24 Nov ("rethink all UI": pieces do not feel ph
     ok = right >= 4 and abs(still) < 0.5 and left <= -4
     report(ok, 'carried tile tilts with the drag', 'moving right %.1f deg, standing still %.1f deg, moving left %.1f deg' % (right, still, left))
 
+def f_tile_bounces(q):  # owner 24 Nov ("rethink all UI": pieces do not feel physical): a tile that lands on the board bounces a little (lands big, squashes, settles), quickly
+    pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2})
+    scale = lambda: [x['scale'] for x in drawn(q, 'bounce')]
+    seen = [scale()]
+    for _ in range(4): skip(q, 70); seen.append(scale())
+    skip(q, 200); after = scale(); q.clock.resume()
+    flat = [v[0] if v else 1 for v in seen]
+    ok = flat[0] > 1.04 and min(flat) < 0.99 and not after
+    report(ok, 'a landing tile bounces', 'size every 70 ms %s, then %s' % ([round(v, 3) for v in flat], after or 'still'))
+
 def f_drag_leave(q):  # drag, leave it anywhere, turn it there, drag again: it is placed only when it snaps
     table(q, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place')
     far = q.evaluate("()=>__dg.tileAt(9,1,0)"); path(q, held(q), far); h1 = held(q); left = h1 is not None and abs(h1[0] - far[0]) < 2 and abs(h1[1] - far[1]) < 2
