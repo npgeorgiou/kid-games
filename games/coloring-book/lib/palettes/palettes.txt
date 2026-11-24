@@ -1,6 +1,6 @@
 # Palettes shown in the palettes popup, 12 to a column. A line starts with its column (1-4); "---" draws a divider line there (it takes no row of its own). From the owner's files in lib/owner-palettes (owner 23 Nov 10:27): Inside every palette (not his rainbows, not Basic) the colours go like the spectrum, reddish first (owner 24 Nov 13:31): a gradient running the other way is turned round, a palette that runs along the spectrum neither way keeps its own order (owner 24 Nov 14:00).
 # 1 the monochromes (Payne's grey between Blue and Purple), a grey scale, each spread a bit darker and lighter than his files (owner 24 Nov 13:31); 2 the 5 rainbows, a divider, then the extras; 3 and 4 the extras. The extras go down the columns by what they hold (owner 24 Nov 08:50: one hue, two, three, many): one smooth progression, two hues, three hues, many hues; the group is the last field;
-# Basic is one of them (no top row); Brown and Sage and Coral to Steel Blue are the two Coolors palettes he gave as examples (21 Nov). Orange and Purple is ColorBrewer PuOr (10 classes). Sunset, Autumn, City, Beach, Spring garden, Orchard, Harbour town, Mountain landscape, Harvest field are Coolors popular and trending 10-colour palettes he chose (24 Nov 14:00, 14:11; the names are ours); Wheat Field, Mushfairy, LTRO-1 and Breathless Calm are Lospec 10-colour palettes he chose (24 Nov 14:28).
+# Basic is one of them (no top row); Brown and Sage and Coral to Steel Blue are the two Coolors palettes he gave as examples (21 Nov). Orange and Purple is ColorBrewer PuOr (10 classes). Sunset, Autumn, City, Beach, Spring garden, Orchard, Harbour town, Mountain landscape, Harvest field and Summer lake are Coolors popular and trending 10-colour palettes he chose (24 Nov 14:00, 14:11; the names are ours); Wheat Field and Breathless Calm are Lospec 10-colour palettes he chose (24 Nov 14:28; Summer lake and Ocean to Sunset Spectrum back, 14:32).
 1 Red | 540000 750000 960009 BD0017 E10023 FF2938 FF6E68 FF9991 FFBFB9 FFE4DF
 1 Orange | 7F3100 973F00 AE4B00 C65A00 DF6800 F97607 FF9045 FFAC77 FFC7A1 FFE0C6
 1 Yellow | A86700 BD7B00 CD8E00 DDA100 EDB508 F7C514 FFD61D FFE625 FFF32A FFFB3E
@@ -47,6 +47,6 @@
 4 Mountain landscape | 86B9E4 A1C0EF 125792 BF271E C46B31 B6973D B8A668 31602A 517B6D AA9C93 | many
 4 Harvest field | 233D4D FE7F2D FE8E32 FCCA46 EAC852 A1C181 94B983 619B8A 81AFA1 9ABFB4 | many
 4 Wheat Field | 97C89B 3E8E92 305472 1C1F2B 2C313C 625E60 999172 DFCD6D B78F43 895C35 | many
-4 Mushfairy | 27234C 733C7C B296FF DDE4FF D3D37C E88DC3 F2504B 225091 007582 39B8A3 | many
-4 LTRO-1 | EAE1F0 7E7185 37313B 1D1C1F 89423F F63F4C FDBB27 8D902E 4159CB 59A7AF | many
+4 Summer lake | E07748 FABD23 FDD248 799C54 8FBA61 198AA6 0A3C5F ECEFF5 9FAACD 3958A1 | many
+4 Ocean to Sunset Spectrum | 0450B4 046DC8 1184A7 15A2A2 6FB1A0 B4418E D94A8C EA515F FE7434 FEA802 | many
 4 Breathless Calm | 181818 292831 333F58 4A7A96 EE8695 F9F9F9 CF7862 A75252 773A4D 543246 | many

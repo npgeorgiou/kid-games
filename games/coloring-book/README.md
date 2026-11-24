@@ -70,7 +70,6 @@ Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Word
 ## Open
 
 Do next, in this order (his words are in the Task list):
-- Palettes: done for now (his 24 Nov swaps are in).
 - Lifting, spray, shapes, ink, pointer turning: waiting for his look.
 - 26: pencil needs work (his pencil pictures owner-shots/2026-11-23-pencil-*): only its grain curve was softened so a fast light line does not break.
 - p5.brush (https://p5-brush.cargo.site/, MIT): its page says it is meant for high-resolution artworks, maybe not live painting. Try it on one brush, measure stroke delay on a full paper at his screen size, show him, let him decide.

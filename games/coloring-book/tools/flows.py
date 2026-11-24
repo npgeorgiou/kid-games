@@ -576,9 +576,9 @@ def f_pal_order(q):  # owner 23 Nov 22:37, 24 Nov 08:50 (replacing hues by slice
     shown = {'%02X%02X%02X' % tuple(k) for p in ex for k in p['cols']}  # owner 24 Nov 13:31, point 3: Sienna to Sky (~ Red and Blue) and Lemon and Magenta dropped; suggested in their places ColorBrewer PuOr and Matplotlib cool
     # owner 24 Nov 14:00: Brown and Sage, Cyan and Magenta, Violet and Lime, Terracotta, Sand and Sage, Mediterranean Berry, Retro Primary Mix give way to six Coolors scene palettes he chose
     # owner 24 Nov 14:11: Pink and Green, Steel Blue and Red, Electric Blue and Yellow, Citrus to Deep Ocean and Watermelon Sorbet give way to five more Coolors scene palettes he chose
-    # owner 24 Nov 14:28: the rainbow-like Red, Yellow and Green, Summer lake, Ocean to Sunset Spectrum and Meadow give way to Lospec's Wheat Field, Mushfairy, LTRO-1 and Breathless Calm
-    swapped = not {'76451D', 'F8CFAF', '901447', 'FFFFAD', '582F0E', '00FFFF', '421869', 'A85633', '867ECF', '669900', '8E0152', 'A3151A', '072AC8', 'CC4400', 'CD0D58', 'A50026', '3958A1', '0450B4', '54478C'} & shown \
-        and {'7F3B08', '2D004B', 'FFF04C', 'F2636A', '71093B', 'B0EBEB', 'FABC2A', 'EDBFCB', 'D90429', 'BF271E', '233D4D', 'DFCD6D', 'B296FF', 'F63F4C', 'EE8695'} <= shown
+    # owner 24 Nov 14:28: the rainbow-like Red, Yellow and Green, Summer lake, Ocean to Sunset Spectrum and Meadow gave way to Lospec's Wheat Field, Mushfairy, LTRO-1 and Breathless Calm; 14:32: Summer lake and Ocean to Sunset Spectrum back in place of Mushfairy and LTRO-1
+    swapped = not {'76451D', 'F8CFAF', '901447', 'FFFFAD', '582F0E', '00FFFF', '421869', 'A85633', '867ECF', '669900', '8E0152', 'A3151A', '072AC8', 'CC4400', 'CD0D58', 'A50026', '54478C', 'B296FF', 'F63F4C'} & shown \
+        and {'7F3B08', '2D004B', 'FFF04C', 'F2636A', '71093B', 'B0EBEB', 'FABC2A', 'EDBFCB', 'D90429', 'BF271E', '233D4D', 'DFCD6D', 'EE8695', '3958A1', '0450B4'} <= shown
     ok = len(ex) == 31 and swapped and not back and -1 not in h and sorted(set(h)) == [0, 1, 2, 3] and 'F7F7F2' in hexes and 'EB5E28' not in hexes and level
     report(ok, 'palettes: extras progression, two, three, many hues; Basic among them, rows level', 'swapped %s, extras %d, a busier group before a simpler one (place, group, next) %s, Basic %s, coral gone %s, rows level %s'
            % (swapped, len(ex), back[:3], 'F7F7F2' in hexes, 'EB5E28' not in hexes, level))
