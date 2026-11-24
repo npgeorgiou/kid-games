@@ -18,7 +18,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `WARNINGS.md`: traps found in this game.
 - `src/index.html`: the game source; `build.py` makes `oi-apoikoi.html` from it, with the hand pictures put in.
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
-- `tools/flows.py`: flow tests, one per owner rule and bug report, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 7 s).
+- `tools/flows.py`: flow tests, one per owner rule and bug report, a main test playing a whole fixed game, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 7 s).
 - `tools/backdoors.txt`: what a flow may never contain (moves through the game's insides); the commit check refuses it.
 
 ## Running the checks
@@ -27,7 +27,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 
 ## Now
 
-A playable prototype against the PC on one shared board, colours only. Tiles are dragged straight from the pile and snap where they fit; a picked tile can be put back on its market place; a won bid reserves a tile for its winner. Each round starts with every square lighting up in turn and its good flying to the stockpile. A placed tile adds its 2 goods at once; its matched edges glow and each jar flies out of its edge. Jars break where tapped, what they held rises out of them with a short label, and the reward flies to its place (coins to the coin stacks, the star beside the face, goods to the stockpile). Jars hold the owner's mix (10% empty). At the round's end (leftover market tiles fly back to the pile, evening falls, a moon over the market), each 5 goods of a colour become a jar: it drops from the top, the goods fly into it; jars are opened, again if opening makes new groups of 5; then the leftovers break into specks. Waiting jars step aside over the market while a bonus tile is placed. Whose turn it is: a light flies between the faces, the player playing has a bigger glowing face, the market takes his colour. The bid is a small card beside the market. Jars stand 6 to a row; coins in stacks of 10. Rules and built-for-now choices are in `design.md`; the screen follows `tools/ui-design/README.md`.
+A playable prototype against the PC on one shared board, colours only. Tiles are dragged straight from the pile and snap where they fit; a picked tile can be put back on its market place; a won bid reserves a tile for its winner. Each round starts with every square lighting up in turn and its good flying to the stockpile. A placed tile adds its 2 goods at once; its matched edges glow and each jar flies out of its edge. Jars break where tapped, what they held rises out of them with a short label, and the reward flies to its place (coins to the coin stacks, the star beside the face, goods to the stockpile). Jars hold the owner's mix (10% empty). At the round's end (leftover market tiles fly back to the pile, evening falls, a moon over the market), each 5 goods of a colour become a jar: it drops from the top, the goods fly into it; jars are opened, again if opening makes new groups of 5; then the leftovers break into specks. Waiting jars step aside over the market while a bonus tile is placed; a bonus tile appears beside the market's 4 tiles. A jar never holds a steal when nothing can be stolen. Whose turn it is: a light flies between the faces, the player playing has a bigger glowing face, the market takes his colour. The bid is a small card beside the market. Jars stand 6 to a row; coins in rows of 5, apart, a wider gap after every 10. A main test plays a whole game from a set pile in which every situation happens. Rules and built-for-now choices are in `design.md`; the screen follows `tools/ui-design/README.md`.
 
 ## Open
 
@@ -38,9 +38,9 @@ A playable prototype against the PC on one shared board, colours only. Tiles are
 
 ## Task list
 
-- Main test (owner yes): one flow plays a whole game with a fixed pile and fixed jar contents, so every situation happens in order (a tile that can't be used, a bid won and lost, a pass, a tile put back, every jar kind, the slot machine, a steal, an extra tile, more jars made while opening, the end); small flows stay only for versions of one thing; the rest merge into it.
-- Slot machine: pictures that mean something (no letters, no unclear marks, a right spin-again picture; the chosen-wheel mark looks like a blue C). Waiting for the owner: which new gifts (take a good from the PC, change a good's colour, move a placed tile, lock a market tile) and 3, 4 or 5 pictures per wheel; 2 the same win 2, 3 win 3.
+- Merge into the main test the small flows it already covers (owner yes); keep small flows only for versions of one thing.
+- Waiting for the owner: 3, 4, 5 or 7 pictures per wheel (odds given 24 Nov); which new slot gifts, if any. Slot pictures stay as they are (owner).
 - Waiting for the owner: should a tile need more to fit (after round 2 almost every tile fits)?
-- Waiting for the owner: coins in stacks of 10 (they overlap inside a stack) instead of every coin apart: yes or no.
 - Stockpile goods and their jar outlines are small: the panel may need to be wider.
 - Screen pass with `tools/ui-design/README.md`'s checklist (13 points) over the whole game, with screenshots.
+- One full test run failed once (which flow is unknown); find it.
