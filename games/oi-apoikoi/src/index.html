@@ -35,6 +35,7 @@ const params = new URLSearchParams(location.search);
 let fast = params.has('fast');  // tests: the PC moves without waiting, and nothing travels: it is where it goes at once
 const HAND_SPEED = 450;  // px per second: slow enough to follow
 const STAGGER = 120, GOOD_FLY = 450;  // goods made at the round's start leave their squares one after another; each flies GOOD_FLY, its square lit meanwhile
+const RISE_MS = 500, SHOW_MS = 900, GLIDE_MS = 300, REWARD_MS = 550;  // a jar opened: what it held rises out of it, shows, and its reward flies to its place; the other jars close up
 const DROP_MS = 600, INTO_MS = 450, DISSOLVE_MS = 700;  // at the round's end: a jar dropping from the top; each good flying into it; the leftovers breaking into specks
 const SUNSET_MS = 1600, FLY_MS = 700, EDGE_GAP = 250, GLOW_MS = 1800;  // ... ; a jar flying out of its matched edge, the next one after EDGE_GAP; the edge glows GLOW_MS  // at the round's end: 3 goods flying into a jar; the leftovers fading out
 let rnd = Math.random;
@@ -49,7 +50,7 @@ const pause = ms => { const my = G; return fast ? Promise.resolve() : new Promis
 const SOUNDS = {  // kind and its notes (Hz)
   good: ['knock', [640]], pick: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], bid: ['chime', [392, 523]], pass: ['chime', [392, 294]],
   jar: ['break', []], coin: ['clink', [1320, 1760]], made: ['chime', [392, 494, 587]], win: ['chime', [523, 659, 784, 1047]],
-  into: ['knock', [460]], dissolve: ['whoosh', []], edge: ['chime', [784]], turn: ['chime', [587, 784]], roundend: ['chime', [784, 659, 523, 392]], spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
+  token: ['chime', [523, 784]], into: ['knock', [460]], dissolve: ['whoosh', []], edge: ['chime', [784]], turn: ['chime', [587, 784]], roundend: ['chime', [784, 659, 523, 392]], spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
 };
 let audio = null, heard = [];  // heard: every sound played in this game, in order (the flows read it)
 function noise(len) { const b = audio.createBuffer(1, audio.sampleRate * len, audio.sampleRate), d = b.getChannelData(0); for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1; const n = audio.createBufferSource(); n.buffer = b; return n; }
@@ -192,9 +193,9 @@ function shatter(at, col, size) {  // a thing breaks where it is: its specks fly
 }
 const rnd2 = Math.random;  // how specks scatter is looks only: it never touches the game's own random source
 function flightAt(f, now) { const u = Math.min(1, (now - f.t0) / f.ms), e = easeInOut(u); return [f.from[0] + (f.to[0] - f.from[0]) * e, f.from[1] + (f.to[1] - f.from[1]) * e - Math.sin(Math.PI * u) * f.arc, f.z0 + (f.z1 - f.z0) * e]; }
-async function goodFrom(i, c, from) {  // one good leaves a square (it lights up) and flies to its place in player i's stockpile, with a sound
+async function goodFrom(i, c, from, square) {  // one good leaves where it is made (a square lights up) and flies to its place in player i's stockpile, with a sound
   const p = G.players[i], my = G, to = slotPos(i, c, p.goods[c] + p.coming[c]); p.coming[c]++;
-  if (!fast) G.lit.push({ at: from, t0: performance.now() });
+  if (square && !fast) G.lit.push({ at: from, t0: performance.now() });
   sound('good'); await fly({ k: 'good', c, o: i }, from, to, GOOD_FLY); if (G !== my) return;
   p.coming[c]--; p.goods[c]++;
 }
@@ -202,7 +203,7 @@ async function makeGoods() {  // the round's start: every square of each land gi
   const my = G, cells = [...G.cells.values()].sort((a, b) => a.o - b.o || a.y - b.y || a.x - b.x);
   for (const p of G.players) { p.goods = [0, 0, 0, 0, 0]; p.got = 0; }
   if (G.goodsIn) { G.goodsIn = false; cells.forEach(c => G.players[c.o].goods[c.c]++); return; }  // a test table that starts with its goods in
-  await Promise.all(cells.map((c, k) => pause(k * STAGGER).then(() => G === my && goodFrom(c.o, c.c, squareCentre(c.x, c.y)))));
+  await Promise.all(cells.map((c, k) => pause(k * STAGGER).then(() => G === my && goodFrom(c.o, c.c, squareCentre(c.x, c.y), true))));
 }
 
 // SECTION: ROUNDS -- start, picks and bids, passing, end of round, end of game
@@ -312,21 +313,27 @@ function rollJar() {
   let u = rnd() * 100; for (const k in JAR_MIX) { u -= JAR_MIX[k]; if (u < 0) return { k }; }
   return { k: 'coins' };
 }
-async function openJars(i) {
-  const p = G.players[i], my = G;
+async function openJars(i) {  // a tapped jar breaks where it stands; what it held rises out of it and shows; the other jars close up, gliding
+  const p = G.players[i], my = G; G.jarWho = i;
   while (G === my && p.jars > 0) {
-    await choose('jar', i, {}, () => pcTap('jar-0')); if (G !== my) return;
-    p.jars--; p.fresh = Math.max(0, p.fresh - 1); const j = rollJar(); sound('jar'); G.shown = { who: i, j }; await pause(1100); G.shown = null;
+    const k = await choose('jar', i, {}, () => pcTap('jar-0')) || 0; if (G !== my) return;
+    const n = p.jars, fresh = p.fresh, at = jarSpot(k, n, fresh), j = rollJar();
+    p.jars--; if (k < fresh) p.fresh--;
+    sound('jar'); shatter(at, '#c46a3c', JAR_SIZE() * 0.3);
+    const moves = [...Array(p.jars).keys()].map(m => [m, jarSpot(m < k ? m : m + 1, n, fresh), jarSpot(m, p.jars, p.fresh)]).filter(([, a, b]) => a[0] !== b[0] || a[1] !== b[1]);
+    G.gliding = new Set(moves.map(([m]) => m));
+    await Promise.all([fly({ k: 'shown', j, o: i }, at, shownSpot(), RISE_MS, { arc: 0, z0: 0.2 }), ...moves.map(([, a, b]) => fly({ k: 'jar' }, a, b, GLIDE_MS, { arc: 0 }))]);
+    G.gliding = null; if (G !== my) return;
+    G.shown = { who: i, j }; await pause(SHOW_MS); G.shown = null; if (G !== my) return;
     await bonus(i, j);
   }
 }
-async function bonus(i, j) {
-  const p = G.players[i];
-  if (j.k === 'coins') { p.coins += 1; sound('coin'); }
-  else if (j.k === 'coins2') { p.coins += 2; sound('coin'); }
-  else if (j.k === 'first') G.first = i;
-  else if (j.k === 'jar') p.jars++;
-  else if (j.k === 'set') p.goods = p.goods.map(g => g + 1);
+async function bonus(i, j) {  // the reward flies from where the jar showed it to its place, and counts when it lands
+  const p = G.players[i], my = G, from = shownSpot();
+  if (j.k === 'coins' || j.k === 'coins2') for (let c = 0; c < (j.k === 'coins' ? 1 : 2); c++) { await fly({ k: 'coin' }, from, coinSpot(i, p.coins), REWARD_MS); if (G !== my) return; p.coins++; sound('coin'); }
+  else if (j.k === 'first') { await fly({ k: 'star' }, from, starSpot(i), REWARD_MS, { arc: 100 }); if (G !== my) return; G.first = i; sound('token'); }
+  else if (j.k === 'jar') { await fly({ k: 'jar' }, from, jarSpot(p.jars, p.jars + 1, p.fresh), REWARD_MS); if (G !== my) return; p.jars++; }
+  else if (j.k === 'set') await Promise.all([0, 1, 2, 3, 4].map(c => pause(c * STAGGER).then(() => G === my && goodFrom(i, c, from))));
   else if (j.k === 'tile') { const t = freeTile(i); if (t) await place(i, t, pileTop()); }  // the free tile lies on top of the pile, marked as his (owner 24 Nov)
   else if (j.k === 'steal') {
     const ids = stealable(i); if (!ids.length) { await pause(900); return; }
@@ -407,7 +414,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); heard = []; flights = []; specks = []; G = { goodsIn: !!o.goodsIn, lit: [], board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, turn: null, shown: null, jarWho: null, jarRows: null, burst: null, sunset: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; flights = []; specks = []; G = { goodsIn: !!o.goodsIn, lit: [], board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, turn: null, shown: null, jarWho: null, jarRows: null, gliding: null, burst: null, sunset: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; });
@@ -431,6 +438,8 @@ function draftSlot(k) { const { T, ds } = L(), gap = 2 * ds + 46; return [W / 2 
 function tileCentre(x, y, r) { const { s, ox, oy } = L(), d = DIRS[r]; return [ox + (x + 0.5 + d[0] / 2) * s, oy + (y + 0.5 + d[1] / 2) * s]; }
 function tileBox(cxm, cym, s, r) { const d = DIRS[r]; const w = d[0] ? 2 * s : s, h = d[1] ? 2 * s : s; return { x: cxm - w / 2, y: cym - h / 2, w, h }; }
 function squareCentre(x, y) { const { s, ox, oy } = L(); return [ox + (x + 0.5) * s, oy + (y + 0.5) * s]; }
+function starSpot(i) { const { P } = L(); return [(i ? W - P : 0) + P / 2 + 46, 34]; }
+function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { const sp = stock(i); return [sp.colX(c), sp.rowY(k)]; }  // where good number k of colour c stands in player i's stockpile
 function edgePoint(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; }  // the middle of a square's side
 function pileTop() { const { T, P, ds } = L(), layers = Math.max(1, Math.ceil(G.bag.length / 4)); return [P + 30 + ds, T / 2 + 6 - (layers - 1) * 6]; }  // the pile: a stack of face-down tiles beside the market, one layer per round left
@@ -560,7 +569,9 @@ function drawDraft() {
 function stock(i) {  // player i's area, top to bottom: his face; the goods tray (a groove per colour, goods stacking upward, spaced apart); the coins tray
   const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, pad = 16, cw = (P - 2 * pad - 8) / 5, top = 104, base = Math.round(H * 0.62);
   const most = Math.max(4, ...p.goods), step = Math.min(cw * 0.92, (base - top - 12) / most), r = Math.min(cw * 0.36, step / 2 - 2.5);  // a tall column squeezes its goods, never the gaps between them
-  return { x0, pad, cw, top, base, r, step, colX: c => x0 + pad + 4 + cw * (c + 0.5), rowY: k => base - 8 - step / 2 - k * step, coinTop: base + 18 };
+  const coinTop = base + 18, cr = Math.min(12, (P - 2 * pad - 16) / 5 / 2 - 2.5), lift = 4, sh = 2 * cr + 9 * lift + 8;  // coins: stacks of 10, five stacks to a row (owner 24 Nov: any number fits)
+  const coinAt = k => { const st = Math.floor(k / 10); return [x0 + pad + 8 + cr + (st % 5) * (2 * cr + 5), coinTop + 6 + sh - 8 - cr + Math.floor(st / 5) * sh - (k % 10) * lift]; };
+  return { x0, pad, cw, top, base, r, step, colX: c => x0 + pad + 4 + cw * (c + 0.5), rowY: k => base - 8 - step / 2 - k * step, coinTop, cr, sh, coinAt };
 }
 const flying = () => G.burst && G.burst.edges.length && performance.now() < G.burst.t0 + FLY_MS + (G.burst.edges.length - 1) * EDGE_GAP;
 function face(x, y, r, col) {  // a player: a round face in his colour
@@ -573,7 +584,7 @@ function drawPanel(i) {
   rrect(x0 + 6, 8, P - 12, H - 16, 16, lit ? TINT[i] : '#efe6d4', BORDER[i], lit ? 5 : 2);
   drawn.push({ k: 'panel', o: i, lit });
   face(cxm, 54, 30, BORDER[i]); drawn.push({ k: 'avatar', o: i });
-  if (G.first === i) star(cxm + 46, 34, 16);  // the first-player token, beside his face
+  if (G.first === i) { const [sx, sy] = starSpot(i); star(sx, sy, 16); drawn.push({ k: 'token', o: i, x: sx, y: sy }); }  // the first-player token, beside his face
   // goods: each row with one of every colour is a set (a gold band); each JAR_GOODS of a colour, counted from the base, is a jar at the round's end (a frame)
   rrect(x0 + pad, top - 10, P - 2 * pad, base - top + 10, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'goods' });
   for (let c = 0; c < 5; c++) rrect(colX(c) - cw * 0.42, top - 4, cw * 0.84, base - top - 2, cw * 0.42, '#ffffff55');  // a groove per colour
@@ -583,12 +594,9 @@ function drawPanel(i) {
     for (let k = 0; k + JAR_GOODS <= g; k += JAR_GOODS) { rrect(colX(c) - r - 3, rowY(k + JAR_GOODS - 1) - r - 3, 2 * r + 6, (JAR_GOODS - 1) * step + 2 * r + 6, r + 3, null, '#6e3418', 2); drawn.push({ k: 'jargroup', o: i, c }); }
     for (let k = 0; k < g; k++) { dot(colX(c), rowY(k), r, COLOURS[c]); drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), r }); }
   });
-  const cr = Math.min(12, (P - 2 * pad - 16) / 5 / 2 - 2.5), lift = 4, sh = 2 * cr + 9 * lift + 8, rows = Math.max(1, Math.ceil(p.coins / 50));  // coins: stacks of 10, five stacks to a row (owner 24 Nov: any number fits)
+  const { cr, sh, coinAt } = stock(i), rows = Math.max(1, Math.ceil(p.coins / 50));
   rrect(x0 + pad, coinTop, P - 2 * pad, rows * sh + 12, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'coins' });
-  for (let k = 0; k < p.coins; k++) {
-    const st = Math.floor(k / 10), x = x0 + pad + 8 + cr + (st % 5) * (2 * cr + 5), y = coinTop + 6 + sh - 8 - cr + Math.floor(st / 5) * sh - (k % 10) * lift;
-    coin(x, y, cr); drawn.push({ k: 'coin', o: i, x, y, r: cr, stack: st });
-  }
+  for (let k = 0; k < p.coins; k++) { const [x, y] = coinAt(k); coin(x, y, cr); drawn.push({ k: 'coin', o: i, x, y, r: cr, stack: Math.floor(k / 10) }); }
   for (let k = 0; k < p.bid; k++) setShape(cxm + (k - (p.bid - 1) / 2) * 34, H - 60, 15);  // the sets bid now
   if (!lit) { cx.fillStyle = 'rgba(120,110,95,0.38)'; cx.beginPath(); cx.roundRect(x0 + 6, 8, P - 12, H - 16, 16); cx.fill(); }  // the other player's area is dimmed
 }
@@ -624,6 +632,7 @@ function drawJars() {  // big jars in a row; tap one to open it
   const fly = flying() ? G.burst : null, who = wait ? wait.who : G.shown ? G.shown.who : fly ? fly.who : G.jarWho, p = G.players[who], n = p.jars, rows = G.jarRows ?? n, z = JAR_SIZE(), s = z * 1.5;  // z: a jar's size, always the same; s: the space each jar has (its glow fits inside with room to spare)
   if (!fly) shade(0.35);  // while jars fly out of their edges the board stays bright, so the glowing edges show
   for (let k = 0; k < n; k++) {  // the jars just earned on the left, glowing; a gap; the jars still waiting
+    if (G.gliding && G.gliding.has(k)) continue;  // drawn as it glides to its new place
     const fresh = k < p.fresh, [x, y0, row] = jarSpot(k, rows, p.fresh), y = y0 + (wait ? Math.sin(performance.now() / 300 + k) * 4 : 0);
     if (fresh && G.burst && G.burst.who === who && G.burst.edges[k]) {  // a jar just earned flies out of its edge (eased, popping up), then sits in the row
       const [ex, ey] = edgePoint(G.burst.edges[k].x, G.burst.edges[k].y, G.burst.edges[k].d), u = fast ? 1 : Math.min(1, Math.max(0, (performance.now() - G.burst.t0 - k * EDGE_GAP) / FLY_MS));
@@ -633,14 +642,15 @@ function drawJars() {  // big jars in a row; tap one to open it
       jarShape(jx, jy, zz); drawn.push({ k: 'jar', o: who, new: true, x: jx, y: jy, size: zz, row });
       if (u < 1) continue;
     } else { if (fresh) glow(x, y, z); jarShape(x, y, z); drawn.push({ k: 'jar', o: who, new: fresh, x, y, size: z, row }); }
-    if (wait && wait.kind === 'jar') btn('jar-' + k, x - s / 2, y - s / 2, s, s, () => answer());
+    if (wait && wait.kind === 'jar') btn('jar-' + k, x - s / 2, y - s / 2, s, s, () => answer(k));
   }
-  if (G.shown) {  // what the jar held, and a short label saying what it means
-    const [x, y] = shownSpot(), text = JAR_LABELS[G.shown.j.k];
-    rrect(x - 170, y - 80, 340, 200, 24, '#fff8e8', BORDER[who], 6); content(G.shown.j, x, y - 10, 160);
-    cx.fillStyle = '#3a2410'; cx.font = 'bold 26px sans-serif'; cx.textAlign = 'center'; cx.fillText(text, x, y + 92); cx.textAlign = 'start';
-    drawn.push({ k: 'label', text });
-  }
+  if (G.shown) shownCard(G.shown.j, G.shown.who, ...shownSpot(), 1);
+}
+function shownCard(j, who, x, y, z) {  // what a jar held, and a short label saying what it means; z: its size (it grows as it rises out of the jar)
+  const text = JAR_LABELS[j.k]; cx.save(); cx.translate(x, y); cx.scale(z, z);
+  rrect(-170, -80, 340, 200, 24, '#fff8e8', BORDER[who], 6); content(j, 0, -10, 160);
+  cx.fillStyle = '#3a2410'; cx.font = 'bold 26px sans-serif'; cx.textAlign = 'center'; cx.fillText(text, 0, 92); cx.textAlign = 'start'; cx.restore();
+  drawn.push({ k: 'label', text });
 }
 function slotPrize(w) {  // what taking now gives: 2 or 3 of the picture that repeats
   const c = w.map(s => w.filter(t => t === s).length), n = Math.max(...c);
@@ -719,6 +729,9 @@ function drawFlights() {  // everything on its way, at its point on its curve
     const [x, y, z] = flightAt(f, now), L0 = f.look;
     if (L0.k === 'good') { const sp = stock(L0.o); dot(x, y, sp.r * z, COLOURS[L0.c]); }
     else if (L0.k === 'jar') jarShape(x, y, JAR_SIZE() * z);
+    else if (L0.k === 'shown') shownCard(L0.j, L0.o, x, y, z);
+    else if (L0.k === 'coin') coin(x, y, 12 * z);
+    else if (L0.k === 'star') star(x, y, 16 * z);
     drawn.push({ k: 'flight', look: L0.k, x, y, fx: f.from[0], fy: f.from[1], tx: f.to[0], ty: f.to[1] });
   }
 }
@@ -770,7 +783,7 @@ window.__dg = {
   sampleJars(n) { const m = {}; for (let k = 0; k < n; k++) { const j = rollJar(); m[j.k] = (m[j.k] || 0) + 1; } return m; },
   state() {
     return {
-      round: G.round, phase: G.phase, first: G.first, over: G.over, winner: G.winner, passing: G.passing, slot: G.slot ? { w: G.slot.w.slice(), sel: G.slot.sel.slice() } : null,
+      round: G.round, turn: G.turn, phase: G.phase, first: G.first, over: G.over, winner: G.winner, passing: G.passing, slot: G.slot ? { w: G.slot.w.slice(), sel: G.slot.sel.slice() } : null,
       wait: wait ? { kind: wait.kind, who: wait.who, r: wait.r } : null, draft: G.draft.map(t => t && t.slice()), locks: G.draft.map((t, k) => G.locks[k] ?? null), fits: G.draft.map((t, k) => pickable(k, 0)),
       spots: wait && wait.kind === 'place' ? [0, 1, 2, 3].flatMap(r => spots(wait.tile, r, wait.who)) : [], snap: (s => s && { x: s.x, y: s.y, r: s.r })(snapSpot()),
       halves: [0, 1, 2, 3, 4].map(c => G.bag.concat(G.draft.filter(t => t)).flat().filter(v => v === c).length), left: G.bag.length + G.draft.filter(t => t).length,

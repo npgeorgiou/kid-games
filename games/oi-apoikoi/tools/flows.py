@@ -16,6 +16,11 @@ WAIT = 1500  # ms: the game answers in a few ms in fast mode, so a flow that wai
 def settle(q): q.evaluate("()=>__dg.render()")  # the game answers a tap at once; draw it now, so what is on screen (and its buttons) is current
 def table(q, **opts):  # a new game on a set table, its first round's goods already in (the round start's flight has its own flow)
     opts.setdefault('fast', True); opts.setdefault('goodsIn', True); q.evaluate("(o)=>__dg.restart(o)", opts); settle(q)
+def run_until(q, cond, limit=4000):  # move the paused fake clock on in short steps until the game is in the state asked
+    for _ in range(limit // 100):
+        if q.evaluate(cond): break
+        q.clock.run_for(100)
+    settle(q)
 def st(q): return q.evaluate("()=>__dg.state()")
 def tap(q, bid):
     q.wait_for_function("(id)=>__dg.btn(id)", arg=bid, timeout=WAIT, polling=5)
@@ -229,8 +234,8 @@ def f_goods_become_jars(q):  # owner 24 Nov: at the round's end a jar drops from
         if w and w['kind'] == 'jar': break
     jar = [x for x in drawn(q, 'jar') if x['o'] == 0]; left = [(round(x['x']), round(x['y'])) for x in drawn(q, 'good') if x['o'] == 0]
     tap(q, 'jar-0'); dissolved, ms2 = set(), 0
-    while ms2 < 3000 and not dissolved:
-        q.clock.run_for(100); ms2 += 100; settle(q); dissolved = {(round(x['x']), round(x['y'])) for x in drawn(q, 'speck')}
+    while ms2 < 3000 and not set(left) <= dissolved:  # the jar's own break makes specks too; wait for the leftovers'
+        q.clock.run_for(100); ms2 += 100; settle(q); dissolved |= {(round(x['x']), round(x['y'])) for x in drawn(q, 'speck')}
     gone = not [x for x in drawn(q, 'good') if x['o'] == 0]; q.clock.resume()
     from_top = bool(drops) and drops[0][1]['fy'] < 0 and len(jar) == 1 and abs(drops[0][1]['tx'] - jar[0]['x']) < 2
     first = bool(intos) and intos[0][0] > drops[-1][0]  # the jar is in its place before any good flies
@@ -305,10 +310,10 @@ def f_round_end_shown(q):  # owner 24 Nov: the round's end must be its own phase
     pause_clock(q); table(q, fast=False, bag=[[2, 2]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); q.clock.run_for(1200); waiting(q, 'jar'); tap(q, 'jar-0')
     shown, first_made, ms = [], None, 0
-    while ms < 4000 and first_made is None:
+    while ms < 6000 and first_made is None:
         q.clock.run_for(100); ms += 100; settle(q)
         if drawn(q, 'sunset'): shown.append(ms)
-        if drawn(q, 'flight'): first_made = ms  # the first jar dropping in
+        if [x for x in drawn(q, 'flight') if x['look'] == 'jar' and x['fy'] < 0]: first_made = ms  # the first jar dropping in
     q.clock.resume(); h = q.evaluate("()=>__dg.sounds()")
     ok = len(shown) >= 10 and first_made is not None and max(shown) <= first_made and 'roundend' in h
     report(ok, 'end: the round end is its own moment, seen and heard', 'sunset shown %d00 ms (from %s to %s), first jar dropping in at %s ms, round end sound %s' % (len(shown), shown[:1], shown[-1:], first_made, 'roundend' in h))
@@ -317,7 +322,7 @@ def f_turn_shown(q):  # owner 24 Nov: "make it obvious who plays; now there is n
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); settle(q)
     lit = lambda: {d['o']: d['lit'] for d in drawn(q, 'panel')}
     mine = lit(); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); q.clock.run_for(1200); waiting(q, 'jar'); tap(q, 'jar-0')
-    q.clock.run_for(1500); settle(q); pcs = lit(); w = st(q)['wait']; h = q.evaluate("()=>__dg.sounds()"); q.clock.resume()
+    run_until(q, "()=>__dg.state().turn===1"); pcs = lit(); w = st(q)['wait']; h = q.evaluate("()=>__dg.sounds()"); q.clock.resume()
     ok = mine == {0: True, 1: False} and pcs == {0: False, 1: True} and 'turn' in h
     report(ok, 'turn: the player playing is lit, the other dimmed', 'kid playing %s; PC playing %s (wait %s); turn sound %s' % (mine, pcs, w, 'turn' in h))
 
@@ -370,6 +375,27 @@ def f_empty_jar(q):  # owner 24 Nov: some jars hold nothing: it breaks, shows it
     get_jar(q, [{'k': 'empty'}])
     waiting(q, 'pick'); p = st(q)['players'][0]
     report(p['coins'] == 0 and p['jars'] == 0 and 'jar' in q.evaluate("()=>__dg.sounds()"), 'jars: an empty jar gives nothing', 'coins %d jars %d' % (p['coins'], p['jars']))
+
+def f_jar_breaks(q):  # owner 24 Nov: "jars should visually break and the revealed bonus comes from inside them"; "the you play first should fly to its place"; a coin flies to his coins
+    pause_clock(q); table(q, fast=False, bag=[[0, 0]] * 4, tiles=[[4, 7, 0, 0, 0, 0]], jarQueue=[COIN, {'k': 'first'}] + [COIN] * 8)  # the tile meets 2 edges: 2 jars
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 1}); q.clock.run_for(FLY_MS + 400); waiting(q, 'jar')
+    def watch(btn, until):  # tap a jar, then watch the screen until the reward has landed
+        at = q.evaluate("(b)=>__dg.btn(b)", btn); tap(q, btn); seen, ms = [], 0
+        while ms < 3000:
+            q.clock.run_for(50); ms += 50; settle(q); d = q.evaluate("()=>__dg.drawn()"); seen.append((d, st(q)))
+            if until(st(q)): break
+        return at, seen
+    at1, seen1 = watch('jar-1', lambda s: s['players'][0]['coins'] == 1)
+    at0, seen0 = watch('jar-0', lambda s: s['first'] == 0)
+    def flights(seen, look): return [x for d, _ in seen for x in d if x['k'] == 'flight' and x['look'] == look]
+    near = lambda a, b, r=12: abs(a[0] - b[0]) < r and abs(a[1] - b[1]) < r
+    specks = [(x['x'], x['y']) for d, _ in seen1 for x in d if x['k'] == 'speck']
+    broke = bool(specks) and all(near(p, at1, 40) for p in specks)
+    out = flights(seen1, 'shown'); came_out = bool(out) and near((out[0]['fx'], out[0]['fy']), at1)
+    coin = flights(seen1, 'coin'); P = q.evaluate("()=>innerWidth*0.13"); coin_flew = bool(coin) and coin[0]['tx'] < P and all(s['players'][0]['coins'] == 0 for d, s in seen1 if any(x['k'] == 'flight' and x['look'] == 'coin' for x in d))
+    star = flights(seen0, 'star'); token = drawn(q, 'token'); star_flew = bool(star) and bool(token) and near((star[-1]['tx'], star[-1]['ty']), (token[0]['x'], token[0]['y'])) and all(s['first'] is None for d, s in seen0 if any(x['k'] == 'flight' and x['look'] == 'star' for x in d))
+    q.clock.resume()
+    report(broke and came_out and coin_flew and star_flew, 'jars: break where tapped, the bonus comes out, rewards fly to their place', 'broke where tapped %s, bonus out of it %s, coin flew to his coins %s, star flew to its place %s' % (broke, came_out, coin_flew, star_flew))
 
 def f_jar_labels(q):  # owner 24 Nov: "for bonus jars add some text, I don't get what some of those mean": every jar's contents carry a short label
     seen = {}
