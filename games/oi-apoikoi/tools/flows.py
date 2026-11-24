@@ -114,6 +114,12 @@ def f_pile_no_frames(q):  # owner 24 Nov: no outline around the pile's tiles
     tray = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [c[0] - ds - 14, c[1] - ds / 2 - 10])  # the tray, away from the tile
     report(beside == tray, 'pile: tiles have no outline', 'beside the tile %s, the tray %s' % (beside, tray))
 
+def f_pile_fits(q):  # owner 24 Nov ("rethink all UI"): the pile stacked a layer per round up from its place and ran off the top of the screen; a full pile stays on screen, a layer per round
+    table(q); pile = drawn(q, 'pile')[0]; ds = (q.evaluate("()=>__dg.btnBox('draft-0')")['w'] - 24) / 2; T = drawn(q, 'market')[0]
+    top, bottom = pile['y'] - ds / 2, pile['bottom']
+    ok = pile['layers'] >= 8 and top >= 4 and bottom <= T['y'] + T['h'] and pile['step'] >= 3
+    report(ok, 'pile: a full pile stays on screen', '%d layers, %.1f px apart, from %.0f to %.0f px (screen top 0, market bottom %.0f)' % (pile['layers'], pile['step'], top, bottom, T['y'] + T['h']))
+
 def f_round_start_goods_fly(q):  # owner 24 Nov: at the round's start goods come one by one: the square giving it lights up, the good flies from it on a curve to its place in the stockpile, with a sound
     pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'bag': [[0, 4]] * 4, 'tiles': [[4, 7, 0, 2, 2, 0]]}); settle(q); seen, counts, ms, dawn, first = [], [], 0, None, None  # the kid's 4 squares, then the PC's 2 (not table: it runs through the start)
     while ms < 3000:

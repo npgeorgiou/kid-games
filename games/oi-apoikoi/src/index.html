@@ -470,7 +470,9 @@ function starSpot(i) { const { P } = L(); return [(i ? W - P : 0) + P / 2 + 56, 
 function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { const sp = stock(i); return [sp.colX(c), sp.rowY(k)]; }  // where good number k of colour c stands in player i's stockpile
 function edgePoint(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; }  // the middle of a square's side
-function pileTop() { const { T, P, ds } = L(), layers = Math.max(1, Math.ceil(G.bag.length / 4)); return [(P + draftSlot(0)[0] - ds - 22) / 2, T / 2 + 6 - (layers - 1) * 6]; }  // the pile: a stack of face-down tiles beside the market, one layer per round left
+const PILE_LAYERS = Math.ceil(HALVES.reduce((a, b) => a + b) / 2 / 4);  // a full pile: one layer per round
+function pileStep() { const { T, ds } = L(); return Math.min(6, (T / 2 + 2 - ds / 2) / (PILE_LAYERS - 1)); }  // the layers squeeze so that a full pile still ends 4 px below the screen's top
+function pileTop() { const { T, P, ds } = L(), layers = Math.max(1, Math.ceil(G.bag.length / 4)); return [(P + draftSlot(0)[0] - ds - 22) / 2, T / 2 + 6 - (layers - 1) * pileStep()]; }  // the pile: a stack of face-down tiles beside the market, one layer per round left
 function giftSpot() { const { T, ds, P } = L(); return [(W - P + draftSlot(3)[0] + ds + 22) / 2, T / 2]; }  // a bonus tile's place: just right of the market's 4 tiles
 function shownSpot() { return [W / 2, H * 0.2 + 80]; }  // where an opened jar shows what it held
 function homeSpot() { const { P } = L(); return [W - P / 2, H * 0.72]; }  // the PC's hand rests in its panel
@@ -602,8 +604,8 @@ function drawDraft() {
     });
   });
   const layers = Math.ceil(G.bag.length / 4), [px, top] = pileTop();
-  for (let k = 0; k < layers; k++) { const y = top + (layers - 1 - k) * 6; rrect(px - ds, y - ds / 2, 2 * ds, ds, ds * 0.14, '#c9ad7f', '#8a6d42', 2); }
-  drawn.push({ k: 'pile', layers, x: px, y: top });
+  for (let k = 0; k < layers; k++) { const y = top + (layers - 1 - k) * pileStep(); rrect(px - ds, y - ds / 2, 2 * ds, ds, ds * 0.14, '#c9ad7f', '#8a6d42', 2); }
+  drawn.push({ k: 'pile', layers, x: px, y: top, step: pileStep(), bottom: top + (layers - 1) * pileStep() + ds / 2 });
 }
 function stock(i) {  // player i's area, top to bottom: his face; the goods tray (a groove per colour, goods stacking upward, spaced apart); the coins tray
   const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, pad = 16, side = 30, cw = (P - 2 * pad - 8 - side) / 5, top = 104,  // side: a strip toward the board for the set signs
