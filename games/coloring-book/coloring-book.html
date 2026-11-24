@@ -697,7 +697,7 @@ function paintDown(e) {
   e.preventDefault();
   if (painter !== null || dragging) return;
   const p = toPaper(e);
-  if (st.picking) { st.picked = shownAt(p); st.color = 'pick'; st.picking = false; peek.classList.add('hide'); refresh(); return; } // the colour as it shows there
+  if (st.picking) { painter = e.pointerId; view.setPointerCapture(e.pointerId); showPeek(e); return; } // the colour picker (as Procreate's eyedropper): touch, slide onto the colour, lift to pick (owner 24 Nov: a touch screen has no mouse to move)
   if (st.tool === 'sticker') { const i = hitSticker(p); if (i >= 0) startStickerDrag(e, i, p); return; }
   painter = e.pointerId; view.setPointerCapture(e.pointerId); startStroke(p, pressureOf(e), e.timeStamp);
 }
@@ -705,12 +705,16 @@ view.addEventListener('pointerdown', paintDown);
 document.addEventListener('pointerdown', (e) => { if ((e.target === document.body || e.target.classList.contains('bar')) && !st.picking && st.tool !== 'sticker') paintDown(e); }); // owner 23 Nov: a stroke can start beside the paper and come in
 view.addEventListener('pointermove', (e) => {
   peek.classList.toggle('hide', !st.picking);
-  if (st.picking) { const p = toPaper(e); Object.assign(peek.style, { left: (e.clientX + 24) + 'px', top: (e.clientY - 120) + 'px', background: rgbS(shownAt(p)) }); } // the colour it would pick, big, beside the pointer
+  if (st.picking) showPeek(e);
   if (e.pointerId !== painter || !stroke) return;
   const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
   for (const q of (list.length ? list : [e])) moveStroke(toPaper(q), pressureOf(q), q.timeStamp);
 });
-function painterUp(e) { if (e.pointerId !== painter) return; painter = null; endStroke(); }
+function showPeek(e) { peek.classList.remove('hide'); Object.assign(peek.style, { left: (e.clientX + 24) + 'px', top: (e.clientY - 120) + 'px', background: rgbS(shownAt(toPaper(e))) }); } // the colour it would pick, big, beside the pointer
+function painterUp(e) {
+  if (e.pointerId !== painter) return; painter = null;
+  if (st.picking) { peek.classList.add('hide'); if (e.type === 'pointerup') { st.picked = shownAt(toPaper(e)); st.color = 'pick'; st.picking = false; refresh(); } return; } // the colour as it shows where the finger lifts
+  endStroke(); }
 view.addEventListener('pointerup', painterUp); view.addEventListener('pointercancel', painterUp);
 addEventListener('keydown', (e) => { if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); undo(); } }); // Ctrl+Z takes back, like the back button (owner 21 Nov)
 

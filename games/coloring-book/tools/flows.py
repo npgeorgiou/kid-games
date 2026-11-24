@@ -474,6 +474,18 @@ def f_picker_shows(q):  # owner 21 Nov 18:29: the colour picker has its own poin
     report(own != brush and sw is not None and sw[0] >= 60 and 'rgb(2' in sw[1], 'colour picker: own pointer and a big swatch of the colour under it', 'pointer changed %s, swatch %s' % (own != brush, sw))
 FLOWS['picker_shows'] = f_picker_shows
 
+def f_picker_touch(q):  # owner 24 Nov 16:56, point 1: the colour picker does not work on a touch screen (no mouse to move): a finger touches, slides onto the colour, lifts, and that colour paints
+    tap(q, 'tool-simple'); tap(q, 'size-3'); tap(q, 'color-2'); drag(q, [(300, 300), (700, 300)]); tap(q, 'color-6'); tap(q, 'pick')
+    cdp = q.context.new_cdp_session(q); t = lambda typ, pts: cdp.send('Input.dispatchTouchEvent', {'type': typ, 'touchPoints': [{'x': x, 'y': y, 'id': 0} for x, y in pts]})
+    t('touchStart', [scr(q, 500, 150)]); time.sleep(0.05)
+    for k in range(1, 11): t('touchMove', [scr(q, 500, 150 + k * 15)]); time.sleep(0.016)
+    sw = q.evaluate("()=>{const e=document.getElementById('pickpeek');return e&&!e.classList.contains('hide')?getComputedStyle(e).backgroundColor:null}")
+    t('touchEnd', []); time.sleep(0.15)
+    drag(q, [(300, 450), (700, 450)]); a, b = shown(q, 500, 300), shown(q, 500, 450)
+    report(sw is not None and 'rgb(2' in sw and max(abs(a[i] - b[i]) for i in range(3)) < 12, 'colour picker by touch: slide onto a colour, lift, it paints that colour', 'swatch while touching %s, picked from %s, painted %s' % (sw, a, b))
+FLOWS['picker_touch'] = f_picker_touch
+PAPER['picker_touch'] = ('800x600', (0, 0))
+
 def f_mop(q):  # owner 21 Nov 18:29: the mop (3rd watercolour brush) is wetter and softer than the round brush
     tap(q, 'tool-water'); tap(q, 'size-2'); tap(q, 'color-6')
     tap(q, 'shape-0'); drag(q, [(450, 300), (750, 300)], step=30)
