@@ -372,6 +372,20 @@ def f_cursor_turns(q):  # owner 23 Nov 22:37, point 7: going round in circles, t
     ev('mouseReleased', t, 2 * math.pi, {'clickCount': 1}); cdp.detach()
     report(len(seen) >= 3, 'pointer turns with the brush going round', '%d different pointers in 4 quarter turns' % len(seen))
 FLOWS['cursor_turns'] = f_cursor_turns
+
+def f_shape_tips_true(q):  # owner 24 Nov 18:33: the shape brushes' pictures (on the buttons and at the pointer) are squashed: they keep the proportions of the mark they paint
+    got = {}
+    for i, nm in ((1, 'circle'), (3, 'star')):
+        tap(q, 'tool-shapes'); tap(q, 'shape-%d' % i); tap(q, 'size-3'); tap(q, 'color-1'); x, y = scr(q, 150 + i * 120, 120); q.mouse.move(x, y); time.sleep(0.05)
+        cur = q.evaluate("""async()=>{const u=document.getElementById('paper').style.cursor.match(/url\\("?([^")]*)/)[1],im=new Image();im.src=u;await im.decode();
+          const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const x=c.getContext('2d');x.drawImage(im,0,0);const d=x.getImageData(0,0,c.width,c.height).data;let a=1e9,b=-1,e=1e9,f=-1;
+          for(let j=0;j<c.height;j++)for(let k=0;k<c.width;k++)if(d[(j*c.width+k)*4+3]>60){a=Math.min(a,k);b=Math.max(b,k);e=Math.min(e,j);f=Math.max(f,j)}return (b-a+1)/(f-e+1)}""")
+        q.mouse.click(x, y); time.sleep(0.1)
+        mark = q.evaluate("([cx,cy])=>{let a=1e9,b=-1,e=1e9,f=-1;for(let j=cy-60;j<cy+60;j++)for(let k=cx-60;k<cx+60;k++){const c=S(k,j);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<200){a=Math.min(a,k);b=Math.max(b,k);e=Math.min(e,j);f=Math.max(f,j)}}return (b-a+1)/(f-e+1)}", [150 + i * 120, 120])
+        got[nm] = (round(cur, 2), round(mark, 2))
+    report(all(abs(c - m) < 0.2 * m for c, m in got.values()), 'shape brushes: the pointer shows the shape as it paints, not squashed', 'width/height, pointer and paint: %s' % got)
+FLOWS['shape_tips_true'] = f_shape_tips_true
+PAPER['shape_tips_true'] = ('700x250', (0, 0))
 PAPER['cursor_turns'] = ('900x600', (0, 0))
 
 def run(names):

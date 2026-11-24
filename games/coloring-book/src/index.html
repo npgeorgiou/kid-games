@@ -801,7 +801,7 @@ document.addEventListener('pointerdown', (e) => { // touching anywhere else clos
 
 // Brushes are shown as the mark they make, in the chosen colour; sizes as the brush's tip at that size (owner 21 Nov).
 function tipShape(c, s, R, d = s.fixed && !s.upright ? FIXED : [1, 0]) { c.save(); c.rotate(Math.atan2(d[1], d[0])); c.beginPath(); // the brush's tip, held as it paints (d: the way it is held)
-  if (s.pts) { const k = R / Math.max(...s.pts.map(([x, y]) => Math.max(Math.abs(x) * 2 / s.asp, Math.abs(y)))); s.pts.forEach(([x, y]) => c.lineTo(x * k * 2 / s.asp, y * k)); c.closePath(); } // a shape: its outline as it paints (owner 24 Nov: not a dot)
+  if (s.pts) { const k = R / Math.max(...s.pts.map(([x, y]) => Math.max(Math.abs(x) / s.asp, Math.abs(y)))); s.pts.forEach(([x, y]) => c.lineTo(x * k / s.asp, y * k)); c.closePath(); } // a shape: its outline as it paints, along the stroke 1/asp as long, as the stamp does (owner 24 Nov: not a dot, not squashed)
   else if (s.k === 0) c.arc(0, 0, R, 0, 7); else if (s.k === 1) c.rect(-Math.max(2, R * s.al), -R, 2 * Math.max(2, R * s.al), 2 * R); else c.ellipse(0, 0, R * s.al, R, 0, 0, 7);
   c.restore(); }
 function tipDraw(t, i, size) { return (c) => { const s = SHAPES[t] ? SHAPES[t][st.shape[t]] : { k: 0, al: 1 }; c.save(); c.translate(50, 50); c.fillStyle = '#3a2a1a'; tipShape(c, s, [6, 11, 17, 25, 36][size]); c.fill(); c.restore(); }; }
