@@ -3,7 +3,7 @@
 # PAPER names the size and where that part starts (ox, oy), and the page gives it that part's canvas grain; flows keep full-paper coordinates and the helpers shift them. Speed and undo-room flows keep the full paper.
 # Colours are picked by their place in the Basic palette: 0 white, 1 black, 2 red, 3 orange, 4 yellow, 5 green, 6 blue, 7 purple, 8 pink, 9 brown (owner 21 Nov: every palette 10 colours).
 # Each flow starts from a fresh page with no saved pictures and prints PASS or FAIL, its name, and what was seen.
-import time, json, pathlib, math
+import colorsys, time, json, pathlib, math
 from playwright.sync_api import sync_playwright
 GAME = pathlib.Path(__file__).resolve().parent.parent / 'coloring-book.html'  # this copy's own build, so old and new code can be tested at once
 
@@ -658,7 +658,21 @@ def f_gallery_guide_hidden(q):  # owner 23 Nov: opening a kept picture that has 
     tap(q, 'guide'); time.sleep(0.2); tap(q, 'guide-show'); time.sleep(0.2)
     shows = q.evaluate("()=>!document.getElementById('guide').classList.contains('hide')")
     report(hidden and shows, 'gallery: a kept picture opens with its guide picture hidden, the eye shows it', 'hidden on open %s, shown after the eye %s' % (hidden, shows))
-FLOWS.update({'pal_dividers': f_pal_dividers, 'pal_order': f_pal_order, 'pal_picture_only': f_pal_picture_only, 'pal_stripes': f_pal_stripes, 'canvas_bigger': f_canvas_bigger,
+def shifted_hue(k):  # a colour's place on the spectrum, red to violet (crimson and pinkish reds from 330 degrees count as red, before 0); None for greys, near whites and near blacks
+    if max(k) - min(k) <= 25 or max(k) <= 45: return None
+    h = colorsys.rgb_to_hsv(*[v / 255 for v in k])[0] * 360
+    return h - 360 if h >= 330 else h
+
+def f_pal_spectrum(q):  # owner 24 Nov 13:31, point 4: inside every palette the colours go like the spectrum, reddish first, then yellow, green, blue, violet (a later colour never more than 40 degrees back)
+    tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)  # his rainbows and Basic keep their own order
+    bad = []
+    for p in cols[1][5:] + cols[2] + cols[3]:
+        if tuple(p['cols'][0]) == (247, 247, 242): continue
+        hs = [h for h in map(shifted_hue, p['cols']) if h is not None]
+        if any(hs[j] < hs[i] - 40 for i in range(len(hs)) for j in range(i + 1, len(hs))): bad.append('%02X%02X%02X' % tuple(p['cols'][0]))
+    report(not bad, 'palettes: colours inside each palette in spectrum order', 'out of order (first colour) %s' % bad)
+
+FLOWS.update({'pal_spectrum': f_pal_spectrum, 'pal_dividers': f_pal_dividers, 'pal_order': f_pal_order, 'pal_picture_only': f_pal_picture_only, 'pal_stripes': f_pal_stripes, 'canvas_bigger': f_canvas_bigger,
               'pots_bw': f_pots_bw, 'pot_selected': f_pot_selected, 'gallery_guide_hidden': f_gallery_guide_hidden})
 
 def drag_screen(q, s, step=9):  # screen points, at a finger's speed (step screen pixels per 16 ms)
