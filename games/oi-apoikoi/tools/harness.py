@@ -10,6 +10,9 @@ if len(sys.argv) > 1 and sys.argv[1] == "flows":
     names = sys.argv[2:]
     if names: flows.run(names)
     else:  # the whole set: two browsers side by side, each running every other flow, so the run stays short
-        halves = [list(flows.FLOWS)[k::2] for k in (0, 1)]
+        import inspect  # the slow flows (real speed on the fake clock, or whole games) are dealt out first, alternately, so both halves take about as long
+        slow = lambda f: any(w in inspect.getsource(f) for w in ('pause_clock', "'fast': False", 'seed'))
+        order = [n for n, f in flows.FLOWS.items() if slow(f)] + [n for n, f in flows.FLOWS.items() if not slow(f)]
+        halves = [order[k::2] for k in (0, 1)]
         procs = [subprocess.Popen([sys.executable, __file__, 'flows'] + h, stdout=subprocess.PIPE, text=True) for h in halves]
         for pr in procs: sys.stdout.write(pr.communicate()[0])
