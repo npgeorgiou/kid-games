@@ -10,7 +10,7 @@ Labels used below:
 
 ## 1. The game in short (draft)
 
-Two players each build their own land from tiles with two terrain halves. Each round, tiles are laid out and players get them in turn or by bidding sets of goods. Placing a half next to the same terrain earns a jar, which the child opens at once by tapping it. Every square of land makes one good of its terrain each round. Five of the same leftover good become a jar. Jars hold gold coins (the points) or bonuses: a slot machine, stealing a tile, the first-player token, or a free tile. When the tiles run out, the longest row of coins wins.
+Two players each build their own land from tiles with two terrain halves. Each round, tiles are laid out and players get them in turn or by bidding sets of goods. Placing a half next to the same terrain earns a jar, which the child opens at once by tapping it. Every square of land makes one good of its terrain each round. Five of the same leftover good become a jar. Jars hold nothing, gold coins (the points) or bonuses: a slot machine, stealing a tile, the first-player token, or a free tile. When the tiles run out, the longest row of coins wins.
 
 ## 2. Rules
 
@@ -54,8 +54,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Owner rule: the child opens jars by tapping big jars lined up on screen. Opening one yourself is the fun.
 - Owner rule: a jar's benefit is immediate, in this round. Nothing carries to a "next" round.
 - Owner rule, contents:
-  - Points: 1 gold coin, 50% of the time.
-  - The other 50%, split equally (owner yes): the slot machine, stealing a tile from the opponent, the first-player token, a free extra tile "from nowhere" (not from the draft), another jar, a free set, 2 coins.
+  - Per 100 jars (owner 24 Nov): 10 empty, 40 one gold coin, 10 two coins, 5 stealing a tile from the opponent, 5 a free extra tile "from nowhere" (not from the draft); the rest equal, 7.5 each: the slot machine, the first-player token, another jar, a free set.
 - Owner rule: stealing takes a tile already in the opponent's land; you place it in yours. A tile with no place in your land can't be stolen. Whether the opponent's land stays connected does not matter.
 - Owner rule: a free tile is always one that can be placed.
 - Owner rule: nobody starts with the first-player token; a jar sometimes gives it. Without it, the human player goes first (with two humans, one of them). The holder opens his end-of-round jars first.
@@ -65,7 +64,6 @@ Two players each build their own land from tiles with two terrain halves. Each r
   - Double the next jar: it's a "next" thing.
   - Keeping your goods: the same reason.
   - A free tile from the draft.
-  - An empty jar.
 
 ### Slot machine (a jar bonus)
 - Owner rule: it has 3 wheels. Their pictures are all the game's resources: the 5 goods, points (coins) and jars.

@@ -3,12 +3,13 @@
 # and prints PASS or FAIL, [its flow name], what it checks, and what was seen. Waits are on the game's state, never on a fixed sleep.
 # Colours are numbered 0-4 (0 the most common); a tile is [first half, second half]; the board is 20 x 13 squares, the start tiles [0, 1] at (4, 6) and (14, 6).
 # A table tile is [x, y, turn, colour, colour, owner]: turn 0 puts the second half to the right, 1 below, 2 left, 3 above; owner 0 is the kid, 1 the PC.
-# Jar contents a test needs are queued: {'k': 'coins'}, {'k': 'coins2'}, {'k': 'slot'}, {'k': 'steal'}, {'k': 'first'}, {'k': 'tile'}, {'k': 'jar'}, {'k': 'set'}.
+# Jar contents a test needs are queued: {'k': 'empty'}, {'k': 'coins'}, {'k': 'coins2'}, {'k': 'slot'}, {'k': 'steal'}, {'k': 'first'}, {'k': 'tile'}, {'k': 'jar'}, {'k': 'set'}.
 import time, pathlib, datetime
 from playwright.sync_api import sync_playwright
 GAME = next((pathlib.Path(__file__).resolve().parent.parent).glob('*.html'))  # this copy's own built page (whatever its name then), so old and new code can be tested at once
 COIN = {'k': 'coins'}
 NOW = ['']  # the flow running, for the report lines
+FLY_MS = 700  # the game's FLY_MS: a jar's flight out of its edge
 WAIT = 1500  # ms: the game answers in a few ms in fast mode, so a flow that waits longer has failed; short waits keep failing runs short
 
 # SECTION: HELPERS -- the page, a set table, taps and drags on what is drawn, the game's state
@@ -294,18 +295,24 @@ def f_pc_slot(q):  # the PC takes the best expected result on the slot machine t
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); c = st(q)['players'][1]['coins']
     report(c == 7, 'pc: slot machine played for the most', 'pc coins %d' % c)
 
-def f_jar_mix(q):  # half the jars hold 1 coin (a coins jar always holds 1); 2 coins is one of the bonuses
-    m = q.evaluate("()=>__dg.sampleJars(4000)")
-    ok = set(m) == {'coins', 'coins2', 'slot', 'steal', 'first', 'tile', 'jar', 'set'} and 0.45 < m['coins'] / 4000 < 0.55
-    report(ok, 'jars: 1 coin half the time', str(m))
+def f_jar_mix(q):  # owner 24 Nov, per 100 jars: 10 empty, 40 one coin, 10 two coins, 5 steal, 5 extra tile, the rest equal (7.5 each: slot, first, another jar, set)
+    n = 8000; m = q.evaluate("(n)=>__dg.sampleJars(n)", n)
+    want = {'empty': 10, 'coins': 40, 'coins2': 10, 'steal': 5, 'tile': 5, 'slot': 7.5, 'first': 7.5, 'jar': 7.5, 'set': 7.5}
+    ok = set(m) == set(want) and all(abs(100 * m[k] / n - v) < 1.5 for k, v in want.items())
+    report(ok, 'jars: the owner\'s mix', ', '.join('%s %.1f%%' % (k, 100 * m.get(k, 0) / n) for k in want))
+
+def f_empty_jar(q):  # owner 24 Nov: some jars hold nothing: it breaks, shows it is empty, and nothing is gained
+    get_jar(q, [{'k': 'empty'}])
+    waiting(q, 'pick'); p = st(q)['players'][0]
+    report(p['coins'] == 0 and p['jars'] == 0 and 'jar' in q.evaluate("()=>__dg.sounds()"), 'jars: an empty jar gives nothing', 'coins %d jars %d' % (p['coins'], p['jars']))
 
 def f_jar_labels(q):  # owner 24 Nov: "for bonus jars add some text, I don't get what some of those mean": every jar's contents carry a short label
     seen = {}
-    for k in ['coins', 'coins2', 'slot', 'steal', 'first', 'tile', 'jar', 'set']:
-        table(q, bag=[[0, 4]] * 4, fast=False, jarQueue=[{'k': k}] + [COIN] * 8)
-        tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')
-        seen[k] = [d['text'] for d in drawn(q, 'label')]
-    ok = all(len(v) == 1 and v[0] for v in seen.values()) and len({v[0] for v in seen.values() if v}) == 8
+    for k in ['empty', 'coins', 'coins2', 'slot', 'steal', 'first', 'tile', 'jar', 'set']:
+        pause_clock(q); table(q, bag=[[0, 4]] * 4, fast=False, jarQueue=[{'k': k}] + [COIN] * 8)  # the fake clock moves the jar's flight on at once
+        tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); q.clock.run_for(FLY_MS + 100); waiting(q, 'jar'); tap(q, 'jar-0')
+        seen[k] = [d['text'] for d in drawn(q, 'label')]; q.clock.resume()
+    ok = all(len(v) == 1 and v[0] for v in seen.values()) and len({v[0] for v in seen.values() if v}) == 9
     report(ok, 'jars: each content has its own label', str(seen))
 
 def f_new_game_mid_jar(q):  # found by the tests: a new game started while a jar is being shown: the old jar never pays into the new game
