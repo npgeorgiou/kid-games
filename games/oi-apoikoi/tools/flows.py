@@ -306,12 +306,17 @@ def f_many_jars_rows(q):  # owner 24 Nov: "when a lot of jars exist, make more r
     ok = len(jars) >= 14 and max(len(r) for r in rows.values()) == 6 and all(abs(j['size'] - one) < 0.5 for j in jars) and all(0 < j['y'] - j['size'] / 2 and j['y'] + j['size'] / 2 < H for j in jars)
     report(ok, 'jars: 6 to a row, more rows, same size', '%d jars in rows of %s, sizes %s (one alone %.0f)' % (len(jars), [len(r) for r in rows.values()], sorted({round(j['size']) for j in jars}), one))
 
-def f_many_coins(q):  # owner 24 Nov: "make sure more coins than you predicted can fit": stacks of 10, all inside his area, none hidden
-    table(q, bag=[[0, 4]] * 4, coins=[200, 0]); c = [x for x in drawn(q, 'coin') if x['o'] == 0]
-    P, H = q.evaluate("()=>[innerWidth*0.13, innerHeight]")
-    inside = all(x['x'] - x['r'] > 0 and x['x'] + x['r'] < P and x['y'] + x['r'] < H for x in c)
-    stacks = {}; [stacks.setdefault((round(x['x']), x['stack']), 0) for x in c]
-    report(len(c) == 200 and inside and len(stacks) == 20, 'coins: 200 fit, in stacks of 10', '%d coins drawn, inside %s, stacks %d' % (len(c), inside, len(stacks)))
+def f_many_coins(q):  # owner 24 Nov: "make sure more coins than you predicted can fit", then "coins are too stacked and squeezed, make them easier to count": rows of 5, apart, a gap after every 10
+    out = {}
+    for n in (12, 100):
+        table(q, bag=[[0, 4]] * 4, coins=[n, 0]); c = [x for x in drawn(q, 'coin') if x['o'] == 0]
+        P, H = q.evaluate("()=>[innerWidth*0.13, innerHeight]")
+        inside = all(x['x'] - x['r'] > 0 and x['x'] + x['r'] < P and x['y'] + x['r'] < H for x in c)
+        gap = min(((a['x'] - b['x']) ** 2 + (a['y'] - b['y']) ** 2) ** 0.5 - a['r'] - b['r'] for i, a in enumerate(c) for b in c[i + 1:])
+        rows = sorted({round(x['y']) for x in c}, reverse=True); per = [sum(1 for x in c if round(x['y']) == y) for y in rows]
+        steps = [a - b for a, b in zip(rows, rows[1:])]; tens = all(steps[k] > steps[0] + 3 for k in range(1, len(steps), 2))
+        out[n] = (len(c) == n and inside and gap >= 3 and all(v == 5 for v in per[:-1]) and tens, len(c), inside, round(gap, 1), per[:3], tens)
+    report(all(v[0] for v in out.values()), 'coins: rows of 5, apart, a gap after every 10', str(out))
 
 def f_jars_apart(q):  # owner 24 Nov: "jar circles are touching": every jar and its glow stands apart, with a clear gap
     table(q, bag=[[0, 1]] * 4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); waiting(q, 'jar'); settle(q)
@@ -351,10 +356,9 @@ def f_screen_parts(q):  # owner 24 Nov: "the sidebar doesn't portray any info"; 
         return min((((a['x'] - b['x']) ** 2 + (a['y'] - b['y']) ** 2) ** 0.5 - a['r'] - b['r'] for i, a in enumerate(items) for b in items[i + 1:]), default=99)
     pile = [x for x in d if x['k'] == 'pile']; bars = [x for x in d if x['k'] == 'roundsleft']
     parts = {o: (len(kinds('avatar', o)), sorted(x['for'] for x in kinds('tray', o))) for o in (0, 1)}
-    stacks = {}; [stacks.setdefault(x['stack'], x) for x in kinds('coin', 0)]  # coins stand in stacks (owner 24 Nov: any number fits): the stacks are apart
-    gaps = (min_gap(kinds('good', 0)), min_gap(list(stacks.values())))
+    gaps = (min_gap(kinds('good', 0)), min_gap(kinds('coin', 0)))
     ok = parts == {0: (1, ['coins', 'goods']), 1: (1, ['coins', 'goods'])} and min(gaps) >= 3 and len(pile) == 1 and pile[0]['layers'] == 2 and not bars
-    report(ok, 'screen: faces, goods and coins trays, things apart, a pile', 'parts %s, smallest gaps goods/coin stacks %s px, pile %s' % (parts, [round(g, 1) for g in gaps], pile))
+    report(ok, 'screen: faces, goods and coins trays, things apart, a pile', 'parts %s, smallest gaps goods/coins %s px, pile %s' % (parts, [round(g, 1) for g in gaps], pile))
 
 def f_pc_best(q):  # the PC picks and places for the most jars
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)

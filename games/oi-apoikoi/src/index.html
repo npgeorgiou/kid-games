@@ -590,11 +590,13 @@ function drawDraft() {
 }
 function stock(i) {  // player i's area, top to bottom: his face; the goods tray (a groove per colour, goods stacking upward, spaced apart); the coins tray
   const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, pad = 16, side = 22, cw = (P - 2 * pad - 8 - side) / 5, top = 104,  // side: a strip toward the board for the set signs
-   inner = i ? x0 + pad + side : x0 + pad, signX = i ? x0 + pad + side / 2 : x0 + P - pad - side / 2, base = Math.round(H * 0.62);
+   inner = i ? x0 + pad + side : x0 + pad, signX = i ? x0 + pad + side / 2 : x0 + P - pad - side / 2;
+  // coins (owner 24 Nov: easy to count, any number fits): rows of 5, apart, a wider gap after every 10, filling from the bottom up; the tray grows upward, smaller coins only when it is full
+  const coinBottom = H - 80, rows = Math.max(2, Math.ceil(p.coins / 5)), tens = Math.floor((rows - 1) / 2), room = coinBottom - (top + 160 + 26);
+  const cr = Math.max(5, Math.min(11, ((room - tens * 8) / rows - 5) / 2)), pitch = 2 * cr + 5, coinTop = coinBottom - rows * pitch - tens * 8, base = Math.min(Math.round(H * 0.62), coinTop - 26);
+  const coinAt = k => { const row = Math.floor(k / 5); return [x0 + P / 2 + (k % 5 - 2) * pitch, coinBottom - cr - row * pitch - Math.floor(row / 2) * 8]; };
   const most = Math.max(4, ...p.goods), step = Math.min(cw * 0.92, (base - top - 12) / most), r = Math.min(cw * 0.36, step / 2 - 2.5);  // a tall column squeezes its goods, never the gaps between them
-  const coinTop = base + 18, cr = Math.min(12, (P - 2 * pad - 16) / 5 / 2 - 2.5), lift = 4, sh = 2 * cr + 9 * lift + 8;  // coins: stacks of 10, five stacks to a row (owner 24 Nov: any number fits)
-  const coinAt = k => { const st = Math.floor(k / 10); return [x0 + pad + 8 + cr + (st % 5) * (2 * cr + 5), coinTop + 6 + sh - 8 - cr + Math.floor(st / 5) * sh - (k % 10) * lift]; };
-  return { x0, pad, cw, top, base, r, step, signX, colX: c => inner + 4 + cw * (c + 0.5), rowY: k => base - 8 - step / 2 - k * step, coinTop, cr, sh, coinAt };
+  return { x0, pad, cw, top, base, r, step, signX, colX: c => inner + 4 + cw * (c + 0.5), rowY: k => base - 8 - step / 2 - k * step, coinTop, coinBottom, cr, coinAt };
 }
 const flying = () => G.burst && G.burst.edges.length && performance.now() < G.burst.t0 + FLY_MS + (G.burst.edges.length - 1) * EDGE_GAP;
 function face(x, y, r, col) {  // a player: a round face in his colour
@@ -621,9 +623,9 @@ function drawPanel(i) {
     for (let k = 0; k + JAR_GOODS <= g; k += JAR_GOODS) { jarOutline(colX(c), rowY(k + JAR_GOODS - 1) - r - 2, rowY(k) + r + 3, r + 4); drawn.push({ k: 'jargroup', o: i, c, shape: 'jar', parts: ['lip', 'neck', 'handles', 'body', 'foot'] }); }  // each 5 of a colour: the jar they will become, drawn around them
     for (let k = 0; k < g; k++) { dot(colX(c), rowY(k), r, COLOURS[c]); drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), r }); }
   });
-  const { cr, sh, coinAt } = stock(i), rows = Math.max(1, Math.ceil(p.coins / 50));
-  rrect(x0 + pad, coinTop, P - 2 * pad, rows * sh + 12, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'coins' });
-  for (let k = 0; k < p.coins; k++) { const [x, y] = coinAt(k); coin(x, y, cr); drawn.push({ k: 'coin', o: i, x, y, r: cr, stack: Math.floor(k / 10) }); }
+  const { cr, coinAt, coinBottom } = stock(i);
+  rrect(x0 + pad, coinTop - 8, P - 2 * pad, coinBottom - coinTop + 16, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'coins' });
+  for (let k = 0; k < p.coins; k++) { const [x, y] = coinAt(k); coin(x, y, cr); drawn.push({ k: 'coin', o: i, x, y, r: cr }); }
   for (let k = 0; k < p.bid; k++) setShape(cxm + (k - (p.bid - 1) / 2) * 34, H - 60, 15);  // the sets bid now
   if (!lit) { cx.fillStyle = 'rgba(120,110,95,0.38)'; cx.beginPath(); cx.roundRect(x0 + 6, 8, P - 12, H - 16, 16); cx.fill(); }  // the other player's area is dimmed
 }
