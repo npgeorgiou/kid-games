@@ -490,11 +490,12 @@ function jarShape(x, y, s) {  // an amphora: neck, handles, round body, a band
   cx.beginPath(); cx.arc(x - s * 0.24, y - s * 0.3, s * 0.1, 1.2, 4.6); cx.stroke(); cx.beginPath(); cx.arc(x + s * 0.24, y - s * 0.3, s * 0.1, -1.4, 1.9); cx.stroke();
   cx.strokeStyle = '#2a1408'; cx.lineWidth = s * 0.05; cx.beginPath(); cx.moveTo(x - s * 0.36, y); cx.lineTo(x + s * 0.36, y); cx.stroke();
 }
-function jarOutline(x, y0, y1, w) {  // an amphora's outline around a column of goods: a neck above y0, the body down to y1, w its half width
-  const h = y1 - y0; cx.strokeStyle = '#6e3418'; cx.fillStyle = '#c46a3c22'; cx.lineWidth = 2.5; cx.beginPath();
-  cx.moveTo(x - w * 0.5, y0 - 8); cx.lineTo(x + w * 0.5, y0 - 8); cx.lineTo(x + w * 0.45, y0);
-  cx.bezierCurveTo(x + w * 1.25, y0 + h * 0.2, x + w * 1.1, y0 + h * 0.85, x, y1);
-  cx.bezierCurveTo(x - w * 1.1, y0 + h * 0.85, x - w * 1.25, y0 + h * 0.2, x - w * 0.45, y0); cx.closePath(); cx.fill(); cx.stroke();
+function jarOutline(x, y0, y1, w) {  // an amphora around a column of goods: a lip and neck above y0, handles, a round body down to y1, a small foot; w its half width
+  const h = y1 - y0; cx.strokeStyle = '#6e3418'; cx.fillStyle = '#c46a3c26'; cx.lineWidth = 2.5; cx.beginPath();
+  cx.moveTo(x - w * 0.55, y0 - 12); cx.lineTo(x + w * 0.55, y0 - 12); cx.lineTo(x + w * 0.4, y0 - 6); cx.lineTo(x + w * 0.45, y0);
+  cx.bezierCurveTo(x + w * 1.2, y0 + h * 0.1, x + w * 1.15, y0 + h * 0.8, x + w * 0.35, y1); cx.lineTo(x + w * 0.45, y1 + 6); cx.lineTo(x - w * 0.45, y1 + 6); cx.lineTo(x - w * 0.35, y1);
+  cx.bezierCurveTo(x - w * 1.15, y0 + h * 0.8, x - w * 1.2, y0 + h * 0.1, x - w * 0.45, y0); cx.lineTo(x - w * 0.4, y0 - 6); cx.closePath(); cx.fill(); cx.stroke();
+  cx.lineWidth = 2; cx.beginPath(); cx.moveTo(x - w * 0.42, y0 - 4); cx.quadraticCurveTo(x - w * 1.2, y0 - 4, x - w * 0.9, y0 + h * 0.12); cx.moveTo(x + w * 0.42, y0 - 4); cx.quadraticCurveTo(x + w * 1.2, y0 - 4, x + w * 0.9, y0 + h * 0.12); cx.stroke();  // the handles
 }
 function setShape(x, y, r) { COLOURS.forEach((c, k) => { const a = -Math.PI / 2 + k * 2 * Math.PI / 5; dot(x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.6, r * 0.42, c); }); }  // a set: one of each good
 function symbol(s, x, y, r) { if (s < 5) dot(x, y, r * 0.8, COLOURS[s]); else if (s === 5) coin(x, y, r * 0.8); else jarShape(x, y, r * 1.6); }
@@ -615,7 +616,7 @@ function drawPanel(i) {
     const sr = Math.min(10, step / 2); setShape(stock(i).signX, rowY(k), sr); drawn.push({ k: 'setsign', o: i, x: stock(i).signX - sr, y: rowY(k), r: sr });
   }
   p.goods.forEach((g, c) => {
-    for (let k = 0; k + JAR_GOODS <= g; k += JAR_GOODS) { jarOutline(colX(c), rowY(k + JAR_GOODS - 1) - r - 2, rowY(k) + r + 3, r + 4); drawn.push({ k: 'jargroup', o: i, c, shape: 'jar' }); }  // each 5 of a colour: the jar they will become, drawn around them
+    for (let k = 0; k + JAR_GOODS <= g; k += JAR_GOODS) { jarOutline(colX(c), rowY(k + JAR_GOODS - 1) - r - 2, rowY(k) + r + 3, r + 4); drawn.push({ k: 'jargroup', o: i, c, shape: 'jar', parts: ['lip', 'neck', 'handles', 'body', 'foot'] }); }  // each 5 of a colour: the jar they will become, drawn around them
     for (let k = 0; k < g; k++) { dot(colX(c), rowY(k), r, COLOURS[c]); drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), r }); }
   });
   const { cr, sh, coinAt } = stock(i), rows = Math.max(1, Math.ceil(p.coins / 50));
