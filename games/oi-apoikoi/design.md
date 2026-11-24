@@ -124,7 +124,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 ## 6. Built for now (not decided by the owner; to check)
 
 - The colour split (see Tiles and land).
-- The PC counts every jar as worth the same and judges a move by the jars it earns this turn.
+- The PC counts every good as worth the same and judges a move by the goods it earns this turn (until it plays the 24 Nov rules at its best).
 - The PC counts a jar as about 0.7 coins (its coin contents only) and a good as a third of a jar; with these values the best slot play is to stop at once, so the PC never re-spins.
 - Tiles nobody could place in a round go back under the pile.
 - Sounds (owner 24 Nov: simple built-in sounds until his own files come; no blips, a jar breaks when opened): one soft family: wood knocks for picking, snapping and a wheel stopping; a clay break for opening a jar; a clink for coins; soft chimes for bids, passes, jars made from goods and slot wins; a whoosh for the slot spinning and a steal.
