@@ -3,7 +3,7 @@
 # PAPER names the size and where that part starts (ox, oy), and the page gives it that part's canvas grain; flows keep full-paper coordinates and the helpers shift them. Speed and undo-room flows keep the full paper.
 # Colours are picked by their place in the Basic palette: 0 white, 1 black, 2 red, 3 orange, 4 yellow, 5 green, 6 blue, 7 purple, 8 pink, 9 brown (owner 21 Nov: every palette 10 colours).
 # Each flow starts from a fresh page with no saved pictures and prints PASS or FAIL, its name, and what was seen.
-import time, json, pathlib, math
+import colorsys, time, json, pathlib, math
 from playwright.sync_api import sync_playwright
 GAME = pathlib.Path(__file__).resolve().parent.parent / 'coloring-book.html'  # this copy's own build, so old and new code can be tested at once
 
@@ -513,9 +513,13 @@ def f_palettes(q):  # owner 22 Nov 00:21, changed by him 23 Nov 10:27 and 22:37:
     grey_ok = len(grey) == 10 and all(max(g) - min(g) <= 2 for g in grey) and all(grey[i][0] < grey[i + 1][0] for i in range(9))
     above = q.evaluate("()=>document.querySelectorAll('.palpic .pal').length")
     box = q.evaluate("()=>{const r=document.querySelector('.popbox').getBoundingClientRect();return [r.width/innerWidth,r.height/innerHeight]}")
-    ok = [len(x) for x in c] == [12] * 4 and c[0][:7] + c[0][8:11] == mono and c[0][7] == payne and grey_ok  # owner 23 Nov 22:37: Payne's grey between Blue and Purple and c[1][:5] == rainbow and above == 0 and box[0] > 0.8 and box[1] > 0.75
-    report(ok, 'palettes: four columns of 12, monochromes then Payne\'s grey and a grey scale, nothing above',
-           'columns %s, monochromes his %s, Payne %s, grey scale %s, rainbows %s, above %d, popup %.0f%% x %.0f%%' % ([len(x) for x in c], c[0][:7] + c[0][8:11] == mono, len(c[0]) > 7 and c[0][7] == payne, grey_ok, c[1][:5] == rainbow, above, box[0] * 100, box[1] * 100))
+    # owner 24 Nov 13:31, point 2: every monochrome (Payne's grey and the grey scale too) spread a bit wider than his: its darkest darker, its lightest lighter, still dark to light
+    his_mono = mono[:7] + [payne] + mono[7:] + [[[v] * 3 for v in (38, 56, 74, 94, 115, 136, 158, 180, 203, 226)]]
+    lum = lambda k: 0.3 * k[0] + 0.59 * k[1] + 0.11 * k[2]
+    wider = len(c[0]) == 12 and all(lum(n[0]) < lum(o[0]) - 6 and (lum(n[-1]) > lum(o[-1]) + 6 or lum(n[-1]) > 245) and all(lum(n[i]) < lum(n[i + 1]) for i in range(9)) for n, o in zip(c[0], his_mono))
+    ok = [len(x) for x in c] == [12] * 4 and wider and grey_ok  # owner 23 Nov 22:37: Payne's grey between Blue and Purple and c[1][:5] == rainbow and above == 0 and box[0] > 0.8 and box[1] > 0.75
+    report(ok, 'palettes: four columns of 12, monochromes (a bit wider than his) then Payne\'s grey and a grey scale, nothing above',
+           'columns %s, monochromes wider than his %s, grey scale %s, rainbows %s, above %d, popup %.0f%% x %.0f%%' % ([len(x) for x in c], wider, grey_ok, c[1][:5] == rainbow, above, box[0] * 100, box[1] * 100))
 FLOWS['palettes'] = f_palettes
 
 def f_acrylic_scrub(q):  # owner 21 Nov 18:29: a 3rd acrylic brush like the Brusheezy acrylic packs (broad scrubbed strokes breaking into dry streaks), clearly unlike the flat
@@ -542,8 +546,14 @@ def pal_dom(q):  # the popup's columns as they are drawn: per column, per palett
     return q.evaluate("()=>[...document.querySelectorAll('.palcols .palcol')].map(c=>[...c.querySelectorAll('.pal')].map(p=>{const r=p.getBoundingClientRect();return {cols:[...p.querySelectorAll('u')].map(u=>getComputedStyle(u).backgroundColor.match(/\\d+/g).map(Number)),box:[r.left,r.top,r.right,r.bottom]}}))")
 
 def f_pal_dividers(q):  # owner 23 Nov: a vertical divider between column 1 (monochromes) and column 2; a horizontal one in column 2 after its 5 rainbows
+    # owner 24 Nov 13:31, point 1: the divider lines more prominent (at least 4 px, clearly darker than the popup), still without moving any palette
     tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)
     lines = q.evaluate("()=>[...document.querySelectorAll('.paldiv')].map(d=>{const r=d.getBoundingClientRect();return [r.left,r.top,r.right,r.bottom]})")
+    look = q.evaluate("()=>[...document.querySelectorAll('.paldiv')].map(d=>getComputedStyle(d).backgroundColor.match(/\\d+/g).map(Number))")
+    thin = [round(min(l[2] - l[0], l[3] - l[1]), 1) for l in lines]; lum = lambda c: 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
+    bold = all(t >= 4 for t in thin) and all(lum([244, 236, 220]) - lum(c) > 70 for c in look)
+    tops = [[round(p['box'][1]) for p in col] for col in cols]; level = all(abs(tops[k][r] - tops[0][r]) <= 1 for k in range(1, len(tops)) for r in range(min(map(len, tops))))
+    report(bold and level, 'palettes: dividers bold (4 px or more, dark), rows level', 'thickness %s, colours %s, rows level %s' % (thin, look, level))
     c1r, c2l = max(p['box'][2] for p in cols[0]), min(p['box'][0] for p in cols[1])
     vert = [l for l in lines if l[3] - l[1] > 5 * (l[2] - l[0]) and c1r <= l[0] and l[2] <= c2l]
     r5, r6 = cols[1][4]['box'], cols[1][5]['box']
@@ -563,9 +573,13 @@ def f_pal_order(q):  # owner 23 Nov 22:37, 24 Nov 08:50 (replacing hues by slice
     ex = cols[1][5:] + cols[2] + cols[3]; hexes = ['%02X%02X%02X' % tuple(p['cols'][0]) for p in ex]; g = pal_groups(); h = [GROUPS.index(g[x]) if g.get(x) in GROUPS else -1 for x in hexes]
     back = [(i + 1, h[i], h[i + 1]) for i in range(len(h) - 1) if h[i + 1] < h[i]]
     tops = [[round(p['box'][1]) for p in col] for col in cols]; level = all(abs(tops[k][r] - tops[0][r]) <= 1 for k in range(1, len(tops)) for r in range(min(map(len, tops))))
-    ok = len(ex) == 31 and not back and -1 not in h and sorted(set(h)) == [0, 1, 2, 3] and 'F7F7F2' in hexes and 'A50026' in hexes and 'EB5E28' not in hexes and level
-    report(ok, 'palettes: extras progression, two, three, many hues; Basic among them, rows level', 'extras %d, a busier group before a simpler one (place, group, next) %s, Basic %s, red-yellow-green %s, coral gone %s, rows level %s'
-           % (len(ex), back[:3], 'F7F7F2' in hexes, 'A50026' in hexes, 'EB5E28' not in hexes, level))
+    shown = {'%02X%02X%02X' % tuple(k) for p in ex for k in p['cols']}  # owner 24 Nov 13:31, point 3: Sienna to Sky (~ Red and Blue) and Lemon and Magenta dropped; suggested in their places ColorBrewer PuOr and Matplotlib cool
+    # owner 24 Nov 14:00: Brown and Sage, Cyan and Magenta, Violet and Lime, Terracotta, Sand and Sage, Mediterranean Berry, Retro Primary Mix give way to six Coolors scene palettes he chose
+    # owner 24 Nov 14:11: Pink and Green, Steel Blue and Red, Electric Blue and Yellow, Citrus to Deep Ocean and Watermelon Sorbet give way to five more Coolors scene palettes he chose
+    swapped = not {'76451D', 'F8CFAF', '901447', 'FFFFAD', '582F0E', '00FFFF', '421869', 'A85633', '867ECF', '669900', '8E0152', 'A3151A', '072AC8', 'CC4400', 'CD0D58'} & shown and {'7F3B08', '2D004B', 'FFF04C', 'F2636A', '71093B', 'B0EBEB', 'FABC2A', '54478C', 'EDBFCB', 'D90429', 'BF271E', '233D4D', 'E07748'} <= shown
+    ok = len(ex) == 31 and swapped and not back and -1 not in h and sorted(set(h)) == [0, 1, 2, 3] and 'F7F7F2' in hexes and 'A50026' in hexes and 'EB5E28' not in hexes and level
+    report(ok, 'palettes: extras progression, two, three, many hues; Basic among them, rows level', 'swapped %s, extras %d, a busier group before a simpler one (place, group, next) %s, Basic %s, red-yellow-green %s, coral gone %s, rows level %s'
+           % (swapped, len(ex), back[:3], 'F7F7F2' in hexes, 'A50026' in hexes, 'EB5E28' not in hexes, level))
 
 def f_pal_picture_only(q):  # owner 23 Nov: a guide picture gives only its own palette, no closest saved palette
     pt = q.evaluate("()=>__cb.btn('guide')")
@@ -646,7 +660,22 @@ def f_gallery_guide_hidden(q):  # owner 23 Nov: opening a kept picture that has 
     tap(q, 'guide'); time.sleep(0.2); tap(q, 'guide-show'); time.sleep(0.2)
     shows = q.evaluate("()=>!document.getElementById('guide').classList.contains('hide')")
     report(hidden and shows, 'gallery: a kept picture opens with its guide picture hidden, the eye shows it', 'hidden on open %s, shown after the eye %s' % (hidden, shows))
-FLOWS.update({'pal_dividers': f_pal_dividers, 'pal_order': f_pal_order, 'pal_picture_only': f_pal_picture_only, 'pal_stripes': f_pal_stripes, 'canvas_bigger': f_canvas_bigger,
+def shifted_hue(k):  # a colour's place on the spectrum, red to violet (crimson and pinkish reds from 330 degrees count as red, before 0); None for greys, near whites and near blacks
+    if max(k) - min(k) <= 25 or max(k) <= 45: return None
+    h = colorsys.rgb_to_hsv(*[v / 255 for v in k])[0] * 360
+    return h - 360 if h >= 330 else h
+
+def f_pal_spectrum(q):  # owner 24 Nov 13:31, point 4: a palette that runs along the spectrum runs reddish first, then yellow, green, blue, violet (a later colour never more than 40 degrees back)
+    tap(q, 'palette'); time.sleep(0.3); cols = pal_dom(q)  # owner 24 Nov 14:00: no colours shuffled; a palette that runs along the spectrum neither way keeps its own order
+    bad = []
+    def along(cs):
+        hs = [h for h in map(shifted_hue, cs) if h is not None]
+        return not any(hs[j] < hs[i] - 40 for i in range(len(hs)) for j in range(i + 1, len(hs)))
+    for p in cols[1][5:] + cols[2] + cols[3]:
+        if along(p['cols'][::-1]) and not along(p['cols']): bad.append('%02X%02X%02X' % tuple(p['cols'][0]))
+    report(not bad, 'palettes: colours inside each palette in spectrum order', 'out of order (first colour) %s' % bad)
+
+FLOWS.update({'pal_spectrum': f_pal_spectrum, 'pal_dividers': f_pal_dividers, 'pal_order': f_pal_order, 'pal_picture_only': f_pal_picture_only, 'pal_stripes': f_pal_stripes, 'canvas_bigger': f_canvas_bigger,
               'pots_bw': f_pots_bw, 'pot_selected': f_pot_selected, 'gallery_guide_hidden': f_gallery_guide_hidden})
 
 def drag_screen(q, s, step=9):  # screen points, at a finger's speed (step screen pixels per 16 ms)
