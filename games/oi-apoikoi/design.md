@@ -44,7 +44,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
    - Owner rule (24 Nov): it is shown: when the tile snaps (with a snap sound) each matching edge glows, and each jar comes out of its edge and flies to the jar row, one after another.
    - Owner rule: a tile is one rectangle, coloured half and half. The won tile stays where it is (in the top row at first): tap it to turn it, drag it and leave it anywhere, as often as you like, until it snaps into a place; before it snaps, the place is shown.
 5. **End of round.**
-   - Owner rule (24 Nov): the round's end is its own moment, seen and heard, before anything else in it (built for now: a sun sets behind a horizon, with a falling chime).
+   - Owner rule (24 Nov): the round's end is its own moment, seen and heard, before anything else in it (built for now, after "the sunset is weird": leftover market tiles fly back to the pile, then evening falls from the top, a moon and stars over the market, a falling chime; a round starts with morning light sweeping over).
    - Owner rule: goods not spent are lost at the end of the round, but each 5 of the same good become a jar (10 make 2; owner 24 Nov: 5, not 3). Sets don't become jars.
    - Owner rule: jars from leftover goods are opened at the end of the round.
    - Owner rule (24 Nov): this is shown one group at a time: each 5 of a colour fly from the stockpile into a jar; the jars are opened, and if that makes new groups of 5 they become jars too; only then the leftover goods fade out.

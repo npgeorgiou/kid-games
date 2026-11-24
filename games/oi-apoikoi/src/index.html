@@ -38,7 +38,8 @@ const STAGGER = 120, GOOD_FLY = 450;  // goods made at the round's start leave t
 const TURN_MS = 700;  // the turn's light flying from one face to the other
 const RISE_MS = 500, SHOW_MS = 900, GLIDE_MS = 300, REWARD_MS = 550;  // a jar opened: what it held rises out of it, shows, and its reward flies to its place; the other jars close up
 const DROP_MS = 600, INTO_MS = 450, DISSOLVE_MS = 700;  // at the round's end: a jar dropping from the top; each good flying into it; the leftovers breaking into specks
-const SUNSET_MS = 1600, FLY_MS = 700, EDGE_GAP = 250, GLOW_MS = 1800;  // ... ; a jar flying out of its matched edge, the next one after EDGE_GAP; the edge glows GLOW_MS  // at the round's end: 3 goods flying into a jar; the leftovers fading out
+const DUSK_MS = 1600, DAWN_MS = 900;  // evening falling at a round's end; morning light sweeping over at a round's start
+const FLY_MS = 700, EDGE_GAP = 250, GLOW_MS = 1800;  // ... ; a jar flying out of its matched edge, the next one after EDGE_GAP; the edge glows GLOW_MS  // at the round's end: 3 goods flying into a jar; the leftovers fading out
 let rnd = Math.random;
 function seeded(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 // Time passes only for the game that asked: when a new game has started, an old game's pause or hand move never ends,
@@ -51,7 +52,7 @@ const pause = ms => { const my = G; return fast ? Promise.resolve() : new Promis
 const SOUNDS = {  // kind and its notes (Hz)
   good: ['knock', [640]], pick: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], bid: ['chime', [392, 523]], pass: ['chime', [392, 294]],
   jar: ['break', []], coin: ['clink', [1320, 1760]], made: ['chime', [392, 494, 587]], win: ['chime', [523, 659, 784, 1047]],
-  token: ['chime', [523, 784]], into: ['knock', [460]], dissolve: ['whoosh', []], edge: ['chime', [784]], turn: ['chime', [587, 784]], roundend: ['chime', [784, 659, 523, 392]], spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
+  dawn: ['chime', [392, 523, 659]], token: ['chime', [523, 784]], into: ['knock', [460]], dissolve: ['whoosh', []], edge: ['chime', [784]], turn: ['chime', [587, 784]], roundend: ['chime', [784, 659, 523, 392]], spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
 };
 let audio = null, heard = [];  // heard: every sound played in this game, in order (the flows read it)
 function noise(len) { const b = audio.createBuffer(1, audio.sampleRate * len, audio.sampleRate), d = b.getChannelData(0); for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1; const n = audio.createBufferSource(); n.buffer = b; return n; }
@@ -206,7 +207,8 @@ async function parkJars(i, away) {  // the waiting jars fly together to a free p
   await Promise.all([...Array(n).keys()].map(k => fly({ k: 'jar' }, away ? row(k) : park(k), away ? park(k) : row(k), GLIDE_MS * 2, { arc: 40, z0: away ? 1 : PARKED, z1: away ? PARKED : 1 })));
   if (G !== my) return; G.parking = false; G.parked = away;
 }
-async function makeGoods() {  // the round's start: every square of each land gives its good, one after another, the kid's land first
+async function makeGoods() {  // the round's start: morning light sweeps over (its own moment), then every square of each land gives its good, one after another, the kid's land first
+  G.dusk = null; if (!G.goodsIn) { G.dawn = performance.now(); sound('dawn'); await pause(DAWN_MS); }
   const my = G, cells = [...G.cells.values()].sort((a, b) => a.o - b.o || a.y - b.y || a.x - b.x);
   for (const p of G.players) { p.goods = [0, 0, 0, 0, 0]; p.got = 0; }
   if (G.goodsIn) { G.goodsIn = false; cells.forEach(c => G.players[c.o].goods[c.c]++); return; }  // a test table that starts with its goods in
@@ -239,9 +241,12 @@ async function play() {
       turn = 1 - turn;
     }
     if (G !== my) return;
-    G.bag.push(...G.draft.filter(t => t)); G.draft = [];  // tiles nobody could place are not thrown: they go back under the pile (built for now)
-    G.phase = 'end'; G.sunset = performance.now(); sound('roundend');  // the round's end is its own moment: a sun sets, a falling chime
-    await pause(SUNSET_MS); if (G !== my) return; G.sunset = null;
+    G.phase = 'end';  // tiles nobody could place are not thrown: they fly back under the pile (built for now)
+    const left = G.draft.map((t, k) => [t, k]).filter(([t]) => t);
+    await Promise.all(left.map(([t, k], n) => pause(n * STAGGER).then(() => { if (G !== my) return; G.draft[k] = null; return fly({ k: 'tile', cs: t }, draftSlot(k), pileTop(), REWARD_MS); })));
+    if (G !== my) return; G.bag.push(...left.map(([t]) => t)); G.draft = [];
+    G.dusk = performance.now(); sound('roundend');  // the round's end is its own moment: evening falls (owner 24 Nov: not a sunset), a falling chime
+    await pause(DUSK_MS); if (G !== my) return;
     for (const i of [G.first ?? 0, 1 - (G.first ?? 0)]) { setTurn(i); await roundEndJars(i); if (G !== my) return; }  // one player gains and opens, then the other
   }
   if (G !== my) return;
@@ -428,7 +433,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); heard = []; flights = []; specks = []; G = { goodsIn: !!o.goodsIn, lit: [], board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, turn: null, shown: null, jarWho: null, jarRows: null, gliding: null, parked: false, parking: false, burst: null, sunset: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; flights = []; specks = []; G = { goodsIn: !!o.goodsIn, lit: [], board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, turn: null, shown: null, jarWho: null, jarRows: null, gliding: null, parked: false, parking: false, burst: null, dusk: null, dawn: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; });
@@ -716,17 +721,20 @@ function drawSlot() {  // three wheels; tap the ones to spin again, pay 1 coin t
   drawn.push({ k: 'pic', for: 'collect', s: prize ? prize.s : null, n: prize ? prize.n : 0 });
   btn('collect', x + 10, y + 40, 230, 140, () => answer('collect'));
 }
-function drawSunset() {  // the round's end: the screen dims warmly while a big sun sinks behind the horizon
-  const u = Math.min(1, (performance.now() - G.sunset) / SUNSET_MS), a = Math.min(1, u * 4, (1 - u) * 4), x = W / 2, hy = H * 0.58, R = Math.min(W, H) * 0.16;
-  cx.globalAlpha = a; cx.fillStyle = 'rgba(70,30,10,0.45)'; cx.fillRect(0, 0, W, H);
-  cx.save(); cx.beginPath(); cx.rect(0, 0, W, hy); cx.clip();
-  const sy = hy - R * 0.9 + easeOut(u) * R * 1.3;  // the sun sinks, eased
-  cx.strokeStyle = '#ffd27a'; cx.lineWidth = 9; cx.lineCap = 'round'; cx.beginPath();  // the rays
-  for (let k = 0; k < 12; k++) { const g = k * Math.PI / 6 + u * 0.4; cx.moveTo(x + Math.cos(g) * R * 1.25, sy + Math.sin(g) * R * 1.25); cx.lineTo(x + Math.cos(g) * R * 1.6, sy + Math.sin(g) * R * 1.6); }
-  cx.stroke(); cx.lineCap = 'butt';
-  dot(x, sy, R, '#f39c3a'); dot(x, sy, R * 0.82, '#ffc35a'); cx.restore();
-  cx.fillStyle = '#7a4a2a'; cx.beginPath(); cx.roundRect(x - R * 2.6, hy, R * 5.2, 10, 5); cx.fill();
-  cx.globalAlpha = 1; drawn.push({ k: 'sunset' });
+function drawDusk() {  // evening: the sky darkens from the top down, lightly, so the board stays in view; a moon rises over the market and stars come out
+  const u = Math.min(1, (performance.now() - G.dusk) / DUSK_MS), a = 0.45 * easeInOut(u), { T } = L();
+  const g = cx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(30,35,90,' + a + ')'); g.addColorStop(0.35, 'rgba(60,50,110,' + a * 0.6 + ')'); g.addColorStop(1, 'rgba(60,50,110,' + a * 0.25 + ')');
+  cx.fillStyle = g; cx.fillRect(0, 0, W, u < 1 ? H : T); drawn.push({ k: 'dusk', a });  // once night has fallen only the sky over the market stays dark: the jars are opened in full light
+  const my = T * 0.5 + (1 - easeInOut(u)) * T * 0.4, mx = W / 2;  // the moon rises a little as night comes
+  cx.globalAlpha = u; dot(mx, my, T * 0.3, '#fdf3c8'); dot(mx + T * 0.12, my - T * 0.06, T * 0.27, 'rgba(45,45,100,1)');  // a crescent: a full disc with the night sky over one side
+  for (const [sx, sy] of [[-0.32, 0.25], [-0.2, 0.7], [0.24, 0.2], [0.36, 0.62], [0.12, 0.85]]) star(mx + sx * W * 0.5, sy * T, 7);
+  cx.globalAlpha = 1; drawn.push({ k: 'moon' });
+}
+function drawDawn() {  // morning: a band of warm light sweeps over the screen from left to right
+  const u = Math.min(1, (performance.now() - G.dawn) / DAWN_MS); if (u >= 1) return;
+  const x = -W * 0.3 + u * W * 1.6, g = cx.createLinearGradient(x - W * 0.3, 0, x + W * 0.3, 0);
+  g.addColorStop(0, 'rgba(255,230,150,0)'); g.addColorStop(0.5, 'rgba(255,230,150,0.45)'); g.addColorStop(1, 'rgba(255,230,150,0)');
+  cx.fillStyle = g; cx.fillRect(0, 0, W, H); drawn.push({ k: 'dawn' });
 }
 function drawPass() {  // nothing fits: this turn passes to the other player
   const i = G.passing, x = W / 2, y = H * 0.5, k = Math.min(1, (performance.now() % 1200) / 900);
@@ -771,12 +779,13 @@ function render() {  // one picture of the game; it also lays out the buttons th
   buttons = []; drawn = []; cx.clearRect(0, 0, W, H);
   if (!G) return;
   drawBoard(); drawLit(); drawDraft(); drawPanel(0); drawPanel(1);
+  if (G.dusk != null) drawDusk();  // the evening lies over the board and areas, under the jars
+  if (G.dawn != null) drawDawn();
   if (wait && wait.kind === 'place') drawHeld();
   if (wait && wait.kind === 'bid') drawBid();
   if ((wait && wait.kind === 'jar') || G.shown || flying() || G.jarRows != null || G.parked || G.parking) drawJars();  // jars being made show with the jars already made
   if (G.slot) drawSlot();
   if (G.passing != null) drawPass();
-  if (G.sunset != null) drawSunset();
   if (G.over) drawEnd();
   drawFlights(); drawSpecks(); hand(G.hand);
 }

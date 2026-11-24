@@ -146,10 +146,12 @@ def f_goods_at_start(q):  # each square makes 1 good of its colour at the start 
     report(g == [1, 1, 2, 0, 0], 'goods: 1 per square at round start', str(g))
 
 def f_round_start_goods_fly(q):  # owner 24 Nov: at the round's start goods come one by one: the square giving it lights up, the good flies from it on a curve to its place in the stockpile, with a sound
-    pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'bag': [[0, 4]] * 4, 'tiles': [[4, 7, 0, 2, 2, 0]]}); settle(q); seen, counts, ms = [], [], 0  # the kid's 4 squares, then the PC's 2 (not table: it runs through the start)
-    while ms < 2000:
+    pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'bag': [[0, 4]] * 4, 'tiles': [[4, 7, 0, 2, 2, 0]]}); settle(q); seen, counts, ms, dawn, first = [], [], 0, None, None  # the kid's 4 squares, then the PC's 2 (not table: it runs through the start)
+    while ms < 3000:
         d = q.evaluate("()=>__dg.drawn()"); fl = [x for x in d if x['k'] == 'flight' and x['look'] == 'good']; lit = [x for x in d if x['k'] == 'lit']
         seen.append((len(fl), len(lit), fl)); counts.append(sum(1 for x in d if x['k'] == 'good' and x['o'] == 0))
+        if dawn is None and [x for x in d if x['k'] == 'dawn']: dawn = ms  # a new round begins with morning light sweeping over (owner 24 Nov: rounds are their own moments)
+        if first is None and fl: first = ms
         if st(q)['wait']: break
         q.clock.run_for(50); ms += 50; settle(q)
     q.clock.resume(); starts = {(round(f['fx']), round(f['fy'])) for _, _, fl in seen for f in fl}
@@ -157,8 +159,8 @@ def f_round_start_goods_fly(q):  # owner 24 Nov: at the round's start goods come
     arced = any(f['y'] < min(f['fy'], f['ty']) - 10 for _, _, fl in seen for f in fl)
     grew = all(b - a in (0, 1) for a, b in zip(counts, counts[1:])) and counts[0] == 0 and counts[-1] == 4
     lit_with = all(n_lit >= n for n, n_lit, _ in seen) and all(b[0] - a[0] <= 1 for a, b in zip(seen, seen[1:]))  # each good's square is lit while it flies; they leave one after another
-    ok = starts == squares and arced and grew and lit_with and q.evaluate("()=>__dg.sounds()").count('good') == 6
-    report(ok, 'round start: goods fly one by one from their squares', 'from the 6 squares %s, on a curve %s, stockpile one at a time %s (%s), square lit %s, sounds %d' % (starts == squares, arced, grew, counts[-1], lit_with, q.evaluate("()=>__dg.sounds()").count('good')))
+    ok = starts == squares and arced and grew and lit_with and q.evaluate("()=>__dg.sounds()").count('good') == 6 and dawn is not None and first is not None and dawn < first
+    report(ok, 'round start: goods fly one by one from their squares', 'from the 6 squares %s, on a curve %s, stockpile one at a time %s (%s), square lit %s, sounds %d, morning light at %s ms before the first good at %s ms' % (starts == squares, arced, grew, counts[-1], lit_with, q.evaluate("()=>__dg.sounds()").count('good'), dawn, first))
 
 def f_goods_on_place(q):  # owner 24 Nov: a land's goods appear in the stockpile as soon as it is placed, not only at the round's start
     table(q, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); before = [sum(1 for x in drawn(q, 'good') if x['o'] == 0 and x['c'] == c) for c in range(5)]
@@ -325,17 +327,25 @@ def f_jars_apart(q):  # owner 24 Nov: "jar circles are touching": every jar and 
     ok = len(jars) == 2 and len(glows) == 2 and min(gaps) >= 12
     report(ok, 'jars: apart, with a gap between them', 'gaps between jars and between glows %s px' % [round(g) for g in gaps])
 
-def f_round_end_shown(q):  # owner 24 Nov: the round's end must be its own phase, clearly seen and heard, before anything else happens in it
-    pause_clock(q); table(q, fast=False, bag=[[2, 2]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
+def f_round_end_shown(q):  # owner 24 Nov: the round's end is its own moment, seen and heard, before anything else happens in it; "the sunset is weird": evening falls (sky darkens from the top, a moon and stars), the board stays in view; leftover market tiles fly back to the pile
+    pause_clock(q); table(q, fast=False, bag=[[2, 2], [3, 3]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)  # [3, 3] fits nobody: both pass, it is left in the market
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0}); skip(q, 1200); waiting(q, 'jar'); tap(q, 'jar-0')
-    shown, first_made, ms = [], None, 0
+    for _ in range(80):
+        if st(q)['phase'] == 'end': break
+        skip(q, 200)
+    pile = drawn(q, 'pile')[0]; back, shown, moon, first_made, ms, light = [], [], False, None, 0, True
     while ms < 6000 and first_made is None:
-        q.clock.run_for(100); ms += 100; settle(q)
-        if drawn(q, 'sunset'): shown.append(ms)
-        if [x for x in drawn(q, 'flight') if x['look'] == 'jar' and x['fy'] < 0]: first_made = ms  # the first jar dropping in
+        q.clock.run_for(100); ms += 100; settle(q); d = q.evaluate("()=>__dg.drawn()")
+        tiles = [x for x in d if x['k'] == 'flight' and x['look'] == 'tile']; back += [(ms, x) for x in tiles]
+        dusk = [x for x in d if x['k'] == 'dusk']
+        if dusk: shown.append(ms); light = light and dusk[0]['a'] <= 0.5 and not [x for x in d if x['k'] == 'shade']
+        moon = moon or bool([x for x in d if x['k'] == 'moon'])
+        if [x for x in d if x['k'] == 'flight' and x['look'] == 'jar' and x['fy'] < 0]: first_made = ms  # the first jar dropping in
+    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 3000); evening = bool(drawn(q, 'dusk'))
     q.clock.resume(); h = q.evaluate("()=>__dg.sounds()")
-    ok = len(shown) >= 10 and first_made is not None and max(shown) <= first_made and 'roundend' in h
-    report(ok, 'end: the round end is its own moment, seen and heard', 'sunset shown %d00 ms (from %s to %s), first jar dropping in at %s ms, round end sound %s' % (len(shown), shown[:1], shown[-1:], first_made, 'roundend' in h))
+    returned = bool(back) and abs(back[0][1]['tx'] - pile['x']) < 5 and bool(shown) and min(shown) > back[-1][0]  # back in the pile before evening falls
+    ok = returned and len(shown) >= 10 and first_made is not None and max(shown) <= first_made and moon and light and evening and 'roundend' in h
+    report(ok, 'end: tiles back to the pile, evening falls, its own moment', 'leftover tile flew back to the pile %s; evening shown %d00 ms before the first jar (at %s ms), moon %s, board in view %s, still evening while jars open %s, sound %s' % (returned, len(shown), first_made, moon, light, evening, 'roundend' in h))
 
 def f_turn_shown(q):  # owner 24 Nov: "make it obvious who plays; now there is no difference between me and the opponent playing": the player whose turn it is has his area lit, the other's is dimmed; a sound when the turn passes
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); settle(q)
