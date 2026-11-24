@@ -7,4 +7,9 @@ if (here / "src" / "index.html").exists(): subprocess.run([sys.executable, str(h
 if len(sys.argv) > 1 and sys.argv[1] == "flows":
     sys.path.insert(0, str(here / "tools"))
     import flows
-    flows.run(sys.argv[2:])
+    names = sys.argv[2:]
+    if names: flows.run(names)
+    else:  # the whole set: two browsers side by side, each running every other flow, so the run stays short
+        halves = [list(flows.FLOWS)[k::2] for k in (0, 1)]
+        procs = [subprocess.Popen([sys.executable, __file__, 'flows'] + h, stdout=subprocess.PIPE, text=True) for h in halves]
+        for pr in procs: sys.stdout.write(pr.communicate()[0])
