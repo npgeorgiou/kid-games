@@ -41,3 +41,4 @@
 - A check on spray drops must average a band of rows (new_tools did one row and passed or failed by chance).
 - Ink widths differ stroke to stroke by up to about a quarter: a width check on ink averages many places along the line (turn_every), and is still near its limit.
 - Pencil's grain contact: an edge term must move the grain value, never one smoothstep edge, or the edges cross near the rim and paint full-colour rings.
+- Ink line widths differ stroke to stroke: a width check on ink turns splashes off and averages two lines each way (turn_every).
