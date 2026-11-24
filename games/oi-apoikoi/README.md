@@ -18,7 +18,8 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `WARNINGS.md`: traps found in this game.
 - `src/index.html`: the game source; `build.py` makes `oi-apoikoi.html` from it, with the hand pictures put in.
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
-- `tools/flows.py`: flow tests, one per owner rule, plus a random-play check; `tools/harness.py` builds and runs them, all in one browser.
+- `tools/flows.py`: flow tests, one per owner rule and bug report, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 7 s).
+- `tools/backdoors.txt`: what a flow may never contain (moves through the game's insides); the commit check refuses it.
 
 ## Running the checks
 
@@ -26,19 +27,15 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 
 ## Now
 
-A playable prototype against the PC on one shared board, colours only. Rules and what was built without an owner decision are in `design.md` sections 2 and 6.
+A playable prototype against the PC on one shared board, colours only. Tiles are dragged straight from the pile and stay where they are left until they snap; a won bid locks a tile for its winner; the stockpile stands in colour columns with set bands and jar frames; jars have labels; the slot machine rolls and shows price and prize; the PC plays with a visible hand (points, grabs with a fist). Rules and built-for-now choices are in `design.md`.
 
 ## Open
 
-Owner's yes (24 Nov 00:55), to do before the list in Task list, one point per commit:
-- Commit check (shared by all games): no old-code run; the whole current test set runs on the new code and any FAIL refuses the commit; a game-code commit must add or change a flow in the same commit; flows may set up a starting table, but every player move must be a real tap or drag on screen (no back-door moves).
-- The same checks run on GitHub on every push, and the owner is the required reviewer of the commit check and the GitHub check (CODEOWNERS). The owner turns on branch protection for main himself.
-- Random play acts only through the screen and checks after every move: the stockpile shown equals the land shown; jars shown equal matching edges.
-
-- Every owner bug report becomes a flow named after his report, repeating his steps on screen; it fails before the fix and stays forever.
-- Mutation testing (owner yes, 00:58): a script breaks the game in small ways one at a time and runs the flows; every break no flow catches is listed as a hole. It runs once a day and its list of holes is sent to the owner.
-
-Also see `design.md` sections 6 and 7.
+- Waiting for the owner: sounds (built-in simple sounds for now, or only sound slots until his files come); whether a placed land's good appears in the stockpile at once (today goods are made at the start of each round, and at the end of the round they turn into jars or are lost).
+- Then: sounds; the stockpile answer (a flow repeating his steps first); a general refactor (one owner per behaviour: the turn being asked belongs to the game; the source split by part), tests passing throughout.
+- Daily mutation testing runs as a scheduled task; every hole it reports gets a flow.
+- The owner turns on branch protection for main (require the "tests" check and code-owner review).
+- See also `design.md` sections 6 and 7.
 
 ## Task list
 
