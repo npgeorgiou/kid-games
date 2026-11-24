@@ -39,4 +39,8 @@ A playable prototype against the PC on one shared board, colours only. The scree
 
 ## Task list
 
-- Coins: the jars, not the slot machine, give most coins (see Open); the owner decides what to change.
+- General rethink of the whole screen (owner 24 Nov: "all UI is still shit"): grey sketches of every moment for the owner to approve first, then build. Proposed: a stockpile of 5 shelves (one per colour), goods packed in crates of 5, a full crate drawn small as one crate, so any amount fits; no tall jar outlines.
+- Replace bidding (too slow: every pick triggers it), still using groups of 5; the owner picks from the options offered on 24 Nov (sets buy the first pick / tiles priced in sets / a set reserves a tile / sets become coins).
+- Fewer jars; the owner picks from the options offered on 24 Nov (round-end jars only from sets / 10 of a colour per jar / one jar per colour per round / jars only from edges, with leftovers becoming coins). Measured: about 177 jars and 109 coins a game for the kid, almost all from jars.
+- Slot machine (said twice): each wheel a shaded, many-sided drum with its faces apart; only the face it lands on shows, not the ones above and below; new buttons, no circular arrow (the "C").
+- The turn sign flying from face to face at a round's start looks wrong: remove it or replace it (owner to answer).
