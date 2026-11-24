@@ -95,7 +95,7 @@ function ask(kind, who, extra) {
   if (G.players[who].human) handHome();
   return new Promise(res => { wait = { kind, who, res, r: 0, ...extra }; });
 }
-function answer(v) { const w = wait; wait = null; press = null; w.res(v); }
+function answer(v) { const w = wait; wait = null; if (!press || !press.taking) press = null; w.res(v); }  // a press that takes a tile lives on as its drag
 async function choose(kind, who, extra, pcMoves) {  // a human answers by tapping; the PC's hand makes its moves on the same screen
   const my = G, chosen = ask(kind, who, extra);
   if (!G.players[who].human) { await pause(500); if (G === my) await pcMoves(); }
@@ -408,7 +408,10 @@ function drawDraft() {
     const ok = pickable(k, who), lock = G.locks[k];
     if (lock != null) rrect(x - ds - 6, y - ds / 2 - 6, 2 * ds + 12, ds + 12, 10, null, BORDER[lock], 5);  // locked: the winner's colour around it
     tileShape(x, y, ds, t, 0, ok ? null : 'grey', 'draft-' + k);
-    if (ok && wait && wait.kind === 'pick') btn('draft-' + k, x - ds - 12, y - ds / 2 - 12, 2 * ds + 24, ds + 24, () => answer(k));
+    if (ok && wait && wait.kind === 'pick') btn('draft-' + k, x - ds - 12, y - ds / 2 - 12, 2 * ds + 24, ds + 24, e => {  // pressing a tile takes it; the same press goes on as its drag
+      if (e) press = { x: e.clientX, y: e.clientY, dx: x - e.clientX, dy: y - e.clientY, moved: false, taking: true };
+      answer(k);
+    });
   });
   for (let k = 0; k < Math.ceil(G.bag.length / 4); k++) rrect(P + 14 + k * 16, T / 2 - ds / 2, 11, ds, 4, '#cdb991');  // rounds left
 }
@@ -518,8 +521,8 @@ cv.addEventListener('pointermove', e => {
 });
 cv.addEventListener('pointerup', () => {
   if (!press || !human() || wait.kind !== 'place') { press = null; return; }
-  const moved = press.moved; press = null;
-  if (moved) drop(); else wait.r = (wait.r + 1) % 4;
+  const { moved, taking } = press; press = null;
+  if (moved) drop(); else if (!taking) wait.r = (wait.r + 1) % 4;  // a tap turns the tile, except the tap that took it
 });
 
 // SECTION: TEST HOOKS -- what the flows read and set
