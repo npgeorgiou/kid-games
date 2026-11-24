@@ -397,6 +397,16 @@ def f_jar_breaks(q):  # owner 24 Nov: "jars should visually break and the reveal
     q.clock.resume()
     report(broke and came_out and coin_flew and star_flew, 'jars: break where tapped, the bonus comes out, rewards fly to their place', 'broke where tapped %s, bonus out of it %s, coin flew to his coins %s, star flew to its place %s' % (broke, came_out, coin_flew, star_flew))
 
+def f_jars_step_aside(q):  # owner 24 Nov: "the extra tile bonus makes the jars I was opening disappear; it should temporarily fly them to some free area"
+    pause_clock(q); table(q, fast=False, bag=[[0, 0]] * 4, tiles=[[4, 7, 0, 0, 0, 0]], jarQueue=[{'k': 'tile'}] + [COIN] * 8)  # 2 jars; the first holds a tile
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 1}); q.clock.run_for(FLY_MS + 400); waiting(q, 'jar'); tap(q, 'jar-1')
+    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='place'}", 3000); q.clock.run_for(600); settle(q)
+    T = q.evaluate("()=>innerHeight*0.16"); away = [j for j in drawn(q, 'jar') if j['o'] == 0]
+    aside = len(away) == 1 and away[0]['y'] < T + 20
+    drag_to(q, best_spot(q)); q.clock.run_for(1400); settle(q); back = [j for j in drawn(q, 'jar') if j['o'] == 0 and not j.get('new')]; q.clock.resume()
+    ok = aside and len(back) == 1 and back[0]['y'] > T + 100
+    report(ok, 'jars: step aside during a bonus tile, then come back', 'waiting jar seen aside while placing %s (%s), back in the row after %s' % (aside, [(round(j['x']), round(j['y'])) for j in away], [(round(j['x']), round(j['y'])) for j in back]))
+
 def f_jar_labels(q):  # owner 24 Nov: "for bonus jars add some text, I don't get what some of those mean": every jar's contents carry a short label
     seen = {}
     for k in ['empty', 'coins', 'coins2', 'slot', 'steal', 'first', 'tile', 'jar', 'set']:

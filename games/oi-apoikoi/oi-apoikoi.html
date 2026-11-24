@@ -199,6 +199,12 @@ async function goodFrom(i, c, from, square) {  // one good leaves where it is ma
   sound('good'); await fly({ k: 'good', c, o: i }, from, to, GOOD_FLY); if (G !== my) return;
   p.coming[c]--; p.goods[c]++;
 }
+async function parkJars(i, away) {  // the waiting jars fly together to a free place over the market, smaller, and back again to their row
+  const p = G.players[i], my = G, n = p.jars, row = k => jarSpot(k, n, p.fresh), park = k => parkSpot(k, n);
+  G.parking = true;
+  await Promise.all([...Array(n).keys()].map(k => fly({ k: 'jar' }, away ? row(k) : park(k), away ? park(k) : row(k), GLIDE_MS * 2, { arc: 40, z0: away ? 1 : PARKED, z1: away ? PARKED : 1 })));
+  if (G !== my) return; G.parking = false; G.parked = away;
+}
 async function makeGoods() {  // the round's start: every square of each land gives its good, one after another, the kid's land first
   const my = G, cells = [...G.cells.values()].sort((a, b) => a.o - b.o || a.y - b.y || a.x - b.x);
   for (const p of G.players) { p.goods = [0, 0, 0, 0, 0]; p.got = 0; }
@@ -293,12 +299,14 @@ async function wantsBid(i, tile, n) {
   return choose('bid', i, { n }, () => pcTap(pcBids(i, tile, n) ? 'bid' : 'letgo'));
 }
 async function place(i, cs, pos, home) {  // the tile lies at pos until it snaps; one from the market can be put back on its place (home): then it is not placed (false)
+  const my = G; if (G.players[i].jars) { await parkJars(i, true); if (G !== my) return false; }  // jars still waiting step aside while he places (owner 24 Nov)
   const a = await choose('place', i, { tile: cs, pos, home }, () => pcPlace(bestPlace(cs, i)));
   if (a === 'back') return false;
   const { x, y, r } = a;
   const edges = matchEdges(cs, x, y, r), m = edges.length;
   put({ id: 't' + (tileNo++), cs, x, y, r, o: i });
-  sound('snap'); cs.forEach(c => G.players[i].goods[c]++);  // a placed land makes its goods at once (owner 24 Nov), and again at each round's start
+  sound('snap'); if (G.parked) { await parkJars(i, false); if (G !== my) return false; }
+  cs.forEach(c => G.players[i].goods[c]++);  // a placed land makes its goods at once (owner 24 Nov), and again at each round's start
   G.players[i].jars += m; G.players[i].fresh = m;  // the jars this tile earned come first, shown apart from jars still waiting
   G.burst = { who: i, edges, t0: performance.now() };  // each matched edge glows and a jar flies out of it to the jar row, one after another
   edges.forEach((e, k) => sound('edge', [k * EDGE_GAP / 1000]));
@@ -414,7 +422,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); heard = []; flights = []; specks = []; G = { goodsIn: !!o.goodsIn, lit: [], board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, turn: null, shown: null, jarWho: null, jarRows: null, gliding: null, burst: null, sunset: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; flights = []; specks = []; G = { goodsIn: !!o.goodsIn, lit: [], board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, turn: null, shown: null, jarWho: null, jarRows: null, gliding: null, parked: false, parking: false, burst: null, sunset: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; });
@@ -620,6 +628,8 @@ function drawBid() {  // match the bid with your sets, or let the tile go
   cx.strokeStyle = '#a83a2a'; cx.beginPath(); cx.moveTo(x + 92, y + 44); cx.lineTo(x + 138, y + 90); cx.moveTo(x + 138, y + 44); cx.lineTo(x + 92, y + 90); cx.stroke(); cx.lineCap = 'butt';
   btn('letgo', x + 20, y + 20, 190, 94, () => answer(false));
 }
+const PARKED = 0.6;  // a jar stepped aside is this much smaller
+function parkSpot(k, n) { const { T } = L(), per = 10, sp = JAR_SIZE() * PARKED * 1.4, row = Math.floor(k / per), inRow = Math.min(per, n - row * per); return [W / 2 + (k % per - (inRow - 1) / 2) * sp, T / 2 + row * sp * 0.8]; }
 const JARS_PER_ROW = 6, JAR_SIZE = () => Math.min(110, W * 0.7 / JARS_PER_ROW / 1.5);  // owner 24 Nov: 6 to a row, more rows, never smaller
 function jarSpot(k, n, fresh) {  // jar k of n: the jars just earned first, then the jars still waiting from a new row; rows centred, the block around 60% down
   const s = JAR_SIZE() * 1.5, split = fresh && fresh < n, row = k < fresh || !split ? Math.floor(k / JARS_PER_ROW) : Math.ceil(fresh / JARS_PER_ROW) + Math.floor((k - fresh) / JARS_PER_ROW);
@@ -630,9 +640,10 @@ function jarSpot(k, n, fresh) {  // jar k of n: the jars just earned first, then
 function glow(x, y, z) { dot(x, y, z * 0.6, '#ffe27a88'); drawn.push({ k: 'jarglow', x, y, r: z * 0.6 }); }  // a jar just earned glows
 function drawJars() {  // big jars in a row; tap one to open it
   const fly = flying() ? G.burst : null, who = wait ? wait.who : G.shown ? G.shown.who : fly ? fly.who : G.jarWho, p = G.players[who], n = p.jars, rows = G.jarRows ?? n, z = JAR_SIZE(), s = z * 1.5;  // z: a jar's size, always the same; s: the space each jar has (its glow fits inside with room to spare)
-  if (!fly) shade(0.35);  // while jars fly out of their edges the board stays bright, so the glowing edges show
+  if (wait && wait.kind === 'jar') shade(0.35);  // the board dims only while he chooses a jar; while jars fly out of their edges or wait aside it stays bright
   for (let k = 0; k < n; k++) {  // the jars just earned on the left, glowing; a gap; the jars still waiting
-    if (G.gliding && G.gliding.has(k)) continue;  // drawn as it glides to its new place
+    if (G.parking || (G.gliding && G.gliding.has(k))) continue;  // drawn as it flies to its new place
+    if (G.parked) { const [x, y] = parkSpot(k, n); jarShape(x, y, z * PARKED); drawn.push({ k: 'jar', o: who, x, y, size: z * PARKED, parked: true }); continue; }
     const fresh = k < p.fresh, [x, y0, row] = jarSpot(k, rows, p.fresh), y = y0 + (wait ? Math.sin(performance.now() / 300 + k) * 4 : 0);
     if (fresh && G.burst && G.burst.who === who && G.burst.edges[k]) {  // a jar just earned flies out of its edge (eased, popping up), then sits in the row
       const [ex, ey] = edgePoint(G.burst.edges[k].x, G.burst.edges[k].y, G.burst.edges[k].d), u = fast ? 1 : Math.min(1, Math.max(0, (performance.now() - G.burst.t0 - k * EDGE_GAP) / FLY_MS));
@@ -741,7 +752,7 @@ function render() {  // one picture of the game; it also lays out the buttons th
   drawBoard(); drawLit(); drawDraft(); drawPanel(0); drawPanel(1);
   if (wait && wait.kind === 'place') drawHeld();
   if (wait && wait.kind === 'bid') drawBid();
-  if ((wait && wait.kind === 'jar') || G.shown || flying() || G.jarRows != null) drawJars();  // jars being made show with the jars already made
+  if ((wait && wait.kind === 'jar') || G.shown || flying() || G.jarRows != null || G.parked || G.parking) drawJars();  // jars being made show with the jars already made
   if (G.slot) drawSlot();
   if (G.passing != null) drawPass();
   if (G.sunset != null) drawSunset();
