@@ -52,7 +52,9 @@ Each site also has one tempting wrong piece in its pile that makes the test fail
 | `WARNINGS.md` | Traps found while working on this game. **Read first.** |
 | `owner-shots/` | The owner's screenshots and recordings, named by date. |
 | `tools/harness.py` | Runs every check: `python3 tools/harness.py <mode>` (modes below). |
-| `tools/flows.py` | Play-through tests: the real page, real mouse and keys, as the owner plays. |
+| `tools/ci-checks.txt` | The list of every check of the game, run on GitHub when a push or pull request changes this game or something shared. |
+| `tools/flows.py` | The whole-game test: one run from a fresh game to the last site, played as the child plays (the first site by hand with every lesson, the others with the quick build), every owner rule and bug report a checked step at its place. |
+| `tools/backdoors.txt` | What a shortcut through the game's insides looks like; GitHub refuses a test containing one. |
 | `tools/cue-tests.js` | The cue rules as pass/fail checks. |
 | `tools/owner-tests.js` | Checks from the owner's lists: hand, pieces, levels, sounds, map, boats. |
 | `tools/motion-ref.json` | The hand's approved feel (timings), recorded with `harness.py owner motion record` after the owner's yes. |
@@ -68,7 +70,7 @@ Shared with other games, at the repo root: `tools/cues/` (the cue engine and its
 From this folder, after `python3 build.py` (and once per clone: `git config core.hooksPath .githooks`):
 
 - `python3 tools/harness.py cuetest` -- the cue rules (seconds).
-- `python3 tools/harness.py flows [names]` -- the play-through tests (each 5-120 s; name a few).
+- `python3 tools/harness.py flows` -- the whole-game test (about 12 minutes here; the test page runs the game 4 times faster with short silent sounds). `STOP="<step name>"` ends it after that step.
 - `python3 tools/harness.py owner [names]` -- the owner's lists (about 5 min for all).
 - `python3 tools/harness.py spec [level numbers]` -- every level: the suggested build passes, every wrong piece fails, the pile (about 10 min for all).
 - `python3 tools/harness.py map | real | sandbox | loudness | sizes | realwave | realintro | mapbuttons` -- the map on 14 screen sizes, the real game loop, free play, sound loudness, sizes, real taps, the intro, the map buttons.
@@ -81,8 +83,14 @@ The game is complete and playable. The tutorial never stops, whatever the child 
 
 ## Open
 
-- Nothing open. Accepted as they are (owner): the Valens and Parthenon piles do not fit the sidebar at 1280x800.
+- The whole-game test takes about 6 minutes here; the commit check allows 10. The slowest steps are the ones built by hand (the owner's first-site build, the wooden-top building).
+- The drag-back lesson's "piece put in before / after the line" variants are played once, as "during"; the random cue check (cuetest) covers other orders.
+- Sites 2-10 are finished with the quick build (owner 24 Nov); building them by hand is not tested.
 
 ## Task list
 
-- None.
+Owner, 24 Nov (verbatim):
+2. anoter idea is to replace sound files for small files, ffs, its a test.
+3. also do improvements as long as you keep in mind that theya re feature tests, so dont mock things.
+4. and fix tests
+5. "A parent then finishes the building with Ctrl" -> never use these hacks in tests. "they cut spoken lines off from inside the game." -> NEVER

@@ -43,6 +43,7 @@ Flat brushes are held at one fixed angle, unless the turn switch in the brush po
 | `WARNINGS.md` | Traps found while working on this game. **Read first.** |
 | `owner-shots/` | The owner's pictures, named by date. |
 | `tools/harness.py` | Builds the game and runs its play-through tests. |
+| `tools/ci-checks.txt` | The list of every check of the game, run on GitHub when a push or pull request changes this game or something shared. |
 | `tools/flows.py` | Play-through tests (`SECTION:` markers): the real page, real clicks, keys, drags and touches, at a finger's speed, each on a small test paper. |
 | `tools/previews.py` | Paints the brush previews straight through the game's stroke code (under 2 minutes). |
 | `tools/looks.py`, `tools/looks/` | Saves every brush's normal stroke as a picture; the `brush_looks` test fails when a brush no longer looks like its picture. |
@@ -70,6 +71,7 @@ Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Word
 ## Open
 
 Do next, in this order (his words are in the Task list):
+- First, the tests (owner 24 Nov, Task list): make them one whole-game test that plays the game in the order it appears to the child, as `CLAUDE.md` Testing says. Check that every part of the game is tested (every tool, brush, colour, palette, the size dots, undo, Ctrl+Z and Ctrl+X, stickers, the gallery, the guide, saving), in that order, and that no two steps check the same thing. Read the page only, never write into it. Add `tools/backdoors.txt` listing what a shortcut through the game would look like, and set `tools/ci-checks.txt` to `flows 1`.
 - Lifting, spray, shapes, ink, pointer turning: waiting for his look.
 - 26: pencil needs work (his pencil pictures owner-shots/2026-11-23-pencil-*): only its grain curve was softened so a fast light line does not break.
 - p5.brush (https://p5-brush.cargo.site/, MIT): its page says it is meant for high-resolution artworks, maybe not live painting. Try it on one brush, measure stroke delay on a full paper at his screen size, show him, let him decide.
@@ -155,6 +157,7 @@ also, the palette that is generated from the image, must show its colors by orde
   5. your shape brush is wrong, mimic the example I gave you, you can look at the code if its hard for you, but for sure you ahve done it wrong. for once, the shapes there are very close to each other. https://av01d.github.io/fabric-brushes/index.html.
   6. same for ink: shit. splashes only when its off teh paper, etch. maybe it will be fixed when you increase the speed threshold for lifting up. see examples in page I had given: https://av01d.github.io/fabric-brushes/index.html
   7. when the pointer is rotating in circular motions, make it visually rotate too."
+- Owner 2026-11-24, verbatim: "for drawing, check that every think is tested, in the order it appears in the game, adn that there re no duplicate tests. I find no reason why the whole game is not tested in one big feature tests that does things in order."
 - Owner 2026-11-24 08:50, verbatim: "coloring book: work through README "Open" in order, test-first, verify in real game at my screen size. also, i tested previous work and have comments: "1. explain the brush speed -> lifting logic. I still find it hard to control it, I cant make long lifts, the lift happens too fast. 
 
   2. I also want an option in the brush, whether to use speed as lift or no. default no.
