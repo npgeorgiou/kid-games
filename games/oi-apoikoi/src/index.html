@@ -46,7 +46,7 @@ const pause = ms => { const my = G; return fast ? Promise.resolve() : new Promis
 const SOUNDS = {  // kind and its notes (Hz)
   pick: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], bid: ['chime', [392, 523]], pass: ['chime', [392, 294]],
   jar: ['break', []], coin: ['clink', [1320, 1760]], made: ['chime', [392, 494, 587]], win: ['chime', [523, 659, 784, 1047]],
-  edge: ['chime', [784]], roundend: ['chime', [784, 659, 523, 392]], spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
+  edge: ['chime', [784]], turn: ['chime', [587, 784]], roundend: ['chime', [784, 659, 523, 392]], spin: ['whoosh', []], steal: ['whoosh', []], roll: ['knock', [700]],
 };
 let audio = null, heard = [];  // heard: every sound played in this game, in order (the flows read it)
 function noise(len) { const b = audio.createBuffer(1, audio.sampleRate * len, audio.sampleRate), d = b.getChannelData(0); for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1; const n = audio.createBufferSource(); n.buffer = b; return n; }
@@ -179,6 +179,7 @@ async function play() {
     while (G === my && G.draft.some(t => t) && passes < 2) {
       const other = 1 - turn, P = G.players;
       if (P[turn].got >= 2 && P[other].got < 2 && passed !== other) turn = 1 - turn;  // 2 tiles each, unless the other has just passed
+      setTurn(turn);
       if (!G.draft.some((t, k) => pickable(k, turn))) { await pass(turn); passes++; passed = turn; turn = 1 - turn; continue; }
       passes = 0; passed = null;
       const k = await pick(turn); if (G !== my) return;
@@ -195,12 +196,13 @@ async function play() {
     G.bag.push(...G.draft.filter(t => t)); G.draft = [];  // tiles nobody could place are not thrown: they go back under the pile (built for now)
     G.phase = 'end'; G.sunset = performance.now(); sound('roundend');  // the round's end is its own moment: a sun sets, a falling chime
     await pause(SUNSET_MS); if (G !== my) return; G.sunset = null;
-    for (const i of [G.first ?? 0, 1 - (G.first ?? 0)]) { await goodsToJars(i); if (G !== my) return; await openJars(i); if (G !== my) return; }  // one player gains and opens, then the other
+    for (const i of [G.first ?? 0, 1 - (G.first ?? 0)]) { setTurn(i); await goodsToJars(i); if (G !== my) return; await openJars(i); if (G !== my) return; }  // one player gains and opens, then the other
   }
   if (G !== my) return;
   const [a, b] = G.players.map(p => p.coins);
   G.over = true; G.winner = a > b ? 0 : b > a ? 1 : -1;
 }
+function setTurn(i) { if (G.turn !== i) { G.turn = i; sound('turn'); } }  // whose turn it is: the one place that says so; the screen lights his area
 async function goodsToJars(i) {  // each 3 of a colour fly into a jar, one group at a time; then the leftovers fade out and are lost
   const p = G.players[i];
   for (let c = 0; c < 5; c++) while (p.goods[c] >= 3) { G.making = { who: i, c, t0: performance.now() }; await pause(MAKE_MS); p.goods[c] -= 3; p.jars++; sound('made'); }
@@ -349,7 +351,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); heard = []; G = { board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, shown: null, making: null, burst: null, sunset: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; G = { board: 0, locks: [], round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], chosen: -1, over: false, winner: null, slot: null, turn: null, shown: null, making: null, burst: null, sunset: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; });
@@ -498,8 +500,10 @@ function stock(i) {  // where player i's goods stand: a column per colour, stack
 const flying = () => G.burst && G.burst.edges.length && performance.now() < G.burst.t0 + FLY_MS + (G.burst.edges.length - 1) * EDGE_GAP;
 const progress = (m, ms) => Math.min(1, (performance.now() - m.t0) / (fast ? 1 : ms));
 function drawPanel(i) {
-  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, cxm = x0 + P / 2, turn = wait && wait.who === i;
-  rrect(x0 + 6, 8, P - 12, H - 16, 16, turn ? '#fff8e8' : '#f6ecd6', BORDER[i], turn ? 6 : 3);
+  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, cxm = x0 + P / 2, lit = G.turn === i;
+  if (lit) rrect(x0 + 2, 4, P - 4, H - 8, 20, null, BORDER[i] + '66', 10);  // the player whose turn it is: his area glows in his colour
+  rrect(x0 + 6, 8, P - 12, H - 16, 16, lit ? '#fffaf0' : '#efe6d4', BORDER[i], lit ? 5 : 2);
+  drawn.push({ k: 'panel', o: i, lit });
   dot(cxm, 44, 24, BORDER[i]); if (G.first === i) star(cxm, 44, 18);
   // goods: a column per colour, stacking upward from a base line (a tall column squeezes, it never widens the panel);
   // each row with one of every colour is a set (a gold band); each 3 of a colour, counted from the base, is a jar at the round's end (a frame)
@@ -514,6 +518,7 @@ function drawPanel(i) {
   const cr = Math.min(12, (P - 24) / 11), cy0 = base + 24;  // coins, five to a row
   for (let k = 0; k < p.coins; k++) coin(x0 + 14 + cr + (k % 5) * cr * 2.15, cy0 + Math.floor(k / 5) * cr * 2.15, cr);
   for (let k = 0; k < p.bid; k++) setShape(cxm + (k - (p.bid - 1) / 2) * 34, H - 60, 15);  // the sets bid now
+  if (!lit) { cx.fillStyle = 'rgba(120,110,95,0.38)'; cx.beginPath(); cx.roundRect(x0 + 6, 8, P - 12, H - 16, 16); cx.fill(); }  // the other player's area is dimmed
 }
 function drawHeld() {  // the tile in hand where it lies, and the place it will snap to
   const { s } = L(), sp = snapSpot(), [x, y] = wait.pos, b = tileBox(x, y, s, wait.r);

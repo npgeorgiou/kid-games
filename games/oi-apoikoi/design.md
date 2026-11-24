@@ -18,6 +18,7 @@ Two players each build their own land from tiles with two terrain halves. Each r
 - Owner rule: 2 players. By default you play against the PC; another human can play instead.
 - Owner rule: the PC always does what is mathematically optimal, in every choice (pick, bid, place, jars, slot machine). For now (owner yes): the best expected result for this turn, not planning whole rounds ahead. To improve later.
 - Owner rule: every PC (or second player) action is fully visible, done slowly by a moving hand, as if a person were doing it.
+- Owner rule (24 Nov): whose turn it is is obvious: that player's area is lit and the other's dimmed, with a sound when the turn passes.
 - Open: more than 2 players (the owner doesn't know if the screen is big enough).
 
 ### Tiles and land

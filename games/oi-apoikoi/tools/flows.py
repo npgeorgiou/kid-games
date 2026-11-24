@@ -192,7 +192,7 @@ def f_goods_become_jars(q):  # owner 24 Nov: at the round's end the goods turn i
 
 def f_sounds(q):  # owner 24 Nov: "add some sounds, it's hard to follow what happens": each thing that happens has its sound, in the order it happens
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot'); tap(q, 'wheel-2'); tap(q, 'reroll')
-    q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); a = q.evaluate("()=>__dg.sounds()")
+    q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); a = [n for n in q.evaluate("()=>__dg.sounds()") if n != 'turn']  # the turn sound has its own flow
     table(q, bag=[[0, 0]] * 4, tiles=[[4, 2, 0, 2, 2, 0], [4, 3, 0, 2, 2, 0], [6, 3, 0, 2, 2, 0]], jarQueue=[COIN] * 20)
     kid_plays(q, lambda s: s['phase'] == 'end'); waiting(q, 'jar'); b = q.evaluate("()=>__dg.sounds()")
     want = ['pick', 'snap', 'edge', 'jar', 'roll', 'roll', 'roll', 'spin', 'stop', 'stop', 'stop', 'roll', 'spin', 'stop', 'win']  # each wheel ticks as it rolls (owner 24 Nov)
@@ -209,7 +209,7 @@ def f_round_end_in_turn(q):  # owner 24 Nov: at the round's end one player turns
     report(ok, 'end: one player gains and opens, then the other', 'PC goods shown while the kid opens %d, PC jars made by then %d; PC coins %d then %d' % (pc_goods, pc_made, pc_coins, after['coins']))
 
 def f_sound_kinds(q):  # owner 24 Nov: "a weird blip when I tap a piece"; "jars must make a breaking sound": a tap knocks like wood, a jar breaks like clay, a coin clinks; no beeps anywhere
-    get_jar(q, [COIN]); settle(q); h = q.evaluate("()=>__dg.heardKinds()")
+    get_jar(q, [COIN]); settle(q); h = [k for n, k in zip(q.evaluate("()=>__dg.sounds()"), q.evaluate("()=>__dg.heardKinds()")) if n != 'turn']  # the turn sound has its own flow
     ok = h[:5] == ['knock', 'knock', 'chime', 'break', 'clink']  # tap, snap, the jar out of its edge, the jar opened, its coin
     ok = ok and set(q.evaluate("()=>__dg.soundKinds()")) <= {'break', 'chime', 'clink', 'knock', 'whoosh'}
     report(ok, 'sounds: wood tap, clay break, coin clink', 'heard %s; kinds in the game %s' % (h[:5], q.evaluate("()=>__dg.soundKinds()")))
@@ -224,7 +224,7 @@ def f_jars_from_edges(q):  # owner 24 Nov: show which edges matched, and each ja
         for j in drawn(q, 'jar'):
             for n, e in enumerate(edges): seen[n] = seen[n] or ((j['x'] - e[0]) ** 2 + (j['y'] - e[1]) ** 2) ** 0.5 < size
     early = seen
-    q.clock.run_for(1500); settle(q); late = near([j for j in drawn(q, 'jar') if j['o'] == 0]); h = q.evaluate("()=>__dg.sounds()"); q.clock.resume()
+    q.clock.run_for(1500); settle(q); late = near([j for j in drawn(q, 'jar') if j['o'] == 0]); h = [n for n in q.evaluate("()=>__dg.sounds()") if n != 'turn']; q.clock.resume()
     ok = glows == 2 and all(seen) and len(late) == 2 and min(late) > 3 * size and h[:3] == ['pick', 'snap', 'edge'] and h.count('edge') == 2
     report(ok, 'jars: matched edges glow, jars come out of them', 'edges glowing %d; a jar seen at each edge %s, then %s px away; sounds %s' % (glows, seen, [round(v) for v in late], h[:4]))
 
@@ -246,6 +246,14 @@ def f_round_end_shown(q):  # owner 24 Nov: the round's end must be its own phase
     q.clock.resume(); h = q.evaluate("()=>__dg.sounds()")
     ok = len(shown) >= 10 and first_made is not None and max(shown) <= first_made and 'roundend' in h and h.index('roundend') < h.index('made')
     report(ok, 'end: the round end is its own moment, seen and heard', 'sunset shown %d00 ms (from %s to %s), first jar made at %s ms, round end sound %s' % (len(shown), shown[:1], shown[-1:], first_made, 'roundend' in h))
+
+def f_turn_shown(q):  # owner 24 Nov: "make it obvious who plays; now there is no difference between me and the opponent playing": the player whose turn it is has his area lit, the other's is dimmed; a sound when the turn passes
+    pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); settle(q)
+    lit = lambda: {d['o']: d['lit'] for d in drawn(q, 'panel')}
+    mine = lit(); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); q.clock.run_for(1200); waiting(q, 'jar'); tap(q, 'jar-0')
+    q.clock.run_for(1500); settle(q); pcs = lit(); w = st(q)['wait']; h = q.evaluate("()=>__dg.sounds()"); q.clock.resume()
+    ok = mine == {0: True, 1: False} and pcs == {0: False, 1: True} and 'turn' in h
+    report(ok, 'turn: the player playing is lit, the other dimmed', 'kid playing %s; PC playing %s (wait %s); turn sound %s' % (mine, pcs, w, 'turn' in h))
 
 def f_pc_best(q):  # the PC picks and places for the most jars
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
