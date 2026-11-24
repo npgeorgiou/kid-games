@@ -35,18 +35,32 @@ Game design rules (product rules, quantities, periods, tech, design sheet, game 
 Rules a machine can check are checked by the commit check (`.githooks/commit-msg`) and by GitHub on every push (`.github/workflows/tests.yml`); the owner reviews every change to either. Being refused is the normal way these rules are kept; never bypass a check (no `--no-verify`, no turning hooks off, no editing a check to let a change through).
 
 - Before every change, re-read this Testing section.
-- **One whole-game test per game** (`games/<game>/tools/flows.py`, run by `tools/harness.py flows`; owner 24 Nov). It starts from a fresh game, with nothing saved, and plays the whole game in the game's own order, the way the child plays it. It covers the start, the menus or map and their interactions, then every part or level in turn. Every owner rule and every bug report is a checked step at the place in the game where it happens, named in his words, with his words in a comment. Each step prints PASS or FAIL and the run goes on. There are no separate tests repeating the same steps, and no step is checked twice. A rule that needs another state (ticks off, a restart, a reopened page) gets there the way the child would: through the settings, the restart button, a reload.
-- **Test first.** For every owner point and every bug: first the step that repeats his exact steps on screen and fails, then the code that makes it pass, then clean up. Checked: a commit that changes a game's code must change its test in the same commit.
-- **Only what the child does.** Taps, drags, two-finger touches and keys on what is drawn, at a hand's rate, waiting as he waits (for a line to end, a demo to finish, a heavy piece to come). Never a parent's shortcut (such as the Ctrl quick build or the Ctrl fast test), never a line or cue cut off or skipped from inside the game, never a call or a write into the game's state (no setting a tutorial's place, a site as done, a memory, a piece's position). The page is only read: to find where things are drawn, what is heard (the line playing), what sounds were asked for and what is shown. Checked on GitHub: each game's `tools/backdoors.txt` lists what such a shortcut looks like, and a test containing one is refused.
-- **Check what he sees and hears.** A step checks what is on screen (colours drawn, pieces where he can see them, buttons) and what he hears and when. If he reports a gap, a delay or an order, the step measures that gap, delay or order.
-- **Every bug report becomes a step** at its place in the run, repeating his steps and his timing; it stays forever.
-- **Random play.** Every game also has a seeded random-play part that plays through the screen and checks, after every move, the rules he can see.
-- **Test sounds are short.** The test page gets the same short silent sound for every sound and voice line: what matters is what waits for them, not how long they are (owner 24 Nov).
-- **The whole test runs on every push** (GitHub runs every game's checks, listed in its `tools/ci-checks.txt`, on machines that run at once), and the parts a change touches run before its commit. One FAIL refuses it. No failing tests, ever.
-- **Fast.** Waits are on what the screen shows, with short limits, never fixed sleeps longer than a hand's pause; one browser and one page per run. Time every run; a slow step is made faster before anything else, never shortened or skipped.
+- **Test first.** For every owner point and every bug: first a test step that repeats his exact actions on screen and fails, then the code that makes it pass, then clean up. Checked: a commit that changes a game's code must change its tests in the same commit.
+
+**What the tests are**
+- **One whole-game run per game** (`games/<game>/tools/flows.py`, run by `tools/harness.py flows`). It starts from a fresh game with nothing saved and plays the game in its own order to its end: the start, the menus and screens and their interactions, then every level or part, and what follows each one in the level and on the screens after it. Every owner rule and bug report that belongs to that story is a checked step at its place, named in his words, with his words in a comment. Each step prints PASS or FAIL and the run goes on. No step is checked twice.
+- **Depth where it matters, shortcuts where it doesn't.** The part the owner is working on, or the part a rule is about, is played fully by hand. Parts that are only on the way may use the game's own shortcuts for a parent (such as a quick build), so the run reaches the end fast.
+- **Separate short tests** for checks that need a precise starting situation, many timing variants or many repeats: a fine detail of one interaction, its before/during/after variants, a seeded random-play check. Each starts from a saved game loaded the way the game loads its own save, never from state written into a running game. They run in parallel with the whole-game run, take seconds each, and a wobble in one cannot slow or break the others.
+- **Random play.** Every game has a seeded random-play test that plays through the screen and checks, after every move, the rules the player can see.
+
+**How tests play**
+- **Only what the player does.** Taps, drags, multi-finger touches and keys on what is drawn, waiting as he waits. Never a line or cue cut off from inside, never a call or a write into the game's state. The page is only read: where things are drawn, what is heard, what is shown. Checked on GitHub: each game's `tools/backdoors.txt` lists what such a shortcut looks like, and a test containing one is refused.
+- **Check what he sees and hears.** A step checks what is on screen and what he hears and when. If he reports a gap, a delay or an order, the step measures that gap, delay or order.
+- **Act like a person, robustly.** Wait until the game shows the result of an action before the next one; aim with a little room rather than exactly on an edge; if an action did not take, do it again as a person would; follow things that move.
+- **Read the game's own numbers** (durations, delays, sizes, limits) from the game in the check, never type a copy of them into the test.
+
+**Fast by design, from the first test**
+- **The test page has its own settings**, injected by the harness the same way for every game: a game speed above 1 (the game has one speed setting, 1 in the real game) and one short silent sound for every sound and voice line. What matters is what waits for what, not how long it lasts.
+- **Everything is measured in game time.** Checks of gaps and delays, and every pause, use the game's own clock, never the computer's. A pause waits for something the game shows, with a short limit; never a fixed sleep longer than a hand's pause.
+- **Build each new step on its own first** (start at it, from a saved game), then join it to the run. Never develop by re-running the whole run from the start.
+- **Time every run.** Every step prints how long it took; the slowest step is made faster before anything else, never shortened or skipped. One browser and one page per run.
+
+**Done means passing everywhere**
+- **The whole test set runs on every push** (GitHub runs every game's checks, listed in its `tools/ci-checks.txt`, on machines that run at once), and the parts a change touches run before its commit. One FAIL refuses it. No failing tests, ever.
+- **A new or changed test is done only when it has passed three runs in a row here and one run on GitHub.** A test that passes here but fails on GitHub is a failure, found by checking GitHub's result after every push.
 - Tests that guard owner rules are never loosened or deleted to fit a change. When the owner changes a rule, its step changes in the same commit and the commit message names the rule he changed. A failing old step is a found conflict.
 - Never change the game to make a test pass. If a step fails, first decide from the failure detail whether the game or the test is wrong; if only the owner can decide, ask him.
-- **One owner point per commit**: its step, its code, the run, commit, push.
+- **One owner point per commit**: its step, its code, the run, commit, push, GitHub's result.
 
 ## Debugging (read before touching any bug)
 
