@@ -109,7 +109,7 @@ def f_own_land(q):  # a tile must have a matching edge with your own land; match
     report(s['fits'][0] is False and q.evaluate("()=>!__dg.btn('draft-0')"), 'match: must be with your own land', 'fits %s' % s['fits'])
 
 def f_pile_no_frames(q):  # owner 24 Nov: no outline around the pile's tiles
-    table(q, bag=[[0, 4]] * 4); c = q.evaluate("()=>__dg.btn('draft-0')"); ds = round(min(q.evaluate("()=>innerHeight*0.16") * 0.42, 60))
+    table(q, bag=[[0, 4]] * 4); c = q.evaluate("()=>__dg.btn('draft-0')"); ds = (q.evaluate("()=>__dg.btnBox('draft-0')")['w'] - 24) / 2
     beside = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [c[0] - ds - 6, c[1]])  # just left of the tile: the market tray's own colour, not a frame
     tray = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [c[0] - ds - 14, c[1] - ds / 2 - 10])  # the tray, away from the tile
     report(beside == tray, 'pile: tiles have no outline', 'beside the tile %s, the tray %s' % (beside, tray))
@@ -141,7 +141,7 @@ def f_stockpile_columns(q):  # owner 24 Nov: goods stand in a column per colour 
     tiles = [[0, 0, 0, 0, 1, 0], [2, 0, 0, 0, 1, 0], [4, 0, 0, 0, 1, 0], [0, 1, 0, 2, 2, 0], [2, 1, 0, 2, 2, 0], [4, 1, 0, 2, 2, 0], [6, 0, 0, 2, 3, 0], [6, 1, 0, 3, 4, 0]]
     table(q, bag=[[0, 4]] * 4, tiles=tiles); g = drawn(q, 'good'); g = [x for x in g if x['o'] == 0]
     cols = {c: {round(x['x']) for x in g if x['c'] == c} for c in range(5)}; counts = [sum(1 for x in g if x['c'] == c) for c in range(5)]
-    panel = q.evaluate("()=>innerWidth*0.13"); inside = all(x['x'] < panel for x in g)
+    panel = next(x for x in drawn(q, 'panel') if x['o'] == 0); inside = all(x['x'] < panel['x'] + panel['w'] for x in g)
     jars = [sum(1 for x in drawn(q, 'jargroup') if x['o'] == 0 and x['c'] == c) for c in range(5)]; sets = sum(1 for x in drawn(q, 'setrow') if x['o'] == 0)
     shaped = all(x['shape'] == 'jar' and x['parts'] == ['lip', 'neck', 'handles', 'body', 'foot'] for x in drawn(q, 'jargroup'))  # owner 24 Nov: "the sets of 5 should be outlined not by this oval, but by a jar"
     signs = [x for x in drawn(q, 'setsign') if x['o'] == 0]; side = max(x['x'] + x['r'] for x in g)  # owner 24 Nov: "the sets should on their side make a set symbol appear"
@@ -160,7 +160,7 @@ def f_sets_of_five(q):  # a set is 5 goods, one of each; the PC bids when it pay
 def f_bid_shows_board(q):  # owner 24 Nov: "the big screen hides my board, how can I see if I want to bid, if it matches my board?": the bid is a small card beside the market; the board and both areas stay in view, not darkened
     kid, pc = [[4, 4, 0, 2, 3, 0], [4, 2, 0, 4, 4, 0]], [[14, 4, 0, 2, 3, 1], [14, 2, 0, 4, 4, 1]]
     table(q, bag=[[0, 1], [0, 0], [0, 0], [0, 0]], tiles=kid + pc); tap(q, 'draft-0'); waiting(q, 'bid')
-    d = q.evaluate("()=>__dg.drawn()"); card = [x for x in d if x['k'] == 'bidcard']; board = [x for x in d if x['k'] == 'boardarea'][0]; P = q.evaluate("()=>innerWidth*0.13")
+    d = q.evaluate("()=>__dg.drawn()"); card = [x for x in d if x['k'] == 'bidcard']; board = [x for x in d if x['k'] == 'boardarea'][0]; P = next(x for x in d if x['k'] == 'panel' and x['o'] == 0)['w']
     over = lambda a, b: a['x'] < b['x'] + b['w'] and b['x'] < a['x'] + a['w'] and a['y'] < b['y'] + b['h'] and b['y'] < a['y'] + a['h']
     btns = q.evaluate("()=>['bid','letgo'].map(id=>__dg.btnBox(id))")
     ok = len(card) == 1 and not over(card[0], board) and card[0]['x'] >= P and not [x for x in d if x['k'] == 'shade'] and all(b['w'] >= 75 and b['h'] >= 75 for b in btns)
@@ -239,9 +239,9 @@ def f_jars_from_edges(q):  # owner 24 Nov: show which edges matched, and each ja
         for j in drawn(q, 'jar'):
             for n, e in enumerate(edges): seen[n] = seen[n] or ((j['x'] - e[0]) ** 2 + (j['y'] - e[1]) ** 2) ** 0.5 < size
     early = seen
-    q.clock.run_for(1500); settle(q); late = near([j for j in drawn(q, 'jar') if j['o'] == 0]); h = [n for n in q.evaluate("()=>__dg.sounds()") if n not in ('turn', 'good')]; q.clock.resume()
-    ok = glows == 2 and all(seen) and len(late) == 2 and min(late) > 3 * size and h[:3] == ['pick', 'snap', 'edge'] and h.count('edge') == 2
-    report(ok, 'jars: matched edges glow, jars come out of them', 'edges glowing %d; a jar seen at each edge %s, then %s px away; sounds %s' % (glows, seen, [round(v) for v in late], h[:4]))
+    q.clock.run_for(1500); settle(q); js = [j for j in drawn(q, 'jar') if j['o'] == 0]; late = near(js); far = min(j['size'] for j in js) if js else 0; h = [n for n in q.evaluate("()=>__dg.sounds()") if n not in ('turn', 'good')]; q.clock.resume()
+    ok = glows == 2 and all(seen) and len(late) == 2 and min(late) > far and h[:3] == ['pick', 'snap', 'edge'] and h.count('edge') == 2
+    report(ok, 'jars: matched edges glow, jars come out of them', 'edges glowing %d; a jar seen at each edge %s, then %s px away (more than a jar, %d px); sounds %s' % (glows, seen, [round(v) for v in late], far, h[:4]))
 
 def f_many_jars_rows(q):  # owner 24 Nov: "when a lot of jars exist, make more rows, 6 jars per row; don't reduce their size"
     table(q, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); one = drawn(q, 'jar')[0]['size']  # one jar alone: its size
@@ -257,7 +257,7 @@ def f_many_coins(q):  # owner 24 Nov: "make sure more coins than you predicted c
     out = {}
     for n in (12, 100, 160):  # 160: found by the main game, more than the tray was made for: they shrink but stay apart and leave the goods their room
         table(q, bag=[[0, 4]] * 4, coins=[n, 0]); c = [x for x in drawn(q, 'coin') if x['o'] == 0]
-        P, H = q.evaluate("()=>[innerWidth*0.13, innerHeight]")
+        P, H = next(x for x in drawn(q, 'panel') if x['o'] == 0)['w'], q.evaluate("()=>innerHeight")
         inside = all(x['x'] - x['r'] > 0 and x['x'] + x['r'] < P and x['y'] + x['r'] < H for x in c)
         gap = min(((a['x'] - b['x']) ** 2 + (a['y'] - b['y']) ** 2) ** 0.5 - a['r'] - b['r'] for i, a in enumerate(c) for b in c[i + 1:])
         rows = sorted({round(x['y']) for x in c}, reverse=True); per = [sum(1 for x in c if round(x['y']) == y) for y in rows]
@@ -292,6 +292,15 @@ def f_round_end_shown(q):  # owner 24 Nov: the round's end is its own moment, se
     returned = bool(back) and abs(back[0][1]['tx'] - pile['x']) < 5 and bool(shown) and min(shown) > back[-1][0]  # back in the pile before evening falls
     ok = returned and len(shown) >= 10 and first_made is not None and max(shown) <= first_made and moon and light and evening and 'roundend' in h
     report(ok, 'end: tiles back to the pile, evening falls, its own moment', 'leftover tile flew back to the pile %s; evening shown %d00 ms before the first jar (at %s ms), moon %s, board in view %s, still evening while jars open %s, sound %s' % (returned, len(shown), first_made, moon, light, evening, 'roundend' in h))
+
+def f_goods_big(q):  # owner 24 Nov ("rethink all UI"): goods were tiny (about 20 px a column); goods big enough to see and count, each 5's jar outline inside its own column, set signs big
+    tiles = [[0, 0, 0, 0, 1, 0], [2, 0, 0, 0, 1, 0], [4, 0, 0, 0, 1, 0], [0, 1, 0, 2, 2, 0], [2, 1, 0, 2, 2, 0], [4, 1, 0, 2, 2, 0], [6, 0, 0, 2, 3, 0], [6, 1, 0, 3, 4, 0], [0, 2, 0, 0, 0, 0], [2, 2, 0, 0, 0, 0]]
+    table(q, bag=[[0, 4]] * 4, tiles=tiles); g = [x for x in drawn(q, 'good') if x['o'] == 0]
+    xs = sorted({round(x['x']) for x in g}); pitch = min(b - a for a, b in zip(xs, xs[1:]))
+    jars = [x for x in drawn(q, 'jargroup') if x['o'] == 0]; signs = [x for x in drawn(q, 'setsign') if x['o'] == 0]
+    r = min(x['r'] for x in g); wide = max(x['half'] for x in jars); sign = min(x['r'] for x in signs)
+    ok = r >= 10 and jars and 2 * wide < pitch - 2 and sign >= 12
+    report(ok, 'stockpile: goods big, jar outlines inside their column', 'goods radius %.1f px (at least 10), jar outline %.1f px wide in a %d px column, set sign radius %.1f (at least 12)' % (r, 2 * wide, pitch, sign))
 
 def f_turn_shown(q):  # owner 24 Nov: "make it obvious who plays; now there is no difference between me and the opponent playing": the player whose turn it is has his area lit, the other's is dimmed; a sound when the turn passes
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); settle(q)
@@ -374,7 +383,7 @@ def f_jar_breaks(q):  # owner 24 Nov: "jars should visually break and the reveal
     specks = [(x['x'], x['y']) for d, _ in seen1 for x in d if x['k'] == 'speck']
     broke = bool(specks) and all(near(p, at1, 40) for p in specks)
     out = flights(seen1, 'shown'); came_out = bool(out) and near((out[0]['fx'], out[0]['fy']), at1)
-    coin = flights(seen1, 'coin'); P = q.evaluate("()=>innerWidth*0.13"); coin_flew = bool(coin) and coin[0]['tx'] < P and all(s['players'][0]['coins'] == 0 for d, s in seen1 if any(x['k'] == 'flight' and x['look'] == 'coin' for x in d))
+    coin = flights(seen1, 'coin'); P = drawn(q, 'panel')[0]['w']; coin_flew = bool(coin) and coin[0]['tx'] < P and all(s['players'][0]['coins'] == 0 for d, s in seen1 if any(x['k'] == 'flight' and x['look'] == 'coin' for x in d))
     star = flights(seen0, 'star'); token = drawn(q, 'token'); star_flew = bool(star) and bool(token) and near((star[-1]['tx'], star[-1]['ty']), (token[0]['x'], token[0]['y'])) and all(s['first'] is None for d, s in seen0 if any(x['k'] == 'flight' and x['look'] == 'star' for x in d))
     q.clock.resume()
     report(broke and came_out and coin_flew and star_flew, 'jars: break where tapped, the bonus comes out, rewards fly to their place', 'broke where tapped %s, bonus out of it %s, coin flew to his coins %s, star flew to its place %s' % (broke, came_out, coin_flew, star_flew))

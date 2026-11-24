@@ -450,17 +450,19 @@ function restart(o = {}) {
 }
 
 // SECTION: LAYOUT -- the draft on top, a player's panel each side (goods, sets, coins), the shared board between
+// Wireframe (24 Nov): first his hand and the market tile he takes (top middle, where the turn colour is), then the board where it goes, then the two panels (goods big enough to count);
+// the pile on the market's left, a bonus tile on its right, the bid card right under the tile it is about, in the gap above the board; nothing touchable along the bottom edge.
 const cv = document.getElementById('c'), cx = cv.getContext('2d');
 let W = 0, H = 0, buttons = [], drawn = [];
 function btn(id, x, y, w, h, fn) { buttons.push({ id, x, y, w, h, fn }); }
 function resize() { const d = devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; cx.setTransform(d, 0, 0, d, 0, 0); }
 addEventListener('resize', resize); resize();
 function L() {
-  const T = Math.round(H * 0.16), P = Math.round(W * 0.13);
-  const s = Math.floor(Math.min((W - 2 * P - 16) / COLS, (H - T - 10) / ROWS));
-  return { T, P, s, ox: Math.round((W - s * COLS) / 2), oy: T + Math.round((H - T - s * ROWS) / 2), ds: Math.round(Math.min(T * 0.42, 60)) };
+  const T = Math.round(H * 0.17), P = Math.round(W * 0.18), low = Math.round(H * 0.06);  // low: the bottom strip, where wrists rest, has nothing to touch
+  const s = Math.floor(Math.min((W - 2 * P - 16) / COLS, (H - T - low - 96) / ROWS));  // 96: room for the bid card between the market and the board
+  return { T, P, s, ox: Math.round((W - s * COLS) / 2), oy: H - low - s * ROWS, ds: Math.round(Math.min(T * 0.42, 50)) };
 }
-function draftSlot(k) { const { T, ds } = L(), gap = 2 * ds + 46; return [W / 2 + (k - 1.5) * gap, T / 2]; }  // the 4 places in the top row
+function draftSlot(k) { const { T, ds } = L(), gap = 2 * ds + 30; return [W / 2 + (k - 1.5) * gap, T / 2]; }  // the 4 places in the top row
 function tileCentre(x, y, r) { const { s, ox, oy } = L(), d = DIRS[r]; return [ox + (x + 0.5 + d[0] / 2) * s, oy + (y + 0.5 + d[1] / 2) * s]; }
 function tileBox(cxm, cym, s, r) { const d = DIRS[r]; const w = d[0] ? 2 * s : s, h = d[1] ? 2 * s : s; return { x: cxm - w / 2, y: cym - h / 2, w, h }; }
 function squareCentre(x, y) { const { s, ox, oy } = L(); return [ox + (x + 0.5) * s, oy + (y + 0.5) * s]; }
@@ -468,8 +470,8 @@ function starSpot(i) { const { P } = L(); return [(i ? W - P : 0) + P / 2 + 56, 
 function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { const sp = stock(i); return [sp.colX(c), sp.rowY(k)]; }  // where good number k of colour c stands in player i's stockpile
 function edgePoint(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; }  // the middle of a square's side
-function pileTop() { const { T, P, ds } = L(), layers = Math.max(1, Math.ceil(G.bag.length / 4)); return [P + 30 + ds, T / 2 + 6 - (layers - 1) * 6]; }  // the pile: a stack of face-down tiles beside the market, one layer per round left
-function giftSpot() { const { T, ds } = L(); return [draftSlot(3)[0] + 2 * ds + 56, T / 2]; }  // a bonus tile's place: just right of the market's 4 tiles
+function pileTop() { const { T, P, ds } = L(), layers = Math.max(1, Math.ceil(G.bag.length / 4)); return [(P + draftSlot(0)[0] - ds - 22) / 2, T / 2 + 6 - (layers - 1) * 6]; }  // the pile: a stack of face-down tiles beside the market, one layer per round left
+function giftSpot() { const { T, ds, P } = L(); return [(W - P + draftSlot(3)[0] + ds + 22) / 2, T / 2]; }  // a bonus tile's place: just right of the market's 4 tiles
 function shownSpot() { return [W / 2, H * 0.2 + 80]; }  // where an opened jar shows what it held
 function homeSpot() { const { P } = L(); return [W - P / 2, H * 0.72]; }  // the PC's hand rests in its panel
 function snapSpot() {  // the nearest place the tile in hand fits, if it lies close to it
@@ -604,14 +606,14 @@ function drawDraft() {
   drawn.push({ k: 'pile', layers, x: px, y: top });
 }
 function stock(i) {  // player i's area, top to bottom: his face; the goods tray (a groove per colour, goods stacking upward, spaced apart); the coins tray
-  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, pad = 16, side = 22, cw = (P - 2 * pad - 8 - side) / 5, top = 104,  // side: a strip toward the board for the set signs
+  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, pad = 16, side = 30, cw = (P - 2 * pad - 8 - side) / 5, top = 104,  // side: a strip toward the board for the set signs
    inner = i ? x0 + pad + side : x0 + pad, signX = i ? x0 + pad + side / 2 : x0 + P - pad - side / 2;
   // coins (owner 24 Nov: easy to count, any number fits): rows of 5, apart, a wider gap after every 10, filling from the bottom up; the tray grows upward, smaller coins only when it is full
   const coinBottom = H - 80, rows = Math.max(2, Math.ceil(p.coins / 5)), tens = Math.floor((rows - 1) / 2), room = coinBottom - (top + 160 + 26);
   const tg = Math.min(8, room * 0.15 / Math.max(1, tens)), cr = Math.max(2, Math.min(11, ((room - tens * tg) / rows - 5) / 2)), pitch = Math.min(2 * cr + 5, (room - tens * tg) / rows);  // the coins never take the goods tray's room: past about 100 they get smaller
   const coinTop = coinBottom - rows * pitch - tens * tg, base = Math.min(Math.round(H * 0.62), coinTop - 26);
   const coinAt = k => { const row = Math.floor(k / 5); return [x0 + P / 2 + (k % 5 - 2) * (2 * cr + 5), coinBottom - cr - row * pitch - Math.floor(row / 2) * tg]; };
-  const most = Math.max(4, ...p.goods), step = Math.min(cw * 0.92, (base - top - 12) / most), r = Math.max(1.5, Math.min(cw * 0.36, step / 2 - 2.5));  // a tall column squeezes its goods, never the gaps between them; past about 80 a column the goods touch, but are still drawn
+  const most = Math.max(4, ...p.goods), step = Math.min(cw * 0.92, (base - top - 12) / most), r = Math.max(1.5, Math.min(cw * 0.34, step / 2 - 2.5));  // a tall column squeezes its goods, never the gaps between them; past about 80 a column the goods touch, but are still drawn
   return { x0, pad, cw, top, base, r, step, signX, colX: c => inner + 4 + cw * (c + 0.5), rowY: k => base - 8 - step / 2 - k * step, coinTop, coinBottom, cr, coinAt };
 }
 const flying = () => G.burst && G.burst.edges.length && performance.now() < G.burst.t0 + FLY_MS + (G.burst.edges.length - 1) * EDGE_GAP;
@@ -623,7 +625,7 @@ function drawPanel(i) {
   const { P } = L(), p = G.players[i], lit = G.turn === i, { x0, pad, cw, top, base, r, step, colX, rowY, coinTop } = stock(i), cxm = x0 + P / 2;
   if (lit) rrect(x0 + 2, 4, P - 4, H - 8, 20, null, BORDER[i] + '66', 10);  // the player whose turn it is: his area glows in his colour
   rrect(x0 + 6, 8, P - 12, H - 16, 16, lit ? TINT[i] : '#efe6d4', BORDER[i], lit ? 5 : 2);
-  drawn.push({ k: 'panel', o: i, lit });
+  drawn.push({ k: 'panel', o: i, lit, x: x0, w: P });
   const fr = lit ? 38 : 26; if (lit) dot(cxm, 54, fr + 8 + 3 * Math.sin(performance.now() / 250), BORDER[i] + '55');  // the player whose turn it is: a bigger face with a soft glow
   face(cxm, 54, fr, BORDER[i]); drawn.push({ k: 'avatar', o: i, x: cxm, y: 54, r: fr });
   if (G.first === i) { const [sx, sy] = starSpot(i); star(sx, sy, 16); drawn.push({ k: 'token', o: i, x: sx, y: sy }); }  // the first-player token, beside his face
@@ -633,10 +635,11 @@ function drawPanel(i) {
   const n = sets(p);
   for (let k = 0; k < n; k++) {  // a row with one of each colour is a set: a gold band, and the set's sign on its side
     rrect(x0 + pad + 2, rowY(k) - step / 2 + 1, P - 2 * pad - 4, step - 2, step / 2, '#f4cf4a77', '#c99a1a', 1.5); drawn.push({ k: 'setrow', o: i });
-    const sr = Math.min(10, step / 2); setShape(stock(i).signX, rowY(k), sr); drawn.push({ k: 'setsign', o: i, x: stock(i).signX - sr, y: rowY(k), r: sr });
+    const sr = Math.min(14, step / 2); setShape(stock(i).signX, rowY(k), sr); drawn.push({ k: 'setsign', o: i, x: stock(i).signX - sr, y: rowY(k), r: sr });
   }
   p.goods.forEach((g, c) => {
-    for (let k = 0; k + JAR_GOODS <= g; k += JAR_GOODS) { jarOutline(colX(c), rowY(k + JAR_GOODS - 1) - r - 2, rowY(k) + r + 3, r + 4); drawn.push({ k: 'jargroup', o: i, c, shape: 'jar', parts: ['lip', 'neck', 'handles', 'body', 'foot'] }); }  // each 5 of a colour: the jar they will become, drawn around them
+    const jw = Math.min(r + 4, (cw / 2 - 2) / 1.2);  // the outline's half width: its handles (1.2 of it) stay inside the column
+    for (let k = 0; k + JAR_GOODS <= g; k += JAR_GOODS) { jarOutline(colX(c), rowY(k + JAR_GOODS - 1) - r - 2, rowY(k) + r + 3, jw); drawn.push({ k: 'jargroup', o: i, c, x: colX(c), half: jw * 1.2, shape: 'jar', parts: ['lip', 'neck', 'handles', 'body', 'foot'] }); }  // each 5 of a colour: the jar they will become, drawn around them
     for (let k = 0; k < g; k++) { dot(colX(c), rowY(k), r, COLOURS[c]); drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), r }); }
   });
   const { cr, coinAt, coinBottom } = stock(i);
@@ -653,11 +656,12 @@ function drawHeld() {  // the tile in hand where it lies, and the place it will 
   btn('held', b.x - 8, b.y - 8, b.w + 16, b.h + 16, e => { press = { x: e.clientX, y: e.clientY, dx: x - e.clientX, dy: y - e.clientY, moved: false }; });
 }
 function shade(a) { drawn.push({ k: 'shade' }); cx.fillStyle = 'rgba(40,25,10,' + a + ')'; cx.fillRect(0, 0, W, H); }
-function drawBid() {  // beside the market, over the pile: the sets asked, match them (a tick) or let the tile go (a cross); nothing darkened, both lands in view (owner 24 Nov)
-  const { T, P } = L(), me = wait.who, x0 = P + 8, x1 = draftSlot(0)[0] - L().ds - 10, w = x1 - x0, b = Math.min(84, (w - 20) / 2, T - 44), y0 = 6, h = T - 12;
+function drawBid() {  // right under the tile it is about, in the gap above the board: the sets asked, match them (a tick) or let the tile go (a cross); nothing darkened, both lands in view (owner 24 Nov)
+  const { T, P, ds } = L(), me = wait.who, b = 76, pad = 6, sw = wait.n * 30 + 10, w = sw + 2 * b + 8 + 2 * pad, h = b + 2 * pad;
+  const x0 = Math.max(P + 8, Math.min(W - P - 8 - w, draftSlot(G.chosen)[0] - w / 2)), y0 = T / 2 + ds / 2 + 22;
   rrect(x0, y0, w, h, 18, '#fff8e8', BORDER[me], 4); drawn.push({ k: 'bidcard', x: x0, y: y0, w, h });
-  for (let k = 0; k < wait.n; k++) setShape(x0 + w / 2 + (k - (wait.n - 1) / 2) * 30, y0 + 18, 12);
-  const by = y0 + h - b - 8, bx = x0 + (w - 2 * b - 8) / 2, ex = bx + b + 8;
+  for (let k = 0; k < wait.n; k++) setShape(x0 + pad + 20 + k * 30, y0 + h / 2, 13);
+  const by = y0 + pad, bx = x0 + pad + sw, ex = bx + b + 8;
   rrect(bx, by, b, b, 16, '#d8f0c8', '#3a8a2a', 3); btn('bid', bx, by, b, b, () => answer(true));
   cx.strokeStyle = '#3a8a2a'; cx.lineWidth = b * 0.11; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(bx + b * 0.25, by + b * 0.52); cx.lineTo(bx + b * 0.43, by + b * 0.7); cx.lineTo(bx + b * 0.76, by + b * 0.3); cx.stroke();
   rrect(ex, by, b, b, 16, '#f6d6d0', '#a83a2a', 3); btn('letgo', ex, by, b, b, () => answer(false));
