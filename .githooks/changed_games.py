@@ -14,7 +14,9 @@ def all_games():
 
 def start_commit(base):
     # Where this branch's change starts: the last commit it shares with <base>; None when <base> is unknown.
-    if not base or set(base) == {'0'} or subprocess.run(['git', 'cat-file', '-e', base + '^{commit}'], cwd=ROOT, capture_output=True).returncode:
+    # A new branch's first push has no commit before it (all zeros): its change starts where it left main (owner 24 Nov: not every game's tests).
+    if not base or set(base) == {'0'}: base = 'origin/main'
+    if subprocess.run(['git', 'cat-file', '-e', base + '^{commit}'], cwd=ROOT, capture_output=True).returncode:
         return None
     return subprocess.run(['git', 'merge-base', base, 'HEAD'], cwd=ROOT, capture_output=True, text=True).stdout.strip() or base
 
