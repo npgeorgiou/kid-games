@@ -259,8 +259,13 @@ async function play() {
     await pause(DUSK_MS); if (G !== my) return;  // goods left carry over to the next round (owner 24 Nov)
   }
   if (G !== my) return;
-  const [a, b] = G.players.map(p => p.coins);
-  G.over = true; G.winner = a > b ? 0 : b > a ? 1 : -1;
+  const [a, b] = G.players.map(p => p.coins);  // the end (owner 25 Nov): each player's coins fly, last first, from his area into his pile over the board
+  G.winner = a > b ? 0 : b > a ? 1 : -1; G.ending = [0, 0]; G.piled = [0, 0];  // ending: coins that have left his area; piled: coins landed in his pile
+  await Promise.all(G.players.flatMap((p, i) => [...Array(p.coins).keys()].map(n => pause(n * 60).then(() => {
+    if (G !== my) return; const k = G.ending[i]++;
+    return fly({ k: 'coin' }, coinSpot(i, p.coins - 1 - k), endCoin(i, k), 500).then(() => { if (G === my) G.piled[i]++; });
+  }))));
+  if (G !== my) return; G.over = true;
 }
 function setTurn(i) {  // whose turn it is: the one place that says so; the screen lights his area, with a sound (owner 24 Nov: no sign flying from face to face)
   if (G.turn === i) return;
@@ -415,7 +420,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); heard = []; flights = []; specks = []; G = { slotFaces: o.slotFaces || null, fromNowhere: 0, board: 0, round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], over: false, winner: null, slot: null, turn: null, shown: [], jarWho: null, parked: false, parking: false, burst: null, dusk: null, dawn: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; flights = []; specks = []; G = { slotFaces: o.slotFaces || null, fromNowhere: 0, board: 0, round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], over: false, ending: null, piled: null, winner: null, slot: null, turn: null, shown: [], jarWho: null, parked: false, parking: false, burst: null, dusk: null, dawn: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; if (o.goods) p.goods = o.goods[k].slice(); });  // a saved game: each player's coins and goods
@@ -605,7 +610,7 @@ function drawPanel(i) {
   p.goods.forEach((g, c) => { for (let k = 0; k < g; k++) { dot(colX(k), rowY(c), r, COLOURS[c]); drawn.push({ k: 'good', o: i, c, x: colX(k), y: rowY(c), r }); } });
   const { cr, coinAt, coinBottom } = stock(i);
   rrect(x0 + pad, coinTop, P - 2 * pad, coinBottom - coinTop, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'coins', y: coinTop, h: coinBottom - coinTop });
-  for (let k = 0; k < p.coins; k++) { const [x, y] = coinAt(k); coin(x, y, cr); drawn.push({ k: 'coin', o: i, x, y, r: cr }); }
+  for (let k = 0; k < p.coins - (G.ending ? G.ending[i] : 0); k++) { const [x, y] = coinAt(k); coin(x, y, cr); drawn.push({ k: 'coin', o: i, x, y, r: cr }); }
   if (!lit) { cx.fillStyle = 'rgba(120,110,95,0.38)'; cx.beginPath(); cx.roundRect(x0 + 6, 8, P - 12, H - 16, 16); cx.fill(); }  // the other player's area is dimmed
 }
 function drawHeld() {  // the tile in hand where it lies, and the place it will snap to
@@ -709,16 +714,24 @@ function drawDawn() {  // morning: a band of warm light sweeps over the screen f
   g.addColorStop(0, 'rgba(255,230,150,0)'); g.addColorStop(0.5, 'rgba(255,230,150,0.45)'); g.addColorStop(1, 'rgba(255,230,150,0)');
   cx.fillStyle = g; cx.fillRect(0, 0, W, H); drawn.push({ k: 'dawn' });
 }
-function drawEnd() {  // the two rows of coins side by side; the longer one wins
-  shade(0.4); rrect(W * 0.08, H * 0.28, W * 0.84, H * 0.44, 30, '#fff8e8', '#e0a020', 6);
+function endBox() { const { s, ox, oy } = L(); return { x: ox + 20, y: oy + 20, w: s * COLS - 40, h: s * ROWS - 40 }; }  // over the board, a little smaller: the player areas stay in view
+function endCoin(i, k) {  // the end's piles: each player's coins in rows of 10, the same size for both, stacking up from the box's bottom, side by side
+  const b = endBox(), r = 9, col = b.x + b.w * (i ? 0.72 : 0.28), row = Math.floor(k / 10);
+  return [col + (k % 10 - 4.5) * (2 * r + 3), b.y + b.h - 70 - row * (2 * r + 3)];
+}
+function drawEnd() {  // the coins of each player in his pile, flown there one by one; a star over the taller pile; a button to play again
+  const b = endBox(), r = 9; rrect(b.x, b.y, b.w, b.h, 30, '#fff8e8', '#e0a020', 6); drawn.push({ k: 'endbox', ...b });
   G.players.forEach((p, i) => {
-    const y = H * 0.4 + i * H * 0.16, r = Math.min(16, W * 0.66 / Math.max(1, p.coins) / 2.2);
-    dot(W * 0.13, y, 22, BORDER[i]); if (G.winner === i) { star(W * 0.13, y, 18); drawn.push({ k: 'winner', o: i }); }
-    for (let k = 0; k < p.coins; k++) coin(W * 0.18 + r + k * r * 2.2, y, r);
+    for (let k = 0; k < G.piled[i]; k++) { const [x, y] = endCoin(i, k); coin(x, y, r); drawn.push({ k: 'endcoin', o: i, x, y, r }); }
+    const [fx] = endCoin(i, 4.5), top = endCoin(i, Math.max(0, p.coins - 1))[1];
+    dot(fx, b.y + b.h - 34, 20, BORDER[i]);  // whose pile
+    if (G.over && G.winner === i) { star(fx, top - 40, 26); drawn.push({ k: 'winner', o: i, y: top - 40 }); }
   });
-  rrect(W * 0.86, H * 0.3, 64, 64, 16, '#d8f0c8', '#3a8a2a', 3);
-  cx.strokeStyle = '#3a8a2a'; cx.lineWidth = 6; cx.beginPath(); cx.arc(W * 0.86 + 32, H * 0.3 + 32, 17, 0.5, 5.6); cx.stroke();
-  btn('again', W * 0.86, H * 0.3, 64, 64, () => restart());
+  if (!G.over) return;
+  const bx = b.x + b.w / 2 - 40, by = b.y + 20;  // play again: a big green button with a play sign
+  rrect(bx, by, 80, 80, 20, '#3a8a2a', '#245a1a', 4);
+  cx.fillStyle = '#fff'; cx.beginPath(); cx.moveTo(bx + 30, by + 22); cx.lineTo(bx + 60, by + 40); cx.lineTo(bx + 30, by + 58); cx.closePath(); cx.fill();
+  btn('again', bx, by, 80, 80, () => restart());
 }
 function drawSpecks() {
   const now = performance.now(); specks = specks.filter(p => now - p.t0 < (p.ms || SPECK_MS));
@@ -746,13 +759,13 @@ function render() {  // one picture of the game; it also lays out the buttons th
   if (wait && wait.kind === 'place') drawHeld();
   if ((wait && wait.kind === 'jar') || G.shown.length || (G.jarWho != null && G.players[G.jarWho].jars)) drawJars();  // jars waiting to be opened are always drawn
   if (G.slot) drawSlot();
-  if (G.over) drawEnd();
+  if (G.ending) drawEnd();
   drawFlights(); drawSpecks(); hand(G.hand);
 }
 function frame() { render(); requestAnimationFrame(frame); }
 
 // SECTION: INPUT -- taps press buttons at once; the tile in hand turns on a tap, moves on a drag, and stays where it is left
-const human = () => wait && G.players[wait.who].human;
+const human = () => (wait && G.players[wait.who].human) || G.over;  // after the game his play button works
 cv.addEventListener('pointerdown', e => {
   if (!e.isPrimary) return;  // a stray second finger does nothing
   if (human()) for (let k = buttons.length - 1; k >= 0; k--) { const b = buttons[k]; if (e.clientX >= b.x && e.clientX <= b.x + b.w && e.clientY >= b.y && e.clientY <= b.y + b.h) { b.fn(e); return; } }

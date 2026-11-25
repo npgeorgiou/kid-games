@@ -352,6 +352,19 @@ def f_screen_parts(q):  # owner 24 Nov: "the sidebar doesn't portray any info"; 
     ok = parts == {0: (1, ['coins', 'goods']), 1: (1, ['coins', 'goods'])} and min(gaps) >= 3 and len(pile) == 1 and pile[0]['layers'] == 8 and not bars
     report(ok, 'screen: faces, goods and coins trays, things apart, a pile', 'parts %s, smallest gaps goods/coins %s px, pile %s' % (parts, [round(g, 1) for g in gaps], pile))
 
+def f_end_screen(q):  # owner 25 Nov (prototype): the end: a smaller box over the board; each player's coins fly into his pile, both piles the same coin size, rows of 10;
+    # a star over the taller pile; a green play button that works
+    pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'seed': 1, 'bag': [[3, 3]] * 4, 'coins': [23, 7]}); flew, ms = False, 0  # no tile fits anyone: the game ends at once
+    while ms < 4000 and not st(q)['over']:
+        skip(q, 100); ms += 100; box = drawn(q, 'endbox'); flew = flew or any(box and box[0]['x'] < f['tx'] < box[0]['x'] + box[0]['w'] for f in drawn(q, 'flight') if f['look'] == 'coin')
+    skip(q, 100); box, board = drawn(q, 'endbox'), drawn(q, 'boardarea')[0]; piles = {o: [c for c in drawn(q, 'endcoin') if c['o'] == o] for o in (0, 1)}; star = drawn(q, 'winner'); panel = drawn(q, 'coin')
+    inside = bool(box) and board['x'] <= box[0]['x'] and box[0]['x'] + box[0]['w'] <= board['x'] + board['w'] and board['y'] <= box[0]['y'] and box[0]['y'] + box[0]['h'] <= board['y'] + board['h']
+    rows = {o: sorted(sum(1 for c in v if abs(c['y'] - y) < 1) for y in {c['y'] for c in v}) for o, v in piles.items()}; sizes = {c['r'] for v in piles.values() for c in v}
+    above = bool(star) and star[0]['o'] == 0 and star[0]['y'] < min(c['y'] for c in piles[0])
+    q.clock.resume(); tap(q, 'again'); s = st(q); again = s['round'] == 1 and [p['coins'] for p in s['players']] == [0, 0] and s['wait'] and s['wait']['kind'] == 'pick'
+    ok = flew and inside and [len(piles[0]), len(piles[1])] == [23, 7] and not panel and rows == {0: [3, 10, 10], 1: [7]} and len(sizes) == 1 and above and again
+    report(ok, 'end: a box over the board, two piles, a star, play again', 'coins flew %s; box over the board %s; piles %s in rows %s, coin sizes %s; star over the taller %s; play button works %s' % (flew, inside, [len(piles[0]), len(piles[1])], rows, sizes, above, again))
+
 def f_pc_best(q):  # the PC picks and places for the most goods
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)
@@ -558,7 +571,7 @@ def f_main_game(q):  # owner 24 Nov: one main test plays a whole game with a fix
       for (let step = 0; ; step++) {
         await tick(); const s = __dg.state(), w = s.wait; __dg.render();
         if (step > 4000 || errs.length > 5) { err('stuck at ' + JSON.stringify(w)); break; }
-        for (const o of [0, 1]) if (seen('coin').filter(d => d.o === o).length !== s.players[o].coins) err('round ' + s.round + ': coins shown for ' + o + ' differ');
+        for (const o of [0, 1]) if (seen('coin').filter(d => d.o === o).length + seen('endcoin').filter(d => d.o === o).length !== s.players[o].coins) err('round ' + s.round + ': coins shown for ' + o + ' differ');  // in his area, or at the end in his pile
         if (s.over) {  // the end: no tile left can be placed by either player (none thrown); most coins wins, his star shown
           const [a, b] = s.players.map(p => p.coins), win = a > b ? 0 : b > a ? 1 : -1, star = seen('winner');
           if (s.leftFits) err('end: a tile left still fits');
