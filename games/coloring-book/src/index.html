@@ -545,7 +545,7 @@ function oilStart(s) {
 }
 function oilDab(s, cx, cy) {
   const R = s.r, n = s.n, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]);
-  if (!s.shape.knife) for (let i = 0; i < n; i++) s.bristle[i] = Math.min(1, Math.max(0.2, s.bristle[i] + (s.rnd() - 0.5) * 0.063 * Math.sqrt(s.sp / s.r))); // each bristle wanders, as much per length of stroke whatever the dab spacing
+  if (!s.shape.knife) for (let i = 0; i < n; i++) s.bristle[i] = Math.min(1, Math.max(0.2, s.bristle[i] + (s.rnd() - 0.5) * 0.02)); // each bristle wanders
   uploadBristles(s); capture(r);
   const med = MED[s.tool], kn = s.shape.knife ? { UTAKE: med.UTAKE * K.KNIFE_TAKE, URIDGE: K.KNIFE_RIDGE } : {};
   const uni = Object.assign({ P: PIC, M: MISC, U: UNDER, T: TIP[0], BT: BTEX, G: GRAIN, C: [X, Y], R, NB: n, SP: s.sp, NOW: paintNow(), PRES: s.pres * liftPaint(s), RES: s.res, REACH: s.tool === 'crayon' ? K.PASTEL_REACH[st.load - 1] * (s.shape.light || 1) : s.shape.scrub || 0, LUMPS: s.tool === 'crayon' ? (s.lumps = (s.lumps || 0) + 1) : 0 }, med, kn, shapeUni(s));
@@ -607,7 +607,7 @@ function inkLines(s, a, b) { // every strand draws from where it was to where it
     if (drops.length) dropsPass(s, drops, clip([Math.floor(b.x - reach - 8), Math.floor(b.y - reach - 8), Math.ceil(b.x + reach + 8), Math.ceil(b.y + reach + 8)])); } }
 function inkDab(s, x, y) { inkLines(s, { x, y }, { x, y }); } // touching down: a dot for every strand
 const DAB = { acrylic: oilDab, water: waterDab, crayon: oilDab, marker: simpleDab, simple: simpleDab, ink: inkDab, pencil: simpleDab, spray: stampDab, shapes: stampDab };
-const SPACING = { acrylic: 0.025, water: 0.2, crayon: 0.1, marker: 0.1, simple: 0.1, ink: 0.1, pencil: 0.1, spray: 0.12, shapes: 1.7 };
+const SPACING = { acrylic: 0.1, water: 0.2, crayon: 0.1, marker: 0.1, simple: 0.1, ink: 0.1, pencil: 0.1, spray: 0.12, shapes: 1.7 };
 
 // SECTION: WATER -- wet paint keeps moving after the stroke, only inside the wet area; it is checked now and then, and fixed when dry
 function markTiles(mask, r) { if (r) for (let ty = (r[1] / TS) | 0; ty <= Math.min(TY - 1, (r[3] / TS) | 0); ty++) for (let tx = (r[0] / TS) | 0; tx <= Math.min(TX - 1, (r[2] / TS) | 0); tx++) mask[ty * TX + tx] = 1; }
