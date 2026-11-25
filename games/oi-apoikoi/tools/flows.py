@@ -1,7 +1,7 @@
 # Flow tests: what the owner does, in the running game: real page, real mouse taps and drags on what he sees.
 # One browser and one page for the whole run: each flow starts a new game with a set table (fast: the PC's hand moves without waiting)
 # and prints PASS or FAIL, [its flow name], what it checks, and what was seen. Waits are on the game's state, never on a fixed sleep.
-# Colours are numbered 0-5 (0 and 1 the most common); a tile is [first half, second half]; the board is 16 x 16 squares, the start tiles [0, 1] at (4, 10) turned 0 (the kid's) and (10, 4) turned 1 (the PC's).
+# Colours are numbered 0-5 (0 and 1 the most common); a tile is [first half, second half]; the board is 16 x 16 squares, the start tiles [0, 1] at (4, 10) turned 0 (the kid's) and (11, 5) turned 2 (the PC's: the kid's turned half a turn).
 # A table tile is [x, y, turn, colour, colour, owner]: turn 0 puts the second half to the right, 1 below, 2 left, 3 above; owner 0 is the kid, 1 the PC.
 # Jar contents a test needs are queued: {'k': 'empty'}, {'k': 'coins'}, {'k': 'coins2'}, {'k': 'slot'}, {'k': 'first'}, {'k': 'tile'}, {'k': 'jar'}, {'k': 'set'}.
 import time, pathlib, datetime
@@ -146,7 +146,7 @@ def f_own_land(q):  # a tile must have a matching edge with your own land; match
 
 def f_pile_no_frames(q):  # owner 24 Nov: no outline around the pile's tiles
     table(q, bag=[[0, 4]] * 4); c = q.evaluate("()=>__dg.btn('draft-0')"); hw = (q.evaluate("()=>__dg.btnBox('draft-0')")['w'] - 24) / 3; m = drawn(q, 'market')[0]
-    beside = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [c[0] - hw - 6, c[1]])  # just left of the tile's middle: the market tray's own colour, not a frame
+    hh = hw / 3 ** 0.5; beside = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [c[0] - 1.5 * hw - 6, c[1] - hh / 2])  # just left of the tile's left corner (its walls hang below it): the market tray's own colour, not a frame
     tray = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [m['x'] + 12, m['y'] + m['h'] - 12])  # the tray, away from the tile
     report(beside == tray, 'pile: tiles have no outline', 'beside the tile %s, the tray %s' % (beside, tray))
 
@@ -341,7 +341,7 @@ def f_end_screen(q):  # owner 25 Nov (prototype): the end: a smaller box over th
 def f_pc_best(q):  # the PC picks and places for the most jars (2 connections)
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)
-    pc = [t[3:5] for t in s['tiles'] if t[5] == 1 and t[:2] != [10, 4]]
+    pc = [t[3:5] for t in s['tiles'] if t[5] == 1 and t[:2] != [11, 5]]
     report(pc == [[0, 1]] and s['players'][1]['goods'] == [2, 2, 0, 0, 0, 0], 'pc: best tile, best place', 'pc tiles %s goods %s' % (pc, s['players'][1]['goods']))
 
 def f_pc_hand(q):  # the PC's moves are slow and done by a moving hand: it points to tap, grabs to drag, showing the pointing hand for both (owner 24 Nov) (a fake clock runs the real timings at once);
@@ -361,9 +361,9 @@ def f_pc_hand(q):  # the PC's moves are slow and done by a moving hand: it point
 
 def f_pc_most_jars(q):  # owner (design): the PC does what is best for this turn; owner 25 Nov rules: a move is worth the jars it makes now, its connections' and those of
     # 5 materials; here [1, 1] and [0, 3] both connect once, but [0, 3] lights 6 colour-0 squares onto his 4: 2 more jars
-    table(q, bag=[[1, 1], [0, 3], [3, 3], [3, 3]], first=1, tiles=[[11, 4, 0, 0, 0, 1], [11, 5, 0, 0, 0, 1]], goods=[[0] * 6, [4, 0, 0, 0, 0, 0]], jarQueue=[COIN] * 12)
+    table(q, bag=[[1, 1], [0, 3], [3, 3], [3, 3]], first=1, tiles=[[11, 4, 3, 0, 0, 1], [10, 4, 3, 0, 0, 1]], goods=[[0] * 6, [4, 0, 0, 0, 0, 0]], jarQueue=[COIN] * 12)
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)
-    pc = [t[3:5] for t in s['tiles'] if t[5] == 1 and t[:2] not in ([10, 4], [11, 4], [11, 5])]; opened = sum(s['players'][1]['opened'].values())
+    pc = [t[3:5] for t in s['tiles'] if t[5] == 1 and t[:2] not in ([11, 5], [11, 4], [10, 4])]; opened = sum(s['players'][1]['opened'].values())
     report(pc == [[0, 3]] and opened == 3, 'pc: the move that makes the most jars', 'pc placed %s, jars %d' % (pc, opened))
 
 def f_pc_slot(q):  # the PC takes the best expected result on the slot machine too (here: two coins showing, chasing the third is worth it: it keeps both, pays 1 and wins 6)
@@ -534,29 +534,45 @@ def f_land_pictures(q):  # owner 25 Nov (design 3, the new look): each land is a
     report(ok, 'look: land pictures on a sea, material pictures', 'squares %s, materials %s, sea %s, land pixels %s, sea pixels %s' % (
         sorted({(x['c'], x['pic'], x['ready']) for x in sq}), sorted((x['c'], x['pic']) for x in g), sea, land_px, sea_px))
 def f_player_areas(q):  # owner 25 Nov (design 3, the new look): each player's area is the two triangles beside the board on his side, joined at the board's side corner (green left, red right);
-    # his face in the thin top corner beside the market; materials 1.5 times their old size (12.4 px on this screen), a column of 5 per colour from the top, beside the screen edge;
+    # owner 25 Nov: the 4 central tips (each triangle's thin end at the screen's middle) are grey and hold nothing, each cut where it is 3 material places thick;
+    # materials 1.5 times their old size (12.4 px on this screen), a row of 5 per colour from the top, beside the screen edge (owner 25 Nov: rows, not columns); his face beside them;
     # coins fill the bottom triangle in rows from the bottom up, each as long as the triangle is wide there, at most 8 a row; owner 24 Nov: everything spaced apart, no jar outlines; the pile a stack of tiles
     table(q, bag=[[0, 4]] * 12, goods=[[4, 4, 4, 2, 1, 0], [1, 1, 0, 0, 0, 0]], coins=[20, 3]); W, H = q.evaluate("()=>[innerWidth, innerHeight]"); dm = diamond(q); band = drawn(q, 'band')[0]
     d = q.evaluate("()=>__dg.drawn()"); of = lambda k, o: [x for x in d if x['k'] == k and x.get('o') == o]; pile = [x for x in d if x['k'] == 'pile']
     side = lambda o, x: x < W / 2 if o == 0 else x > W / 2; out = {}
     for o in (0, 1):
         face, places, goods, coins = of('avatar', o)[0], of('place', o), of('good', o), of('coin', o)
-        cols = {c: {round(x['x']) for x in places if x['c'] == c} for c in range(6)}
-        column = all(len(v) == 1 for v in cols.values()) and len({min(v) for v in cols.values()}) == 6 and all(sum(1 for x in places if x['c'] == c) == 5 for c in range(6))
+        rws = {c: {round(x['y']) for x in places if x['c'] == c} for c in range(6)}
+        column = all(len(v) == 1 for v in rws.values()) and len({min(v) for v in rws.values()}) == 6 and all(len({round(x['x']) for x in places if x['c'] == c}) == 5 for c in range(6))
         near_edge = (min(x['x'] - x['r'] for x in places) if o == 0 else W - max(x['x'] + x['r'] for x in places)) <= 24
         from_top = min(x['y'] - x['r'] for x in places) - (band['y'] + band['h']) <= 16
-        big = min(x['r'] for x in places) >= 1.5 * 12.4 - 0.2
+        inner = max(places, key=lambda x: abs(x['x'] - (0 if o == 0 else W)) + x['y'])  # the bottom row's inner place, nearest the board
+        big = min(x['r'] for x in places) >= 1.5 * 12.4 - 0.2 or not off_board(dm, inner['x'], inner['y'], inner['r'] + 4)  # owner 25 Nov: rows: as big as fits above the board
         on_place = len(goods) == sum(st(q)['players'][o]['goods']) and all(any(abs(g['x'] - x['x']) < 1 and abs(g['y'] - x['y']) < 1 and g['c'] == x['c'] for x in places) for g in goods)
-        corner = side(o, face['x']) and abs(face['x'] - W / 2) < W / 4 and face['y'] - face['r'] >= band['y'] + band['h'] - 1 and face['y'] < dm[1] - dm[3] / 2
+        tips, rp = of('tip', o), min(abs(a['x'] - b['x']) for a in places for b in places if a['c'] == b['c'] and a is not b)
+        def tip_ok(t):  # touches the middle line; its side away from the middle is 3 material places long; grey where drawn
+            far = max(abs(x - W / 2) for x, _ in t['pts']); side_ys = [y for x, y in t['pts'] if abs(abs(x - W / 2) - far) < 0.5]
+            mx, my = sum(x for x, _ in t['pts']) / len(t['pts']), sum(y for _, y in t['pts']) / len(t['pts']); px = q.evaluate("([x,y])=>__dg.pixel(x,y)", [mx, my])[:3]
+            return min(abs(x - W / 2) for x, _ in t['pts']) < 0.5 and abs(max(side_ys) - min(side_ys) - 3 * rp) < 1 and max(px) - min(px) <= 6 and 90 < px[0] < 220
+        def inside(t, x, y, r):  # a round thing reaches into the tip (convex, points in order)
+            p = t['pts']; edges = list(zip(p, p[1:] + p[:1])); sgn = lambda a, b: (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0])
+            def dist(a, b):  # from (x, y) to the segment a-b
+                dx, dy = b[0] - a[0], b[1] - a[1]; u = max(0, min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / max(1e-9, dx * dx + dy * dy)))
+                return ((x - a[0] - u * dx) ** 2 + (y - a[1] - u * dy) ** 2) ** 0.5
+            ins = all(sgn(a, b) >= 0 for a, b in edges) or all(sgn(a, b) <= 0 for a, b in edges)
+            return ins or min(dist(a, b) for a, b in edges) < r
+        things = places + coins + [face] + of('token', o)
+        corner = side(o, face['x']) and len(tips) == 2 and all(tip_ok(t) for t in tips) and not any(inside(t, x['x'], x['y'], x['r']) for t in tips for x in things)
         rows = sorted({round(c['y']) for c in coins}, reverse=True); per = [sorted(c['x'] for c in coins if round(c['y']) == y) for y in rows]
         step = min((b - a for r in per for a, b in zip(r, r[1:])), default=0); r0 = coins[0]['r'] if coins else 0
-        full = all(len(r) == 8 or not off_board(dm, (r[-1] + step) if o == 0 else (r[0] - step), y, r0) for r, y in zip(per[:-1], rows))  # a row short of 8 meets the board
+        nxt = lambda r: (r[-1] + step) if o == 0 else (r[0] - step)
+        full = all(len(r) == 8 or not off_board(dm, nxt(r), y, r0) or any(inside(t, nxt(r), y, r0) for t in tips) for r, y in zip(per[:-1], rows))  # a row short of 8 meets the board or a tip
         coins_ok = bool(coins) and max(len(r) for r in per) <= 8 and all(len(a) >= len(b) for a, b in zip(per, per[1:])) and H - max(c['y'] + c['r'] for c in coins) <= 24 and full
         clear = all(off_board(dm, x['x'], x['y'], x['r']) and side(o, x['x']) for x in places + coins + [face])
         apart = min_gap(places + coins + [face]) >= 3
         out[o] = dict(column=column, edge=near_edge, top=from_top, big=big, on_place=on_place, corner=corner, coins=coins_ok, off_board=clear, apart=apart, rows=[len(r) for r in per])
     ok = all(all(v for k, v in x.items() if k != 'rows') for x in out.values()) and not [x for x in d if x['k'] == 'jargroup'] and len(pile) == 1 and pile[0]['layers'] == 8
-    report(ok, 'areas: face in the corner, material columns, coin rows', '%s, pile %s' % (out, pile))
+    report(ok, 'areas: grey empty tips, material rows, coin rows', '%s, pile %s' % (out, pile))
 def f_no_sets(q):  # owner 25 Nov (prototype): no wild tiles, no sets to tap: one of each colour lights nothing; only the market's tiles can be tapped
     table(q, bag=[[0, 4]] * 4, goods=[[2] * 6, [0] * 6]); b = q.evaluate("()=>__dg.buttons()"); marks = drawn(q, 'setrow') + drawn(q, 'setsign')
     report(sorted(b) == ['draft-%d' % k for k in range(4)] and not marks, 'no sets, no wild tile', 'buttons %s, set marks %d' % (b, len(marks)))
@@ -569,12 +585,41 @@ def f_free_set(q):  # a free set: one of each of the 5 goods (on top of the plac
     get_jar(q, [{'k': 'set'}]); g = st(q)['players'][0]['goods']
     report(g == [3, 1, 1, 1, 1, 1], 'set: one of each good', str(g))
 
+def f_starts_face(q):  # owner 25 Nov: the start tiles face each other: the PC's is the kid's turned half a turn around the board's centre (each colour on its turned square)
+    table(q, bag=[[3, 3]] * 4); D = [[1, 0], [0, 1], [-1, 0], [0, -1]]
+    sq = lambda t: {(t[0], t[1]): t[3], (t[0] + D[t[2]][0], t[1] + D[t[2]][1]): t[4]}
+    kid, pc = [sq(t) for o in (0, 1) for t in st(q)['tiles'] if t[5] == o]
+    turned = {(15 - x, 15 - y): c for (x, y), c in kid.items()}
+    report(pc == turned, 'starts: the tiles face each other', 'kid %s, pc %s' % (kid, pc))
+def f_scales(q):  # owner 25 Nov: "make sure your ui is adoptable to all laptop and pc screen sizes": what has its own size (faces, the hand, the slot machine) grows with the board, and stays on screen
+    seen, small_hh = [], 0
+    for w, h in ((1366, 768), (1920, 1080), (2560, 1440)):
+        q.set_viewport_size({'width': w, 'height': h}); get_jar(q, [{'k': 'slot'}], coins=3); waiting(q, 'slot'); settle(q)
+        a, c = q.evaluate("()=>[__dg.square(0,0), __dg.square(1,0)]"); hh = c[1] - a[1]
+        face = [x for x in drawn(q, 'avatar') if x['o'] == 0][0]; m = drawn(q, 'machine')[0]; hand = drawn(q, 'hand')[0]; lever = q.evaluate("()=>__dg.btn('lever')")
+        inside = m['x'] >= 0 and m['y'] >= 0 and m['x'] + m['w'] <= w and m['y'] + m['h'] <= h and m['x'] <= lever[0] <= m['x'] + m['w'] * 1.3 and m['y'] <= lever[1] <= m['y'] + m['h']
+        seen.append((round(face['r'] / hh, 3), round(m['w'] / hh, 2), round(hand['z'] / hh, 2), inside)); small_hh = small_hh if seen[1:] else hh
+    q.set_viewport_size({'width': 1280, 'height': 800})
+    same = all(abs(x[k] - seen[1][k]) <= 0.02 * seen[1][k] for x in seen[1:] for k in range(3)) and all(abs(seen[0][k] - seen[1][k]) <= 0.02 * seen[1][k] for k in (0, 2))
+    small = seen[0][1] * small_hh >= 540 - 1  # on a small screen the machine keeps its made size (its buttons stay big enough to touch), as long as it fits
+    report(same and small and all(x[3] for x in seen), 'scales: sizes grow with the screen, on screen', 'per size (face, machine width, hand, in half-square heights; on screen) %s' % seen)
+def f_thick_land(q):  # owner 25 Nov: land squares are blocks with some thickness: walls of earth under the top's front edges, the sea below them
+    table(q, bag=[[0, 4]] * 4); a, c = q.evaluate("()=>[__dg.square(0,0), __dg.square(1,0)]"); hh = c[1] - a[1]
+    x, y = q.evaluate("()=>__dg.square(5,10)"); px = lambda dy: q.evaluate("([x,y])=>__dg.pixel(x,y)", [x, y + hh + dy * hh])[:3]  # under the start tile's front corner
+    wet = lambda p: p[2] > p[0] + 30; wall, sea = px(0.4), px(1.3)
+    report(not wet(wall) and wet(sea), 'land: blocks with walls over the sea', 'under the front corner: %s at 0.4 of a half square, %s at 1.3' % (wall, sea))
+def f_moving_water(q):  # owner 25 Nov: the water moves (ripples drift over it, foam around the land); the land stays still (test pages keep the water still unless asked: it costs the run)
+    pause_clock(q); table(q, fast=False, stillWater=False, bag=[[0, 4]] * 4); spot = q.evaluate("()=>__dg.square(8,2)"); land = q.evaluate("()=>__dg.square(4,10)")
+    look = lambda: [q.evaluate("([x,y])=>__dg.pixel(x,y)", [p[0] + dx, p[1] + dy])[:3] for p in (spot, land) for dx in (-9, -3, 3, 9) for dy in (-4, 4)]
+    a = look(); skip(q, 1500); b = look(); q.clock.resume()
+    moved = sum(1 for k in range(8) if a[k] != b[k]); still = all(a[k] == b[k] for k in range(8, 16))
+    report(moved >= 4 and still and drawn(q, 'foam'), 'water: it moves, the land does not', 'sea pixels changed %d of 8, land unchanged %s, foam %s' % (moved, still, bool(drawn(q, 'foam'))))
 def f_borders(q):  # each player's land has a border all around: green for the kid, red for the PC; a tile's two halves meet with no gap (no sea between them)
     table(q, bag=[[0, 4]] * 4); b = drawn(q, 'border'); kid = sum(1 for x in b if x['o'] == 0); pc = sum(1 for x in b if x['o'] == 1)
     seam = q.evaluate("()=>__dg.edge(4,10,0)"); mid = q.evaluate("(p)=>__dg.pixel(p[0],p[1]+4)", seam)[:3]
     ok = kid == 6 and pc == 6 and not mid[2] > mid[0] + 30
     report(ok, 'borders: all around each land, halves joined', 'kid edges %d, pc edges %d, seam %s' % (kid, pc, mid))
-MAIN_SEED, MAIN_JARS = 124, ['coins', 'empty', 'slot', 'first', 'jar', 'tile', 'coins2', 'set']  # the main game's fixed pile (made by this seed) and the jar contents queued, in order
+MAIN_SEED, MAIN_JARS = 3, ['coins', 'empty', 'slot', 'first', 'jar', 'tile', 'coins2', 'set']  # the main game's fixed pile (made by this seed) and the jar contents queued, in order
 def f_main_game(q):  # owner 24 Nov: one main test plays a whole game with a fixed pile and fixed jar contents, so every situation happens in order; at each situation it checks that situation's rules, and after every move what he sees adds up
     out = q.evaluate("""async ([seed, kinds]) => {
       const cv = document.querySelector('canvas'), errs = [], did = {}, err = m => errs.push(m);
@@ -587,7 +632,7 @@ def f_main_game(q):  # owner 24 Nov: one main test plays a whole game with a fix
       const lit = starts => { const sq2 = seen('square'), on = (x, y) => sq2.find(d => d.x === x && d.y === y), done = new Set(), todo = starts.slice(); while (todo.length) { const [x, y] = todo.shift(), a = on(x, y); if (!a || done.has(x + ',' + y)) continue; done.add(x + ',' + y); [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([dx, dy]) => { const b = on(x + dx, y + dy); if (b && b.c === a.c) todo.push([x + dx, y + dy]); }); } return done.size; };  // the squares the connections light, on the board shown (owner 25 Nov)
       __dg.restart({ seed, fast: true, jarQueue: kinds.map(k => ({ k })), slotQueue: [0, 0, 1, 0] }); await tick();
       { const s = __dg.state(), starts = s.tiles.map(t => t.slice(0, 5).join()).sort();  // the start: the same start tile for both, the two most common colours, at the centres of the board's halves; nobody has the token; the kid picks first
-        if (starts.join('|') !== '10,4,1,0,1|4,10,0,0,1' || s.draft.length !== 4 || !s.wait || s.wait.kind !== 'pick' || s.wait.who !== 0 || s.first !== null) err('start: ' + JSON.stringify([starts, s.wait, s.first])); }
+        if (starts.join('|') !== '11,5,2,0,1|4,10,0,0,1' || s.draft.length !== 4 || !s.wait || s.wait.kind !== 'pick' || s.wait.who !== 0 || s.first !== null) err('start: ' + JSON.stringify([starts, s.wait, s.first])); }
       let putBack = false, picked = -1, prev = __dg.state(), afterPass = 0; const total = prev.left;  // every tile of the pile
       for (let step = 0; ; step++) {
         await tick(); const s = __dg.state(), w = s.wait; __dg.render();
