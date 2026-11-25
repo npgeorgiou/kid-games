@@ -44,3 +44,5 @@
 - Ink line widths differ stroke to stroke: a width check on ink turns splashes off and averages two lines each way (turn_every).
 - A width check along a line judges the width averaged over half a brush: the oil pastel's edge wanders a few pixels at random, and a raw step-to-step check fails by chance (jerk_tail).
 - Tests: the whole-game run steps reset by Esc, Basic palette and New; a step that changes the screen size or the tool (stickers hide the buckets) leaves it as he started, or the next steps measure the wrong screen.
+- Anything that dries or decays inside a dab must go by time since it was last counted (reset the clock after counting), never be applied again at every dab: wet acrylic dried within one pass and could not be pushed.
+- tools/previews.py writes lib/previews but the game file is built from them only by build.py: build again after it, before committing.
