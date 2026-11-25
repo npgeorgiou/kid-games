@@ -48,3 +48,8 @@
 - tools/previews.py writes lib/previews but the game file is built from them only by build.py: build again after it, before committing.
 - The brush's direction, like pressure, must change dab by dab along each finger move; set once per move, all its dabs share one angle and curves show angled bristle lines.
 - Anything that moves paint (the bristles' plough) must move a share of what is there, never subtract a fixed amount: thickness went below zero and left a bare line along strokes.
+- Judge a look only beside his reference pictures, at the same scale and close up, and on his own cases (long stroke until empty, scribbles, strokes over wet and dry paint); number tests passed while every brush looked wrong (25 Nov).
+- The Mixbox table's alpha is not part of it: read its RGB bytes raw; through a 2D canvas the colours are spoiled where alpha is low and blue + yellow came out grey.
+- A brush that picks up wet paint must not pick up its own fresh paint, and can hold only so much: otherwise its paint grows without end.
+- A brush is an axis, not an arrow: going back the same way must not flip which bristle is on which side, or back-and-forth strokes bend the paint.
+- A bristle's emptying goes per pixel of travel, not per pixel touched: rim bristles touch fewer pixels per dab, kept their paint and left outlines.

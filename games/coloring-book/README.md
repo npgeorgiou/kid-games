@@ -47,6 +47,7 @@ Flat brushes are held at one fixed angle, unless the turn switch in the brush po
 | `tools/flows.py` | Play-through tests (`SECTION:` markers): the real page, real clicks, keys, drags and touches, at a finger's speed. The whole-game run (`whole_game`, section WHOLE GAME) plus separate short tests of each tool. |
 | `tools/backdoors.txt` | What a shortcut through the game's insides looks like; a test containing one is refused. |
 | `tools/previews.py` | Paints the brush previews straight through the game's stroke code (under 2 minutes). |
+| `trials/` | The acrylic trial (25 Nov): `acrylic-trial.src.html` (a stand-alone paper with the new round brush, his reference beside it), `build_trial.py` (builds `acrylic-trial.html`), `look_reference.py`, `look_wet_dry.py`, `look_his_cases.py` (scenes painted through the trial's stroke code, pictures to the temp folder). |
 | `tools/looks.py`, `tools/looks/` | Saves every brush's normal stroke as a picture; the `brush_looks` test fails when a brush no longer looks like its picture. |
 
 Shared with other games, at the repo root: `.githooks/` (the commit gate), `docs/design-rules.md` (rules for every game).
@@ -78,17 +79,18 @@ Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Word
 ## Open
 
 Do next, in this order (his words are in the Task list):
-- Acrylic: his look at the 5 brushes and their impasto row (25 Nov); impasto is a first version (thicker coat, deeper ridges), not yet glossy or piled like his impasto pictures (11). Acrylic 12 (fish scales) waits for his look too.
-- Watercolour brush library and look (his 25 Nov pages; the Shutterstock "Similar images" could not be saved here: they are drawn by script and the pictures are stock previews), then 17-21.
-- Crayon (22, owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23), acrylic 25.
-- Spray other shapes: stars and other icons as spray brushes.
-- The whole flow run takes about 30 minutes on one machine: find the slow separate tests.
-- Drying times; outline pictures later.
+- Acrylic is being rebuilt in `trials/` first (his yes, 25 Nov), then moved into the game. Pull request #31 (5 brushes + impasto row, groove and curve fixes, spray fix) is NOT merged: he rejected those brushes; when the trial is moved in, its brush replaces them (keep the spray, groove and curve fixes).
+- Trial model now (`trials/acrylic-trial.src.html`, its numbered parts in `dab`): per pixel a Mixbox pigment mix (latent), paint amount, wet amount and when it was laid (wet for DRY 25 s), bristle ridges; the brush is a row of bristles, each with its paint amount and colour; each touch gives paint (into wet paint it mixes by amount with the wet surface, on dry paint it sits on top) and picks up wet paint (not its own fresh paint); a drying brush touches only what sticks up (paper tooth, dried ridges): broken, dotted marks; the brush is an axis (going back does not flip it); the paper is drawn once a frame.
+- His latest points on the trial (25 Nov 17:21): paint amount is between his two complaints (RUN 35 too little, never-ending too much; now RUN 60, check it); no outlines when the brush runs out (fixed: emptying is per pixel of travel); strokes on top of wet strokes must leave their paint, as in his blue picture (smear lowered to 0.08..0.45: check); compare with ALL his acrylic pictures (`owner-shots/2026-11-25-acrylic-*`), not only the blue one.
+- Still unlike his pictures: with a full brush the strokes are too smooth and soft (his have scratchy dry-brush texture all over and sharp, broken edges); stroke starts are round caps (his are blunt); no wet shine; wet bands do not blend into each other like his blue gradient picture.
+- How to work on it (his rule, 25 Nov): test his own cases yourself before sending (one long spiral stroke until the brush is empty, yellow and blue zigzags with a stroke through both, a colour scribbled into a wet blob, strokes over dry and over wet paint, the reference scene), put each beside his pictures, and send only when all are right; never ask him to check a half step.
+- Watercolour brush library and look (his 25 Nov pages), then 17-21; crayon (22); marker (23); spray other shapes; slow separate tests; drying times; outline pictures later.
 
 ## Task list
 
 Numbers are his points of 23 Nov; pictures in `owner-shots/2026-11-23-*`. Acrylic and impasto references of 25 Nov: `owner-shots/2026-11-25-acrylic-*`, `owner-shots/2026-11-25-impasto-*`.
 
+- Acrylic (25 Nov): strokes like his acrylic pictures (`owner-shots/2026-11-25-acrylic-*`): flat opaque paint, scratchy broken dry-brush edges and ends, strokes on top of strokes keep their colour, wet paints mix like fluids (blue and yellow make a rich green), a full brush lasts long but does run out, no outlines when it runs out; then 5 basic brushes, each also as impasto (`owner-shots/2026-11-25-impasto-*`).
 - Acrylic 11: more impasto, like the side-by-side picture (https://m.media-amazon.com/images/I/71K2vrgLFRL.jpg).
 - Acrylic 12: passes over earlier acrylic make fish scales; must look natural.
 - Watercolour brush library (25 Nov): real brushes, and strokes that look like these pages and their "Similar images": https://www.shutterstock.com/image-vector/green-watercolor-splash-stain-paint-brush-2501995219, https://www.shutterstock.com/image-vector/watercolor-paint-textures-set-water-color-2819536941.
