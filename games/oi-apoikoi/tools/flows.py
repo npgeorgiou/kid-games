@@ -613,6 +613,12 @@ def f_main_game(q):  # owner 24 Nov: one main test plays a whole game with a fix
     missing = [k for k in want if not out['did'].get(k)]
     report(not out['errs'] and not missing and out['left'] == 0, 'main game: every situation, what he sees adds up', 'missing %s, errors %s, jar contents left %s' % (missing, out['errs'], out['left']))
 
+def f_simulation(q):  # owner 25 Nov (task list): a simulation tool plays seeded games through the screen and reports jars, coins and bonus shares per player
+    import sim; r = sim.play(q, [1])[0]
+    shares = all(sum(p['opened'].values()) == p['jars'] for p in r['players'])
+    ok = r['over'] and shares and [p['coins'] for p in r['players']] == r['shown'] and all(p['jars'] > 0 for p in r['players'])
+    report(ok, 'simulation: jars, coins and bonus shares per player', '%s' % r)
+
 def f_random_play(q):  # seeded games played through the screen (taps and drags on what is drawn, at random moments); after every move, what he can see holds:
     # a placement gives a jar per connection and a material per square it lights, on the board shown; each 5 of a colour a jar at once
     bad = q.evaluate("""async () => {

@@ -76,7 +76,7 @@ function sound(name, times) {
 
 // SECTION: MODEL -- the shared board, tiles, matches, goods and sets
 let G = null, tileNo = 1;
-function newPlayer(human) { return { human, goods: noGoods(), coming: noGoods(), coins: 0, jarList: [], reserved: new Set(), get jars() { return this.jarList.length; }, got: 0, passes: 0 }; }  // jarList: each waiting jar {slot, fresh, parked}; reserved: places of jars on their way
+function newPlayer(human) { return { human, goods: noGoods(), coming: noGoods(), coins: 0, jarList: [], reserved: new Set(), get jars() { return this.jarList.length; }, opened: {}, got: 0, passes: 0 }; }  // jarList: each waiting jar {slot, fresh, parked}; reserved: places of jars on their way; opened: what his jars held, by kind
 const key = (x, y) => x + ',' + y;
 function halves(x, y, r) { const d = DIRS[r]; return [[x, y], [x + d[0], y + d[1]]]; }
 const cellMark = (x, y, c, o) => Math.imul((((x * 31 + y) * 7 + c) * 2 + o) + 1, 2654435761) ^ (x * 0x9E3779B1 + y);  // a number per square, colour and owner
@@ -323,7 +323,7 @@ async function openJars(i) {  // tap jars as fast as he likes (owner 25 Nov): ea
   while (G === my && (p.jars > 0 || open.size)) {
     if (!p.jars) { await Promise.race(open); continue; }  // a prize still on its way may bring more jars
     const k = await choose('jar', i, {}, () => pcTap('jar-0')) || 0; if (G !== my) return;
-    const jar = p.jarList[k], at = jarAt(jar, p), j = rollJar(); p.jarList.splice(k, 1);
+    const jar = p.jarList[k], at = jarAt(jar, p), j = rollJar(); p.jarList.splice(k, 1); p.opened[j.k] = (p.opened[j.k] || 0) + 1;
     sound('jar'); shatter(at, '#c46a3c', JAR_SIZE() * 0.3);
     const show = { who: i, j, at: [at[0], at[1] - JAR_SIZE() * 1.1] }, needsHim = j.k === 'slot' || j.k === 'tile';
     const run = (async () => {
@@ -806,7 +806,7 @@ window.__dg = {
       halves: COLOUR_IDS.map(c => G.bag.concat(G.draft.filter(t => t)).flat().filter(v => v === c).length), left: G.bag.length + G.draft.filter(t => t).length, fromNowhere: G.fromNowhere, leftFits: G.bag.concat(G.draft.filter(t => t)).some(t => fits(t, 0) || fits(t, 1)),
       tiles: [...G.tiles.values()].map(t => [t.x, t.y, t.r, t.cs[0], t.cs[1], t.o, t.id]), passes: G.players.map(p => p.passes),
       hand: { x: G.hand.x, y: G.hand.y, g: G.hand.g }, handDrag: G.dragging,
-      players: G.players.map(p => ({ goods: p.goods.slice(), coins: p.coins, jars: p.jars, got: p.got })),
+      players: G.players.map(p => ({ goods: p.goods.slice(), coins: p.coins, jars: p.jars, got: p.got, opened: { ...p.opened } })),
     };
   },
 };
