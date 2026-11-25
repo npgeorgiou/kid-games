@@ -114,8 +114,8 @@ function start(x, y) {
     shape[i] = (1 - B.oval) + B.oval * Math.sqrt(Math.max(0, 1 - ac * ac)); ext[i] = B.len * shape[i] + 0.3 * mid[i] * (0.7 + 0.3 * small[i]); // the footprint along the stroke: straight across for a flat brush, rounded for a round one
     rag[i] = 0.35 * mid[i] + 0.08 * small[i]; } // bristles of uneven length: ragged starts and ends
   const ridge = norm(smooth(fine, P.comb)), step = Math.max(0.7, size * 0.05);
-  const wide = norm(smooth(rand(), Math.max(1, Math.round(n / 14)))), churn = norm(smooth(rand(), 1)).map((v, i) => 0.05 + 4 * (0.75 * wide[i] + 0.25 * v) ** 3); // some bristles churn the wet paint deeper and carry it on: streaks of each colour and of the mix
-  strokes++; st = { id: strokes, B, P, R, n, hold, churn, wide, amt, bc, dirt: new Float32Array(n), cd: bc.map((v) => v.slice()), ext, shape, mid, small, rag, ridge, an, M, press, x, y, ang: null, dist: 0, k: 0, step, win: Math.ceil(((2 * Math.max(...ext) + Math.max(...rag)) * R) / step) + 3, used: 1 / (P.run * B.run * (size + 40)), last: big.map((v) => 0.9 + 0.2 * v) }; // win: one pass is the whole footprint, ragged bristles included, going over a pixel
+  const wide = norm(smooth(rand(), Math.max(1, Math.round(n / 14)))), churn = norm(smooth(rand(), 1)).map((v, i) => 0.05 + 3 * (0.9 * wide[i] + 0.1 * v) ** 3); // some bristles churn the wet paint deeper and carry it on: streaks of each colour and of the mix
+  strokes++; st = { id: strokes, B, P, R, n, hold, churn, wide, amt, bc, dirt: new Float32Array(n), cd: bc.map((v) => v.slice()), ext, shape, mid, small, rag, ridge, an, M, press, x, y, tx: x, ty: y, ang: null, dist: 0, k: 0, step, win: Math.ceil(((2 * Math.max(...ext) + Math.max(...rag)) * R) / step) + 3, used: 1 / (P.run * B.run * (size + 40)), last: big.map((v) => 0.9 + 0.2 * v) }; // win: one pass is the whole footprint, ragged bristles included, going over a pixel
 }
 const tmp = [0, 0, 0], mixOut = new Float32Array(6);
 function dab(cx, cy, dx, dy, dot) { // dot: the brush pressed straight down, not moving
@@ -150,16 +150,20 @@ function dab(cx, cy, dx, dy, dot) { // dot: the brush pressed straight down, not
   lastLaid = now; wetBox = wetBox ? [Math.min(wetBox[0], x0), Math.min(wetBox[1], y0), Math.max(wetBox[2], x1 + 1), Math.max(wetBox[3], y1 + 1)] : [x0, y0, x1 + 1, y1 + 1];
   dirty(x0, y0, x1 + 1, y1 + 1);
 }
-function travel(s, step) { // as the brush travels each bristle empties
+function travel(s, step) { // as the brush travels each bristle empties; picked-up paint seeps a little into the next bristles, so its streaks have soft sides
   for (let b = 0; b < s.n; b++) s.amt[b] = Math.max(0, s.amt[b] - step * s.used / s.last[b]);
+  const k = Math.min(0.3, 0.1 * step);
+  for (let b = 1; b < s.n; b++) { const d0 = s.dirt[b - 1], d1 = s.dirt[b], flow = (d1 - d0) * k; if (Math.abs(flow) < 1e-6) continue; const from = flow > 0 ? s.cd[b] : s.cd[b - 1], to = flow > 0 ? s.cd[b - 1] : s.cd[b], dt = flow > 0 ? d0 : d1, a = Math.abs(flow) / (dt + Math.abs(flow));
+    for (let j = 0; j < 6; j++) to[j] += (from[j] - to[j]) * a; s.dirt[b - 1] += flow; s.dirt[b] -= flow; }
 }
-function move(x, y) {
-  const s = st; if (s.ang == null) { const d0 = Math.hypot(x - s.x, y - s.y); if (d0 < Math.max(3, size * 0.3)) return; s.ang = Math.atan2(y - s.y, x - s.x); dab(s.x, s.y, Math.cos(s.ang), Math.sin(s.ang)); } // the first touch is laid once the way the brush moves is known
+function move(px, py) {
+  const s = st, L = size * 0.3, dl = Math.hypot(px - s.tx, py - s.ty); if (dl <= L) return; s.tx = px - (px - s.tx) / dl * L; s.ty = py - (py - s.ty) / dl * L; // the brush follows the hand on a short string (the usual stroke steadier of painting programs): the hand's small shakes do not reach the bristles
+  const x = s.tx, y = s.ty; if (s.ang == null) { const d0 = Math.hypot(x - s.x, y - s.y); if (d0 < Math.max(3, size * 0.3)) return; s.ang = Math.atan2(y - s.y, x - s.x); dab(s.x, s.y, Math.cos(s.ang), Math.sin(s.ang)); } // the first touch is laid once the way the brush moves is known
   const ddx = x - s.x, ddy = y - s.y, d = Math.hypot(ddx, ddy); if (d < 0.5) return;
   const ux = ddx / d, uy = ddy / d, step = s.step;
   let turn = Math.atan2(uy, ux) - s.ang; turn -= Math.PI * Math.round(turn / Math.PI); // the brush is a row of bristles: going back the same way does not turn it round
   for (let t = step; t <= d; t += step) {
-    const f = 1 - Math.exp(-step / Math.max(2, size * 0.2)); s.ang += turn * f; turn *= 1 - f; // it turns with the stroke, dab by dab
+    const f = 1 - Math.exp(-step / Math.max(2, size * 0.6)); s.ang += turn * f; turn *= 1 - f; // it turns with the stroke, dab by dab
     s.dist += step; travel(s, step); dab(s.x + ux * t, s.y + uy * t, Math.cos(s.ang), Math.sin(s.ang));
   }
   const done = Math.floor(d / step) * step; s.x += ux * done; s.y += uy * done;
