@@ -262,24 +262,24 @@ def f_many_coins(q):  # owner 24 Nov: "make sure more coins than you predicted c
         out[n] = (len(c) == n and inside and gap >= 1 and goods_room and all(v == 5 for v in per[:-1]) and tens, len(c), inside, round(gap, 1), per[:3], tens)
     report(all(v[0] for v in out.values()), 'coins: rows of 5, apart, a gap after every 10', str(out))
 
-def f_jars_apart(q):  # owner 24 Nov: "jar circles are touching": every jar and its glow stands apart, with a clear gap
+def f_jars_apart(q):  # owner 24 Nov: "jar circles are touching": every jar stands apart, with a clear gap; owner 25 Nov: no glow
     table(q, bag=[[0, 1]] * 4, goods=K44, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); waiting(q, 'jar'); settle(q)
-    jars = sorted((d['x'], d['size'] / 2) for d in drawn(q, 'jar')); glows = sorted((d['x'], d['r']) for d in drawn(q, 'jarglow'))
-    gaps = [b[0] - a[0] - a[1] - b[1] for row in (jars, glows) for a, b in zip(row, row[1:])]
-    ok = len(jars) == 2 and len(glows) == 2 and min(gaps) >= 12
-    report(ok, 'jars: apart, with a gap between them', 'gaps between jars and between glows %s px' % [round(g) for g in gaps])
+    jars = sorted((d['x'], d['size'] / 2) for d in drawn(q, 'jar')); gaps = [b[0] - a[0] - a[1] - b[1] for a, b in zip(jars, jars[1:])]; glows = drawn(q, 'jarglow')
+    ok = len(jars) == 2 and min(gaps) >= 12 and not glows
+    report(ok, 'jars: apart, with a gap between them, no glow', 'gaps between jars %s px, glows %d' % ([round(g) for g in gaps], len(glows)))
 
-def f_sky_stars(q):  # owner 24 Nov ("rethink all UI"): the stars in the evening sky were small; at a round's end they are big enough to see from across the room, and apart
-    pause_clock(q); table(q, fast=False, bag=[[2, 2], [3, 3]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0})
-    for _ in range(80):
-        if drawn(q, 'skystar'): break
-        skip(q, 200)
-    skip(q, 1600); stars = drawn(q, 'skystar'); q.clock.resume()
-    gap = min((((a['x'] - b['x']) ** 2 + (a['y'] - b['y']) ** 2) ** 0.5 - a['r'] - b['r'] for i, a in enumerate(stars) for b in stars[i + 1:]), default=0)
-    ok = len(stars) >= 4 and min(x['r'] for x in stars) >= 18 and gap >= 16
-    report(ok, 'evening: big stars in the sky', '%d stars, smallest %s px across, %.0f px apart' % (len(stars), min((2 * x['r'] for x in stars), default=0), gap))
-
+def f_jar_lines(q):  # owner 25 Nov (prototype): jars stand in lines of up to 6, each line centred on its jars; a broken jar leaves its place empty;
+    # a new jar takes the first free place and the others slide to keep the line centred
+    W = q.evaluate("()=>innerWidth"); centred = lambda xs: abs((min(xs) + max(xs)) / 2 - W / 2) < 1
+    def two_jars(first):  # a tile meeting 2 edges: 2 jars; the first one opened holds first
+        table(q, bag=[[0, 1]] * 4, goods=K44, jarQueue=[{'k': first}] + [COIN] * 20, slotQueue=[0, 0, 0], slotFaces=[['jar', 'coin', 'set', 'blank']] * 3)
+        tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); waiting(q, 'jar'); settle(q); return sorted((d['x'], d['slot']) for d in drawn(q, 'jar'))
+    two = two_jars('empty'); tap(q, 'jar-0'); waiting(q, 'jar'); settle(q); left = [(d['x'], d['slot']) for d in drawn(q, 'jar')]
+    two_jars('slot'); tap(q, 'jar-0'); waiting(q, 'jar'); settle(q); jars = drawn(q, 'jar'); row0 = sorted((d['x'], d['slot']) for d in jars if d['row'] == 0)
+    waited = next(x for x, k in row0 if k == 1)
+    ok = [k for _, k in two] == [0, 1] and centred([x for x, _ in two]) and left == [two[1]] and [k for _, k in row0] == list(range(6)) and centred([x for x, _ in row0]) \
+        and len(jars) == 7 and abs(waited - two[1][0]) > 1
+    report(ok, 'jars: lines of 6, centred; broken leaves its place; new takes the first free one', 'two jars %s; after breaking the first %s; with 6 more, row 0 %s, %d jars' % ([(round(x), k) for x, k in two], [(round(x), k) for x, k in left], [(round(x), k) for x, k in row0], len(jars)))
 def f_round_end_shown(q):  # owner 24 Nov: the round's end is its own moment, seen and heard, before anything else happens in it; "the sunset is weird": evening falls (sky darkens from the top, a moon and stars), the board stays in view; leftover market tiles fly back to the pile
     pause_clock(q); table(q, fast=False, bag=[[2, 2], [3, 3]], tiles=[[4, 7, 0, 2, 2, 0], [4, 8, 0, 2, 2, 0]], jarQueue=[COIN] * 8)  # [3, 3] fits nobody: both pass, it is left in the market
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 9, 'r': 0})
