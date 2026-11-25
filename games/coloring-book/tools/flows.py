@@ -19,7 +19,7 @@ def reload(q):  # S(x, y): what the paper shows at a full-paper point, for check
 def scr(q, x, y): return q.evaluate("([x,y])=>__cb.screenOf(x,y)", [x - q.ox, y - q.oy])
 
 def tap(q, bid):
-    opener = {'size': 'size', 'shape': 'brush', 'blur': 'brush', 'soft': 'brush', 'splash': 'brush', 'lift': 'brush'}.get(bid.split('-')[0])  # owner 21 Nov: sizes and brushes are chosen in a popup
+    opener = {'size': 'size', 'shape': 'brush', 'blur': 'brush', 'soft': 'brush', 'impasto': 'brush', 'splash': 'brush', 'lift': 'brush'}.get(bid.split('-')[0])  # owner 21 Nov: sizes and brushes are chosen in a popup
     if opener: p = q.evaluate("(id)=>__cb.btn(id)", opener); q.mouse.click(p[0], p[1]); time.sleep(0.1)
     p = q.evaluate("(id)=>__cb.btn(id)", bid); q.mouse.click(p[0], p[1]); time.sleep(0.05)
 
@@ -256,7 +256,7 @@ PAPER = {  # flow: (test paper, where it starts on the full paper); not named: 4
     'shapes': ('600x200', (200, 100)), 'canvas': ('400x250', (200, 250)), 'flat': ('900x300', (250, 240)), 'crayon_levels': ('680x300', (260, 200)),
     'crayon_blend': ('680x120', (260, 240)), 'water_speed': ('1600x1000', (0, 0)), 'crayon_back_forth': ('680x120', (260, 340)), 'crayon_bend': ('500x300', (250, 250)),
     'picker': ('400x300', (250, 250)), 'simple_over': ('700x400', (250, 200)), 'water_no_hitch': ('1600x1000', (0, 0)), 'simple_soft_keeps': ('600x260', (350, 185)),
-    'picker_shows': ('500x200', (250, 200)), 'mop': ('680x500', (260, 180)), 'acrylic_scrub': ('1000x280', (150, 235)), 'pastel_smear': ('700x160', (250, 240)), 'simple_self_cross': ('600x350', (250, 150))}
+    'picker_shows': ('500x200', (250, 200)), 'mop': ('680x500', (260, 180)), 'pastel_smear': ('700x160', (250, 240)), 'simple_self_cross': ('600x350', (250, 150))}
 
 def f_test_paper(q):  # owner 21 Nov: tests on a smaller paper: the page takes its size from the address, and a stroke lands where it is drawn
     tap(q, 'tool-simple'); tap(q, 'color-1'); drag(q, [(100, 125), (300, 125)])
@@ -541,16 +541,34 @@ def f_palettes(q):  # owner 22 Nov 00:21, changed by him 23 Nov 10:27 and 22:37:
            'columns %s, monochromes wider than his %s, grey scale %s, rainbows %s, above %d, popup %.0f%% x %.0f%%' % ([len(x) for x in c], wider, grey_ok, c[1][:5] == rainbow, above, box[0] * 100, box[1] * 100))
 FLOWS['palettes'] = f_palettes
 
-def f_acrylic_scrub(q):  # owner 21 Nov 18:29: a 3rd acrylic brush like the Brusheezy acrylic packs (broad scrubbed strokes breaking into dry streaks), clearly unlike the flat
-    n = q.evaluate("()=>__cb.shapes.acrylic.length")
-    if n < 4: report(False, 'acrylic: a scrubby 3rd brush unlike the flat', 'only %d acrylic brushes' % n); return
-    tap(q, 'tool-acrylic'); tap(q, 'size-3'); tap(q, 'color-6')
-    tap(q, 'shape-1'); drag(q, [(200, 300), (1100, 300)])
-    tap(q, 'shape-2'); drag(q, [(200, 450), (1100, 450)])
-    def paper_share(y0): return q.evaluate("(y0)=>{let n=0,p=0;for(let x=400;x<900;x+=4)for(let y=y0-30;y<=y0+30;y+=3){n++;const c=S(x,y);if(c[0]>150&&c[1]>150)p++;}return p/n}", y0)
-    flat, scrub = paper_share(300), paper_share(450)
-    report(scrub > flat + 0.12 and scrub < 0.7, 'acrylic: a scrubby 3rd brush unlike the flat', 'paper showing through: flat %.2f, scrub %.2f' % (flat, scrub))
-FLOWS['acrylic_scrub'] = f_acrylic_scrub
+def f_acrylic_brushes(q):  # owner 25 Nov: "many brushes ... ACTUAL brushes, like other software has, real brushes each with its brush shape ... 2 versions of the brush: one with normal acrylic and one with impasto"; then "5 basic ones that allow many drawing options, you choose" (replacing round, flat, scrub, knife)
+    import statistics
+    names = q.evaluate("()=>__cb.shapes.acrylic.map(s=>s.id)")
+    tap(q, 'tool-acrylic'); tap(q, 'size-2'); bad = []
+    if names != ['round', 'flat', 'filbert', 'fan', 'rigger']: bad.append('brushes %s' % names)
+    p = q.evaluate("(id)=>__cb.btn(id)", 'brush'); q.mouse.click(p[0], p[1]); time.sleep(0.2)
+    shown = q.evaluate("()=>[...document.querySelectorAll('[data-id^=shape-],[data-id^=impasto-]')].filter(e=>!e.classList.contains('hide')).map(e=>e.dataset.id)")
+    q.keyboard.press('Escape'); time.sleep(0.1)
+    if len([b for b in shown if b.startswith('impasto-')]) != len(names): bad.append('impasto row %s' % shown)
+    def stroke(row, i, y):
+        tap(q, ('impasto-' if row else 'shape-') + str(i)); tap(q, 'color-6'); x0 = 100 + row * 780
+        glide(q, lambda d: (x0 + d, y), 600, 900, 900)
+        return q.evaluate("""([x0,y])=>{const L=(c)=>0.3*c[0]+0.59*c[1]+0.11*c[2];let paper=0,n=0,lo=1e9,hi=-1e9;
+          for(let x=x0+150;x<x0+450;x+=3)for(let yy=y-60;yy<=y+60;yy++){const l=L(S(x,yy));if(l<200){lo=Math.min(lo,yy);hi=Math.max(hi,yy)}}
+          for(let x=x0+150;x<x0+450;x+=3)for(let yy=lo;yy<=hi;yy++){n++;if(L(S(x,yy))>=200)paper++}
+          let s=0,k=0;for(let x=x0+150;x<x0+450;x+=3){const c=[];for(let yy=lo;yy<=hi;yy++)c.push(L(S(x,yy)));const v=c.filter((l,j)=>j>=2&&j<c.length-2&&c.slice(j-2,j+3).every(u=>u<200));if(v.length<4)continue;const m=v.reduce((a,b)=>a+b,0)/v.length;s+=Math.sqrt(v.reduce((a,b)=>a+(b-m)*(b-m),0)/v.length);k++}
+          let dk=0,dn=0;for(let x=x0+150;x<x0+450;x+=3)for(let yy=lo;yy<=hi;yy++){const l=L(S(x,yy));dk+=245-l;dn++}return [Math.max(0,hi-lo), s/Math.max(1,k), paper/Math.max(1,n), dk/Math.max(1,dn)]}""", [x0, y])
+    two = [[[stroke(row, i, 70 + (i + 5 * k) * 95) for i in range(len(names))] for row in (0, 1)] for k in (0, 1)]  # each brush twice: its bristles are new every stroke
+    got = [[[(a + b) / 2 for a, b in zip(two[0][row][i], two[1][row][i])] for i in range(len(names))] for row in (0, 1)]
+    w = {n: got[0][i][0] for i, n in enumerate(names)}; gap = {n: got[0][i][2] for i, n in enumerate(names)}
+    if not w['rigger'] < w['round'] * 0.6: bad.append('rigger not thin')
+    if not gap['fan'] > gap['flat'] + 0.05: bad.append('fan shows no gaps between its bristle clumps')
+    if not w['flat'] > w['filbert'] * 0.8 > 0: bad.append('filbert')
+    rel = [sum(g[1] for g in r) for r in got]  # light and shade across each stroke away from its edges, all five brushes together (a fan's random clumps make one stroke alone vary)
+    if not rel[1] > rel[0] * 1.3: bad.append('impasto not more raised than normal: light and shade %.0f against %.0f' % (rel[1], rel[0]))
+    report(not bad, 'acrylic: 5 real brushes, each also as impasto', '%s; width, relief, paper, paint: %s' % ('; '.join(bad) or 'ok', [[('%d %.0f %.2f %.0f' % tuple(g)) for g in r] for r in got]))
+FLOWS['acrylic_brushes'] = f_acrylic_brushes
+PAPER['acrylic_brushes'] = ('1600x1000', (0, 0))
 
 def f_acrylic_pushes(q):  # owner 25 Nov: "in acrylic, the wet paint pushed other wet paint, now ... the second crossing goes OVER the grooves of the first one"
     tap(q, 'tool-acrylic'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-3')
@@ -969,17 +987,17 @@ FLOWS['previews_drawn'] = f_previews_drawn
 LOOKS = GAME.parent / 'tools' / 'looks'  # one saved picture per brush: how its normal stroke looked when the owner last saw it
 def brush_jobs(q):
     n = q.evaluate("()=>Object.fromEntries(Object.entries(__cb.shapes).map(([t,v])=>[t,v.length]))")
-    return [(t, i) for t in ('acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil') for i in range(n[t])]
+    return [(t, i, '') for t in ('acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil') for i in range(n[t])] + [('acrylic', i, 'impasto-') for i in range(n['acrylic'])]  # acrylic's second row: the same brushes with impasto paint (owner 25 Nov)
 def brush_strokes(q):  # every drawing tool and brush, one stroke each at his usual speed, run dry; returns {name: picture}
     from PIL import Image; import io
     jobs = brush_jobs(q); out = {}
-    for k, (t, i) in enumerate(jobs):
+    for k, (t, i, row) in enumerate(jobs):
         x, y = 30 + (k % 4) * 400, 60 + (k // 4) * 125
-        tap(q, 'tool-' + t); tap(q, 'shape-%d' % i); tap(q, 'size-1'); tap(q, 'color-6'); jerk(q, x, x + 330, y, 550)
+        tap(q, 'tool-' + t); tap(q, (row or 'shape-') + str(i)); tap(q, 'size-1'); tap(q, 'color-6'); jerk(q, x, x + 330, y, 550)
     wait_dry(q)
-    for k, (t, i) in enumerate(jobs):
+    for k, (t, i, row) in enumerate(jobs):
         x, y = 10 + (k % 4) * 400, (k // 4) * 125; a, b = scr(q, x, y), scr(q, x + 380, y + 120)
-        out['%s-%d' % (t, i)] = Image.open(io.BytesIO(q.screenshot(clip={'x': a[0], 'y': a[1], 'width': b[0] - a[0], 'height': b[1] - a[1]}))).convert('L')
+        out['%s-%s%d' % (t, row, i)] = Image.open(io.BytesIO(q.screenshot(clip={'x': a[0], 'y': a[1], 'width': b[0] - a[0], 'height': b[1] - a[1]}))).convert('L')
     return out
 
 def f_brush_looks(q):  # owner 23 Nov 20:11: a change must not alter how any brush looks unless that brush was meant to change: every brush's normal stroke matches its saved picture

@@ -19,7 +19,7 @@ with sync_playwright() as p:
             q = page(b, '1600x1000')
             if cv != 'wc': tap(q, 'canvas'); tap(q, 'canvas-' + cv); time.sleep(0.5)
             shapes = q.evaluate("()=>Object.fromEntries(Object.entries(__cb.shapes).map(([t,v])=>[t,v.length]))")
-            jobs = [(t, i, 0) for t in ('acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil') for i in range(shapes[t])] + [(t, i, 1) for t in ('simple', 'pencil') for i in range(shapes[t])]
+            jobs = [(t, i, 0) for t in ('acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil') for i in range(shapes[t])] + [(t, i, 1) for t in ('simple', 'pencil', 'acrylic') for i in range(shapes[t])]
             batch = jobs[done:done + PER]
             for k, (t, i, blur) in enumerate(batch):
                 x, y = (k % 4) * W, (k // 4) * H

@@ -15,7 +15,7 @@ A painting game for a curious four-year-old, on a touchscreen PC. Not a workshee
 
 | Tool | Brushes | What it does |
 |---|---|---|
-| Acrylic | round, flat, scrub, knife | thick paint pushed by bristles, leaves streaks and leftover paint, mixes while wet, the brush runs dry; the bucket level is how much paint is on the brush |
+| Acrylic | round, flat, filbert, fan, rigger; a second row: the same five with impasto paint (a fuller brush, a thicker coat, deeper ridges) | thick paint pushed by bristles, leaves streaks and leftover paint, mixes while wet, the brush runs dry; the bucket level is how much paint is on the brush |
 | Watercolour | round, flat, mop (wetter, softer), dry brush | see-through pigment in water: runs inside the wet area, dries with a darker rim, layers darken, granulates in the paper's dips |
 | Crayon (oil pastel) | tip, side | thick and opaque in the paper's raised grain; the bucket level is how hard it presses; passes build up, smear and blend, small lumps |
 | Marker | bullet, chisel | see-through ink: each layer darker, crossings and the edge darker |
@@ -90,10 +90,6 @@ Numbers are his points of 23 Nov; pictures in `owner-shots/2026-11-23-*`. Acryli
 
 - Acrylic 11: more impasto, like the side-by-side picture (https://m.media-amazon.com/images/I/71K2vrgLFRL.jpg).
 - Acrylic 12: passes over earlier acrylic make fish scales; must look natural.
-- Acrylic 13: the 3rd brush looks like bad 3D.
-- Acrylic 14: the 4th brush paints jagged short lines and leaves odd traces at the edges.
-- Acrylic (25 Nov, `owner-shots/2026-11-25-acrylic-groove.png`): a light groove runs along the middle of a stroke; in a curve the bristle lines bend in angled pieces instead of smoothly.
-- Acrylic brush library (25 Nov): many real brushes, each with its own brush shape, like other painting software, not only round and flat; every brush in two versions: normal acrylic and impasto. Brush packs to look at: https://www.freevector.com/brush-paint-stroke-collection-pack-64917.
 - Watercolour brush library (25 Nov): real brushes, and strokes that look like these pages and their "Similar images": https://www.shutterstock.com/image-vector/green-watercolor-splash-stain-paint-brush-2501995219, https://www.shutterstock.com/image-vector/watercolor-paint-textures-set-water-color-2819536941.
 - Acrylic 25: brushes by behaviour, not only tip shape (e.g. speckles, many thin lines like pine needles): bristles that move when dragged.
 - Watercolour 17: the 3rd brush mixes more.
