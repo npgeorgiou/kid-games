@@ -560,20 +560,19 @@ function drawDraft() {
 }
 function stock(i) {  // player i's area, top to bottom: his face; the goods tray (a row of JAR_GOODS places per colour, owner 24 Nov; set signs under its columns); the coins tray
   const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, pad = 16, top = 104, cw = (P - 2 * pad - 8) / JAR_GOODS, r = Math.min(cw * 0.36, 15), rp = Math.max(2 * r + 10, cw);
-  const rowY = c => top + 8 + rp * (c + 0.5), colX = k => x0 + pad + 4 + cw * (k + 0.5), base = top + 16 + COLOURS.length * rp, signY = base + 18;
-  // coins (owner 24 Nov: easy to count, any number fits): rows of 5, apart, a wider gap after every 10, filling from the bottom up; the tray grows upward, smaller coins only when it is full
-  const coinBottom = H - 80, rows = Math.max(2, Math.ceil(p.coins / 5)), tens = Math.floor((rows - 1) / 2), room = coinBottom - (signY + 18 + 26);
-  const tg = Math.min(8, room * 0.15 / Math.max(1, tens)), cr = Math.max(2, Math.min(11, ((room - tens * tg) / rows - 5) / 2)), pitch = Math.min(2 * cr + 5, (room - tens * tg) / rows);  // the coins never take the goods tray's room: past about 60 they get smaller
-  const coinTop = coinBottom - rows * pitch - tens * tg;
-  const coinAt = k => { const row = Math.floor(k / 5); return [x0 + P / 2 + (k % 5 - 2) * (2 * cr + 5), coinBottom - cr - row * pitch - Math.floor(row / 2) * tg]; };
-  return { x0, pad, cw, top, base, r, rp, signY, colX, rowY, coinTop, coinBottom, cr, coinAt };
+  const rowY = c => top + 8 + rp * (c + 0.5), colX = k => x0 + pad + 4 + cw * (k + 0.5), base = top + 16 + COLOURS.length * rp;
+  // coins (owner 25 Nov): in the same 5 columns as the goods, in a tray right under theirs, rows of 5 from the top, a small gap after every 10; smaller only when the tray is full
+  const coinTop = base + 16, coinBottom = H - 80, rows = Math.max(2, Math.ceil(p.coins / 5)), tens = Math.floor((rows - 1) / 2), tg = 6;
+  const pitch = Math.min(rp * 0.82, (coinBottom - coinTop - 16 - tens * tg) / rows), cr = Math.max(2, Math.min(r, pitch * 0.46, (pitch - 2) / 2));  // always apart, however many
+  const coinAt = k => { const row = Math.floor(k / 5); return [colX(k % 5), coinTop + 8 + pitch * (row + 0.5) + Math.floor(row / 2) * tg]; };
+  return { x0, pad, cw, top, base, r, rp, colX, rowY, coinTop, coinBottom, cr, coinAt };
 }
 function face(x, y, r, col) {  // a player: a round face in his colour
   dot(x, y, r, col); dot(x - r * 0.35, y - r * 0.15, r * 0.13, '#fff'); dot(x + r * 0.35, y - r * 0.15, r * 0.13, '#fff');
   cx.strokeStyle = '#fff'; cx.lineWidth = r * 0.12; cx.lineCap = 'round'; cx.beginPath(); cx.arc(x, y + r * 0.05, r * 0.45, 0.5, Math.PI - 0.5); cx.stroke(); cx.lineCap = 'butt';
 }
 function drawPanel(i) {
-  const { P } = L(), p = G.players[i], lit = G.turn === i, { x0, pad, cw, top, r, rp, signY, colX, rowY, coinTop } = stock(i), cxm = x0 + P / 2;
+  const { P } = L(), p = G.players[i], lit = G.turn === i, { x0, pad, cw, top, base, r, rp, colX, rowY, coinTop } = stock(i), cxm = x0 + P / 2;
   if (lit) rrect(x0 + 2, 4, P - 4, H - 8, 20, null, BORDER[i] + '66', 10);  // the player whose turn it is: his area glows in his colour
   rrect(x0 + 6, 8, P - 12, H - 16, 16, lit ? TINT[i] : '#efe6d4', BORDER[i], lit ? 5 : 2);
   drawn.push({ k: 'panel', o: i, lit, x: x0, w: P });
@@ -581,14 +580,14 @@ function drawPanel(i) {
   face(cxm, 54, fr, BORDER[i]); drawn.push({ k: 'avatar', o: i, x: cxm, y: 54, r: fr });
   if (G.first === i) { const [sx, sy] = starSpot(i); star(sx, sy, 16); drawn.push({ k: 'token', o: i, x: sx, y: sy }); }  // the first-player token, beside his face
   // goods: a row of JAR_GOODS places per colour (a recess each)
-  rrect(x0 + pad, top - 4, P - 2 * pad, signY + 18 - top + 4, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'goods' });
+  rrect(x0 + pad, top - 4, P - 2 * pad, base - top + 4, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'goods', y: top - 4, h: base - top + 4 });
   for (const c of COLOUR_IDS) {
     rrect(colX(0) - cw / 2 + 2, rowY(c) - rp / 2 + 3, cw * JAR_GOODS - 4, rp - 6, (rp - 6) / 2, '#ffffff55');  // a groove per colour
     for (let k = 0; k < JAR_GOODS; k++) { dot(colX(k), rowY(c), r, '#00000014'); drawn.push({ k: 'place', o: i, c, x: colX(k), y: rowY(c), r }); }
   }
   p.goods.forEach((g, c) => { for (let k = 0; k < g; k++) { dot(colX(k), rowY(c), r, COLOURS[c]); drawn.push({ k: 'good', o: i, c, x: colX(k), y: rowY(c), r }); } });
   const { cr, coinAt, coinBottom } = stock(i);
-  rrect(x0 + pad, coinTop - 8, P - 2 * pad, coinBottom - coinTop + 16, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'coins' });
+  rrect(x0 + pad, coinTop, P - 2 * pad, coinBottom - coinTop, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'coins', y: coinTop, h: coinBottom - coinTop });
   for (let k = 0; k < p.coins; k++) { const [x, y] = coinAt(k); coin(x, y, cr); drawn.push({ k: 'coin', o: i, x, y, r: cr }); }
   if (!lit) { cx.fillStyle = 'rgba(120,110,95,0.38)'; cx.beginPath(); cx.roundRect(x0 + 6, 8, P - 12, H - 16, 16); cx.fill(); }  // the other player's area is dimmed
 }

@@ -242,6 +242,13 @@ def f_many_jars_rows(q):  # owner 24 Nov: "when a lot of jars exist, make more r
     ok = len(jars) == 7 and max(len(r) for r in rows.values()) == 6 and all(abs(j['size'] - one) < 0.5 for j in jars) and all(0 < j['y'] - j['size'] / 2 and j['y'] + j['size'] / 2 < H for j in jars)
     report(ok, 'jars: 6 to a row, more rows, same size', '%d jars in rows of %s, sizes %s (one alone %.0f)' % (len(jars), [len(r) for r in rows.values()], sorted({round(j['size']) for j in jars}), one))
 
+def f_coins_in_columns(q):  # owner 25 Nov (prototype): coins stand in the 5 material columns, in a tray right under the materials, rows of 5 from the top
+    table(q, bag=[[0, 4]] * 4, coins=[7, 0]); c = [x for x in drawn(q, 'coin') if x['o'] == 0]; cols = sorted({round(x['x']) for x in drawn(q, 'place') if x['o'] == 0})
+    trays = {t['for']: t for t in drawn(q, 'tray') if t['o'] == 0}; g, k = trays['goods'], trays['coins']
+    top = min(x['y'] for x in c); first = [round(x['x']) for x in c if abs(x['y'] - top) < 1]; second = [round(x['x']) for x in c if x['y'] > top + 1]
+    ok = first == cols and second == cols[:2] and 0 <= k['y'] - (g['y'] + g['h']) <= 24 and top - max(x['r'] for x in c) - k['y'] <= 24
+    report(ok, 'coins: in the material columns, under them, from the top', 'material columns %s, first row %s, second row %s, goods tray ends %.0f, coins tray starts %.0f, first coins at %.0f' % (cols, first, second, g['y'] + g['h'], k['y'], top))
+
 def f_many_coins(q):  # owner 24 Nov: "make sure more coins than you predicted can fit", then "coins are too stacked and squeezed, make them easier to count": rows of 5, apart, a gap after every 10
     out = {}
     for n in (12, 100, 160):  # 160: found by the main game, more than the tray was made for: they shrink but stay apart and leave the goods their room
@@ -249,8 +256,8 @@ def f_many_coins(q):  # owner 24 Nov: "make sure more coins than you predicted c
         P, H = next(x for x in drawn(q, 'panel') if x['o'] == 0)['w'], q.evaluate("()=>innerHeight")
         inside = all(x['x'] - x['r'] > 0 and x['x'] + x['r'] < P and x['y'] + x['r'] < H for x in c)
         gap = min(((a['x'] - b['x']) ** 2 + (a['y'] - b['y']) ** 2) ** 0.5 - a['r'] - b['r'] for i, a in enumerate(c) for b in c[i + 1:])
-        rows = sorted({round(x['y']) for x in c}, reverse=True); per = [sum(1 for x in c if round(x['y']) == y) for y in rows]
-        steps = [a - b for a, b in zip(rows, rows[1:])]; tens = all(steps[k] > steps[0] + 2 for k in range(1, len(steps), 2))
+        rows = sorted({round(x['y']) for x in c}); per = [sum(1 for x in c if round(x['y']) == y) for y in rows]  # owner 25 Nov: rows fill from the top
+        steps = [b - a for a, b in zip(rows, rows[1:])]; tens = all(steps[k] > steps[0] + 2 for k in range(1, len(steps), 2))
         goods_room = q.evaluate("()=>{const t=__dg.drawn().filter(d=>d.k==='tray'&&d.o===0);return t.length}") == 2
         out[n] = (len(c) == n and inside and gap >= 1 and goods_room and all(v == 5 for v in per[:-1]) and tens, len(c), inside, round(gap, 1), per[:3], tens)
     report(all(v[0] for v in out.values()), 'coins: rows of 5, apart, a gap after every 10', str(out))
