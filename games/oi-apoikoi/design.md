@@ -69,13 +69,25 @@ Two players each build their own land from tiles with two terrain halves, on one
 - the end is a smaller box over the board; each player's coins fly into his pile (rows of 10, the same coin size for both); a star stands over the taller pile; a green play button starts again.
 - Anything earned per tile or per round must stay a real choice over a whole game (28 tiles: at most 14 each).
 
-## 3. Tensions (from the rules so far)
+## 3. The new look (decided, not built yet)
+
+Replaces the colours-only look. Where it differs from section 2, this section wins once it is built.
+
+- Setting: Greek colonies, about 750-550 BC (proposal, owner did not object).
+- Lands and their materials: wheat field: grain; pomegranate orchard: pomegranates; vineyard: grapes; forest: timber; mountain: rubies; town: little statues.
+- The board is sea: a square board of 16 x 16 squares seen in true isometric view (a diamond 1.73 times as wide as high), as tall as the screen under the market band allows. Land exists only where tiles are placed; each player starts with his own 2-square start tile, as now.
+- Sea pictures: the owner's water pack (MaelleMarylloup, "water sea shore material tileset", `art/sea/`): 6 water colours, each a 4 x 4 sheet of 256 x 128 diamonds (open water and shore pieces for every edge and corner). Drawn 2 to 1, squeezed to true isometric. Its terms of use are not checked yet.
+- Land pictures: flat 2D pictures in the same isometric view, in the sea pack's hand-drawn style, made for the game; things stand upright, so turning a tile changes only which squares its halves cover. Touching squares of one land join into one area.
+- Market: a band across the top: the pile, then the 4 tiles.
+- Player areas: the two triangles beside the board on each side, joined by a narrow strip at the board's side corner (green left, red right). The face sits in the thin top corner beside the market. Materials and coins are 1.5 times their old size. Materials: a column of 5 per colour, from the top, beside the screen edge. Coins fill the bottom triangle in rows from the bottom up, each as long as the triangle is wide there, at most 8 a row.
+
+## 4. Tensions (from the rules so far)
 
 - Placing one half well forces the other half somewhere.
 - Connecting to a big land of one colour lights more squares (more materials, so jars); connecting several edges gives more jars at once.
 - Growing toward the other player's land lights his land too, for you.
 
-## 4. Design sheet rows (required by `docs/design-rules.md`)
+## 5. Design sheet rows (required by `docs/design-rules.md`)
 
 | Row | Content |
 |---|---|
@@ -86,7 +98,7 @@ Two players each build their own land from tiles with two terrain halves, on one
 | Minutes loop | One game: rounds until no tile can be placed, then the coin piles are compared. |
 | Days loop | Open |
 | Mechanics | Section 2 |
-| Dynamics | Section 3 |
+| Dynamics | Section 4 |
 | Kinds of fun | Open |
 | Competence | Open |
 | Autonomy | Open |
@@ -95,7 +107,7 @@ Two players each build their own land from tiles with two terrain halves, on one
 | What would kill the fun | Rewards that pile up over about 20 tiles; ties with nothing to break them; a resource with no job, or two scoring systems with no clear job each; slot machine wins costing more than they give; bidding with nothing to lose. |
 | Prototype must answer | Open |
 
-## 5. Built for now (not decided by the owner; to check)
+## 6. Built for now (not decided by the owner; to check)
 
 - The PC's best for this turn: the pick and place that make the most jars now (one per connection, one per 5 materials, counting the land it lights onto what it has); between equal moves, the one lighting more squares. Jar contents are luck, so any jar is opened first; the slot machine is played for the most expected coins.
 - Tiles nobody could place in a round go back under the pile.
@@ -103,10 +115,9 @@ Two players each build their own land from tiles with two terrain halves, on one
 - The PC's hand: Fluent Emoji pictures; it points to tap and to carry a tile, opens to let go, is raised when the PC passes.
 - The pile's 28 layers are about 1 px apart on a 1280 x 800 screen (the pile stays above the market's bottom).
 
-## 6. Still open (all in one place)
+## 7. Still open (all in one place)
 
 - The slot machine: pictures with amounts, later; or 3 faces of 1 each (1 coin, 1 jar, 1 of each material), no blank.
 - More than 2 players.
-- Greek period and region (one per game, `docs/design-rules.md`).
-- What each land and good is (colours only for now).
+- The region of the colony.
 - The design sheet rows marked "Open".
