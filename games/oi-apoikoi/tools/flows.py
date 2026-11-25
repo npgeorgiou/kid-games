@@ -397,11 +397,11 @@ def f_pc_slot(q):  # the PC takes the best expected result on the slot machine t
     table(q, bag=[[0, 4]] * 4, first=1, coins=[0, 5], jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 0, 1, 0], slotFaces=FACES)  # coin, coin, jar; the respin of the third wheel lands on coin
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); c = st(q)['players'][1]['coins']
     report(c == 5 - 1 + 6, 'pc: slot machine played for the most', 'pc coins %d (5, paid 1 to chase the third coin, won 3 faces of 2 coins)' % c)
-def f_jar_mix(q):  # owner 25 Nov (prototype), per 95 jars: 10 empty, 40 one coin, 10 two coins, 2.5 a random tile, 5 slot machine, 7.5 first player, 7.5 another jar, 7.5 one of each material; no stealing
+def f_jar_mix(q):  # owner 25 Nov, per 100 jars: "1 coin about 45%, Empty about 10%, 2 coins about 10%, One of each material about 10%, Another jar about 8%, First player about 8%, Slot machine about 5%, Tile about 4%"; no stealing
     table(q, bag=[[0, 4]] * 4, seed=11)  # seeded: an unseeded sample missed the 1.5% band about once in 15 runs
     n = 8000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)
-    want = {'empty': 10, 'coins': 40, 'coins2': 10, 'tile': 2.5, 'slot': 5, 'first': 7.5, 'jar': 7.5, 'set': 7.5}
-    ok = set(m) == set(want) and all(abs(100 * m[k] / n - 100 * v / sum(want.values())) < 1.5 for k, v in want.items())  # the shares are of the weights' total (they add up to 90)
+    want = {'empty': 10, 'coins': 45, 'coins2': 10, 'tile': 4, 'slot': 5, 'first': 8, 'jar': 8, 'set': 10}
+    ok = set(m) == set(want) and all(abs(100 * m[k] / n - v) < 1.5 for k, v in want.items())  # the shares are per 100 jars
     report(ok, 'jars: the owner\'s mix, no stealing', ', '.join('%s %.1f%%' % (k, 100 * m.get(k, 0) / n) for k in sorted(set(want) | set(m))))
 def f_empty_jar(q):  # owner 24 Nov: some jars hold nothing: it breaks, shows it is empty, and nothing is gained
     get_jar(q, [{'k': 'empty'}])
