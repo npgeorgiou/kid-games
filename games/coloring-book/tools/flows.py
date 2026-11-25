@@ -560,6 +560,21 @@ def f_acrylic_pushes(q):  # owner 25 Nov: "in acrylic, the wet paint pushed othe
     report(cross < 1, 'acrylic: a wet stroke pushes the wet paint under it (its grooves, not the old ones)', 'grooves where they cross %.2f, the second alone %.2f (<1: running down)' % (cross, alone))
 FLOWS['acrylic_pushes'] = f_acrylic_pushes
 
+def stripe_turn(q, cx, cy, R, a):  # how far the brush lines at the paper point on a circle round (cx, cy) are turned from running round it, in degrees (the main slope of the colour there, from its gradients)
+    return q.evaluate("""([cx,cy,R,a])=>{const x0=cx+R*Math.cos(a),y0=cy+R*Math.sin(a);let xx=0,yy=0,xy=0;const L=(x,y)=>{const c=S(Math.round(x),Math.round(y));return 0.3*c[0]+0.59*c[1]+0.11*c[2]};
+      for(let j=-12;j<=12;j++)for(let i=-12;i<=12;i++){const x=x0+i,y=y0+j,gx=L(x+1,y)-L(x-1,y),gy=L(x,y+1)-L(x,y-1);xx+=gx*gx;yy+=gy*gy;xy+=gx*gy}
+      let d=0.5*Math.atan2(2*xy,xx-yy)-a;d=((d%Math.PI)+1.5*Math.PI)%Math.PI-Math.PI/2;return d*180/Math.PI}""", [cx, cy, R, a])
+
+def f_acrylic_curve(q):  # owner 25 Nov: "look at the circle below, the brush hairlines are not curving smoothly, they are like lines in an angle"
+    import math
+    tap(q, 'tool-acrylic'); tap(q, 'shape-0'); tap(q, 'size-4'); tap(q, 'color-1'); R = 220
+    glide(q, lambda d: (800 + R * math.cos(d / R), 500 + R * math.sin(d / R)), 2 * math.pi * R * 0.9, 1800, 1800)  # a steady hand going round, moves 16 ms apart as his screen sends them
+    errs = [abs(stripe_turn(q, 800, 500, R + e, 2 * math.pi * k / 200)) for k in range(40, 170) for e in (-30, 0, 30)]
+    m = sum(errs) / len(errs)
+    report(m < 6, 'acrylic: brush lines curve smoothly round a circle', 'lines turned from the circle by %.1f degrees on average' % m)
+FLOWS['acrylic_curve'] = f_acrylic_curve
+PAPER['acrylic_curve'] = ('1600x1000', (0, 0))
+
 def f_pastel_smear(q):  # owner 21 Nov 18:29: the crayon is an oil pastel: passing over pastel smears it, carrying its colour along past where it was
     tap(q, 'tool-crayon'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-4')
     drag(q, [(300, 300), (500, 300), (300, 340), (500, 340)])
