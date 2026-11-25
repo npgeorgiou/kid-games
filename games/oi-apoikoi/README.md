@@ -29,7 +29,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 
 ## Now
 
-A playable game against the PC on one shared board, colours only: 6 colours and 28 tiles; each connection gives a jar and lights its connected land (both players') for one material a square; 5 of a colour make a jar; jars hold coins, the first-player star, another jar, one of each material, a random tile or the slot machine (the same 4 faces on every wheel, only three of a kind wins). The board is as big as the height allows and the areas take the rest; a tile is the same size everywhere. Jars stand in centred lines of 6, break as fast as he taps and show their prize as a picture above them. The end is a box over the board with each player's coin pile. Rules and built-for-now choices are in `design.md`.
+A playable game against the PC on one shared board, colours only: 6 colours and 28 tiles; each connection gives a jar and lights its connected land (both players') for one material a square; 5 of a colour make a jar; jars hold coins, the first-player star, another jar, one of each material, a random tile or the slot machine (the same 4 faces on every wheel, only three of a kind wins). The board is as big as the height allows and the areas take the rest; a tile is the same size everywhere. Jars stand in centred lines of 6, break as fast as he taps and show their prize as a picture above them. The end is a box over the board with each player's coin pile. The PC picks and places for the most jars this turn. Rules and built-for-now choices are in `design.md`.
 
 ## Open
 
@@ -41,4 +41,4 @@ A playable game against the PC on one shared board, colours only: 6 colours and 
 
 ## Task list
 
-1. The PC plays the rules at its best.
+(empty)

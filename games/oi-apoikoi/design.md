@@ -124,7 +124,7 @@ Two players each build their own land from tiles with two terrain halves, on one
 
 ## 6. Built for now (not decided by the owner; to check)
 
-- The PC judges a move by the jars it earns this turn (until it plays the 25 Nov rules at its best, task 3).
+- The PC's best for this turn: the pick and place that make the most jars now (one per connection, one per 5 materials, counting the land it lights onto what it has); between equal moves, the one lighting more squares. Jar contents are luck, so any jar is opened first; the slot machine is played for the most expected coins.
 - Tiles nobody could place in a round go back under the pile.
 - Sounds (owner 24 Nov: simple built-in sounds until his own files come; no blips, a jar breaks when opened): one soft family: wood knocks for dealing, picking, snapping and a wheel stopping; a clay break for opening a jar; a clink for coins; soft chimes for passes, lit squares, jars made from materials and slot wins; a whoosh for the slot spinning.
 - The PC's hand: Fluent Emoji pictures; it points to tap and to carry a tile (owner 24 Nov), opens to let go, is raised when the PC passes.

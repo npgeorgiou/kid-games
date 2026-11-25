@@ -14,11 +14,11 @@ canvas { display: block; width: 100vw; height: 100vh; }
 <script>
 // Οι Άποικοι: a prototype of the rules in design.md. Lands are colours only for now (owner 23 Nov).
 // The model, in plain words:
-// 1. A round: 4 tiles are laid out; players pick in turn (the token holder first, else the kid) and the picker takes the tile.
+// 1. A round: 4 tiles are dealt one by one from the pile; players pick in turn (the token holder first, else the kid) and the picker takes the tile.
 //    A tile you can't place is greyed for you; with nothing to pick your turn passes and the other plays again.
-// 2. A tile fits on two free squares with at least one matching edge with your own land. Every matching edge, with any land, gives one good of its colour;
-//    each JAR_GOODS (5) of one colour fly into a jar at once, opened at once. Goods carry over between rounds.
-// 3. Jars hold nothing, coins or a bonus, in the mix JAR_MIX. The game ends when no tile left can be placed by either player; the longer row of coins wins.
+// 2. A tile fits on two free squares with at least one matching edge with your own land. Each connection (a matching edge, with any land) gives a jar and lights
+//    the connected land of its colour, both players'; each lit square gives one material; JAR_GOODS (5) of a colour make a jar at once. Materials carry over between rounds.
+// 3. Jars hold nothing, coins or a bonus, in the mix JAR_MIX. The game ends when no tile left can be placed by either player; the taller pile of coins wins.
 // The tile you win stays where it is until it snaps: tap it to turn it, drag it and leave it anywhere, as often as you like.
 // The PC plays through the same taps and drags as the kid, with a hand you can see (Fluent Emoji hands, MIT, src/hands/).
 
@@ -107,9 +107,17 @@ function spots(cs, r, i) {  // where player i can place a tile: two free squares
   }
   out.sort((a, b) => a.y - b.y || a.x - b.x); spotMemo.set(mk, out); return out;
 }
-function bestPlace(cs, i) { let best = null; for (let r = 0; r < 4; r++) for (const s of spots(cs, r, i)) if (!best || s.m > best.m) best = s; return best; }
-const fits = (cs, i) => !!cs && !!bestPlace(cs, i);
-const jarsFor = (cs, i) => { const b = cs && bestPlace(cs, i); return b ? b.m : 0; };
+// What a move is worth to the PC (owner: the best expected result for this turn): 1. the jars it makes now: one per connection, and one per 5 materials
+// of a colour, counting the land it lights onto what he has; 2. between moves making as many jars, the one lighting more squares (more materials toward the next jars).
+function moveWorth(cs, sp, i) {
+  const edges = matchEdges(cs, sp.x, sp.y, sp.r), t = { id: 'trial', cs, x: sp.x, y: sp.y, r: sp.r, o: i }, p = G.players[i];
+  put(t); const lit = litLand(edges); lift(t);
+  const g = p.goods.map((n, c) => n + p.coming[c]); lit.forEach(([c]) => g[c]++);
+  return { jars: edges.length + g.reduce((a, n) => a + Math.floor(n / JAR_GOODS), 0), lit: lit.length };
+}
+const better = (a, b) => !b || a.jars > b.jars || (a.jars === b.jars && a.lit > b.lit);
+function bestPlace(cs, i) { let best = null, bw = null; for (let r = 0; r < 4; r++) for (const sp of spots(cs, r, i)) { const w = moveWorth(cs, sp, i); if (better(w, bw)) { best = sp; bw = w; } } return best && { ...best, worth: bw }; }
+const fits = (cs, i) => !!cs && [0, 1, 2, 3].some(r => spots(cs, r, i).length > 0);
 function freeTile(i) { for (let k = 0; k < 40; k++) { const t = [0, 1].map(() => Math.floor(rnd() * COLOURS.length)); if (fits(t, i)) return t; } return null; }  // a jar's free tile: random colours, one that fits his land (owner 25 Nov)
 function makeBag() {  // the halves shuffled into tiles; of the first round's 4, 2 meet a start colour (one for each player, owner 24 Nov), the other 2 come as shuffled, in random places
   const hs = HALVES.flatMap((n, c) => Array(n).fill(c)), shuffle = a => { for (let k = a.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [a[k], a[j]] = [a[j], a[k]]; } return a; };
@@ -282,7 +290,7 @@ async function makeJar(i, c, landing) {  // a full row of colour c: its jar drop
 async function pass(i) { G.players[i].passes++; sound('pass'); G.passing = i; if (!G.players[i].human) G.hand.g = 'raised'; await pause(1200); G.passing = null; G.hand.g = 'point'; }  // a skipped turn: only its sound (owner 25 Nov); the PC raises its hand
 const pickable = (k, i) => fits(G.draft[k], i);  // fits his land
 function pick(i) {
-  let best = -1, bm = -1; G.draft.forEach((t, k) => { if (pickable(k, i) && jarsFor(t, i) > bm) { bm = jarsFor(t, i); best = k; } });
+  let best = -1, bw = null; G.draft.forEach((t, k) => { if (!pickable(k, i)) return; const w = bestPlace(t, i).worth; if (better(w, bw)) { bw = w; best = k; } });  // the tile whose best place is worth most
   return choose('pick', i, {}, () => pcTap('draft-' + best));
 }
 function litLand(edges) {  // the land each connection lights (owner 25 Nov): its colour's connected squares, both players', spreading out from it (the standard flood fill,

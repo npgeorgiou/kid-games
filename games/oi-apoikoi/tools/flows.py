@@ -365,7 +365,7 @@ def f_end_screen(q):  # owner 25 Nov (prototype): the end: a smaller box over th
     ok = flew and inside and [len(piles[0]), len(piles[1])] == [23, 7] and not panel and rows == {0: [3, 10, 10], 1: [7]} and len(sizes) == 1 and above and again
     report(ok, 'end: a box over the board, two piles, a star, play again', 'coins flew %s; box over the board %s; piles %s in rows %s, coin sizes %s; star over the taller %s; play button works %s' % (flew, inside, [len(piles[0]), len(piles[1])], rows, sizes, above, again))
 
-def f_pc_best(q):  # the PC picks and places for the most goods
+def f_pc_best(q):  # the PC picks and places for the most jars (2 connections)
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)
     pc = [t[3:5] for t in s['tiles'] if t[5] == 1 and t[:2] != [14, 6]]
@@ -385,6 +385,13 @@ def f_pc_hand(q):  # the PC's moves are slow and done by a moving hand: it point
     table(q, bag=[[0, 4]] * 4); tap(q, 'draft-0'); waiting(q, 'place'); h0 = held(q)
     q.clock.run_for(1800); settle(q); h1 = held(q); q.clock.resume()  # longer than the rest of the PC's drag
     report(slow and h0 == h1, 'pc: slow, by a moving hand; a new game is left alone', '%d ms, hand at %d places, gestures %s, pictures while dragging %s; new game tile %s then %s' % (ms, len(xs), sorted(gs), sorted(drag_pics), h0, h1))
+
+def f_pc_most_jars(q):  # owner (design): the PC does what is best for this turn; owner 25 Nov rules: a move is worth the jars it makes now, its connections' and those of
+    # 5 materials; here [1, 1] and [0, 3] both connect once, but [0, 3] lights 6 colour-0 squares onto his 4: 2 more jars
+    table(q, bag=[[1, 1], [0, 3], [3, 3], [3, 3]], first=1, tiles=[[14, 7, 0, 0, 0, 1], [14, 8, 0, 0, 0, 1]], goods=[[0] * 6, [4, 0, 0, 0, 0, 0]], jarQueue=[COIN] * 12)
+    q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)
+    pc = [t[3:5] for t in s['tiles'] if t[5] == 1 and t[:2] not in ([14, 6], [14, 7], [14, 8])]; opened = sum(s['players'][1]['opened'].values())
+    report(pc == [[0, 3]] and opened == 3, 'pc: the move that makes the most jars', 'pc placed %s, jars %d' % (pc, opened))
 
 def f_pc_slot(q):  # the PC takes the best expected result on the slot machine too (here: two coins showing, chasing the third is worth it: it keeps both, pays 1 and wins 6)
     table(q, bag=[[0, 4]] * 4, first=1, coins=[0, 5], jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 0, 1, 0], slotFaces=FACES)  # coin, coin, jar; the respin of the third wheel lands on coin
