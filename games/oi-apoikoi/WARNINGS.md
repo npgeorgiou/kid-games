@@ -15,3 +15,6 @@
 - Run the main game on many seeds (MAIN_SEED 1..30) after a rule change: it finds crashes no small flow reaches (negative radii with very many goods or coins).
 - The test run is bound by the browser's processor time: every drawn picture (settle) and every round trip costs; a running fake clock draws 60 frames a second, so fast tables stop it. Count round trips before adding a sampling loop.
 - Layout numbers in flows are read from the screen (the panel's width, a tile button's size), never copied from the game's formulas: copied numbers broke five flows when the panels widened.
+- At test speed every timed look (a light sweep, a bounce) is over at once: the paused test clock kept the full-screen morning light on every test frame (4 ms each).
+- The board (sea, land, borders) is one picture made only when the board changes; draw anything that changes every frame on top of it, never into it.
+- Start every picture with clearRect over the whole screen, never a full-screen fill: in-page test loops never let the browser draw, and only a clear lets it drop the frames not drawn yet (a fill made random play 3 times slower).

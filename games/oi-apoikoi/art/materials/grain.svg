@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" width="64" height="64">
+<defs><g id="e"><ellipse rx="4.5" ry="10" fill="#f4d05e" stroke="#a87a22" stroke-width="2"/><path d="M-1.5 -6 Q-2.5 0 -1.5 5" stroke="#fff6cf" stroke-width="2" fill="none" stroke-linecap="round"/></g></defs>
+<g stroke="#b08529" stroke-width="3" stroke-linecap="round" fill="none"><path d="M32 60 L18 26M32 60 L26 20M32 60 L32 18M32 60 L38 20M32 60 L46 26"/></g>
+<use xlink:href="#e" transform="translate(16 20) rotate(-24)"/><use xlink:href="#e" transform="translate(48 20) rotate(24)"/>
+<use xlink:href="#e" transform="translate(25 14) rotate(-10)"/><use xlink:href="#e" transform="translate(39 14) rotate(10)"/><use xlink:href="#e" transform="translate(32 11)"/>
+<path d="M24 44 Q32 49 40 44" stroke="#8a5a2a" stroke-width="5" fill="none" stroke-linecap="round"/>
+</svg>

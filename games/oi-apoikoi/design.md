@@ -69,9 +69,9 @@ Two players each build their own land from tiles with two terrain halves, on one
 - the end is a smaller box over the board; each player's coins fly into his pile (rows of 10, the same coin size for both); a star stands over the taller pile; a green play button starts again.
 - Anything earned per tile or per round must stay a real choice over a whole game (28 tiles: at most 14 each).
 
-## 3. The new look (decided, not built yet)
+## 3. The new look (decided, built 25 Nov)
 
-Replaces the colours-only look. Where it differs from section 2, this section wins once it is built.
+Replaces the colours-only look. Where it differs from section 2 (the board's size, colours), this section wins.
 
 - Setting: Greek colonies, about 750-550 BC (proposal, owner did not object).
 - Lands and their materials: wheat field: grain; pomegranate orchard: pomegranates; vineyard: grapes; forest: timber; mountain: rubies; town: little statues.
@@ -113,7 +113,12 @@ Replaces the colours-only look. Where it differs from section 2, this section wi
 - Tiles nobody could place in a round go back under the pile.
 - Sounds (simple built-in sounds until the owner's own files come; no blips, a jar breaks when opened): one soft family: wood knocks for dealing, picking, snapping and a wheel stopping; a clay break for opening a jar; a clink for coins; soft chimes for passes, lit squares, jars made from materials and slot wins; a whoosh for the slot spinning.
 - The PC's hand: Fluent Emoji pictures; it points to tap and to carry a tile, opens to let go, is raised when the PC passes.
-- The pile's 28 layers are about 1 px apart on a 1280 x 800 screen (the pile stays above the market's bottom).
+- The pile's 28 layers are 1.5 px apart (the band is made tall enough for them).
+- Which land is which of the six: in the order section 3 lists them, most common first (wheat field and pomegranate orchard are the start tile's).
+- The start tiles on the 16 x 16 board: the kid's at squares (4, 10)-(5, 10), the PC's its mirror image (10, 4)-(10, 5).
+- The water colour: `water-c` of the pack.
+- Coins past what the bottom triangle holds at full size (about 44 on a 1280 x 800 screen) all get smaller together, always apart.
+- The face's corner: the lit face and a gap fit into the corner between the band and the board's edge; the first-player star beside it, away from the board.
 
 ## 7. Still open (all in one place)
 
