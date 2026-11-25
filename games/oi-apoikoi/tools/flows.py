@@ -46,7 +46,7 @@ def best_spot(q): return max(st(q)['spots'], key=lambda p: p['m'])
 def tile_count(q, who): return sum(1 for t in st(q)['tiles'] if t[5] == who)
 def drawn(q, kind): return q.evaluate("(k)=>__dg.drawn().filter(d=>d.k===k)", kind)  # filtered in the page: the whole list is long
 def report(ok, name, seen): print('%-4s [%s] %-40s %s' % ('PASS' if ok else 'FAIL', NOW[0], name, seen))
-FACES = [['coin', 'jar', 'set', 'g2']] * 3  # a slot machine's faces, wheel by wheel: 1 coin, 1 jar, 1 of each good, 5 of good 2 (owner 24 Nov)
+FACES = [['coin', 'jar', 'set', 'blank']] * 3  # a slot machine's faces, wheel by wheel: 2 coins, 2 jars, 2 of each material, a blank (owner 25 Nov)
 K4 = [[4, 0, 0, 0, 0, 0], [0] * 6]  # the kid has 4 goods of colour 0: one more makes a jar
 K44 = [[4, 4, 0, 0, 0, 0], [0] * 6]  # 4 of colours 0 and 1: a [0, 1] tile under the start tile makes 2 jars
 def get_jar(q, contents, coins=0, slots=(), faces=FACES):  # place a tile with one matching edge; its good makes a jar; open it (slots: the face each spin lands on)
@@ -235,7 +235,7 @@ def f_sound_kinds(q):  # owner 24 Nov: "a weird blip when I tap a piece"; "jars 
 
 def f_many_jars_rows(q):  # owner 24 Nov: "when a lot of jars exist, make more rows, 6 jars per row; don't reduce their size"
     table(q, bag=[[0, 4]] * 4, goods=K4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); one = drawn(q, 'jar')[0]['size']  # one jar alone: its size
-    table(q, bag=[[0, 1]] * 4, goods=K44, jarQueue=[{'k': 'slot'}] + [COIN] * 20, slotQueue=[0, 0, 0], slotFaces=[['jar', 'coin', 'set', 'g2']] * 3)
+    table(q, bag=[[0, 1]] * 4, goods=K44, jarQueue=[{'k': 'slot'}] + [COIN] * 20, slotQueue=[0, 0, 0], slotFaces=[['jar', 'coin', 'set', 'blank']] * 3)
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); waiting(q, 'jar'); tap(q, 'jar-0'); waiting(q, 'jar'); jars = drawn(q, 'jar')  # 2 jars; the first's slot machine shows three jars: 6 more
     rows = {}; [rows.setdefault(j['row'], []).append(j) for j in jars]
     W, H = q.evaluate("()=>[innerWidth, innerHeight]")
@@ -336,11 +336,10 @@ def f_pc_hand(q):  # the PC's moves are slow and done by a moving hand: it point
     q.clock.run_for(1800); settle(q); h1 = held(q); q.clock.resume()  # longer than the rest of the PC's drag
     report(slow and h0 == h1, 'pc: slow, by a moving hand; a new game is left alone', '%d ms, hand at %d places, gestures %s, pictures while dragging %s; new game tile %s then %s' % (ms, len(xs), sorted(gs), sorted(drag_pics), h0, h1))
 
-def f_pc_slot(q):  # the PC takes the best expected result on the slot machine too (here: chasing the third coin is worth a little less than stopping, so it stops and takes 2 coins and a jar)
-    table(q, bag=[[0, 4]] * 4, first=1, coins=[0, 5], goods=[[0] * 6, [4, 0, 0, 0, 0, 0]], jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 0, 1], slotFaces=FACES)  # coin, coin, jar: chasing the third coin is worth a little less than stopping
+def f_pc_slot(q):  # the PC takes the best expected result on the slot machine too (here: two coins showing, chasing the third is worth it: it keeps both, pays 1 and wins 6)
+    table(q, bag=[[0, 4]] * 4, first=1, coins=[0, 5], goods=[[0] * 6, [4, 0, 0, 0, 0, 0]], jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 0, 1, 0], slotFaces=FACES)  # coin, coin, jar; the respin of the third wheel lands on coin
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); c = st(q)['players'][1]['coins']
-    report(c == 5 + 2 + 1, 'pc: slot machine played for the most', 'pc coins %d (5, plus 2 coins shown, plus the coin in the jar shown; no coin paid)' % c)
-
+    report(c == 5 - 1 + 6, 'pc: slot machine played for the most', 'pc coins %d (5, paid 1 to chase the third coin, won 3 faces of 2 coins)' % c)
 def f_jar_mix(q):  # owner 25 Nov (prototype), per 95 jars: 10 empty, 40 one coin, 10 two coins, 2.5 a random tile, 5 slot machine, 7.5 first player, 7.5 another jar, 7.5 one of each material; no stealing
     table(q, bag=[[0, 4]] * 4, seed=11)  # seeded: an unseeded sample missed the 1.5% band about once in 15 runs
     n = 8000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)
@@ -399,40 +398,42 @@ def f_coins2(q):  # the 2 coins bonus
     get_jar(q, [{'k': 'coins2'}]); c = st(q)['players'][0]['coins']
     report(c == 2, 'jar: 2 coins', 'coins %d' % c)
 
-def f_slot_rolls(q):  # owner 24 Nov: the wheels roll fast, then slow down and stop one after another (first, second, third), ticking as they pass and knocking as they stop
+def f_slot_rolls(q):  # owner 24 Nov: the wheels roll fast, then slow down and stop one after another (first, second, third), ticking as they pass and knocking as they stop;
+    # owner 25 Nov: rolling wheels stop by their order among the rolling ones (one wheel spun alone stops when the first did); the tray shows the prize only after they stop
     pause_clock(q)
-    table(q, bag=[[0, 4]] * 4, fast=False, coins=[3, 0], goods=K4, jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 0, 1])
+    table(q, bag=[[0, 4]] * 4, fast=False, coins=[3, 0], goods=K4, jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 0, 1, 0], slotFaces=FACES)
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-0')
-    stops, rolling_seen, ms, at = [None] * 3, False, 0, []
-    while ms < 4000 and None in stops:
-        skip(q, 100); ms += 100
-        ws = sorted(drawn(q, 'wheel'), key=lambda d: d['n'])
-        if ws and ws[0]['rolling']: at.append(ws[0]['at'])
-        for k, w in enumerate(ws):
-            rolling_seen = rolling_seen or w['rolling']
-            if not w['rolling'] and stops[k] is None and rolling_seen: stops[k] = ms
+    def watch(wheels):  # game time from now until each of these wheels stops; the prize in the tray while any rolls
+        stops, start, ms, at, early = {k: None for k in wheels}, None, 0, [], []  # times from the first frame any wheel rolls
+        while ms < 5000 and None in stops.values():
+            skip(q, 100); ms += 100
+            ws = {d['n']: d for d in drawn(q, 'wheel')}
+            if 0 in wheels and ws and ws[0]['rolling']: at.append(ws[0]['at'])
+            if any(w['rolling'] for w in ws.values()): early += [d['faces'] for d in drawn(q, 'pic') if d['for'] == 'tray' and d['faces']]
+            if start is None and any(w['rolling'] for w in ws.values()): start = ms
+            for k in wheels:
+                if k in ws and not ws[k]['rolling'] and stops[k] is None and start is not None: stops[k] = ms - start
+        return [stops[k] for k in wheels], at, early
+    stops, at, early = watch([0, 1, 2]); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='slot'}")
+    tap(q, 'wheel-0'); tap(q, 'wheel-1'); tap(q, 'lever'); alone, _, early2 = watch([2]); settle(q); after = [d['faces'] for d in drawn(q, 'pic') if d['for'] == 'tray']
     q.clock.resume(); h = q.evaluate("()=>__dg.sounds()")
     steps = [b - a for a, b in zip(at, at[1:])]; slows = len(steps) >= 4 and steps[0] > 3 * steps[-1] > 0
-    ok = rolling_seen and None not in stops and stops[0] < stops[1] < stops[2] and stops[0] >= 500 and slows and h.count('roll') == 3 and h.count('stop') == 3
-    report(ok, 'slot: wheels roll fast, slow down, stop one by one', 'stops at %s ms; first wheel moves %s per 100 ms; roll sounds %d, stop sounds %d' % (stops, [round(x, 1) for x in steps], h.count('roll'), h.count('stop')))
-
-def f_slot_says_price(q):  # owner 24 Nov: "I can't even see what I pay", and then "no text; the slot machine should have none": price, prize and coins are pictures
+    ok = None not in stops and stops[0] < stops[1] < stops[2] and stops[0] >= 500 and slows and h.count('roll') == 4 and h.count('stop') == 4 and alone[0] is not None and abs(alone[0] - stops[0]) <= 100 \
+        and not early and not early2 and after == [['coin'] * 3]
+    report(ok, 'slot: wheels roll, slow down, stop one by one; prize after', 'stops at %s ms, one wheel alone at %s; first wheel moves %s per 100 ms; roll sounds %d, stop sounds %d; prize while rolling %s, after %s' % (stops, alone, [round(x, 1) for x in steps], h.count('roll'), h.count('stop'), early + early2, after))
+def f_slot_says_price(q):  # owner 24 Nov: "I can't even see what I pay", and then "no text; the slot machine should have none": price, prize and coins are pictures; owner 25 Nov: a blank face is an X
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 1, 3]); waiting(q, 'slot'); settle(q)
-    pics = {d['for']: d for d in drawn(q, 'pic')}; texts = drawn(q, 'label')
-    ok = not texts and pics.get('lever', {}).get('coins') == 1 and pics.get('tray', {}).get('faces') == ['coin', 'jar', 'g2'] and pics.get('coins', {}).get('n') == 3
-    report(ok, 'slot: price, prize and coins as pictures, no text', 'texts %s, pictures %s' % ([t['text'] for t in texts], pics))
-
-def f_slot_three(q):  # owner 24 Nov: keep wheels, pull the lever to pay 1 coin and spin the others; three the same double what you see
+    pics = {d['for']: d for d in drawn(q, 'pic')}; texts = drawn(q, 'label'); blank = [f for f in drawn(q, 'drumface') if f['n'] == 2]
+    ok = not texts and pics.get('lever', {}).get('coins') == 1 and pics.get('tray', {}).get('faces') == [] and pics.get('coins', {}).get('n') == 3 and [f['f'] for f in blank] == ['blank'] and drawn(q, 'nothing')
+    report(ok, 'slot: price, prize and coins as pictures, no text', 'texts %s, pictures %s, third wheel %s, X drawn %d' % ([t['text'] for t in texts], pics, [f['f'] for f in blank], len(drawn(q, 'nothing'))))
+def f_slot_three(q):  # owner 24 Nov: keep wheels, pull the lever to pay 1 coin and spin the others; owner 25 Nov: three of a kind wins what you see: 3 faces of 2 coins
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot')
     tap(q, 'wheel-0'); tap(q, 'wheel-1'); tap(q, 'lever'); q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); p = st(q)['players'][0]
-    report(p['coins'] == 3 - 1 + 6, 'slot: respin costs a coin, three the same double', 'coins %d (3, paid 1, three coins doubled)' % p['coins'])
-
-def f_slot_two(q):  # owner 24 Nov: you win what the 3 wheels show (each face several things); you can stop at any time
+    report(p['coins'] == 3 - 1 + 6, 'slot: respin costs a coin, three of a kind wins what you see', 'coins %d (3, paid 1, three faces of 2 coins)' % p['coins'])
+def f_slot_two(q):  # owner 25 Nov (prototype): only three of a kind wins; you can stop at any time, and anything else gives nothing
     get_jar(q, [{'k': 'slot'}], coins=0, slots=[0, 2, 3]); waiting(q, 'slot'); g0 = st(q)['players'][0]['goods']
     tap(q, 'tray'); q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); p = st(q)['players'][0]
-    gained = [a - b for a, b in zip(p['goods'], g0)]  # 1 of each, and 5 of good 2: those 6 make a jar at once (owner 24 Nov)
-    report(p['coins'] == 1 and gained == [1, 1, 1, 1, 1, 1] and p['jars'] == 1, 'slot: win what you see', 'coins %d, goods gained %s, jars %d (1 of each, and 5 of good 2 that made a jar)' % (p['coins'], gained, p['jars']))
-
+    report(p['coins'] == 0 and p['goods'] == g0 and p['jars'] == 0, 'slot: only three of a kind wins', 'coins %d, goods %s (before %s), jars %d' % (p['coins'], p['goods'], g0, p['jars']))
 def f_slot_drums(q):  # owner 24 Nov (said twice): each wheel a shaded drum showing only the face it lands on, the wheels apart; tap a wheel to keep it (a clamp drops on it), tap again to free it;
     # a lever on the machine's side pays a coin and spins the others; tap the tray under the wheels to take the prizes; no circular arrow
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 1, 3]); waiting(q, 'slot'); settle(q)
@@ -444,13 +445,13 @@ def f_slot_drums(q):  # owner 24 Nov (said twice): each wheel a shaded drum show
         and kept == [False, True, False] and clamps == [1] and freed == [False] * 3 and not drawn(q, 'roundarrow')
     report(ok, 'slot: drums, clamps, a lever and a tray', 'wheels %d shaded %s, faces showing %s, %d px apart; lever %s at the side %s, tray %s under the wheels %s; kept %s with clamps %s, freed %s; circular arrow %s' % (len(ws), all(w['shaded'] for w in ws), faces, apart, boxes['lever'], side, boxes['tray'], under, kept, clamps, freed, bool(drawn(q, 'roundarrow'))))
 
-def f_slot_faces(q):  # owner 24 Nov: each wheel has 4 faces drawn at random (not every option on every wheel), and at least one face is on all three wheels
-    seen, shared = set(), True
-    for seed in range(1, 13):
-        table(q, seed=seed, bag=[[0, 4]] * 4, goods=K4, jarQueue=[{'k': 'slot'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0'); waiting(q, 'slot')
-        f = st(q)['slot']['faces']; seen.add(tuple(map(tuple, f))); shared = shared and bool(set(f[0]) & set(f[1]) & set(f[2])) and all(len(set(w)) == 4 for w in f)
-    report(len(seen) > 6 and shared, 'slot: 4 random faces per wheel, one on all three', '%d different machines in 12, each with 4 faces and a shared one %s' % (len(seen), shared))
-
+def f_slot_faces(q):  # owner 25 Nov (prototype): each wheel has the same 4 faces, 2 coins, 2 jars, 2 of each material and a blank, each wheel in its own order
+    seen, same = set(), True
+    for seed in range(1, 13):  # the first spin is set to show three different places, so the machine waits for him (three of a kind ends it at once)
+        table(q, seed=seed, bag=[[0, 4]] * 4, goods=K4, jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 1, 2]); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')
+        if not st(q)['slot']: continue
+        f = st(q)['slot']['faces']; seen.add(tuple(map(tuple, f))); same = same and all(sorted(w) == ['blank', 'coin', 'jar', 'set'] for w in f)
+    report(len(seen) > 6 and same, 'slot: the same 4 faces on every wheel, own order', '%d different machines in 12, every wheel coin, jar, materials, blank %s' % (len(seen), same))
 def f_first_token(q):  # the first-player token comes from a jar
     get_jar(q, [{'k': 'first'}]); report(st(q)['first'] == 0, 'first: token comes to you', 'first %s' % st(q)['first'])
 
@@ -481,7 +482,7 @@ def f_borders(q):  # each player's land has a border all around: green for the k
     ok = kid == 6 and pc == 6 and mid == [232, 197, 71, 255]
     report(ok, 'borders: all around each land, one rectangle', 'kid edges %d, pc edges %d, seam %s' % (kid, pc, mid))
 
-MAIN_SEED, MAIN_JARS = 117, ['coins', 'empty', 'slot', 'first', 'jar', 'tile', 'coins2', 'set']  # the main game's fixed pile (made by this seed) and the jar contents queued, in order
+MAIN_SEED, MAIN_JARS = 124, ['coins', 'empty', 'slot', 'first', 'jar', 'tile', 'coins2', 'set']  # the main game's fixed pile (made by this seed) and the jar contents queued, in order
 def f_main_game(q):  # owner 24 Nov: one main test plays a whole game with a fixed pile and fixed jar contents, so every situation happens in order; at each situation it checks that situation's rules, and after every move what he sees adds up
     out = q.evaluate("""async ([seed, kinds]) => {
       const cv = document.querySelector('canvas'), errs = [], did = {}, err = m => errs.push(m);

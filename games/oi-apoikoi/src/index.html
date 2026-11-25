@@ -322,20 +322,21 @@ async function bonus(i, j) {  // the reward flies from where the jar showed it t
   else if (j.k === 'tile') { const t = freeTile(i); if (t) { G.fromNowhere++; await fly({ k: 'tile', cs: BLANK_TILE }, from, giftSpot(), REWARD_MS); if (G !== my) return; await place(i, t, giftSpot()); } }  // the free tile flies blank to its place beside the market, marked as his, and shows its colours there (owner 25 Nov)
   else if (j.k === 'slot') await slot(i);
 }
-// The slot machine (owner 24 Nov): each wheel has FACES_PER_WHEEL faces drawn at random from FACE_POOL, one of them on all three wheels;
-// a face shows several things (1 coin, 1 jar, 1 of each good, or 5 of one good). You win what the 3 wheels show; three the same double it. A respin costs 1 coin.
-const FACE_POOL = ['coin', 'jar', 'set', 'g0', 'g1', 'g2', 'g3', 'g4'], FACES_PER_WHEEL = 4;
+// The slot machine (owner 25 Nov): every wheel carries the same 4 faces in its own order: 2 coins, 2 jars, 2 of each material, a blank.
+// Only three of a kind wins, and you get what you see (3 faces x 2: 6 coins, 6 jars or 6 of each material). A spin costs 1 coin.
+// Option 1, also possible (owner 25 Nov, noted): 3 faces of 1 each (1 coin, 1 jar, 1 of each material), no blank.
+const FACE_POOL = ['coin', 'jar', 'set', 'blank'], FACES_PER_WHEEL = FACE_POOL.length, FACE_COUNT = 2;  // FACE_COUNT: how many of its thing each face shows
 const spin = () => slotQ.length ? slotQ.shift() : Math.floor(rnd() * FACES_PER_WHEEL);
-function makeFaces() {  // one face shared by all three wheels, the rest of each wheel drawn at random, each wheel in its own order
+function makeFaces() {  // each wheel: all the faces, in its own order
   if (G.slotFaces) { const f = G.slotFaces; G.slotFaces = null; return f.map(w => w.slice()); }
-  const pick = a => a[Math.floor(rnd() * a.length)], shared = pick(FACE_POOL);
-  return [0, 1, 2].map(() => { const w = [shared]; while (w.length < FACES_PER_WHEEL) { const f = pick(FACE_POOL); if (!w.includes(f)) w.splice(Math.floor(rnd() * (w.length + 1)), 0, f); } return w; });
+  return [0, 1, 2].map(() => { const w = FACE_POOL.slice(); for (let k = w.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [w[k], w[j]] = [w[j], w[k]]; } return w; });
 }
 const shownFaces = (S, w = S.w) => w.map((s, k) => S.faces[k][s]);
 const tripled = f => f[0] === f[1] && f[1] === f[2];
-const JAR_WORTH = (JAR_MIX.coins + 2 * JAR_MIX.coins2) / (100 - JAR_MIX.jar);  // what the PC counts a jar as, in coins: its coins, and another jar worth the same again
-const faceWorth = f => f === 'coin' ? 1 : JAR_WORTH;  // 1 of each good or 5 of one good: what a leftover jar's worth of goods is worth
-function prize(S, w) { const f = shownFaces(S, w); return f.reduce((a, x) => a + faceWorth(x), 0) * (tripled(f) ? 2 : 1); }
+const JAR_TOTAL = Object.values(JAR_MIX).reduce((a, b) => a + b, 0), JAR_WORTH = (JAR_MIX.coins + 2 * JAR_MIX.coins2) / (JAR_TOTAL - JAR_MIX.jar);  // what the PC counts a jar as, in coins: its coins, and another jar worth the same again
+const faceWorth = f => f === 'coin' ? 1 : f === 'jar' ? JAR_WORTH : f === 'set' ? COLOURS.length / JAR_GOODS * JAR_WORTH : 0;  // one thing on a face, in coins: one of each material is that many goods toward jars
+const wins = f => tripled(f) && f[0] !== 'blank';
+function prize(S, w) { const f = shownFaces(S, w); return wins(f) ? 3 * FACE_COUNT * faceWorth(f[0]) : 0; }
 function slotPlan(S, coins) {  // the PC's best choice: stop, or pay 1 coin to spin the wheels that give the most expected coins (worked out once per machine)
   const memo = S.memo;
   const V = (w, c) => {
@@ -352,20 +353,20 @@ function slotPlan(S, coins) {  // the PC's best choice: stop, or pay 1 coin to s
 }
 // A wheel is a reel (the standard slot-machine model): a strip of the pictures in order, moving at a speed that starts high and eases out
 // (cubic) to rest exactly on its new picture; it ticks each time a picture passes, so the ticks slow down with it.
-const ROLL_MS = [1100, 1600, 2100], LAPS = [2, 3, 4];  // each wheel rolls longer than the one before, so they stop first, second, third
+const ROLL_MS = [1800, 2600, 3500], LAPS = [4, 6, 8];  // by its place among the wheels rolling now: the first to stop rolls shortest (owner 25 Nov)
 const easeOut = u => 1 - Math.pow(1 - u, 3);
 function reelAt(r, now) { const u = r.ms > 0 ? Math.min(1, Math.max(0, (now - r.t0) / r.ms)) : 1;  // a reel with no rolling time (test speed) is at rest at once
   return r.from + (r.to - r.from) * easeOut(u); }  // the strip's place, in pictures
 async function roll(wheels) {  // the chosen wheels get their new pictures, roll, and stop one by one
   const now = performance.now();
-  wheels.forEach(k => {
-    const s = spin(), N = FACES_PER_WHEEL, from = G.slot.reel[k].to, base = Math.floor(from), to = base + ((s - base) % N + N) % N + N * LAPS[k];
-    G.slot.w[k] = s; G.slot.reel[k] = { t0: now, ms: fast ? 0 : ROLL_MS[k], from, to };
-    const ticks = []; for (let m = Math.floor(from) + 1; m <= to; m++) ticks.push(ROLL_MS[k] / 1000 * (1 - Math.cbrt(1 - (m - from) / (to - from))));  // when picture m passes
+  wheels.forEach((k, n) => {  // n: its place among the wheels rolling now
+    const s = spin(), N = FACES_PER_WHEEL, from = G.slot.reel[k].to, base = Math.floor(from), to = base + ((s - base) % N + N) % N + N * LAPS[n];
+    G.slot.w[k] = s; G.slot.reel[k] = { t0: now, ms: fast ? 0 : ROLL_MS[n], from, to };
+    const ticks = []; for (let m = Math.floor(from) + 1; m <= to; m++) ticks.push(ROLL_MS[n] / 1000 * (1 - Math.cbrt(1 - (m - from) / (to - from))));  // when picture m passes
     sound('roll', ticks);
   });
   sound('spin'); let t = 0;
-  for (const k of wheels.slice().sort((a, b) => ROLL_MS[a] - ROLL_MS[b])) { await pause(ROLL_MS[k] - t); t = ROLL_MS[k]; sound('stop'); }
+  for (let n = 0; n < wheels.length; n++) { await pause(ROLL_MS[n] - t); t = ROLL_MS[n]; sound('stop'); }
   await pause(100);
 }
 async function slot(i) {
@@ -383,9 +384,9 @@ async function slot(i) {
     if (a === 'collect') break;
     p.coins--; await roll([0, 1, 2].filter(k => !G.slot.kept[k]));  // the lever spins the wheels not kept; a clamp stays until tapped off
   }
-  const f = shownFaces(G.slot), won = tripled(f) ? f.concat(f) : f, goods = [], at = [W / 2, H / 2];  // what the wheels show, twice when all three are the same
-  G.slot = null; sound('win');
-  for (const x of won) { if (x === 'coin') p.coins++; else if (x === 'jar') p.jars++; else if (x === 'set') goods.push(...COLOUR_IDS.map(c => [c, at, 'good'])); else for (let k = 0; k < 5; k++) goods.push([+x[1], at, 'good']); }
+  const f = shownFaces(G.slot), won = wins(f) ? Array(3 * FACE_COUNT).fill(f[0]) : [], goods = [], at = [W / 2, H / 2];  // three of a kind: what the 3 faces show; anything else: nothing
+  G.slot = null; if (won.length) sound('win');
+  for (const x of won) { if (x === 'coin') p.coins++; else if (x === 'jar') p.jars++; else goods.push(...COLOUR_IDS.map(c => [c, at, 'good'])); }
   await gain(i, goods, STAGGER);  // the goods won fly from the machine to the stockpile
 }
 
@@ -466,10 +467,12 @@ function jarShape(x, y, s) {  // an amphora: neck, handles, round body, a band
   cx.strokeStyle = '#2a1408'; cx.lineWidth = s * 0.05; cx.beginPath(); cx.moveTo(x - s * 0.36, y); cx.lineTo(x + s * 0.36, y); cx.stroke();
 }
 function setShape(x, y, r) { COLOURS.forEach((c, k) => { const a = -Math.PI / 2 + k * 2 * Math.PI / COLOURS.length; dot(x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.6, r * 0.42, c); }); }  // a set: one of each good
-function symbol(f, x, y, r) {  // a slot face: 1 coin, 1 jar, 1 of each good, or 5 of one good (as the five on a die)
-  if (f === 'coin') coin(x, y, r * 0.8); else if (f === 'jar') jarShape(x, y, r * 1.6); else if (f === 'set') setShape(x, y, r * 0.9);
-  else [[0, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => dot(x + a * r * 0.5, y + b * r * 0.5, r * 0.26, COLOURS[+f[1]]));
+function symbol(f, x, y, r, n = 1) {  // a slot face: n coins, jars or sets of one of each material, side by side; a blank is an X
+  if (f === 'blank') { nothing(x, y, r * 0.6); return; }
+  if (n > 1) { for (let k = 0; k < n; k++) symbol(f, x + (k - (n - 1) / 2) * r * 1.15, y, r * 0.62); return; }
+  if (f === 'coin') coin(x, y, r * 0.8); else if (f === 'jar') jarShape(x, y, r * 1.6); else setShape(x, y, r * 0.9);
 }
+function nothing(x, y, r) { cx.strokeStyle = '#9a8a78'; cx.lineWidth = Math.max(4, r * 0.22); cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(x - r, y - r); cx.lineTo(x + r, y + r); cx.moveTo(x + r, y - r); cx.lineTo(x - r, y + r); cx.stroke(); cx.lineCap = 'butt'; drawn.push({ k: 'nothing' }); }  // an X: nothing
 function star(x, y, r) {  // the first-player token
   cx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r; cx.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); }
   cx.closePath(); cx.fillStyle = '#f4cf4a'; cx.fill(); cx.strokeStyle = '#a07810'; cx.lineWidth = 2; cx.stroke();
@@ -637,7 +640,7 @@ function drum(k, wx, wy, ww, fh, S, now) {  // wheel k's window at (wx, wy), one
     const phi = (frac - j) * Math.PI / 2, top = cy + R * Math.sin(phi - Math.PI / 4), bot = cy + R * Math.sin(phi + Math.PI / 4), h = bot - top;  // a flat face between its two edges
     if (Math.cos(phi) < 0.02 || h < 2) continue;  // turned away (or edge-on): not seen
     const f = S.faces[k][((base + j) % FACES_PER_WHEEL + FACES_PER_WHEEL) % FACES_PER_WHEEL];
-    cx.save(); cx.translate(wx + ww / 2, (top + bot) / 2); cx.scale(1, h / fh); symbol(f, 0, 0, fh * 0.4); cx.restore(); drawn.push({ k: 'drumface', n: k, f });
+    cx.save(); cx.translate(wx + ww / 2, (top + bot) / 2); cx.scale(1, h / fh); symbol(f, 0, 0, fh * 0.4, FACE_COUNT); cx.restore(); drawn.push({ k: 'drumface', n: k, f });
   }
   const sh = cx.createLinearGradient(0, wy, 0, wy + fh); sh.addColorStop(0, 'rgba(40,25,10,0.45)'); sh.addColorStop(0.28, 'rgba(40,25,10,0)'); sh.addColorStop(0.72, 'rgba(40,25,10,0)'); sh.addColorStop(1, 'rgba(40,25,10,0.45)');
   cx.fillStyle = sh; cx.fillRect(wx, wy, ww, fh); cx.restore();  // the drum's curve: darker where it turns away
@@ -659,7 +662,7 @@ function drawSlot() {
     if (S.kept[k]) { clamp(wx, wy, ww, fh); drawn.push({ k: 'clamp', n: k }); }
     if (live) btn('wheel-' + k, wx - 10, wy - 20, ww + 20, fh + 30, () => { S.kept[k] = !S.kept[k]; sound('clamp'); });  // a clamp drops on or comes off, with a knock
   });
-  const f = shownFaces(S), twice = tripled(f), rolling = S.reel.some(r => now < r.t0 + r.ms), can = live && p.coins > 0 && S.kept.includes(false);
+  const f = shownFaces(S), rolling = S.reel.some(r => now < r.t0 + r.ms), can = live && p.coins > 0 && S.kept.includes(false);
   const lx = mx + mw + 12, ly = wy - 20, down = rolling ? 1 : 0;  // the lever: a knob on a stick at the machine's right side, pulled down while the wheels roll; the coin it costs beside it
   cx.globalAlpha = can || rolling ? 1 : 0.45;
   rrect(lx, y - 10, 30, 70, 10, '#5a2020', '#3a1010', 3);
@@ -668,10 +671,10 @@ function drawSlot() {
   coin(lx + 45, y + 90, 18); cx.globalAlpha = 1;
   drawn.push({ k: 'pic', for: 'lever', coins: 1 });
   if (can) btn('lever', lx - 10, ly, 90, 220, () => answer('lever'));
-  const ty = wy + fh + 30;  // the tray under the wheels: their 3 faces, a second row of them when all three are the same
+  const ty = wy + fh + 30, prizeShown = wins(f) && !rolling;  // the tray under the wheels holds the prize only when the three match, once they have stopped
   rrect(mx + 40, ty, mw - 80, 130, 22, '#ffe9a8', '#e0a020', 4); rrect(mx + 56, ty + 12, mw - 112, 106, 16, '#f5d77a', null);
-  for (const [, ry] of (twice ? [[0, ty + 40], [1, ty + 92]] : [[0, ty + 65]])) f.forEach((x0, k) => symbol(x0, x + (k - 1) * 90, ry, twice ? 22 : 30));
-  drawn.push({ k: 'pic', for: 'tray', faces: f, double: twice });
+  if (prizeShown) f.forEach((x0, k) => symbol(x0, x + (k - 1) * 150, ty + 65, 30, FACE_COUNT));
+  drawn.push({ k: 'pic', for: 'tray', faces: prizeShown ? f : [] });
   if (live) btn('tray', mx + 40, ty, mw - 80, 130, () => answer('collect'));
 }
 function drawDusk() {  // evening: the sky darkens from the top down, lightly, so the board stays in view; a moon rises over the market and stars come out
