@@ -78,8 +78,9 @@ Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Word
 ## Open
 
 Do next, in this order (his words are in the Task list):
-- Acrylic 12 (fish scales) and wet acrylic pushing wet acrylic: waiting for his look. Closer dabs also removed the scales but made the big brush lag (speed test).
-- Batches 4-6: acrylic (11-14, 25), watercolour (17-21), crayon (22, his oil pastel pictures owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23).
+- Acrylic: his look at the 5 brushes and their impasto row (25 Nov); impasto is a first version (thicker coat, deeper ridges), not yet glossy or piled like his impasto pictures (11). Acrylic 12 (fish scales) waits for his look too.
+- Watercolour brush library and look (his 25 Nov pages; the Shutterstock "Similar images" could not be saved here: they are drawn by script and the pictures are stock previews), then 17-21.
+- Crayon (22, owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23), acrylic 25.
 - Spray other shapes: stars and other icons as spray brushes.
 - The whole flow run takes about 30 minutes on one machine: find the slow separate tests.
 - Drying times; outline pictures later.
