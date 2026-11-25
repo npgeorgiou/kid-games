@@ -281,6 +281,17 @@ function pick(i) {
   let best = -1, bm = -1; G.draft.forEach((t, k) => { if (pickable(k, i) && jarsFor(t, i) > bm) { bm = jarsFor(t, i); best = k; } });
   return choose('pick', i, {}, () => pcTap('draft-' + best));
 }
+function litLand(edges) {  // the land each connection lights (owner 25 Nov): its colour's connected squares, both players', spreading out from it (the standard flood fill,
+  // breadth first, so nearer squares light first); each lit square gives one material of its colour, flying from it
+  const seen = new Set(), list = [], todo = [];
+  for (const e of edges) { const d = DIRS[e.d]; todo.push([e.x, e.y], [e.x + d[0], e.y + d[1]]); }
+  while (todo.length) {
+    const [x, y] = todo.shift(), k = key(x, y), sq = G.cells.get(k); if (!sq || seen.has(k)) continue;
+    seen.add(k); list.push([sq.c, squareCentre(x, y), 'edge']);
+    for (const [dx, dy] of DIRS) { const n = G.cells.get(key(x + dx, y + dy)); if (n && n.c === sq.c) todo.push([x + dx, y + dy]); }
+  }
+  return list;
+}
 async function place(i, cs, pos, home) {  // the tile lies at pos until it snaps; one from the market can be put back on its place (home): then it is not placed (false)
   const my = G, p = G.players[i]; p.jarList.forEach(j => { j.fresh = false; }); if (p.jars) { await parkJars(i, true); if (G !== my) return false; }  // jars still waiting step aside while he places (owner 24 Nov)
   const a = await choose('place', i, { tile: cs, pos, home }, () => pcPlace(bestPlace(cs, i)));
@@ -288,8 +299,8 @@ async function place(i, cs, pos, home) {  // the tile lies at pos until it snaps
   const { x, y, r } = a, edges = matchEdges(cs, x, y, r);
   put({ id: 't' + (tileNo++), cs, x, y, r, o: i, landed: performance.now() });
   sound('snap');
-  G.burst = { who: i, edges, t0: performance.now() };  // each matched edge glows and its good flies out of it to the stockpile, one after another (owner 24 Nov); the halves give none
-  await gain(i, edges.map(e => [e.c, edgePoint(e.x, e.y, e.d), 'edge']), EDGE_GAP); if (G !== my) return false;  // the jars this tile's goods made come first, apart from jars still waiting
+  G.burst = { who: i, edges, t0: performance.now() };  // each connection (a matched edge) glows
+  await Promise.all([gain(i, litLand(edges), EDGE_GAP), ...edges.map((e, k) => pause(k * STAGGER).then(() => G === my && dropJar(i)))]); if (G !== my) return false;  // a jar for each connection drops in while its land's materials fly
   if (G.parked) { await parkJars(i, false); if (G !== my) return false; }
   await openJars(i); return true;
 }
