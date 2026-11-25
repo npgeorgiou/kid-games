@@ -575,6 +575,17 @@ def f_acrylic_curve(q):  # owner 25 Nov: "look at the circle below, the brush ha
 FLOWS['acrylic_curve'] = f_acrylic_curve
 PAPER['acrylic_curve'] = ('1600x1000', (0, 0))
 
+def f_acrylic_no_groove(q):  # owner 25 Nov (owner-shots/2026-11-25-acrylic-groove.png): "the latest acrylic changes made it have a weird gap, groove, in the middle of the line"
+    out = []
+    for i in range(4):  # the bristles are new every stroke (WARNINGS): several strokes
+        y = 130 + i * 240; tap(q, 'tool-acrylic'); tap(q, 'shape-0'); tap(q, 'size-4'); tap(q, 'color-1')
+        glide(q, lambda d: (150 + d, y), 1250, 1800, 1800)
+        rows = q.evaluate("""(y)=>{const o=[];const L=(c)=>0.3*c[0]+0.59*c[1]+0.11*c[2];for(let yy=y-70;yy<=y+70;yy++){let n=0,k=0;for(let x=400;x<1200;x+=8){k++;if(L(S(x,yy))>150)n++}o.push(n/k)}return o}""", y)
+        inner = [r for r in rows if r < 0.9]; out.append(max(inner[6:-6]) if len(inner) > 12 else 1)  # the rows inside the stroke, away from its edges
+    report(max(out) < 0.3, 'acrylic: no light line (paper or a gap) along a stroke', 'most of one row inside each stroke showing light: %s' % ['%.2f' % v for v in out])
+FLOWS['acrylic_no_groove'] = f_acrylic_no_groove
+PAPER['acrylic_no_groove'] = ('1600x1000', (0, 0))
+
 def f_pastel_smear(q):  # owner 21 Nov 18:29: the crayon is an oil pastel: passing over pastel smears it, carrying its colour along past where it was
     tap(q, 'tool-crayon'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-4')
     drag(q, [(300, 300), (500, 300), (300, 340), (500, 340)])

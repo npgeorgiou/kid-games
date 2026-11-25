@@ -46,3 +46,5 @@
 - Tests: the whole-game run steps reset by Esc, Basic palette and New; a step that changes the screen size or the tool (stickers hide the buckets) leaves it as he started, or the next steps measure the wrong screen.
 - Anything that dries or decays inside a dab must go by time since it was last counted (reset the clock after counting), never be applied again at every dab: wet acrylic dried within one pass and could not be pushed.
 - tools/previews.py writes lib/previews but the game file is built from them only by build.py: build again after it, before committing.
+- The brush's direction, like pressure, must change dab by dab along each finger move; set once per move, all its dabs share one angle and curves show angled bristle lines.
+- Anything that moves paint (the bristles' plough) must move a share of what is there, never subtract a fixed amount: thickness went below zero and left a bare line along strokes.

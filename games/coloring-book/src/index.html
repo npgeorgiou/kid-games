@@ -305,9 +305,9 @@ bool oilAt(int i, int j, out vec4 pic, out vec4 mis, out vec4 tip, out vec4 und)
   vec3 a = pic.rgb, b = tip.rgb;
   pic.rgb = cw + give > 1e-7 ? mb(a, b, give / (cw * OIL_MIXW + give)) : a; // wet paints mix like pigment (the wet paint there holds on: it weighs more than what the brush just laid); on paper or dry paint the new paint is its own colour
   tip.rgb = mb(b, a, wt); pic.a = h - take + give; und.a = cw + give; tip.a = L2;
-  if (UPLOUGH > 0.) { // the bristles plough the wet paint: it moves from under the strong bristles to the gaps between them, so the old grooves give way to this stroke's
+  if (UPLOUGH > 0.) { // the bristles plough the wet paint: it moves from under the strong bristles to the gaps between them, so the old grooves give way to this stroke's; a strong bristle pushes away a share of the paint, never more than there is
     float near = 0.; for (int k = 0; k < 16; k++) { float an = float(k) * 1.178; near += texelFetch(U, cl(cp + ivec2(round(fR * (k < 8 ? .15 : .3) * vec2(cos(an), sin(an))))), 0).a; } near /= 16.; // the wet paint round about, in every direction, wider than the old grooves
-    float b = texelFetch(BT, ivec2(bi, 0), 0).r, w = und.a, w2 = mix(w, max(0., near + give) * (1. + ACR_GROOVE * (BMEAN - b)), min(1., UPLOUGH * m * run));
+    float b = texelFetch(BT, ivec2(bi, 0), 0).r, w = und.a, w2 = mix(w, max(0., near + give) * exp(ACR_GROOVE * (BMEAN - b)), min(1., UPLOUGH * m * run));
     pic.a += w2 - w; und.a = w2; }
   if (L2 > OIL_SURF) tip.rgb = mb(tip.rgb, RES, min(1., give / (4. * OIL_SURF))); // paint from deep in the bristles refills the outside
   if (cw + give > 1e-6) { float f = clamp(give / (cw + give), 0., 1.); mis.r = mix(mis.r, NOW, f); mis.a = mix(mis.a, MAT, f); }
