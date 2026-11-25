@@ -10,7 +10,7 @@ Labels used below:
 
 ## 1. The game in short (draft)
 
-Two players each build their own land from tiles with two terrain halves. Each round, 4 tiles are laid out and players take them in turn. A placed tile gives one good for each edge it matches. Five goods of the same colour become a jar at once, which the child opens by tapping it. Jars hold nothing, gold coins (the points) or bonuses: a slot machine, stealing a tile, the first-player token, or a free tile. When the tiles run out, the longest row of coins wins.
+Two players each build their own land from tiles with two terrain halves, on one shared board. Each round, 4 tiles are dealt from the pile and players take them in turn. Each connection a placed tile makes (a matching edge) gives a jar, and lights up the connected land of that colour; every lit square gives one material, and 5 materials of a colour make another jar. The child opens jars by tapping them. Jars hold nothing, gold coins (the points) or bonuses: a slot machine, the first-player token, another jar, one of each material, or a random tile. When no tile can be placed, the taller pile of coins wins.
 
 ## 2. Rules
 
@@ -23,42 +23,43 @@ Two players each build their own land from tiles with two terrain halves. Each r
 
 ### Tiles and land
 - Owner rule: each tile has two halves, and each half is one terrain.
-- Owner rule: there are 5 terrains, and each makes its own good. For now terrains are only colours, and each good has its terrain's colour; what each land is comes later (not fish: fish does not come from land).
+- Owner rule (25 Nov): there are 6 terrains (the 6th teal), and each makes its own material. For now terrains are only colours, and each material has its terrain's colour; what each land is comes later (not fish: fish does not come from land).
 - Owner rule: a land is all the connected squares of one terrain.
 - Owner rule: every land is the same value, whatever its terrain, shape or size. No terrain, symbol or multiplier makes one land worth more than another.
 - Owner rule: there is no size limit on a player's land.
-- Owner rule: a tile is placed on two free squares with at least one matching edge with your own land. Matching edges with the other player's land also earn jars (rare: only when the lands have grown toward each other).
+- Owner rule: a tile is placed on two free squares with at least one matching edge with your own land. Matching edges with the other player's land count too (rare: only when the lands have grown toward each other).
 - Owner rule: each player starts with the same start tile, two halves in the two most common colours.
-- Owner rule: one shared board that fits the screen. The start tiles are at the centres of its two halves. Each player's own land has a border all around its edges.
-- Owner rule: the colours are scarce in a fixed ratio; tiles are random by that ratio (except the start tile). Built for now: 24/22/20/18/16% (the owner asked for scarcity based on the math and did not pick between equal and this). Note from the owner: if sets don't form easily, the split may need rethinking, or sets may get a bigger job in the game.
+- Owner rule (25 Nov): one shared board, 20 x 13 squares, as big as the screen's height allows; the player areas take the rest of the width. The start tiles are at the centres of its two halves. Each player's own land has a border all around its edges.
+- Owner rule (25 Nov): 28 tiles; their 56 halves are 10, 10, 9, 9, 9, 9 of the six colours; tiles are random from these halves (except the start tile).
 - Owner rule (24 Nov): of the first round's 4 tiles, 2 surely fit (one for each player); the other 2 are truly random.
-- Owner rule: 4 tiles are laid out per round, 2 for each player; 10 rounds, 20 tiles each.
+- Owner rule: 4 tiles per round, 2 for each player.
+- Owner rule (25 Nov): the pile holds every tile, a layer each; the 4 market tiles are dealt from it one by one.
+- Owner rule (25 Nov): a tile is the same size everywhere (market, hand, board).
 
 ### A round
-1. **Tiles laid out** (a draft). Owner rule: 4 tiles; the players take turns. A turn is: pick a tile, place it, open the jars it made; then the turn passes. Each player picks 2 tiles per round.
-2. **Picking.** Owner rule (24 Nov): no bidding (too slow: every pick triggered it). The player whose turn it is takes the tile he picks.
-   - Owner rule: tiles you can't place are greyed (colours still visible) and can't be picked. With none to pick, your turn passes, slowly and clearly, and the other player plays again. No tile is thrown.
-   - Owner rule (24 Nov): a set (5 goods, one of each colour) buys a wild tile. When a player has one of each, those 5 goods light up; at the start of his turn, before he picks, he can tap them: they fly into a wild tile that comes from nowhere (never one of the market's 4: each player keeps his 2 picks), he places it, then picks and places as usual. Spending them is a real choice: those goods no longer count toward jars. The PC does the same when it is worth it.
-   - Owner rule (24 Nov): a wild tile has no colours. It can be placed on any 2 free squares touching the player's land. Each half takes the colour most of its neighbouring squares have (so it matches as many edges as it can); a half with no neighbours takes its other half's colour. Ties: the colour the player has fewest of in his stockpile, then the rarer colour, then the more common colour. While carried, it shows the colours it will take.
-   - Owner rule (24 Nov): the free tile a jar gives is this same wild tile.
-3. **Goods.** Owner rule (24 Nov): land does not make goods each round, and a tile's halves make none. A placed tile (picked, stolen or free) makes one good for each matching edge, of that edge's colour. All goods are worth the same.
-4. **Placing.** Each player places his tiles in his own land.
-   - Owner rule (24 Nov): a matching edge gives a good, not a jar (edges with the opponent's land count too). When the tile snaps (with a snap sound) each matching edge glows and its good flies out of it to the stockpile.
-   - Owner rule (24 Nov): 5 goods of one colour become a jar at once (not at the round's end); the jar is opened at once. Each good is used once.
-   - Owner rule (24 Nov): the stockpile is a tray in the player's area: one row per colour, 5 places each (a row never needs more); no tall jar outlines, no crates.
-   - Owner rule: a tile is one rectangle, coloured half and half. The won tile stays where it is (in the top row at first): tap it to turn it, drag it and leave it anywhere, as often as you like, until it snaps into a place; before it snaps, the place is shown.
+1. **Tiles dealt** (a draft). Owner rule: 4 tiles; the players take turns. A turn is: pick a tile, place it, open the jars it made; then the turn passes. Each player picks 2 tiles per round.
+2. **Picking.** Owner rule (24 Nov): no bidding. The player whose turn it is takes the tile he picks.
+   - Owner rule: tiles you can't place get a light grey wash (colours still clear, owner 25 Nov) and can't be picked. With none to pick, your turn passes and the other player plays again; a skipped turn is only its sound (owner 25 Nov). No tile is thrown.
+   - Owner rule (25 Nov): no wild tiles, no sets to spend, no stealing.
+   - Owner rule (24 Nov): a picked tile can be put back on its market place.
+3. **Placing.** Each player places his tiles in his own land.
+   - Owner rule: a tile is one rectangle, coloured half and half. The won tile stays where it is (in the market at first): tap it to turn it, drag it and leave it anywhere, as often as you like, until it snaps into a place; before it snaps, the place is shown.
+4. **Connections and materials.** Owner rule (25 Nov): land does not make materials each round, and a tile's halves make none by themselves.
+   - Each connection (a matching edge, with any land) glows and gives a jar, which drops from the top of the screen.
+   - Each connection also lights the connected land of its colour, both players', spreading out from it; each lit square gives one material of that colour, flying from it to the stockpile, 120 ms apart; each colour comes in its own line.
+   - 5 materials of one colour become a jar at once; the jar drops while the 5th material flies; each material is used once.
+   - The stockpile is a tray in the player's area: one row of 5 places per colour.
 5. **End of round.**
-   - Owner rule (24 Nov): the round's end is its own moment, seen and heard, before anything else in it (built for now, after "the sunset is weird": leftover market tiles fly back to the pile, then evening falls from the top, a moon and stars over the market, a falling chime; a round starts with morning light sweeping over).
-   - Owner rule (24 Nov): goods left in the stockpile carry over to the next round (this replaces "nothing carries to a next round" for goods).
+   - Owner rule (24 Nov): the round's end is its own moment, seen and heard, before anything else in it (built for now: leftover market tiles fly back to the pile, then evening falls from the top, a moon and stars over the market, a falling chime; a round starts with morning light sweeping over).
+   - Owner rule (24 Nov): materials left in the stockpile carry over to the next round.
 
 ### Jars
 - Owner rule: the child opens jars by tapping big jars lined up on screen. Opening one yourself is the fun.
-- Owner rule: a jar's benefit is immediate, in this round. Nothing carries to a "next" round.
-- Owner rule, contents:
-  - Per 100 jars (owner 24 Nov): 10 empty, 40 one gold coin, 10 two coins, 5 stealing a tile from the opponent, 5 a free extra tile "from nowhere" (not from the draft); the rest equal, 7.5 each: the slot machine, the first-player token, another jar, a free set.
-- Owner rule (24 Nov): a picked tile can be put back on its market place.
-- Owner rule: stealing takes a tile already in the opponent's land; you place it in yours. A tile with no place in your land can't be stolen. Whether the opponent's land stays connected does not matter.
-- Owner rule: a free tile is the wild tile (owner 24 Nov), so it can always be placed. It appears beside the market's 4 tiles, marked as the player's, and he drags it from there.
+- Owner rule: a jar's benefit is immediate. Nothing carries to a "next" round.
+- Owner rule (25 Nov): jars stand in lines of up to 6, each line centred on its jars; a new jar takes the first free place (the others slide to keep the line centred); a broken jar leaves its place empty. No glow. Jars waiting are always drawn; while a tile is being placed they step aside over the market and come back.
+- Owner rule (25 Nov): jars break at once, as fast as he taps; what a jar held pops up above it as a picture (no words; an empty jar is an X), stays a moment, then flies to its place. Only the slot machine and a tile to place wait (for the other prizes to land, then for him).
+- Owner rule (25 Nov), contents, given "per 95": 10 empty, 40 one gold coin, 10 two coins, 2.5 a random tile, 5 the slot machine, 7.5 the first-player token, 7.5 another jar, 7.5 one of each material. These add up to 90; the game draws by these weights (so 40 coins is 44% of jars).
+- Owner rule (25 Nov): the random tile has random colours and always fits his land; it flies to its place beside the market's 4 tiles, marked as his, and shows its colours only there; he drags it from there.
 - Owner rule: nobody starts with the first-player token; a jar sometimes gives it. Without it, the human player goes first (with two humans, one of them).
 - Rejected by the owner:
   - An unbeatable first pick: hard to show visually.
@@ -68,20 +69,20 @@ Two players each build their own land from tiles with two terrain halves. Each r
   - A free tile from the draft.
 
 ### Slot machine (a jar bonus)
-- Owner rule (24 Nov): 3 wheels, 4 faces each, drawn at random for each machine from: 1 coin, 1 jar, 1 of each good, 5 of one good (one per colour). One face is on all three wheels, so three the same is always possible.
-- Owner rule (24 Nov): you win what the 3 wheels show; three the same double it. It spins once; then you pay 1 coin to respin whichever wheels you choose, as many times as you want, and stop when you like.
-- Why (24 Nov, the owner chose it): something is always won; what you see is what you get; a respin risks a face you already have to chase the double. With 4 faces per wheel, a coin pair chasing the third is close to an even bet (2.49 against 2.65 for stopping), which is the tension he asked for.
-- Worth in coins used by the PC: 1 coin = 1; a jar = what jars hold on average (about 0.65); 1 of each good or 5 of one good = a jar's worth.
-- The slot pictures stay as they are (owner 24 Nov: no new icons).
-- Owner rule (24 Nov): the wheels roll fast, then slow down and stop one after another (first, second, third), with sounds.
-- Owner rule (24 Nov, said twice): each wheel looks like a turning many-sided drum, shaded, the wheels apart; only the face it lands on shows, not the faces above and below. Better buttons; no circular arrow (it read as a "C"). Owner's task list (24 Nov): tap a wheel to keep it (a clamp drops on it), pull a lever on the machine's side to pay a coin and spin the others, tap the tray under the wheels to take the prizes.
+- Owner rule (25 Nov): 3 wheels; every wheel has the same 4 faces in its own order: 2 coins, 2 jars, 2 of each material, and a blank (an X).
+- Owner rule (25 Nov): only three of a kind wins, and you win what you see (3 faces of 2: 6 coins, 6 jars or 6 of each material); anything else wins nothing. It spins once; then you pay 1 coin to spin the wheels you don't keep, as many times as you want, and stop when you like.
+- Option 1, also possible (owner 25 Nov, noted): 3 faces of 1 each (1 coin, 1 jar, 1 of each material), no blank.
+- Worth in coins used by the PC: 1 coin = 1; a jar = what jars hold in coins on average, counting another jar as worth the same again; one of each material = 6/5 of a jar.
+- Owner rule (25 Nov): the wheels roll fast, then slow down and stop, by their order among the wheels rolling, at 1.8, 2.6 and 3.5 s, with sounds; the tray under the wheels shows the prize only after they stop.
+- Owner rule (24 Nov): each wheel looks like a turning many-sided drum, shaded, the wheels apart; only the face it lands on shows. Tap a wheel to keep it (a clamp drops on it), pull a lever on the machine's side to pay a coin and spin the others, tap the tray under the wheels to take the prizes. No text.
 
 ### Points and winning
-- Owner rule: points are gold coins drawn one by one, with no numbers. At the end, the players' coins are lined up side by side and the longer row wins.
-- Owner rule: coins come from jars and from the slot machine, and a slot reroll costs 1 coin.
-- Measured 24 Nov (30 seeded games, old rules): about 177 jars and 109 coins a game for the kid. To be measured again under the 24 Nov rules (goods only from matching edges, jars at once at 5 of a colour).
-- Owner rule: the game ends when no tile left can be placed by either player (so also when the tiles run out). Most points wins.
-- Note from the owner: each player places about 20 tiles per game. Anything earned per tile or per round must stay a real choice at that count.
+- Owner rule: points are gold coins drawn one by one, with no numbers. They stand in the 5 material columns, in a tray under the materials, rows of 5 from the top (owner 25 Nov).
+- Owner rule: coins come from jars and from the slot machine, and a slot spin costs 1 coin.
+- Owner rule: the game ends when no tile left can be placed by either player (so also when the tiles run out). Most coins wins.
+- Owner rule (25 Nov): the end is a smaller box over the board; each player's coins fly into his pile (rows of 10, the same coin size for both); a star stands over the taller pile; a green play button starts again.
+- Note from the owner: anything earned per tile or per round must stay a real choice over a whole game (28 tiles: at most 14 each).
+- Measured on the 25 Nov prototype: about 96 jars a game, the kid about 30 coins, the PC about 34. To be measured again by the simulation tool.
 
 ## 3. Rejected ideas (and why)
 
@@ -98,8 +99,8 @@ Two players each build their own land from tiles with two terrain halves. Each r
 ## 4. Tensions (from the rules so far)
 
 - Placing one half well forces the other half somewhere.
-- Matching edges pulls toward one terrain (more goods of it, so jars). Sets (5 goods, one of each) pull toward variety and buy a wild tile, which in turn matches every edge it can.
-- Spending a set takes one good from each colour's row, so it delays jars.
+- Connecting to a big land of one colour lights more squares (more materials, so jars); connecting several edges gives more jars at once.
+- Growing toward the other player's land lights his land too, for you.
 
 ## 5. Design sheet rows (required by `docs/design-rules.md`)
 
@@ -108,8 +109,8 @@ Two players each build their own land from tiles with two terrain halves. Each r
 | Pitch | Draft: section 1 |
 | Fantasy | Open |
 | Toy | Open (opening jars and the slot machine are candidates; not decided) |
-| Seconds loop | Pick a tile, place it, collect its goods; 5 of a colour make a jar to open. |
-| Minutes loop | One game: rounds until the tiles run out, then the coin rows are compared. |
+| Seconds loop | Pick a tile, place it: a jar for each connection and the materials of the land it lights; 5 of a colour make a jar to open. |
+| Minutes loop | One game: rounds until no tile can be placed, then the coin piles are compared. |
 | Days loop | Open |
 | Mechanics | Section 2 |
 | Dynamics | Section 4 |
@@ -123,12 +124,11 @@ Two players each build their own land from tiles with two terrain halves. Each r
 
 ## 6. Built for now (not decided by the owner; to check)
 
-- The colour split (see Tiles and land).
-- The PC counts every good as worth the same and judges a move by the goods it earns this turn (until it plays the 24 Nov rules at its best).
-- The PC counts a jar as about 0.7 coins (its coin contents only) and a good as a third of a jar; with these values the best slot play is to stop at once, so the PC never re-spins.
+- The PC judges a move by the jars it earns this turn (until it plays the 25 Nov rules at its best, task 3).
 - Tiles nobody could place in a round go back under the pile.
-- Sounds (owner 24 Nov: simple built-in sounds until his own files come; no blips, a jar breaks when opened): one soft family: wood knocks for picking, snapping and a wheel stopping; a clay break for opening a jar; a clink for coins; soft chimes for bids, passes, jars made from goods and slot wins; a whoosh for the slot spinning and a steal.
+- Sounds (owner 24 Nov: simple built-in sounds until his own files come; no blips, a jar breaks when opened): one soft family: wood knocks for dealing, picking, snapping and a wheel stopping; a clay break for opening a jar; a clink for coins; soft chimes for passes, lit squares, jars made from materials and slot wins; a whoosh for the slot spinning.
 - The PC's hand: Fluent Emoji pictures; it points to tap and to carry a tile (owner 24 Nov), opens to let go, is raised when the PC passes.
+- The pile's 28 layers are about 1 px apart on a 1280 x 800 screen (the pile stays above the market's bottom).
 
 ## 7. Still open (all in one place)
 
