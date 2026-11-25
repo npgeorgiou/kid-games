@@ -1,8 +1,7 @@
-# His cases (25 Nov), painted straight through the trial's own stroke code with one brush, normal (left) and impasto (right); picture to the system temp folder.
+# His cases (25 Nov), painted straight through the trial's own stroke code with one brush; picture to the system temp folder.
 # Usage: look_cases.py <brush> ; cases: one long spiral until the brush is empty, straight lines and curves, yellow and blue zigzags with a stroke through both,
 # yellow scribbled into a wet blue blob, strokes over dry (left) and over wet (right) paint, wet-into-wet bands dark to light.
 import math, pathlib, sys, tempfile
-from PIL import Image
 from playwright.sync_api import sync_playwright
 HERE = pathlib.Path(__file__).resolve().parent; OUT = pathlib.Path(tempfile.gettempdir()); BRUSH = sys.argv[1]
 def line(a, b):
@@ -12,8 +11,8 @@ def poly(ps):
     for a, b in zip(ps, ps[1:]): o += line(a, b)[:-1]
     return o + [ps[-1]]
 def zig(x0, x1, y0, y1, n): return poly([(x0+(x1-x0)*k/n, y0 if k % 2 == 0 else y1) for k in range(n+1)])
-def scene(q, imp):
-    S = lambda c, s, pts: q.evaluate("([c,s,b,i,p])=>__trial.stroke(c,s,b,i,p)", [c, s, BRUSH, imp, pts])
+def scene(q):
+    S = lambda c, s, pts: q.evaluate("([c,s,b,p])=>__trial.stroke(c,s,b,p)", [c, s, BRUSH, pts])
     W = lambda sec: q.evaluate("(s)=>__trial.wait(s)", sec)
     sz = 22
     sp = []; a = 0.0; r = 150.0
@@ -32,13 +31,7 @@ def scene(q, imp):
     for k, c in enumerate([0, 0, 1, 1, 2, 2, 3, 3]): S(c, sz, zig(700, 980, 390 + k*44, 400 + k*44, 1) + zig(980, 700, 405 + k*44, 415 + k*44, 1))  # wet bands, dark to light
     W(1)
 with sync_playwright() as p:
-    b = p.chromium.launch(); shots = []
-    for imp in (False, True):
-        q = b.new_page(viewport={'width': 1360, 'height': 800}); errs = []; q.on('pageerror', lambda e: errs.append(str(e)))
-        q.goto('file://' + str(HERE / 'acrylic-trial.html')); q.wait_for_function('()=>window.__ready'); scene(q, imp); q.wait_for_timeout(200)
-        f = OUT / f'case-{BRUSH}-{int(imp)}.png'; q.screenshot(path=str(f), clip={'x': 12, 'y': 12, 'width': 1000, 'height': 760}); shots.append(f)
-        if errs: print(errs)
-    b.close()
-c = Image.new('RGB', (2010, 760), 'white')
-for k, f in enumerate(shots): c.paste(Image.open(f), (k * 1010, 0))
-c.save(OUT / f'cases-{BRUSH}.png'); print(OUT / f'cases-{BRUSH}.png')
+    b = p.chromium.launch(); q = b.new_page(viewport={'width': 1360, 'height': 800}); errs = []; q.on('pageerror', lambda e: errs.append(str(e)))
+    q.goto('file://' + str(HERE / 'acrylic-trial.html')); q.wait_for_function('()=>window.__ready'); scene(q); q.wait_for_timeout(200)
+    f = OUT / f'cases-{BRUSH}.png'; q.screenshot(path=str(f), clip={'x': 12, 'y': 12, 'width': 1000, 'height': 760}); b.close()
+    print(errs or f)
