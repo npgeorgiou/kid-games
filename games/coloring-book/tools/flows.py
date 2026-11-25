@@ -552,6 +552,14 @@ def f_acrylic_scrub(q):  # owner 21 Nov 18:29: a 3rd acrylic brush like the Brus
     report(scrub > flat + 0.12 and scrub < 0.7, 'acrylic: a scrubby 3rd brush unlike the flat', 'paper showing through: flat %.2f, scrub %.2f' % (flat, scrub))
 FLOWS['acrylic_scrub'] = f_acrylic_scrub
 
+def f_acrylic_pushes(q):  # owner 25 Nov: "in acrylic, the wet paint pushed other wet paint, now ... the second crossing goes OVER the grooves of the first one"
+    tap(q, 'tool-acrylic'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-3')
+    drag(q, [(20, 125), (240, 125)]); drag(q, [(130, 20), (130, 235)]); drag(q, [(320, 20), (320, 235)])  # across, then down over it while wet; and down on bare paper
+    def grooves(x0, y0): return q.evaluate("([x0,y0])=>{let v=0,h=0;for(let y=y0;y<y0+30;y++)for(let x=x0;x<x0+30;x++){const c=S(x,y),r=S(x+1,y),d=S(x,y+1);for(let k=0;k<3;k++){h+=Math.abs(r[k]-c[k]);v+=Math.abs(d[k]-c[k])}}return v/h}", [x0, y0])  # >1: grooves run across, <1: they run down
+    cross, alone = grooves(115, 110), grooves(305, 110)
+    report(cross < 1, 'acrylic: a wet stroke pushes the wet paint under it (its grooves, not the old ones)', 'grooves where they cross %.2f, the second alone %.2f (<1: running down)' % (cross, alone))
+FLOWS['acrylic_pushes'] = f_acrylic_pushes
+
 def f_pastel_smear(q):  # owner 21 Nov 18:29: the crayon is an oil pastel: passing over pastel smears it, carrying its colour along past where it was
     tap(q, 'tool-crayon'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-4')
     drag(q, [(300, 300), (500, 300), (300, 340), (500, 340)])
