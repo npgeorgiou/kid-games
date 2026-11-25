@@ -464,6 +464,15 @@ def f_free_tile(q):  # owner 25 Nov (prototype): a jar's free tile is a random t
     ok = flying == [None] and len(shown) == 1 and shown[0] and len(shown[0]) == 2 and m['x'] + m['w'] < h[0] and mark == [0] and fits and tile_count(q, 0) == n0 + 1
     report(ok, 'tile: random, colours hidden until beside the market, fits', 'flying %s, beside the market %s with colours %s, his %s, fits %s, placed %s' % (flying, m['x'] + m['w'] < h[0], shown, mark, fits, tile_count(q, 0) == n0 + 1))
 
+def f_screen_sizes(q):  # owner 25 Nov (prototype): the board as big as the height allows, the player areas take the rest of the width; a tile the same size everywhere; tiles he can't take: a light grey wash, colours clear
+    table(q, bag=[[0, 4], [3, 3], [0, 4], [0, 4]]); H = q.evaluate("()=>innerHeight"); b = drawn(q, 'boardarea')[0]; panels = sorted(drawn(q, 'panel'), key=lambda d: d['o']); mk = drawn(q, 'market')[0]
+    sq = q.evaluate("()=>__dg.square(1,0)[0]-__dg.square(0,0)[0]"); grey = next(d for d in drawn(q, 'tile') if d['id'] == 'draft-1')
+    half = q.evaluate("()=>{const [x,y]=__dg.slot(1), s=__dg.square(1,0)[0]-__dg.square(0,0)[0]; return __dg.pixel(x-s/2, y)}")[:3]; col = q.evaluate("()=>__dg.colour(3)")
+    clear = all(abs(a - c) <= 40 for a, c in zip(half, col))
+    reach = 0 <= b['x'] - (panels[0]['x'] + panels[0]['w']) <= 16 and 0 <= panels[1]['x'] - (b['x'] + b['w']) <= 16
+    tall = b['y'] + b['h'] <= H and mk['y'] + mk['h'] <= b['y']
+    ok = grey['look'] == 'grey' and clear and reach and tall and abs(grey['w'] - 2 * sq) < 1 and abs(grey['h'] - sq) < 1
+    report(ok, 'screen: big board, areas take the rest, one tile size, light grey', 'board %s, panels %s, square %.0f px, market tile %.0f x %.0f, greyed half %s vs its colour %s' % ((round(b['x']), round(b['y']), round(b['w']), round(b['h'])), [(round(d['x']), round(d['w'])) for d in panels], sq, grey['w'], grey['h'], half, col))
 def f_no_sets(q):  # owner 25 Nov (prototype): no wild tiles, no sets to tap: one of each colour lights nothing; only the market's tiles can be tapped
     table(q, bag=[[0, 4]] * 4, goods=[[2] * 6, [0] * 6]); b = q.evaluate("()=>__dg.buttons()"); marks = drawn(q, 'setrow') + drawn(q, 'setsign')
     report(sorted(b) == ['draft-%d' % k for k in range(4)] and not marks, 'no sets, no wild tile', 'buttons %s, set marks %d' % (b, len(marks)))
