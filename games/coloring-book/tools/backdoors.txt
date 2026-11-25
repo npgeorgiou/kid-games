@@ -1,0 +1,20 @@
+# Patterns the tests may never contain: they act through the game's insides instead of the screen (owner 24 Nov: tests read the page only, never write into it).
+__cb.save(
+__cb.age(
+__cb.fast(
+__cb.paint(
+startStroke(
+moveStroke(
+endStroke(
+simStep(
+clockShift
+undo()
+save()
+indexedDB.deleteDatabase
+localStorage.setItem
+__cb.st.tool=
+__cb.st.color=
+__cb.st.load=
+__cb.st.size=
+__cb.st.palette=
+__cb.st.canvas=

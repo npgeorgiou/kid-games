@@ -44,7 +44,8 @@ Flat brushes are held at one fixed angle, unless the turn switch in the brush po
 | `owner-shots/` | The owner's pictures, named by date. |
 | `tools/harness.py` | Builds the game and runs its play-through tests. |
 | `tools/ci-checks.txt` | The list of every check of the game, run on GitHub when a push or pull request changes this game or something shared. |
-| `tools/flows.py` | Play-through tests (`SECTION:` markers): the real page, real clicks, keys, drags and touches, at a finger's speed, each on a small test paper. |
+| `tools/flows.py` | Play-through tests (`SECTION:` markers): the real page, real clicks, keys, drags and touches, at a finger's speed. The whole-game run (`whole_game`, section WHOLE GAME) plus separate short tests of each tool. |
+| `tools/backdoors.txt` | What a shortcut through the game's insides looks like; a test containing one is refused. |
 | `tools/previews.py` | Paints the brush previews straight through the game's stroke code (under 2 minutes). |
 | `tools/looks.py`, `tools/looks/` | Saves every brush's normal stroke as a picture; the `brush_looks` test fails when a brush no longer looks like its picture. |
 
@@ -54,7 +55,13 @@ Shared with other games, at the repo root: `.githooks/` (the commit gate), `docs
 
 From this folder (once per clone: `git config core.hooksPath .githooks`):
 
-- `python3 tools/harness.py flows [names]` -- the play-through tests; most take 2-8 s; the watercolour, undo and undo-room ones 15-30 s (paint dries in real time); all of them about 4 minutes.
+- `python3 tools/harness.py flows [names]` -- the play-through tests; a whole-game step can be run alone by its name while it is built.
+
+How the tests are laid out (owner 25 Nov; this is a sandbox with no levels, so not one big run):
+- **The whole-game run** (`whole_game`, about 2.5 minutes) plays the game on the full paper in the order the child meets it: painting, every drawing tool, the brush popup, the buckets, the palette popup, the colour picker, undo and Ctrl+Z, stickers, the guide picture, canvases, the gallery, deleting, keeping pictures. Each part is checked once, at its place; between parts it does what he would: Esc, back to the Basic palette, a new page. UI and order rules go here.
+- **Separate short tests** (every other flow): how one drawing tool or brush looks or behaves (mixing, drying, lifting, splashes, widths, frame times, brush pictures). Each starts on its own fresh paper, often a small test paper, and needs many repeats or a precise start, so they stay out of the long run. They run at the same time as the whole-game run, split over machines on GitHub (`tools/ci-checks.txt`).
+- A new owner rule about what he sees in the game's screens goes into the whole-game run at its place; a rule about a tool's look or physics is a separate short test.
+- Tests only read the page (where things are drawn, what the paper shows, what is kept); time passes through the page's clock or real waiting, never by a call into the game (`tools/backdoors.txt`).
 - `python3 tools/previews.py` -- remake the brush previews after any change to how a tool, brush or canvas looks.
 - `python3 tools/looks.py` -- save the brush pictures again, only when a brush's look was meant to change.
 
@@ -71,12 +78,11 @@ Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Word
 ## Open
 
 Do next, in this order (his words are in the Task list):
-- First, the tests (owner 24 Nov, Task list): make them one whole-game test that plays the game in the order it appears to the child, as `CLAUDE.md` Testing says. Check that every part of the game is tested (every tool, brush, colour, palette, the size dots, undo, Ctrl+Z and Ctrl+X, stickers, the gallery, the guide, saving), in that order, and that no two steps check the same thing. Read the page only, never write into it. Add `tools/backdoors.txt` listing what a shortcut through the game would look like, and set `tools/ci-checks.txt` to `flows 1`.
 - Lifting, spray, shapes, ink, pointer turning: waiting for his look.
 - Pencil (26), colour picker by touch, shape pictures: waiting for his look.
 - p5.brush (https://p5-brush.cargo.site/, MIT): its page says it is meant for high-resolution artworks, maybe not live painting. Try it on one brush, measure stroke delay on a full paper at his screen size, show him, let him decide.
 - Batches 4-6: acrylic (11-14, 25), watercolour (17-21), crayon (22, his oil pastel pictures owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23).
-- The whole flow run now takes about 30 minutes (it was 4): find the slow flows.
+- The whole flow run takes about 30 minutes on one machine (it was 4): find the slow separate tests.
 - Drying times; outline pictures later.
 
 ## Task list
@@ -157,7 +163,6 @@ also, the palette that is generated from the image, must show its colors by orde
   5. your shape brush is wrong, mimic the example I gave you, you can look at the code if its hard for you, but for sure you ahve done it wrong. for once, the shapes there are very close to each other. https://av01d.github.io/fabric-brushes/index.html.
   6. same for ink: shit. splashes only when its off teh paper, etch. maybe it will be fixed when you increase the speed threshold for lifting up. see examples in page I had given: https://av01d.github.io/fabric-brushes/index.html
   7. when the pointer is rotating in circular motions, make it visually rotate too."
-- Owner 2026-11-24, verbatim: "for drawing, check that every think is tested, in the order it appears in the game, adn that there re no duplicate tests. I find no reason why the whole game is not tested in one big feature tests that does things in order."
 - Owner 2026-11-24 08:50, verbatim: "coloring book: work through README "Open" in order, test-first, verify in real game at my screen size. also, i tested previous work and have comments: "1. explain the brush speed -> lifting logic. I still find it hard to control it, I cant make long lifts, the lift happens too fast. 
 
   2. I also want an option in the brush, whether to use speed as lift or no. default no.

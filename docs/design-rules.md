@@ -116,8 +116,8 @@ Shared event system in `tools/cues/` (engine `engine.js`, pattern `README.md`, d
 ## Status
 
 - Αρχιτέκτονες του αρχαίου κόσμου, was Tower Builder (`games/arxitektones-tou-arxaiou-kosmou`): done (owner, 18 Nov 2026; cue and tutorial fixes, framework separation, 21 Nov 2026; test button, headpiece line, map edges, 23 Nov 2026); what it is: its `README.md`.
-- Coloring Book (`games/coloring-book`): sheet approved 20 Nov 2026; sandbox prototype on the graphics card for a Rebelle-like look: 10 drawing tools with their brushes, canvases, the owner's palettes, guide picture; open: spray, shapes, ink and pencil looks (his look), p5.brush trial, tests rebuilt as one whole-game run, acrylic, watercolour, crayon and marker reworks.
-- Οι Άποικοι (`games/oi-apoikoi`), Dragomino-like: playable prototype against the PC on one shared board; in the repo: no bidding, rows of 5 materials, slot drums with clamps and a lever. The owner's 25 Nov rules (a jar per connection, lit land gives materials, 6 colours, 28 tiles, new jars and slot machine) live in a project prototype and wait to be built in with tests (see its README Task list).
+- Coloring Book (`games/coloring-book`): sheet approved 20 Nov 2026; sandbox prototype on the graphics card for a Rebelle-like look: 10 drawing tools with their brushes, canvases, the owner's palettes, guide picture; open: spray, shapes, ink and pencil looks (his look), p5.brush trial, acrylic, watercolour, crayon and marker reworks.
+- Οι Άποικοι (`games/oi-apoikoi`), Dragomino-like: playable prototype against the PC on one shared board, colours only; goods, jars and rewards travel on curves, evening and morning mark rounds, slot machine with random faces (win what you see, three the same double); screen reworked to the 24 Nov UI rules (big goods, bid card under its tile, physical tiles); open: too many coins from jars (owner to decide); see `games/oi-apoikoi/README.md`.
 
 ## Decided
 

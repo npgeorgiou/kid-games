@@ -11,8 +11,7 @@ GAME = pathlib.Path(__file__).resolve().parent.parent / 'coloring-book.html'  # 
 def page(b, paper='400x250', off=(0, 0)):
     ctx = b.new_context(viewport={'width': 1280, 'height': 800}, has_touch=True)
     q = ctx.new_page(); q.ox, q.oy = off; q.goto(GAME.as_uri() + '?paper=%s@%d,%d' % (paper, *off))
-    q.evaluate("()=>new Promise(r=>{const d=indexedDB.deleteDatabase('coloring-book'); d.onsuccess=d.onerror=d.onblocked=()=>r()})")
-    reload(q); return q
+    reload(q); return q  # a new browser context starts with nothing saved
 
 def reload(q):  # S(x, y): what the paper shows at a full-paper point, for checks written inside the page
     q.reload(); q.wait_for_function("()=>window.__cb&&__cb.ready"); q.evaluate("([ox,oy])=>{window.S=(x,y)=>__cb.shown(x-ox,y-oy)}", [q.ox, q.oy])
@@ -46,6 +45,10 @@ def drag_moves(q, s, pts, step):
         n = max(1, int(max(abs(d - a), abs(e - c)) / step))
         for i in range(1, n + 1): q.mouse.move(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n); time.sleep(0.016)
     q.mouse.up(); time.sleep(0.1)
+
+def saved(q, n=1, most=6):  # the game keeps the picture by itself a moment after the last change: wait until it has
+    t = time.time()
+    while q.evaluate("()=>__cb.count()") < n and time.time() - t < most: time.sleep(0.2)
 
 def shown(q, x, y): return q.evaluate("([x,y])=>__cb.shown(x,y)", [x - q.ox, y - q.oy])
 def row(q, y): return q.evaluate("(y)=>{const o=[];for(let x=320;x<1080;x+=4)o.push(S(x,y));return o}", y)
@@ -126,11 +129,11 @@ def f_stickers(q):
     q.mouse.move(*p); q.mouse.down()
     for i in range(1, 21): q.mouse.move(p[0] + (s[0] - p[0]) * i / 20, p[1] + (s[1] - p[1]) * i / 20); time.sleep(0.016)
     q.mouse.up(); time.sleep(0.1); placed = q.evaluate("()=>__cb.stickers.map(s=>[s.kind,Math.round(s.x),Math.round(s.y)])")
-    drag(q, [(800, 500), (800, 650)]); gone = q.evaluate("()=>__cb.stickers.length")
+    drag(q, [(800, 500), (800, q.oy + q.evaluate("()=>__cb.CH") + 40)]); gone = q.evaluate("()=>__cb.stickers.length")
     report(len(placed) == 1 and abs(placed[0][1] + q.ox - 800) < 5 and gone == 0, 'stickers: drag on, drag off', 'placed %s, after dragging off %d' % (placed, gone))
 
 def f_gallery(q):
-    tap(q, 'tool-acrylic'); tap(q, 'color-5'); drag(q, [(200, 500), (450, 500)])
+    tap(q, 'tool-simple'); tap(q, 'color-5'); drag(q, [(200, 500), (450, 500)])  # simple paint never dries, so it shows the same before and after it is kept (acrylic's look changes as it dries)
     painted = shown(q, 400, 500); tap(q, 'new'); time.sleep(0.5)
     blank = shown(q, 400, 500); n = q.evaluate("()=>__cb.count()")
     tap(q, 'gallery'); time.sleep(0.4)
@@ -165,13 +168,6 @@ def f_load(q):  # owner 21 Nov: a tap gives a full brush; holding goes round a t
     report(levels == [3, 1, 2, 3, 1] and little > full + 30, 'paint amount: a tap is full, holding goes round; little paint is washed out',
            'after a tap, then holding 0.6, 1.1, 1.6, 2.1 s: %s; brightness near the start with a third %d, full %d' % (levels, little, full))
 
-def f_fixed_angle(q):  # owner 21 Nov: the flat brush does not turn by itself
-    tap(q, 'tool-marker'); tap(q, 'shape-1'); tap(q, 'size-3'); hold(q, 'color-1', 0.05)
-    drag(q, [(200, 300), (800, 300)]); drag(q, [(950, 250), (950, 650)])
-    across_h = sum(1 for dy in range(-60, 61, 2) if lum(shown(q, 500, 300 + dy)) < 120) * 2
-    across_v = sum(1 for dx in range(-60, 61, 2) if lum(shown(q, 950 + dx, 450)) < 120) * 2
-    report(abs(across_h - across_v) <= 6 and across_h < 85, 'flat brush keeps its angle whichever way it moves', 'stroke width moving across %d px, moving down %d px (brush 96 px)' % (across_h, across_v))
-
 def f_marker_ends(q):  # owner 21 Nov: big marker brushes must not leave blurry ends
     tap(q, 'tool-marker'); tap(q, 'size-4'); hold(q, 'color-1', 0.05); drag(q, [(300, 400), (900, 400)])
     prof = [lum(shown(q, 900 + dx, 400)) for dx in range(40, 110)]
@@ -203,23 +199,18 @@ def f_undo_all(q):  # owner 21 Nov: undo goes all the way back (24 big strokes o
     time.sleep(1.0); look = [lum(shown(q, 320, 50 + k * 13)) for k in range(0, n, 4)]
     report(dark < 80 and min(look) > 200, 'undo goes all the way back to the empty page', 'painted %d, after %d undos %s' % (dark, n, look))
 
-def f_marker(q):  # owner 21 Nov: a marker; its ink is see-through, so crossing lines get darker
-    tap(q, 'tool-marker'); tap(q, 'size-2'); tap(q, 'color-6'); drag(q, [(200, 300), (900, 300)]); drag(q, [(550, 200), (550, 400)])
-    one, two = shown(q, 300, 300), shown(q, 550, 300)
-    report(lum(two) < lum(one) - 15, 'marker: crossing lines get darker', 'one line %s, crossing %s' % (one, two))
-
 def f_delete(q):  # owner 21 Nov: delete the open picture, so a child cannot do it by accident (as the architects game's restart)
-    tap(q, 'tool-acrylic'); tap(q, 'color-2'); drag(q, [(200, 300), (900, 300)]); q.evaluate("()=>__cb.save()"); time.sleep(0.3)
+    k = q.evaluate("()=>__cb.count()"); tap(q, 'tool-acrylic'); tap(q, 'color-2'); drag(q, [(200, 300), (900, 300)]); saved(q, k + 1)  # the pictures kept before this one, then this one kept too
     n0 = q.evaluate("()=>__cb.count()"); tap(q, 'delete'); time.sleep(0.3); n1 = q.evaluate("()=>__cb.count()"); still = shown(q, 500, 300)
     time.sleep(6.3); tap(q, 'delete'); time.sleep(0.3); n2 = q.evaluate("()=>__cb.count()")
     tap(q, 'delete'); time.sleep(0.1); tap(q, 'delete'); time.sleep(0.6); n3 = q.evaluate("()=>__cb.count()"); look = shown(q, 500, 300)
-    report(n0 == 1 and n1 == 1 and lum(still) < 150 and n2 == 1 and n3 == 0 and lum(look) > 200, 'delete: one press only warns, a second press soon after deletes',
-           'pictures before %d, after one press %d, after a press 6 s later %d, after two quick presses %d, page now %s' % (n0, n1, n2, n3, look))
+    report(n0 == k + 1 and n1 == n0 and lum(still) < 150 and n2 == n0 and n3 == k and sum(abs(a - b) for a, b in zip(look, still)) > 90, 'delete: one press only warns, a second press soon after deletes',  # then the newest other picture opens, or a new page
+           'pictures before %d, after one press %d, after a press 6 s later %d, after two quick presses %d, the red line %s, page now %s' % (n0, n1, n2, n3, still, look))
 
 def f_delete_elsewhere(q):  # owner 21 Nov: after the first delete press, touching anywhere else takes the warning back
-    tap(q, 'tool-acrylic'); tap(q, 'color-2'); drag(q, [(200, 300), (900, 300)]); q.evaluate("()=>__cb.save()"); time.sleep(0.3)
+    k = q.evaluate("()=>__cb.count()"); tap(q, 'tool-acrylic'); tap(q, 'color-2'); drag(q, [(200, 300), (900, 300)]); saved(q, k + 1)
     tap(q, 'delete'); q.mouse.click(4, 4); time.sleep(0.1); tap(q, 'delete'); time.sleep(0.6); n = q.evaluate("()=>__cb.count()")
-    report(n == 1, 'delete: a touch elsewhere takes the warning back', 'pictures after press, touch elsewhere, press: %d' % n)
+    report(n == k + 1, 'delete: a touch elsewhere takes the warning back', 'pictures before %d, after press, touch elsewhere, press: %d' % (k + 1, n))
 
 def f_shapes(q):  # owner 21 Nov: brush shapes; a flat brush is a bar, held at one diagonal angle (it does not turn with the stroke)
     tap(q, 'tool-marker'); tap(q, 'size-3'); tap(q, 'color-1'); tap(q, 'shape-0'); drag(q, [(300, 200), (300, 200.5)])
@@ -235,8 +226,9 @@ def f_canvas(q):  # owner 21 Nov: other canvases; the cotton canvas shows a wove
     report(q.evaluate("()=>__cb.st.canvas") == 'cotton' and max(r) - min(r) > 6, 'canvas: picking cotton gives a new page on cotton', 'canvas %s, light across 40 px %d..%d' % (q.evaluate("()=>__cb.st.canvas"), min(r), max(r)))
 
 def f_oil_dry(q):  # owner 21 Nov (plan): wet paint mixes, dry paint stays put; new paint sits on top of dry paint
+    q.clock.install()
     tap(q, 'tool-acrylic'); tap(q, 'size-2'); tap(q, 'color-4'); drag(q, [(200, 300), (700, 300)])
-    q.evaluate("()=>__cb.age(300)")  # five minutes pass
+    q.clock.fast_forward('05:00')  # five minutes pass on the page's clock (installed at the start of this flow), as if he waited
     tap(q, 'color-6'); drag(q, [(450, 120), (450, 520)])
     mid, before, after = across(q, 450, 300), across(q, 450, 160), across(q, 450, 380)  # each brush stroke's bristles are new, so a streak can sit on any one pixel: the colour across the stroke
     gr = lambda c: c[1] - c[2]
@@ -252,15 +244,15 @@ def f_flat(q):  # with the paper flat the paint does not run down
 FLOWS = {'oil_mix': f_oil_mix, 'oil_thick_dry': f_oil_thick_dry, 'water': f_water, 'crayon': f_crayon, 'soft': f_soft, 'undo': f_undo,
          'two_fingers': f_two_fingers, 'stickers': f_stickers, 'gallery': f_gallery, 'speed': f_speed,
          'ctrl_z': f_ctrl_z, 'oil_dry': f_oil_dry, 'flat': f_flat,
-         'load': f_load, 'esc': f_esc, 'guide_menu': f_guide_menu, 'fixed_angle': f_fixed_angle, 'marker_ends': f_marker_ends, 'guide_place': f_guide_place, 'undo_all': f_undo_all, 'marker': f_marker, 'delete': f_delete, 'delete_elsewhere': f_delete_elsewhere, 'shapes': f_shapes, 'canvas': f_canvas}
+         'load': f_load, 'esc': f_esc, 'guide_menu': f_guide_menu, 'marker_ends': f_marker_ends, 'guide_place': f_guide_place, 'undo_all': f_undo_all, 'delete': f_delete, 'delete_elsewhere': f_delete_elsewhere, 'shapes': f_shapes, 'canvas': f_canvas}
 
 # SECTION: PAPERS AND RUN -- each flow's test paper, the test-paper flow, the runner
 PAPER = {  # flow: (test paper, where it starts on the full paper); not named: 400x250 from the top left
     'oil_mix': ('600x500', (150, 70)), 'oil_dry': ('600x500', (150, 70)), 'oil_thick_dry': ('1500x120', (50, 440)), 'water': ('720x300', (240, 330)),
     'crayon': ('680x120', (260, 240)), 'soft': ('700x500', (250, 180)), 'undo': ('520x500', (140, 50)), 'two_fingers': ('820x500', (250, 250)),
     'stickers': ('400x250', (600, 375)), 'gallery': ('400x250', (100, 375)), 'speed': ('1600x1000', (0, 0)), 'ctrl_z': ('800x120', (150, 240)),
-    'load': ('400x420', (150, 240)), 'fixed_angle': ('880x530', (140, 185)), 'marker_ends': ('830x200', (210, 300)), 'undo_all': ('640x384', (0, 0)),
-    'marker': ('800x300', (150, 150)), 'marker_real': ('800x300', (150, 150)), 'delete': ('800x250', (150, 175)), 'delete_elsewhere': ('800x250', (150, 175)),
+    'load': ('400x420', (150, 240)), 'marker_ends': ('830x200', (210, 300)), 'undo_all': ('640x384', (0, 0)),
+    'marker_real': ('800x300', (150, 150)), 'delete': ('800x250', (150, 175)), 'delete_elsewhere': ('800x250', (150, 175)),
     'shapes': ('600x200', (200, 100)), 'canvas': ('400x250', (200, 250)), 'flat': ('900x300', (250, 240)), 'crayon_levels': ('680x300', (260, 200)),
     'crayon_blend': ('680x120', (260, 240)), 'water_speed': ('1600x1000', (0, 0)), 'crayon_back_forth': ('680x120', (260, 340)), 'crayon_bend': ('500x300', (250, 250)),
     'picker': ('400x300', (250, 250)), 'simple_over': ('700x400', (250, 200)), 'water_no_hitch': ('1600x1000', (0, 0)), 'simple_soft_keeps': ('600x260', (350, 185)),
@@ -320,6 +312,7 @@ def f_pot_ring_inside(q):  # owner 23 Nov 22:37, point 3: the chosen bucket's ri
             tap(q, c); time.sleep(0.25)
             r = q.evaluate("()=>{const e=document.querySelector('#bottom .pot.on'),k=e.getBoundingClientRect(),s=getComputedStyle(e),sc=k.width/e.offsetWidth,o=(parseFloat(s.outlineOffset)+parseFloat(s.outlineWidth))*sc,p=document.getElementById('paper').getBoundingClientRect();return [k.top-o,k.bottom+o,p.bottom,innerHeight]}")
             if r[1] > r[3] or r[0] < r[2]: bad.append('%dx%d %s: ring %d..%d, paper ends %d, screen ends %d' % (w, h, c, r[0], r[1], r[2], r[3]))
+    q.set_viewport_size({'width': 1280, 'height': 800}); time.sleep(0.3)  # back to the screen the other steps are measured on
     report(not bad, 'buckets: chosen ring stays between the paper and the screen edge', '%d wrong: %s' % (len(bad), bad[:3]))
 FLOWS['pot_ring_inside'] = f_pot_ring_inside
 
@@ -393,7 +386,7 @@ def run(names):
         b = p.chromium.launch()
         for n in (names or FLOWS):
             q = page(b, *PAPER.get(n, ('400x250', (0, 0)))); t0 = time.time()
-            try: FLOWS[n](q)
+            try: (FLOWS.get(n) or STEPS[n])(q)  # a whole-game step can also be run on its own, while it is built
             except Exception as e: report(False, n, 'error: %s' % str(e).splitlines()[0])
             q.context.close(); print('TIME %-44s %.1f s' % (n, time.time() - t0))  # every flow timed (a slow test is fixed first)
         b.close()
@@ -504,7 +497,7 @@ def f_mop(q):  # owner 21 Nov 18:29: the mop (3rd watercolour brush) is wetter a
     tap(q, 'tool-water'); tap(q, 'size-2'); tap(q, 'color-6')
     tap(q, 'shape-0'); drag(q, [(450, 300), (750, 300)], step=30)
     tap(q, 'shape-2'); drag(q, [(450, 560), (750, 560)], step=30)
-    q.evaluate("()=>__cb.fast(8)")
+    wait_dry(q)  # the paint runs until it dries, as he would see it
     def prof(y0): return [lum(c) for c in q.evaluate("(y0)=>{const o=[];for(let y=y0-110;y<=y0+110;y+=2)o.push(S(600,y));return o}", y0)]
     def shape(p):  # width of the mark, and of its edges (where it is between a fifth and three quarters of its darkest)
         paper = sorted(p[:15] + p[-15:])[15]; d = [paper - v for v in p]; top = max(d)
@@ -1080,3 +1073,30 @@ def f_ink_splash_less(q):  # owner 24 Nov 08:50, point 6: ink splashes far too m
     report(0 < sum(out) <= 50, 'ink: a quarter of the splashing, every setting', 'splash spots few, some, many %s (drops crossed; 23 Nov about 140-160 together; random drops, so the three together)' % out)
 FLOWS['ink_splash_less'] = f_ink_splash_less
 PAPER['ink_splash_less'] = ('600x450', (0, 0))
+
+# SECTION: WHOLE GAME -- one run in the order the child meets the game: painting, drawing tools, brush popup, buckets, palettes, picker, undo, stickers, guide, canvas, gallery, delete
+# Every other flow is a short separate test of how a tool looks or behaves, each on its own fresh paper, run at the same time as this one (owner 25 Nov).
+STORY = ['two_fingers', 'start_outside', 'new_tools',                                                # painting on the paper, every drawing tool
+         'shapes', 'turn', 'lift_switch', 'shapes_brushes', 'pencil_rows', 'previews_drawn',  # the brush popup
+         'load', 'keep_amount', 'pot_selected', 'pot_on_top', 'pot_ring_inside', 'pots_bw', 'pots_bw_first', 'canvas_bigger',  # the colour buckets
+         'palettes', 'pal_stripes', 'pal_dividers', 'pal_order', 'pal_spectrum', 'pal_keep_colours',  # the palette popup
+         'picker', 'picker_shows', 'picker_touch',                                                     # the colour picker
+         'undo', 'ctrl_z', 'stickers', 'guide_place', 'guide_menu', 'pal_picture_only', 'esc', 'canvas',  # undo, stickers, guide picture, canvases
+         'gallery', 'gallery_guide_hidden', 'delete', 'delete_elsewhere']                              # the gallery, deleting, keeping pictures
+STEPS = {n: FLOWS.pop(n) for n in STORY}
+
+def new_page(q):  # between parts, as he would: leave any popup or view (Esc), back to the Basic palette, and a new page
+    q.keyboard.press('Escape'); time.sleep(0.1); tap(q, 'tool-acrylic')  # the drawing tool the game starts with (stickers hide the buckets)
+    if q.evaluate("()=>__cb.st.palette") != q.evaluate("()=>__cb.palIndex('Basic')"):
+        tap(q, 'palette'); time.sleep(0.3); tap(q, 'pal-%d' % q.evaluate("()=>__cb.palIndex('Basic')")); time.sleep(0.1)
+    tap(q, 'new'); time.sleep(0.5)
+
+def f_whole_game(q):
+    for k, n in enumerate(STORY):
+        t0 = time.time()
+        if k: new_page(q)
+        try: STEPS[n](q)
+        except Exception as e: report(False, n, 'error: %s' % str(e).splitlines()[0])
+        print('TIME   %-42s %.1f s' % (n, time.time() - t0))
+FLOWS = {'whole_game': f_whole_game, **FLOWS}
+PAPER['whole_game'] = ('1600x1000', (0, 0))  # the paper he paints on
