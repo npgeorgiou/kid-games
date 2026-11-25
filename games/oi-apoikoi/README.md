@@ -37,7 +37,8 @@ A playable game against the PC on one shared board in the new look (sea board of
 
 ## Open
 
-- The full test run is about 20-23 s of the 30 s limit on a 2-core machine; keep flows sampling with skip, not run_for.
+- The full test run is about 20-23 s of its 30 s limit (`tools/time-limit.txt`) on a 2-core machine; keep flows sampling with skip, not run_for.
+- On the new look's first push GitHub ran no Οι Άποικοι checks, only the other games': find why the game's own checks were skipped.
 - The owner's own sound files, when they come, replace the built-in sounds.
 - The sea pack's terms of use are not checked.
 - See also `design.md` sections 6 and 7.
