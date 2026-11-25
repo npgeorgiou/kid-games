@@ -78,6 +78,7 @@ Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Word
 ## Open
 
 Do next, in this order (his words are in the Task list):
+- spray_sizes failed once on GitHub (small size 0.27): find why it wobbles.
 - Acrylic 12 (fish scales) and wet acrylic pushing wet acrylic: waiting for his look. Closer dabs also removed the scales but made the big brush lag (speed test).
 - Batches 4-6: acrylic (11-14, 25), watercolour (17-21), crayon (22, his oil pastel pictures owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23).
 - Spray other shapes: stars and other icons as spray brushes.
