@@ -666,7 +666,7 @@ function startStroke(p, pr, at) {
   else if (t === 'acrylic' || t === 'crayon') oilStart(stroke);
   else if (t === 'ink') inkStart(stroke);
   else if (t === 'spray') { const s = stroke; s.puffAt = at; s.puffWall = performance.now(); s.hold = setInterval(() => { // an airbrush puffs SPRAY_HOLD times a second as long as it is pressed (owner 23 Nov 22:37: so a faster hand leaves its puffs further apart)
-    if (stroke === s && performance.now() - s.puffWall >= 1000 / K.SPRAY_HOLD) { s.puffWall = performance.now(); if (s.puffAt != null) s.puffAt += 1000 / K.SPRAY_HOLD; dab(s, s.last.x, s.last.y); } }, 1000 / K.SPRAY_HOLD / 2); } // held still: puffs on the clock
+    const gap = 1000 / K.SPRAY_HOLD; while (stroke === s && performance.now() - s.puffWall >= gap) { s.puffWall += gap; if (s.puffAt != null) s.puffAt += gap; dab(s, s.last.x, s.last.y); } }, 1000 / K.SPRAY_HOLD / 2); } // held still: one puff for every 1/SPRAY_HOLD s held, missed ones caught up (a busy page fires the timer late)
   if (t === 'shapes') stroke.next = 1; else dab(stroke, p.x, p.y); // shapes: the first one where the hand first moves, as big as that move (owner 24 Nov: it can start small); a tap: see endStroke
 }
 const LIFTED = 0.02; // a brush lifted this far is off the paper
