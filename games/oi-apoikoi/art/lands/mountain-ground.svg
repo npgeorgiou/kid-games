@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 128" width="256" height="128">
+<defs>
+<clipPath id="d"><path d="M128 0 256 64 128 128 0 64Z"/></clipPath>
+<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9bfae"/><stop offset="1" stop-color="#ada290"/></linearGradient>
+</defs>
+<path d="M128 0 256 64 128 128 0 64Z" fill="url(#g)"/>
+<g clip-path="url(#d)" stroke-linecap="round">
+<g fill="#9a8f7d" stroke="#7d725f" stroke-width="2"><ellipse cx="60" cy="66" rx="10" ry="6"/><ellipse cx="190" cy="56" rx="12" ry="7"/><ellipse cx="140" cy="100" rx="9" ry="5"/><ellipse cx="110" cy="28" rx="7" ry="4"/></g>
+<g stroke="#8a7f6c" stroke-width="2.5" fill="none"><path d="M86 80 l14 -6 l6 6M170 34 l-10 8 l8 6"/></g>
+<g stroke="#efe9dc" stroke-width="2.5" fill="none" opacity="0.8"><path d="M54 61 q6 -3 12 0M182 50 q8 -3 14 0M134 96 q5 -3 10 0"/></g>
+</g>
+</svg>
