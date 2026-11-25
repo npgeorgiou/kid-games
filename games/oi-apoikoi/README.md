@@ -23,6 +23,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
 - `tools/flows.py`: flow tests, one per owner rule and bug report, a main test playing a whole fixed game, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 18 s on a 2-core machine).
 - `tools/sim.py`: the simulation: plays seeded games through the screen and reports, per player, jars, coins and what the jars held (`python3 tools/sim.py [games] [random|best]`, the kid playing at random or for the most connections). Run it before every rule change and tell the owner the numbers.
+- `tools/time-limit.txt`: the most seconds the full test run may take (owner 25 Nov: 30).
 - `tools/ci-checks.txt`: the list of every check of the game, run on GitHub when a push or pull request changes this game or something shared.
 - `tools/backdoors.txt`: what a flow may never contain (moves through the game's insides); the commit check refuses it.
 

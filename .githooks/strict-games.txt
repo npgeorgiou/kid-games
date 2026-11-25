@@ -1,2 +1,2 @@
-# Games on the strict test rules (see game_checks.py): full test set on every commit and push, at most 30 s, test first, no back-door moves.
+# Games on the strict test rules (see game_checks.py): full test set on every commit and push, within its time limit (its tools/time-limit.txt, else 20 s), test first, no back-door moves.
 oi-apoikoi
