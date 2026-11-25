@@ -498,7 +498,7 @@ def f_mop(q):  # owner 21 Nov 18:29: the mop (3rd watercolour brush) is wetter a
     tap(q, 'shape-0'); drag(q, [(450, 300), (750, 300)], step=30)
     tap(q, 'shape-2'); drag(q, [(450, 560), (750, 560)], step=30)
     wait_dry(q)  # the paint runs until it dries, as he would see it
-    def prof(y0): return [lum(c) for c in q.evaluate("(y0)=>{const o=[];for(let y=y0-110;y<=y0+110;y+=2)o.push(S(600,y));return o}", y0)]
+    def prof(y0): return q.evaluate("(y0)=>{const o=[];for(let y=y0-110;y<=y0+110;y+=2){let t=0;for(let x=520;x<=680;x+=20){const c=S(x,y);t+=0.3*c[0]+0.59*c[1]+0.11*c[2]}o.push(t/9)}return o}", y0)  # averaged along the stroke: the paper's grain and the pigment's granulation differ place by place
     def shape(p):  # width of the mark, and of its edges (where it is between a fifth and three quarters of its darkest)
         paper = sorted(p[:15] + p[-15:])[15]; d = [paper - v for v in p]; top = max(d)
         return sum(2 for v in d if v > 0.2 * top), sum(2 for v in d if 0.2 * top < v < 0.75 * top)
@@ -792,8 +792,8 @@ def f_pencil_grain(q):  # owner 23 Nov: a drawing pencil: colour only on the pap
 def f_ink_speed(q):  # owner 23 Nov: an ink pen: a slow line is wider than a fast one
     tap(q, 'tool-ink'); tap(q, 'size-3'); tap(q, 'color-1')
     drag(q, [(40, 70), (360, 70)], step=400, per_move=True); drag(q, [(40, 180), (360, 180)], step=2, per_move=True)
-    fast, slow = width_across(q, 300, 70, 0, 1, 50), width_across(q, 300, 180, 0, 1, 50)
-    report(slow > fast * 1.5, 'ink: slow lines wider than fast', 'width fast %d, slow %d' % (fast, slow))
+    fast, slow = (sum(width_across(q, x, y, 0, 1, 50) for x in range(100, 341, 20)) / 13 for y in (70, 180))  # ink widths differ along a line (WARNINGS): averaged over many places
+    report(slow > fast * 1.5, 'ink: slow lines wider than fast', 'width fast %.1f, slow %.1f' % (fast, slow))
 def f_pencil_like_pictures(q):  # owner 23 Nov (his pencil pictures): passes build up, a line is lighter at its edges, a light pass is pale
     def dark(x0, x1, y, h=0): return q.evaluate("([x0,x1,y,h])=>{let t=0,n=0;for(let x=x0;x<x1;x+=2)for(let j=-h;j<=h;j++){const c=S(x,y+j);t+=255-(0.3*c[0]+0.59*c[1]+0.11*c[2]);n++}return t/n}", [x0, x1, y, h])
     tap(q, 'tool-pencil'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-6'); hold(q, 'color-6', 0.6)  # light: a third
