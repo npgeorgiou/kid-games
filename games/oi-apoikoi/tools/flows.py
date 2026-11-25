@@ -202,6 +202,22 @@ def f_stockpile_rows(q):  # owner 24 Nov: the stockpile is a tray in the player'
         and not drawn(q, 'jargroup') and sets == 0 and not signs
     report(ok, 'stockpile: a row of 5 places per colour, no outlines', 'goods %s, one row each %s, places per row %s, goods on places %s, inside %s, jar outlines %d, sets %d, set signs %d' % (counts, all(len(v) == 1 for v in rows.values()), [len(v) for v in prow.values()], on_place, inside, len(drawn(q, 'jargroup')), sets, len(signs)))
 
+def f_material_lines(q):  # owner 25 Nov (prototype): materials come in a line per colour, so a colour never waits for another's jar; a full row's jar drops while its 5th flies; lit squares light 120 ms apart
+    pause_clock(q); table(q, fast=False, bag=[[0, 1]] * 4, goods=[[4, 0, 0, 0, 0, 0], [0] * 6], jarQueue=[COIN] * 8); gap = q.evaluate("()=>__dg.gaps().lit")
+    tap(q, 'draft-0'); waiting(q, 'place'); P = next(x for x in drawn(q, 'panel') if x['o'] == 0)['w']; drag_to(q, {'x': 4, 'y': 7, 'r': 0})  # 2 connections: colour 0 lights 2 squares (4 + 2: a jar), colour 1 lights 2
+    starts, ms, drops = {}, 0, []  # drops: each jar dropping from the top, and whether a colour 0 good was flying from the board when it set off
+    while ms < 3000:
+        skip(q, 20); ms += 20; d = drawn(q, 'flight'); board = [x for x in d if x['look'] == 'good' and x['fx'] > P]
+        for x in board: starts.setdefault((round(x['fx']), round(x['fy'])), (ms, x['c']))
+        for x in d:
+            if x['look'] == 'jar' and x['fy'] < 0 and round(x['tx']) not in [t for t, _ in drops]: drops.append((round(x['tx']), any(g['c'] == 0 for g in board)))
+        w = st(q)['wait']
+        if w and w['kind'] == 'jar': break
+    q.clock.resume(); order = sorted(starts.values()); c0 = [t for t, c in order if c == 0]; c1 = [t for t, c in order if c == 1]
+    while_flying = [f for _, f in drops]  # 2 connections' jars and the full row's jar
+    ok = len(c0) == 2 and len(c1) == 2 and c1[0] < c0[1] and abs((c1[1] - c1[0]) - gap) <= 40 and while_flying == [True] * 3
+    report(ok, 'materials: a line per colour; the jar drops while the 5th flies; lit squares apart', 'colour 0 goods leave at %s ms, colour 1 at %s ms (lit gap %d); full row\'s jar dropping while its 5th flies %s' % (c0, c1, gap, while_flying))
+
 def f_row_never_overflows(q):  # owner 24 Nov: a row never needs more than 5 places: a tile giving 2 goods to a row of 4 fills it, the 5 fly into a jar, and the 6th good takes the first place
     pause_clock(q); table(q, fast=False, bag=[[0, 0]] * 4, tiles=[[4, 7, 0, 0, 0, 0]], goods=[[4, 0, 0, 0, 0, 0], [0] * 6], jarQueue=[COIN] * 8)
     xs = sorted(x['x'] for x in drawn(q, 'place') if x['o'] == 0 and x['c'] == 0); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 1}); most, targets, ms = 0, set(), 0  # 2 connections lighting 5 squares of colour 0: 4 + 5 goods

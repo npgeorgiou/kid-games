@@ -38,7 +38,7 @@ const STAGGER = 120, GOOD_FLY = 450;  // things that go one after another leave 
 const RISE_MS = 500, SHOW_MS = 900, GLIDE_MS = 300, REWARD_MS = 550;  // a jar opened: what it held rises out of it, shows, and its reward flies to its place; the other jars close up
 const DROP_MS = 600, INTO_MS = 450, SPECK_MS = 700;  // 5 of a colour: a jar dropping from the top; each good flying into it; a broken jar's specks fading
 const DUSK_MS = 1600, DAWN_MS = 900;  // evening falling at a round's end; morning light sweeping over at a round's start
-const EDGE_GAP = 250, GLOW_MS = 1800;  // a good flying out of its matched edge, the next one after EDGE_GAP; the edge glows GLOW_MS
+const GLOW_MS = 1800;  // a connection's edge glows GLOW_MS
 let rnd = Math.random;
 function seeded(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 // Time passes only for the game that asked: when a new game has started, an old game's pause or hand move never ends,
@@ -198,15 +198,16 @@ async function goodFrom(i, c, from, noise = 'good') {  // one good leaves where 
   sound(noise); await fly({ k: 'good', c, o: i }, from, to, GOOD_FLY); if (G !== my) return;
   p.coming[c]--; p.goods[c]++;
 }
-// Goods coming in (the one way goods arrive, owner 24 Nov): 1. they fly one after another, GAP apart; 2. a good that fills its row waits until it has landed,
-// then the full row flies into a jar before the next good leaves, so a row never needs more than JAR_GOODS places.
+// Goods coming in (the one way goods arrive, owner 25 Nov): 1. they leave gap apart, each colour in its own line, so a colour never waits for another;
+// 2. a good that fills its row starts its jar at once, dropping while it flies; the next good of that colour leaves only when the row's goods have left for the jar,
+// so a row never needs more than JAR_GOODS places.
 async function gain(i, list, gap) {  // list: [colour, from, sound] per good
-  const p = G.players[i], my = G, going = [];
-  for (const [c, from, noise] of list) {
+  const p = G.players[i], my = G, line = {}, going = [];
+  await Promise.all(list.map(([c, from, noise], k) => (line[c] = Promise.all([line[c], pause(k * gap)]).then(async () => {
     if (G !== my) return;
-    const fills = p.goods[c] + p.coming[c] + 1 >= JAR_GOODS; going.push(goodFrom(i, c, from, noise));
-    if (fills) { await Promise.all(going); if (G !== my) return; await goodsToJars(i); } else await pause(gap);
-  }
+    const fills = p.goods[c] + p.coming[c] + 1 >= JAR_GOODS, f = goodFrom(i, c, from, noise); going.push(f);
+    if (fills) { going.push(...await makeJar(i, c, f)); await pause(JAR_GOODS * STAGGER); }  // by then the last of the row has left
+  }))));
   await Promise.all(going);
 }
 // Jars (owner 25 Nov): 1. each jar has its own place in lines of JARS_PER_ROW, each line centred on its places; 2. a new jar takes the first free place
@@ -264,16 +265,13 @@ function setTurn(i) {  // whose turn it is: the one place that says so; the scre
   if (G.turn === i) return;
   G.turn = i; sound('turn');
 }
-async function goodsToJars(i) {  // for each JAR_GOODS of a colour a jar drops from the top to its place; then the goods fly into it one after another, on curves (owner 24 Nov)
-  const my = G, p = G.players[i];
-  for (const c of COLOUR_IDS) while (p.goods[c] >= JAR_GOODS) {
-    const at = await dropJar(i); if (G !== my) return; const mouth = [at[0], at[1] - JAR_SIZE() * 0.4];
-    await Promise.all([...Array(JAR_GOODS).keys()].map(g => pause(g * STAGGER).then(() => {
-      if (G !== my) return; const from = slotPos(i, c, p.goods[c] - 1); p.goods[c]--; sound('into');
-      return fly({ k: 'good', c, o: i }, from, mouth, INTO_MS, { arc: 90, z1: 0.6 });
-    }))); if (G !== my) return;
-    sound('made');
-  }
+async function makeJar(i, c, landing) {  // a full row of colour c: its jar drops from the top to its place while the 5th good still flies; then the 5 fly into it on curves, one after another
+  const my = G, p = G.players[i], [at] = await Promise.all([dropJar(i), landing]); if (G !== my) return [];
+  const mouth = [at[0], at[1] - JAR_SIZE() * 0.4];
+  return [...Array(JAR_GOODS).keys()].map(g => pause(g * STAGGER).then(() => {
+    if (G !== my) return; const from = slotPos(i, c, p.goods[c] - 1); p.goods[c]--; sound('into');
+    return fly({ k: 'good', c, o: i }, from, mouth, INTO_MS, { arc: 90, z1: 0.6 }).then(() => G === my && g === JAR_GOODS - 1 && sound('made'));
+  }));
 }
 async function pass(i) { G.players[i].passes++; sound('pass'); G.passing = i; if (!G.players[i].human) G.hand.g = 'raised'; await pause(2400); G.passing = null; G.hand.g = 'point'; }
 const pickable = (k, i) => fits(G.draft[k], i);  // fits his land
@@ -300,7 +298,7 @@ async function place(i, cs, pos, home) {  // the tile lies at pos until it snaps
   put({ id: 't' + (tileNo++), cs, x, y, r, o: i, landed: performance.now() });
   sound('snap');
   G.burst = { who: i, edges, t0: performance.now() };  // each connection (a matched edge) glows
-  await Promise.all([gain(i, litLand(edges), EDGE_GAP), ...edges.map((e, k) => pause(k * STAGGER).then(() => G === my && dropJar(i)))]); if (G !== my) return false;  // a jar for each connection drops in while its land's materials fly
+  await Promise.all([gain(i, litLand(edges), STAGGER), ...edges.map((e, k) => pause(k * STAGGER).then(() => G === my && dropJar(i)))]); if (G !== my) return false;  // a jar for each connection drops in while its land's materials fly
   if (G.parked) { await parkJars(i, false); if (G !== my) return false; }
   await openJars(i); return true;
 }
@@ -782,6 +780,7 @@ window.__dg = {
   heardKinds() { return heard.map(n => SOUNDS[n][0]); },
   soundKinds() { return [...new Set(Object.values(SOUNDS).map(v => v[0]))].sort(); },
   held() { return wait && wait.kind === 'place' ? wait.pos.slice() : null; },
+  gaps() { return { lit: STAGGER }; },
   tileAt: tileCentre, slot: draftSlot, square: squareCentre, colour: c => [1, 3, 5].map(k => parseInt(COLOURS[c].slice(k, k + 2), 16)),
   edge: edgePoint,
   pixel(x, y) { const d = devicePixelRatio || 1; return [...cx.getImageData(Math.floor(x * d), Math.floor(y * d), 1, 1).data]; },
