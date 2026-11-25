@@ -17,6 +17,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `design.md`: the full design (draft): rules, jars, slot machine, points, tensions, sheet rows, everything open.
 - `WARNINGS.md`: traps found in this game.
 - `src/index.html`: the game source; `build.py` makes `oi-apoikoi.html` from it, with the hand pictures put in.
+- `art/sea/`: the owner's water pack (sea and shore pictures, 6 colours) for the new look; not used by the game yet.
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
 - `tools/flows.py`: flow tests, one per owner rule and bug report, a main test playing a whole fixed game, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 18 s on a 2-core machine).
 - `tools/sim.py`: the simulation: plays seeded games through the screen and reports, per player, jars, coins and what the jars held (`python3 tools/sim.py [games] [random|best]`, the kid playing at random or for the most connections). Run it before every rule change and tell the owner the numbers.
@@ -35,9 +36,10 @@ A playable game against the PC on one shared board, colours only: 6 colours and 
 
 - The full test run is about 17-19 s of the 20 s limit on a 2-core machine; keep flows sampling with skip, not run_for.
 - The owner's own sound files, when they come, replace the built-in sounds.
-- See also `design.md` sections 5 and 6.
+- The sea pack's terms of use are not checked.
+- See also `design.md` sections 6 and 7.
 
 ## Task list
 
-- Better look: simple 3D tiles for the 6 terrains that look right when turned and merge into one area when connected (pictures first, for the owner to choose).
-- Make the tiles on the board look bigger (pictures of finished boards first, to see the unused space).
+- Build the new look (`design.md` section 3): sea board in isometric view, market band, the new player areas.
+- Draw the 6 land pictures (wheat field, pomegranate orchard, vineyard, forest, mountain, town) and the 6 material pictures, matching the sea pack.
