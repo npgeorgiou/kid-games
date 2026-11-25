@@ -444,7 +444,7 @@ function restart(o = {}) {
 // strip at the board's side corner: his face in the thin top corner beside the market, his materials in columns from the top beside the screen edge, his coins in the bottom triangle.
 const cv = document.getElementById('c'); let cx = cv.getContext('2d');  // cx: where shapes are drawn: the screen, or the board's own picture while it is made
 let W = 0, H = 0, buttons = [], drawn = [];
-function btn(id, x, y, w, h, fn) { buttons.push({ id, x, y, w, h, fn }); }
+function btn(id, x, y, w, h, fn) { const t = cx.getTransform(), d = devicePixelRatio || 1; buttons.push({ id, x: (t.a * x + t.e) / d, y: (t.d * y + t.f) / d, w: w * t.a / d, h: h * t.d / d, fn }); }  // where it is on screen, whatever the drawing's scale
 function resize() { const d = devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; cx.setTransform(d, 0, 0, d, 0, 0); }
 addEventListener('resize', resize); resize();
 const PAD = 12, LOW = 8, PILE_STEP = 1.5, SIDE_MIN = 48;  // the band's margin; the board's gap above the screen's bottom edge; px between the pile's layers; the narrowest strip beside the board
@@ -462,10 +462,11 @@ function tileBox(x, y, z, r) { const { hw, hh } = L(); return { x: x - 1.5 * hw 
 function squareCentre(x, y) { return iso(x + 0.5, y + 0.5); }
 function sideEnds(x, y, d) { const [a, b] = [[[1, 0], [1, 1]], [[0, 1], [1, 1]], [[0, 0], [0, 1]], [[0, 0], [1, 0]]][d]; return [iso(x + a[0], y + a[1]), iso(x + b[0], y + b[1])]; }  // a square's side d, end to end
 function edgePoint(x, y, d) { return iso(x + 0.5 + DIRS[d][0] / 2, y + 0.5 + DIRS[d][1] / 2); }  // the middle of a square's side
+const UI_HH = 28.8, UI = () => L().hh / UI_HH;  // things with their own size (faces, the hand, the slot machine, jars) were made for a half-square UI_HH high (a 1920 x 1080 screen): they grow with the board (owner 25 Nov: all screen sizes)
 const TIP_PLACES = 3, TIP_GREY = '#a9a9a9';  // the grey tips: material places thick where they end (owner 25 Nov)
 const FACE_ROOM = 46;  // the lit face's size and a gap: the face sits in the thin top corner, touching the band and the board's edge with this room
-function faceSpot(i) { const { T } = L(), { rp } = goodRoom(), dx = 8 + JAR_GOODS * rp + 8 + FACE_ROOM; return [i ? W - dx : dx, T + FACE_ROOM]; }  // the corner is 30 degrees: its middle line is at 15
-function starSpot(i) { const [x, y] = faceSpot(i); return [x + (i ? -1 : 1) * (FACE_ROOM + 24), y - 12]; }  // the first-player token, beside his face, away from the board
+function faceSpot(i) { const { T } = L(), { rp } = goodRoom(), dx = 8 + JAR_GOODS * rp + 8 + FACE_ROOM * UI(); return [i ? W - dx : dx, T + FACE_ROOM * UI()]; }  // the corner is 30 degrees: its middle line is at 15
+function starSpot(i) { const [x, y] = faceSpot(i); const u = UI(); return [x + (i ? -1 : 1) * (FACE_ROOM + 24) * u, y - 12 * u]; }  // the first-player token, beside his face, away from the board
 function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { return stock(i).placeAt(c, k); }  // where good number k of colour c stands in player i's stockpile: place k of column c
 const PILE_LAYERS = HALVES.reduce((a, b) => a + b) / 2;  // a full pile: one layer per tile (owner 25 Nov)
@@ -587,10 +588,10 @@ const handPics = Object.fromEntries(Object.entries(GESTURES).map(([g, [f]]) => {
   im.onload = () => { c.getContext('2d').drawImage(im, 0, 0, 256, 256); c.ready = true; }; im.src = HANDS[f] || ''; return [g, c];
 }));
 function hand(h) {  // the PC's hand, the only hand drawn; a press shows a ring under the fingertip
-  const [, ax, ay] = GESTURES[h.g], im = handPics[h.g], z = h.down ? 84 : 92, k = z / 32;
-  if (h.down) { cx.strokeStyle = '#ffffffcc'; cx.lineWidth = 4; cx.beginPath(); cx.arc(h.x, h.y, 20, 0, 7); cx.stroke(); }
+  const [, ax, ay] = GESTURES[h.g], im = handPics[h.g], u = UI(), z = (h.down ? 84 : 92) * u, k = z / 32;
+  if (h.down) { cx.strokeStyle = '#ffffffcc'; cx.lineWidth = 4 * u; cx.beginPath(); cx.arc(h.x, h.y, 20 * u, 0, 7); cx.stroke(); }
   if (im.ready) cx.drawImage(im, h.x - ax * k, h.y - ay * k, z, z);
-  drawn.push({ k: 'hand', pic: GESTURES[h.g][0] });
+  drawn.push({ k: 'hand', pic: GESTURES[h.g][0], z });
 }
 
 // SECTION: DRAWING -- each screen part
@@ -714,9 +715,9 @@ function face(x, y, r, col) {  // a player: a round face in his colour
 }
 function drawPanel(i) {
   const p = G.players[i], lit = G.turn === i, { r, placeAt, cr, coinAt } = stock(i), shape = area(i);  // his area's tint and places are in the scene
-  const [fx, fy] = faceSpot(i), fr = lit ? 38 : 26; if (lit) dot(fx, fy, fr + 6 + 2 * Math.sin(performance.now() / 250), BORDER[i] + '55');  // the player whose turn it is: a bigger face with a soft glow
+  const u = UI(), [fx, fy] = faceSpot(i), fr = (lit ? 38 : 26) * u; if (lit) dot(fx, fy, fr + (6 + 2 * Math.sin(performance.now() / 250)) * u, BORDER[i] + '55');  // the player whose turn it is: a bigger face with a soft glow
   face(fx, fy, fr, BORDER[i]); drawn.push({ k: 'avatar', o: i, x: fx, y: fy, r: fr });
-  if (G.first === i) { const [sx, sy] = starSpot(i); star(sx, sy, 16); drawn.push({ k: 'token', o: i, x: sx, y: sy, r: 16 }); }  // the first-player token, beside his face
+  if (G.first === i) { const [sx, sy] = starSpot(i); star(sx, sy, 16 * u); drawn.push({ k: 'token', o: i, x: sx, y: sy, r: 16 * u }); }  // the first-player token, beside his face
   p.goods.forEach((g, c) => { for (let k = 0; k < g; k++) { const [x, y] = placeAt(c, k); goodShape(c, x, y, r, true); drawn.push({ k: 'good', o: i, c, x, y, r, pic: 'materials/' + MATERIALS[c], ready: picReady('materials/' + MATERIALS[c]) }); } });
   for (let k = 0; k < p.coins - (G.ending ? G.ending[i] : 0); k++) { const [x, y] = coinAt(k); coin(x, y, cr); drawn.push({ k: 'coin', o: i, x, y, r: cr }); }
   if (!lit) { cx.beginPath(); shape.forEach(([x, y]) => cx.lineTo(x, y)); cx.fillStyle = 'rgba(120,110,95,0.38)'; cx.fill(); }  // the other player's area is dimmed
@@ -733,7 +734,7 @@ function drawHeld() {  // the tile in hand where it lies, and the place it will 
 function shade(a) { drawn.push({ k: 'shade' }); cx.fillStyle = 'rgba(40,25,10,' + a + ')'; cx.fillRect(0, 0, W, H); }
 const PARKED = 0.6;  // a jar stepped aside is this much smaller
 function parkSpot(k, n) { const { T } = L(), per = 10, sp = JAR_SIZE() * PARKED * 1.4, row = Math.floor(k / per), inRow = Math.min(per, n - row * per); return [W / 2 + (k % per - (inRow - 1) / 2) * sp, T / 2 + row * sp * 0.8]; }
-const JARS_PER_ROW = 6, JAR_SIZE = () => Math.min(110, W * 0.7 / JARS_PER_ROW / 1.5);  // owner 24 Nov: 6 to a row, more rows, never smaller
+const JARS_PER_ROW = 6, JAR_SIZE = () => Math.min(110 * UI(), W * 0.7 / JARS_PER_ROW / 1.5);  // owner 24 Nov: 6 to a row, more rows, never smaller
 function jarSpot(k, n) {  // place k when the lines hold n places: lines of JARS_PER_ROW, each centred on its own places; the block of lines around 60% down
   const s = JAR_SIZE() * 1.5, row = Math.floor(k / JARS_PER_ROW), inRow = Math.min(JARS_PER_ROW, n - row * JARS_PER_ROW), rows = Math.ceil(n / JARS_PER_ROW);
   return [W / 2 + (k % JARS_PER_ROW - (inRow - 1) / 2) * s, Math.max(L().T + s / 2, H * 0.6 - (rows - 1) * s / 2) + row * s, row];
@@ -781,8 +782,9 @@ function clamp(wx, wy, ww, fh) {  // a metal clamp across a kept wheel: a bar ov
 }
 function drawSlot() {
   const S = G.slot, x = W / 2, y = H / 2, ww = 130, fh = 120, gap = 40, live = wait && wait.kind === 'slot', now = performance.now(), p = G.players[S.who];
-  const mx = x - 270, mw = 540, wy = y - 130;
-  shade(0.4); rrect(mx, y - 230, mw, 440, 30, '#7a2f2f', BORDER[S.who], 6);
+  const mx = x - 270, mw = 540, wy = y - 130, u = Math.max(UI(), Math.min(1, H / 480, W / 640)), from = drawn.length;  // never under its made size while that fits: its buttons stay big enough to touch
+  shade(0.4); cx.save(); cx.translate(x, y); cx.scale(u, u); cx.translate(-x, -y);  // the machine at its made size, scaled about the screen's centre
+  rrect(mx, y - 230, mw, 440, 30, '#7a2f2f', BORDER[S.who], 6); drawn.push({ k: 'machine', x: mx, y: y - 230, w: mw, h: 440 });
   for (let k = 0; k < p.coins; k++) coin(mx + 30 + 14 + (k % 16) * 30, y - 206 + Math.floor(k / 16) * 26, 12);  // the coins you have, as coins
   drawn.push({ k: 'pic', for: 'coins', n: p.coins });
   S.w.forEach((s, k) => {
@@ -805,6 +807,10 @@ function drawSlot() {
   if (prizeShown) f.forEach((x0, k) => symbol(x0, x + (k - 1) * 150, ty + 65, 30, FACE_COUNT));
   drawn.push({ k: 'pic', for: 'tray', faces: prizeShown ? f : [] });
   if (live) btn('tray', mx + 40, ty, mw - 80, 130, () => answer('collect'));
+  cx.restore(); onScreen(drawn.slice(from), x, y, u);
+}
+function onScreen(records, ox, oy, u) {  // records drawn scaled u times about (ox, oy): where they are on screen
+  for (const d of records) { if (d.x != null) d.x = ox + (d.x - ox) * u; if (d.y != null) d.y = oy + (d.y - oy) * u; for (const k of ['w', 'h', 'r']) if (d[k] != null) d[k] *= u; }
 }
 function drawDusk() {  // evening: the sky darkens from the top down, lightly, so the board stays in view; a moon rises over the market and stars come out
   const u = Math.min(1, (performance.now() - G.dusk) / DUSK_MS), a = 0.45 * easeInOut(u), { T } = L();

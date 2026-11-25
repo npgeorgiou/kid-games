@@ -591,6 +591,18 @@ def f_starts_face(q):  # owner 25 Nov: the start tiles face each other: the PC's
     kid, pc = [sq(t) for o in (0, 1) for t in st(q)['tiles'] if t[5] == o]
     turned = {(15 - x, 15 - y): c for (x, y), c in kid.items()}
     report(pc == turned, 'starts: the tiles face each other', 'kid %s, pc %s' % (kid, pc))
+def f_scales(q):  # owner 25 Nov: "make sure your ui is adoptable to all laptop and pc screen sizes": what has its own size (faces, the hand, the slot machine) grows with the board, and stays on screen
+    seen, small_hh = [], 0
+    for w, h in ((1366, 768), (1920, 1080), (2560, 1440)):
+        q.set_viewport_size({'width': w, 'height': h}); get_jar(q, [{'k': 'slot'}], coins=3); waiting(q, 'slot'); settle(q)
+        a, c = q.evaluate("()=>[__dg.square(0,0), __dg.square(1,0)]"); hh = c[1] - a[1]
+        face = [x for x in drawn(q, 'avatar') if x['o'] == 0][0]; m = drawn(q, 'machine')[0]; hand = drawn(q, 'hand')[0]; lever = q.evaluate("()=>__dg.btn('lever')")
+        inside = m['x'] >= 0 and m['y'] >= 0 and m['x'] + m['w'] <= w and m['y'] + m['h'] <= h and m['x'] <= lever[0] <= m['x'] + m['w'] * 1.3 and m['y'] <= lever[1] <= m['y'] + m['h']
+        seen.append((round(face['r'] / hh, 3), round(m['w'] / hh, 2), round(hand['z'] / hh, 2), inside)); small_hh = small_hh if seen[1:] else hh
+    q.set_viewport_size({'width': 1280, 'height': 800})
+    same = all(abs(x[k] - seen[1][k]) <= 0.02 * seen[1][k] for x in seen[1:] for k in range(3)) and all(abs(seen[0][k] - seen[1][k]) <= 0.02 * seen[1][k] for k in (0, 2))
+    small = seen[0][1] * small_hh >= 540 - 1  # on a small screen the machine keeps its made size (its buttons stay big enough to touch), as long as it fits
+    report(same and small and all(x[3] for x in seen), 'scales: sizes grow with the screen, on screen', 'per size (face, machine width, hand, in half-square heights; on screen) %s' % seen)
 def f_borders(q):  # each player's land has a border all around: green for the kid, red for the PC; a tile's two halves meet with no gap (no sea between them)
     table(q, bag=[[0, 4]] * 4); b = drawn(q, 'border'); kid = sum(1 for x in b if x['o'] == 0); pc = sum(1 for x in b if x['o'] == 1)
     seam = q.evaluate("()=>__dg.edge(4,10,0)"); mid = q.evaluate("(p)=>__dg.pixel(p[0],p[1]+4)", seam)[:3]
