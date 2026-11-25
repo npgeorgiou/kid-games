@@ -593,7 +593,7 @@ def f_acrylic_curve(q):  # owner 25 Nov: "look at the circle below, the brush ha
 FLOWS['acrylic_curve'] = f_acrylic_curve
 PAPER['acrylic_curve'] = ('1600x1000', (0, 0))
 
-def f_acrylic_no_groove(q):  # owner 25 Nov (owner-shots/2026-11-25-acrylic-groove.png): "the latest acrylic changes made it have a weird gap, groove, in the middle of the line"
+def f_acrylic_no_groove(q):  # owner 25 Nov: "the latest acrylic changes made it have a weird gap, groove, in the middle of the line"
     out = []
     for i in range(4):  # the bristles are new every stroke (WARNINGS): several strokes
         y = 130 + i * 240; tap(q, 'tool-acrylic'); tap(q, 'shape-0'); tap(q, 'size-4'); tap(q, 'color-1')
