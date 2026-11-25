@@ -115,7 +115,7 @@ Replaces the colours-only look. Where it differs from section 2 (the board's siz
 - The PC's hand: Fluent Emoji pictures; it points to tap and to carry a tile, opens to let go, is raised when the PC passes.
 - The pile's 28 layers are 1.5 px apart (the band is made tall enough for them).
 - Which land is which of the six: in the order section 3 lists them, most common first (wheat field and pomegranate orchard are the start tile's).
-- The start tiles on the 16 x 16 board: the kid's at squares (4, 10)-(5, 10), the PC's its mirror image (10, 4)-(10, 5).
+- The start tiles on the 16 x 16 board face each other (owner 25 Nov): the kid's at squares (4, 10)-(5, 10), the PC's the kid's turned half a turn around the board's centre, (11, 5)-(10, 5).
 - The water colour: `water-c` of the pack.
 - Coins past what the bottom triangle holds at full size (about 44 on a 1280 x 800 screen) all get smaller together, always apart.
 - The face's corner: the lit face and a gap fit into the corner between the band and the board's edge; the first-player star beside it, away from the board.
