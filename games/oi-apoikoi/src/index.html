@@ -322,10 +322,6 @@ async function bonus(i, j) {  // the reward flies from where the jar showed it t
   else if (j.k === 'tile') { const t = freeTile(i); if (t) { G.fromNowhere++; await fly({ k: 'tile', cs: BLANK_TILE }, from, giftSpot(), REWARD_MS); if (G !== my) return; await place(i, t, giftSpot()); } }  // the free tile flies blank to its place beside the market, marked as his, and shows its colours there (owner 25 Nov)
   else if (j.k === 'slot') await slot(i);
 }
-const JAR_LABELS = {  // shown under what a jar held (Greek, for the child)
-  empty: 'Άδειο', coins: '1 νόμισμα', coins2: '2 νομίσματα', slot: 'Κουλοχέρης', first: 'Παίζεις πρώτος',
-  tile: 'Ένα πλακίδιο δώρο', jar: 'Ένα πιθάρι ακόμα', set: 'Ένα από κάθε αγαθό',
-};
 // The slot machine (owner 24 Nov): each wheel has FACES_PER_WHEEL faces drawn at random from FACE_POOL, one of them on all three wheels;
 // a face shows several things (1 coin, 1 jar, 1 of each good, or 5 of one good). You win what the 3 wheels show; three the same double it. A respin costs 1 coin.
 const FACE_POOL = ['coin', 'jar', 'set', 'g0', 'g1', 'g2', 'g3', 'g4'], FACES_PER_WHEEL = 4;
@@ -625,11 +621,9 @@ function drawJars() {  // big jars in a row; tap one to open it
   }
   if (G.shown) shownCard(G.shown.j, G.shown.who, ...shownSpot(), 1);
 }
-function shownCard(j, who, x, y, z) {  // what a jar held, and a short label saying what it means; z: its size (it grows as it rises out of the jar)
-  const text = JAR_LABELS[j.k]; cx.save(); cx.translate(x, y); cx.scale(z, z);
-  rrect(-170, -80, 340, 200, 24, '#fff8e8', BORDER[who], 6); content(j, 0, -10, 160);
-  cx.fillStyle = '#3a2410'; cx.font = 'bold 26px sans-serif'; cx.textAlign = 'center'; cx.fillText(text, 0, 92); cx.textAlign = 'start'; cx.restore();
-  drawn.push({ k: 'label', text });
+function shownCard(j, who, x, y, z) {  // what a jar held, as a picture, no words (owner 25 Nov); z: its size (it grows as it rises out of the jar)
+  cx.save(); cx.translate(x, y); cx.scale(z, z); rrect(-100, -90, 200, 180, 24, '#fff8e8', BORDER[who], 6); content(j, 0, 0, 160); cx.restore();
+  drawn.push({ k: 'shown', j: j.k });
 }
 // The slot machine's look (owner 24 Nov, said twice): 1. each wheel is a many-sided drum seen from the front (the standard reel window): a face shows
 // where the drum turns it toward you, squashed as it turns away, and at rest only the face it lands on shows; 2. a kept wheel has a clamp on it;

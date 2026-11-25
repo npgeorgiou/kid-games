@@ -383,15 +383,11 @@ def f_jars_step_aside(q):  # owner 24 Nov: "the extra tile bonus makes the jars 
     ok = aside and len(back) == 1 and back[0]['y'] > T + 100
     report(ok, 'jars: step aside during a bonus tile, then come back', 'waiting jar seen aside while placing %s (%s), back in the row after %s' % (aside, [(round(j['x']), round(j['y'])) for j in away], [(round(j['x']), round(j['y'])) for j in back]))
 
-def f_jar_labels(q):  # owner 24 Nov: "for bonus jars add some text, I don't get what some of those mean": every jar's contents carry a short label
-    seen = {}
-    for k in ['empty', 'coins', 'coins2', 'slot', 'first', 'tile', 'jar', 'set']:
-        pause_clock(q); table(q, bag=[[0, 4]] * 4, fast=False, goods=K4, jarQueue=[{'k': k}] + [COIN] * 8)
-        tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-0')
-        seen[k] = [d['text'] for d in drawn(q, 'label')]; q.clock.resume()
-    ok = all(len(v) == 1 and v[0] for v in seen.values()) and len({v[0] for v in seen.values() if v}) == 8
-    report(ok, 'jars: each content has its own label', str(seen))
-
+def f_jar_picture(q):  # owner 25 Nov (prototype): what a jar held is a picture, no words (the 24 Nov labels are gone)
+    pause_clock(q); table(q, bag=[[0, 4]] * 4, fast=False, goods=K4, jarQueue=[{'k': 'first'}] + [COIN] * 8)
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-0')
+    run_until(q, "()=>__dg.drawn().some(d=>d.k==='shown')", 3000); shown = [d['j'] for d in drawn(q, 'shown')]; texts = [d['text'] for d in drawn(q, 'label')]; q.clock.resume()
+    report(shown == ['first'] and not texts, 'jars: what a jar held is a picture, no words', 'shown %s, words %s' % (shown, texts))
 def f_new_game_mid_jar(q):  # found by the tests: a new game started while a jar is being shown: the old jar never pays into the new game
     pause_clock(q)
     table(q, bag=[[0, 4]] * 4, fast=False, goods=K4, jarQueue=[{'k': 'coins2'}] + [COIN] * 8)
