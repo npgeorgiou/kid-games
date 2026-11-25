@@ -12,7 +12,7 @@ canvas { display: block; width: 100vw; height: 100vh; }
 <body>
 <canvas id="c"></canvas>
 <script>
-// Οι Άποικοι: a prototype of the rules in design.md. Lands are colours only for now (owner 23 Nov).
+// Οι Άποικοι: a prototype of the rules in design.md, in the new look (design.md section 3): a sea board in isometric view, land pictures, material pictures.
 // The model, in plain words:
 // 1. A round: 4 tiles are dealt one by one from the pile; players pick in turn (the token holder first, else the kid) and the picker takes the tile.
 //    A tile you can't place is greyed for you; with nothing to pick your turn passes and the other plays again.
@@ -23,13 +23,14 @@ canvas { display: block; width: 100vw; height: 100vh; }
 // The PC plays through the same taps and drags as the kid, with a hand you can see (Fluent Emoji hands, MIT, src/hands/).
 
 // SECTION: SETUP -- colours, the board, the random source, speeds, test switches
-const COLOURS = ['#e8c547', '#3f86c8', '#8e5bb0', '#e27fb0', '#9a6a3a', '#3fb0a6'];  // the six lands (the 6th teal, owner 25 Nov), most common first; what each land is comes later
-const COLOUR_IDS = COLOURS.map((c, k) => k), noGoods = () => COLOURS.map(() => 0);
+const LANDS = ['wheat', 'pomegranate', 'vineyard', 'forest', 'mountain', 'town'], MATERIALS = ['grain', 'pomegranate', 'grapes', 'timber', 'ruby', 'statue'];  // the six lands and their materials (owner 25 Nov, design 3), most common first (in design.md's order: built for now)
+const COLOUR_IDS = LANDS.map((c, k) => k), noGoods = () => LANDS.map(() => 0);
 const HALVES = [10, 10, 9, 9, 9, 9];  // the 56 halves of the 28 tiles, per colour (owner 25 Nov)
 const BORDER = ['#22a33a', '#d42a2a'], TINT = ['#eef8e6', '#fbebe8'];  // the kid's land green, the PC's red; their areas' light tints
 const JAR_MIX = { empty: 10, coins: 45, coins2: 10, tile: 4, slot: 5, first: 8, jar: 8, set: 10 };  // what jars hold, per 100 jars (owner 25 Nov)
 const JAR_GOODS = 5;  // this many goods of one colour make a jar at once (owner 24 Nov)
-const COLS = 20, ROWS = 13, STARTS = [[4, 6], [14, 6]];  // the start tiles sit at the centres of the board's two halves
+const COINS_PER_ROW = 8, GOOD_SIZE = 0.9;  // coins in a row at most; a material's and a coin's radius, in half square heights: 1.5 times their old size (owner 25 Nov, design 3)
+const COLS = 16, ROWS = 16, STARTS = [[4, 10, 0], [10, 4, 1]];  // a square board of sea (owner 25 Nov, design 3); each start tile at the centre of its half of the diamond, the PC's the kid's mirror image
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half is, by turn
 const params = new URLSearchParams(location.search);
 let fast = params.has('fast');  // tests: the PC moves without waiting, and nothing travels: it is where it goes at once
@@ -118,7 +119,7 @@ function moveWorth(cs, sp, i) {
 const better = (a, b) => !b || a.jars > b.jars || (a.jars === b.jars && a.lit > b.lit);
 function bestPlace(cs, i) { let best = null, bw = null; for (let r = 0; r < 4; r++) for (const sp of spots(cs, r, i)) { const w = moveWorth(cs, sp, i); if (better(w, bw)) { best = sp; bw = w; } } return best && { ...best, worth: bw }; }
 const fits = (cs, i) => !!cs && [0, 1, 2, 3].some(r => spots(cs, r, i).length > 0);
-function freeTile(i) { for (let k = 0; k < 40; k++) { const t = [0, 1].map(() => Math.floor(rnd() * COLOURS.length)); if (fits(t, i)) return t; } return null; }  // a jar's free tile: random colours, one that fits his land (owner 25 Nov)
+function freeTile(i) { for (let k = 0; k < 40; k++) { const t = [0, 1].map(() => Math.floor(rnd() * LANDS.length)); if (fits(t, i)) return t; } return null; }  // a jar's free tile: random colours, one that fits his land (owner 25 Nov)
 function makeBag() {  // the halves shuffled into tiles; of the first round's 4, 2 meet a start colour (one for each player, owner 24 Nov), the other 2 come as shuffled, in random places
   const hs = HALVES.flatMap((n, c) => Array(n).fill(c)), shuffle = a => { for (let k = a.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [a[k], a[j]] = [a[j], a[k]]; } return a; };
   shuffle(hs); const tiles = []; for (let k = 0; k < hs.length; k += 2) tiles.push([hs[k], hs[k + 1]]);
@@ -364,7 +365,7 @@ function makeFaces() {  // each wheel: all the faces, in its own order
 const shownFaces = (S, w = S.w) => w.map((s, k) => S.faces[k][s]);
 const tripled = f => f[0] === f[1] && f[1] === f[2];
 const JAR_TOTAL = Object.values(JAR_MIX).reduce((a, b) => a + b, 0), JAR_WORTH = (JAR_MIX.coins + 2 * JAR_MIX.coins2) / (JAR_TOTAL - JAR_MIX.jar);  // what the PC counts a jar as, in coins: its coins, and another jar worth the same again
-const faceWorth = f => f === 'coin' ? 1 : f === 'jar' ? JAR_WORTH : f === 'set' ? COLOURS.length / JAR_GOODS * JAR_WORTH : 0;  // one thing on a face, in coins: one of each material is that many goods toward jars
+const faceWorth = f => f === 'coin' ? 1 : f === 'jar' ? JAR_WORTH : f === 'set' ? LANDS.length / JAR_GOODS * JAR_WORTH : 0;  // one thing on a face, in coins: one of each material is that many goods toward jars
 const wins = f => tripled(f) && f[0] !== 'blank';
 function prize(S, w) { const f = shownFaces(S, w); return wins(f) ? 3 * FACE_COUNT * faceWorth(f[0]) : 0; }
 function slotPlan(S, coins) {  // the PC's best choice: stop, or pay 1 coin to spin the wheels that give the most expected coins (worked out once per machine)
@@ -429,7 +430,7 @@ function restart(o = {}) {
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
   spotMemo.clear(); heard = []; flights = []; specks = []; G = { slotFaces: o.slotFaces || null, fromNowhere: 0, board: 0, round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], over: false, ending: null, piled: null, winner: null, slot: null, turn: null, shown: [], jarWho: null, parked: false, parking: false, burst: null, dusk: null, dawn: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
-  STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
+  STARTS.forEach(([x, y, r], k) => put({ id: 's' + k, cs: [0, 1], x, y, r, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; if (o.goods) p.goods = o.goods[k].slice(); });  // a saved game: each player's coins and goods
   G.bag = o.bag ? o.bag.map(t => t.slice()) : makeBag();
@@ -437,38 +438,91 @@ function restart(o = {}) {
   play();
 }
 
-// SECTION: LAYOUT -- the draft on top, a player's panel each side (goods, sets, coins), the shared board between
-// Wireframe (24 Nov): first his hand and the market tile he takes (top middle, where the turn colour is), then the board where it goes, then the two panels (goods big enough to count);
-// the pile on the market's left, a bonus tile on its right, a gap above the board; nothing touchable along the bottom edge.
-const cv = document.getElementById('c'), cx = cv.getContext('2d');
+// SECTION: LAYOUT -- the market band on top, the sea board below it in isometric view, each player's area in the two triangles beside the board on his side
+// The new look (owner 25 Nov, design 3): 1. the market is a band across the top: the pile, then the 4 tiles; 2. the board is a square of 16 x 16 squares seen in true isometric view
+// (a diamond 1.73 times as wide as high), as tall as the screen under the band allows; 3. each player's area is the two triangles beside the board on his side, joined by the narrow
+// strip at the board's side corner: his face in the thin top corner beside the market, his materials in columns from the top beside the screen edge, his coins in the bottom triangle.
+const cv = document.getElementById('c'); let cx = cv.getContext('2d');  // cx: where shapes are drawn: the screen, or the board's own picture while it is made
 let W = 0, H = 0, buttons = [], drawn = [];
 function btn(id, x, y, w, h, fn) { buttons.push({ id, x, y, w, h, fn }); }
 function resize() { const d = devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; cx.setTransform(d, 0, 0, d, 0, 0); }
 addEventListener('resize', resize); resize();
-function L() {  // the board as big as the screen's height allows; the player areas take the rest of the width; a tile is the same size everywhere (owner 25 Nov)
-  const low = Math.round(H * 0.06), Pmin = Math.max(200, Math.round(W * 0.16));  // low: the bottom strip, where wrists rest, has nothing to touch; Pmin: room for the goods rows
-  const s = Math.floor(Math.min((W - 2 * Pmin - 16) / COLS, (H - 56 - low - 16) / (ROWS + 1)));  // the market row is one tile high plus 56
-  const T = s + 56, P = Math.floor((W - s * COLS - 16) / 2);
-  return { T, P, s, ox: P + 8, oy: H - low - s * ROWS, ds: s };
+const PAD = 12, LOW = 8, PILE_STEP = 1.5, SIDE_MIN = 48;  // the band's margin; the board's gap above the screen's bottom edge; px between the pile's layers; the narrowest strip beside the board
+function L() {  // hw, hh: half a square's width and height on screen; T: the band's height; s: from one square's centre to the next
+  const hh = Math.min((H - LOW - 2 * PAD - (PILE_LAYERS - 1) * PILE_STEP) / (ROWS + COLS + 3), (W - 2 * SIDE_MIN) / (COLS + ROWS) / Math.sqrt(3));  // the band holds a tile (3 half heights) and the pile's rise
+  const hw = hh * Math.sqrt(3), T = 3 * hh + 2 * PAD + (PILE_LAYERS - 1) * PILE_STEP;
+  return { hw, hh, T, s: 2 * hh, ds: 2 * hh, bx: W / 2 };
 }
-function draftSlot(k) { const { T, ds } = L(), gap = 2 * ds + 30; return [W / 2 + (k - 1.5) * gap, T / 2]; }  // the 4 places in the top row
-function tileCentre(x, y, r) { const { s, ox, oy } = L(), d = DIRS[r]; return [ox + (x + 0.5 + d[0] / 2) * s, oy + (y + 0.5 + d[1] / 2) * s]; }
-function tileBox(cxm, cym, s, r) { const d = DIRS[r]; const w = d[0] ? 2 * s : s, h = d[1] ? 2 * s : s; return { x: cxm - w / 2, y: cym - h / 2, w, h }; }
-function squareCentre(x, y) { const { s, ox, oy } = L(); return [ox + (x + 0.5) * s, oy + (y + 0.5) * s]; }
-function starSpot(i) { const { P } = L(); return [(i ? W - P : 0) + P / 2 + 56, 30]; }
+function iso(u, v) { const { hw, hh, T, bx } = L(); return [bx + (u - v) * hw, T + (u + v) * hh]; }  // a point of the board (in squares) on screen
+function boardDiamond() { const { hw, hh, T } = L(); return { cx: W / 2, cy: T + ROWS * hh, a: COLS * hw, c: ROWS * hh }; }  // the board's centre and half sizes
+function clearOfBoard(x, y, r) { const { cx: X, cy: Y, a, c } = boardDiamond(); return (Math.abs(x - X) * c + Math.abs(y - Y) * a - a * c) / Math.hypot(a, c) >= r; }  // a round thing at (x, y) stays off the board
+function draftSlot(k) { const { T, hw, hh } = L(); return [W / 2 + (k - 1.5) * (3 * hw + 24), T - PAD - 1.5 * hh]; }  // the 4 places in the band, along its bottom
+function tileCentre(x, y, r) { const d = DIRS[r]; return iso(x + 0.5 + d[0] / 2, y + 0.5 + d[1] / 2); }
+function tileBox(x, y, z, r) { const { hw, hh } = L(); return { x: x - 1.5 * hw * z, y: y - 1.5 * hh * z, w: 3 * hw * z, h: 3 * hh * z }; }  // around a tile's ground, whichever way it is turned
+function squareCentre(x, y) { return iso(x + 0.5, y + 0.5); }
+function sideEnds(x, y, d) { const [a, b] = [[[1, 0], [1, 1]], [[0, 1], [1, 1]], [[0, 0], [0, 1]], [[0, 0], [1, 0]]][d]; return [iso(x + a[0], y + a[1]), iso(x + b[0], y + b[1])]; }  // a square's side d, end to end
+function edgePoint(x, y, d) { return iso(x + 0.5 + DIRS[d][0] / 2, y + 0.5 + DIRS[d][1] / 2); }  // the middle of a square's side
+const FACE_ROOM = 46;  // the lit face's size and a gap: the face sits in the thin top corner, touching the band and the board's edge with this room
+function faceSpot(i) { const { T } = L(), dx = FACE_ROOM / Math.tan(Math.PI / 12); return [W / 2 + (i ? 1 : -1) * dx, T + FACE_ROOM]; }  // the corner is 30 degrees: its middle line is at 15
+function starSpot(i) { const [x, y] = faceSpot(i); return [x + (i ? 1 : -1) * (FACE_ROOM + 24), y - 12]; }  // the first-player token, beside his face, away from the board
 function coinSpot(i, k) { return stock(i).coinAt(k); }
-function slotPos(i, c, k) { const sp = stock(i); return [sp.colX(k), sp.rowY(c)]; }  // where good number k of colour c stands in player i's stockpile: place k of row c
-function edgePoint(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; }  // the middle of a square's side
+function slotPos(i, c, k) { const sp = stock(i); return [sp.colX(c), sp.rowY(k)]; }  // where good number k of colour c stands in player i's stockpile: place k of column c
 const PILE_LAYERS = HALVES.reduce((a, b) => a + b) / 2;  // a full pile: one layer per tile (owner 25 Nov)
-function pileStep() { const { T, ds } = L(); return Math.min(6, (T / 2 + 2 - ds / 2) / (PILE_LAYERS - 1)); }  // the layers squeeze so that a full pile still ends 4 px below the screen's top
-function pileTop() { const { T, P, ds } = L(), layers = Math.max(1, G.bag.length); return [(P + draftSlot(0)[0] - ds - 22) / 2, T / 2 + 6 - (layers - 1) * pileStep()]; }  // the pile: a stack of face-down tiles beside the market, one layer per tile
-function giftSpot() { const { T, ds, P } = L(); return [(W - P + draftSlot(3)[0] + ds + 22) / 2, T / 2]; }  // a bonus tile's place: just right of the market's 4 tiles
-function homeSpot() { const { P } = L(); return [W - P / 2, H * 0.72]; }  // the PC's hand rests in its panel
+function pileTop() { const [x, y] = draftSlot(-1), layers = Math.max(1, G.bag.length); return [x - 16, y - (layers - 1) * PILE_STEP]; }  // the pile: a stack of face-down tiles left of the market, rising from its bottom
+function giftSpot() { const [x, y] = draftSlot(4); return [x + 16, y]; }  // a bonus tile's place: just right of the market's 4 tiles
+function homeSpot() { const { T, hh } = L(); return [W - 64, T + ROWS * hh + 16]; }  // the PC's hand rests at the board's right corner, all of it on screen
 function snapSpot() {  // the nearest place the tile in hand fits, if it lies close to it
   if (!wait || wait.kind !== 'place') return null;
   const { s } = L(); let best = null, bd = s * 0.9;
   for (const sp of spots(wait.tile, wait.r, wait.who)) { const [x, y] = tileCentre(sp.x, sp.y, sp.r), d = Math.hypot(x - wait.pos[0], y - wait.pos[1]); if (d < bd) { bd = d; best = sp; } }
   return best;
+}
+
+// SECTION: PICTURES -- the land, material and sea pictures (art/, put in by build.py), each drawn once onto its own canvas
+const ART = /*ART*/{};
+const pics = {}, greyPics = {};  // each picture drawn once onto its own canvas (a picture drawn every frame would be redrawn from its shapes each time); grey: the same with a light grey wash
+const picsReady = Promise.all(Object.entries(ART).map(([name, src]) => new Promise(done => {
+  const im = new Image(); im.onerror = done;
+  im.onload = () => { [[pics, 'none'], [greyPics, 'grayscale(0.3) brightness(1.04)']].forEach(([to, filter]) => { const c = document.createElement('canvas'), g = c.getContext('2d'); c.width = im.naturalWidth; c.height = im.naturalHeight; g.filter = filter; g.drawImage(im, 0, 0); to[name] = c; }); done(); };
+  im.src = src;
+})));
+const picReady = name => !!pics[name];
+function picture(name, x, y, w, h, grey) { const c = (grey ? greyPics : pics)[name]; if (c) cx.drawImage(c, x, y, w, h); }
+const fittedPics = new Map();  // pictures already at their standard size on screen: copying one is much cheaper than shrinking the original (key: name, size, part, grey)
+function fitted(name, w, h, from = [0, 0, 1, 1], grey) {  // from: the part of the picture (as fractions) to use
+  const d = devicePixelRatio || 1, k = [name, w, h, d, from, !!grey].join(), src = (grey ? greyPics : pics)[name];
+  if (!src) return null; if (fittedPics.has(k)) return fittedPics.get(k);
+  const c = document.createElement('canvas'); c.width = Math.ceil(w * d); c.height = Math.ceil(h * d);
+  c.getContext('2d').drawImage(src, from[0] * src.width, from[1] * src.height, from[2] * src.width, from[3] * src.height, 0, 0, c.width, c.height); fittedPics.set(k, c); return c;
+}
+function fittedAt(name, x, y, w, h, from, grey) { const c = fitted(name, w, h, from, grey); if (c) cx.drawImage(c, x, y, w, h); }
+const atSize = (z, name, x, y, w, h, grey) => z === 1 ? fittedAt(name, x, y, w, h, undefined, grey) : picture(name, x, y, w, h, grey);  // at board size: the fitted copy; growing or shrinking: the original
+// Layers (the standard cached layer): a part of the screen that rarely changes is drawn once onto its own canvas, which is drawn each frame until what it shows
+// changes; its mark says what it shows. Two canvases per layer, used in turn (double buffering): a new canvas each time costs its memory, and redrawing the one
+// on the screen now makes the browser copy it first.
+const cache = {};
+function layer(name, mark, box, draw) {  // box: the part of the screen it covers; draw(): its shapes, drawn where cx points; returns their records for the checks
+  { const x = Math.floor(box.x), y = Math.floor(box.y); box = { x, y, w: Math.ceil(box.x + box.w) - x, h: Math.ceil(box.y + box.h) - y }; }  // whole pixels: then drawing it is a plain copy, no resampling
+  const d = devicePixelRatio || 1, m = [mark, box.x, box.y, box.w, box.h, d, Object.keys(pics).length].join(), old = cache[name];
+  if (old && old.mark === m) return old;
+  const c = (old && old.other) || document.createElement('canvas'), main = cx, w = Math.ceil(box.w * d), h = Math.ceil(box.h * d);
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } else { const g = c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h); }
+  cx = c.getContext('2d'); cx.setTransform(d, 0, 0, d, -box.x * d, -box.y * d); c.records = draw() || []; cx = main; c.mark = m; c.box = box; c.other = old || null; if (old) old.other = null; cache[name] = c; return c;
+}
+function drawLayer(c) { cx.drawImage(c, c.box.x, c.box.y, c.box.w, c.box.h); drawn.push(...c.records); }
+const groundPic = c => 'lands/' + LANDS[c] + '-ground', thingsPic = c => 'lands/' + LANDS[c] + '-things';
+function groundAt(c, x, y, z = 1, grey) { const { hw, hh } = L(); atSize(z, groundPic(c), x - hw * z, y - hh * z, 2 * hw * z, 2 * hh * z, grey); }  // (x, y): the square's centre
+function thingsAt(c, x, y, z = 1, grey) { const { hw, hh } = L(); atSize(z, thingsPic(c), x - hw * z, y - 3 * hh * z, 2 * hw * z, 4 * hh * z, grey); }  // twice as high as the diamond, standing on it
+function goodShape(c, x, y, r, fit) { (fit ? fittedAt : picture)('materials/' + MATERIALS[c], x - r, y - r, 2 * r, 2 * r); }  // fit: at its place's size  // a material: its own picture, as big as its place
+// The sea (the owner's water pack, design 3): each sheet is 4 x 4 diamonds, one for each way the 4 corners of a diamond can be water or land (the standard "dual grid"
+// tile set): 1. one sea diamond is drawn at each point where 4 board squares meet, its 4 corners at their centres; 2. a corner is water where its square has no land
+// (squares off the board are sea); 3. the land shows through its land corners, with the shore drawn along it. Where each corner set lies on the sheet, by corners N E S W (8 4 2 1):
+const SEA_CELL = [null, [3, 3], [0, 0], [3, 2], [1, 3], [0, 1], [3, 0], [2, 0], [0, 2], [1, 2], [2, 3], [3, 1], [1, 0], [2, 2], [1, 1], [2, 1]];
+function seaAt(i, j, land) {  // the sea diamond where squares (i-1, j-1), (i, j-1), (i, j), (i-1, j) meet; land(x, y): whether a square has land
+  const mask = (land(i - 1, j - 1) ? 0 : 8) | (land(i, j - 1) ? 0 : 4) | (land(i, j) ? 0 : 2) | (land(i - 1, j) ? 0 : 1), cell = SEA_CELL[mask];
+  if (!cell) return;
+  const { hw, hh } = L(), [x, y] = iso(i, j);
+  fittedAt('sea', x - hw - 0.5, y - hh - 0.5, 2 * hw + 1, 2 * hh + 1, [cell[0] / 4, cell[1] / 4, 1 / 4, 1 / 4]);  // a little over: no hairline between diamonds
 }
 
 // SECTION: SHAPES -- tiles, jars, coins, sets, the token, the hand
@@ -479,15 +533,20 @@ function rrect(x, y, w, h, r, fill, stroke, lw) {
 }
 function dot(x, y, r, fill) { cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fillStyle = fill; cx.fill(); }
 function coin(x, y, r) { dot(x, y, r, '#b8860b'); dot(x, y, r * 0.78, '#f4cf4a'); dot(x - r * 0.25, y - r * 0.25, r * 0.22, '#fff3b0'); }
-function tileShape(x, y, s, cs, r, look, id) {  // one rectangle, half and half, centred at (x, y); look: 'grey' (can't be taken), 'ghost' (where it will snap); a blank tile: its colours not shown yet
-  const d = DIRS[r || 0], b = tileBox(x, y, s, r || 0), blank = cs === BLANK_TILE;
+function tilePath(x, y, z, r) {  // a tile's ground outline: its two squares together, in the board's view
+  const { hw, hh } = L(), [a, b] = r % 2 ? [0.5, 1] : [1, 0.5];
+  cx.beginPath(); [[-a, -b], [a, -b], [a, b], [-a, b]].forEach(([u, v]) => cx.lineTo(x + (u - v) * hw * z, y + (u + v) * hh * z)); cx.closePath();
+}
+function tileShape(x, y, z, cs, r = 0, look, id) {  // a loose tile centred at (x, y), z times its board size: its two land squares; look: 'grey' (can't be taken), 'ghost' (where it will snap); a blank tile: its lands not shown yet
+  const { hw, hh } = L(), [dx, dy] = DIRS[r], b = tileBox(x, y, z, r), blank = cs === BLANK_TILE, grey = look === 'grey';
   drawn.push({ k: 'tile', id: id || null, cs: blank ? null : cs.slice(), look: look || null, w: b.w, h: b.h });
   cx.save(); if (look === 'ghost') cx.globalAlpha = 0.5;
-  cx.beginPath(); cx.roundRect(b.x, b.y, b.w, b.h, s * 0.14); cx.save(); cx.clip();
-  if (blank) { cx.fillStyle = '#e4dccb'; cx.fillRect(b.x, b.y, b.w, b.h); }
-  else [[-0.5, cs[0]], [0.5, cs[1]]].forEach(([k, c]) => { cx.fillStyle = COLOURS[c]; cx.fillRect(Math.round(x + d[0] * k * s - s / 2), Math.round(y + d[1] * k * s - s / 2), s, s); });
-  if (look === 'grey') { cx.fillStyle = 'rgba(235,235,235,0.3)'; cx.fillRect(b.x, b.y, b.w, b.h); }  // can't be taken: a light grey wash, its colours still clear (owner 25 Nov)
-  cx.restore(); cx.strokeStyle = '#00000055'; cx.lineWidth = 1.5; cx.stroke(); cx.restore();
+  if (blank) { tilePath(x, y, z, r); cx.fillStyle = '#e4dccb'; cx.fill(); }
+  else {
+    const halves = [-0.5, 0.5].map((k, h) => [x + (dx - dy) * k * hw * z, y + (dx + dy) * k * hh * z, cs[h]]).sort((p, q) => p[1] - q[1]);  // the back square first
+    halves.forEach(([sx, sy, c]) => groundAt(c, sx, sy, z, grey)); halves.forEach(([sx, sy, c]) => thingsAt(c, sx, sy, z, grey));
+  }
+  tilePath(x, y, z, r); cx.strokeStyle = '#00000044'; cx.lineWidth = 1.5; cx.stroke(); cx.restore();
 }
 function jarShape(x, y, s) {  // an amphora: neck, handles, round body, a band
   cx.fillStyle = '#c46a3c'; cx.strokeStyle = '#6e3418'; cx.lineWidth = Math.max(1.5, s * 0.04);
@@ -497,7 +556,7 @@ function jarShape(x, y, s) {  // an amphora: neck, handles, round body, a band
   cx.beginPath(); cx.arc(x - s * 0.24, y - s * 0.3, s * 0.1, 1.2, 4.6); cx.stroke(); cx.beginPath(); cx.arc(x + s * 0.24, y - s * 0.3, s * 0.1, -1.4, 1.9); cx.stroke();
   cx.strokeStyle = '#2a1408'; cx.lineWidth = s * 0.05; cx.beginPath(); cx.moveTo(x - s * 0.36, y); cx.lineTo(x + s * 0.36, y); cx.stroke();
 }
-function setShape(x, y, r) { COLOURS.forEach((c, k) => { const a = -Math.PI / 2 + k * 2 * Math.PI / COLOURS.length; dot(x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.6, r * 0.42, c); }); }  // a set: one of each good
+function setShape(x, y, r) { COLOUR_IDS.forEach(c => { const a = -Math.PI / 2 + c * 2 * Math.PI / LANDS.length; goodShape(c, x + Math.cos(a) * r * 0.62, y + Math.sin(a) * r * 0.62, r * 0.4); }); }  // a set: one of each material
 function symbol(f, x, y, r, n = 1) {  // a slot face: n coins, jars or sets of one of each material, side by side; a blank is an X
   if (f === 'blank') { nothing(x, y, r * 0.6); return; }
   if (n > 1) { for (let k = 0; k < n; k++) symbol(f, x + (k - (n - 1) / 2) * r * 1.15, y, r * 0.62); return; }
@@ -514,7 +573,7 @@ function content(j, x, y, s) {  // what a jar held
   else if (j.k === 'coins2') { coin(x - s * 0.16, y, s * 0.22); coin(x + s * 0.16, y, s * 0.22); }
   else if (j.k === 'slot') { rrect(x - s * 0.42, y - s * 0.24, s * 0.84, s * 0.48, 8, '#7a2f2f'); for (let k = 0; k < 3; k++) rrect(x - s * 0.36 + k * s * 0.25, y - s * 0.17, s * 0.21, s * 0.34, 4, '#fff'); }
   else if (j.k === 'first') star(x, y, s * 0.3);
-  else if (j.k === 'tile') tileShape(x, y, s * 0.28, BLANK_TILE, 0);
+  else if (j.k === 'tile') tileShape(x, y, s * 0.7 / (3 * L().hw), BLANK_TILE, 0);
   else if (j.k === 'jar') jarShape(x, y, s * 0.6);
   else if (j.k === 'set') setShape(x, y, s * 0.3);
 }
@@ -537,97 +596,121 @@ function hand(h) {  // the PC's hand, the only hand drawn; a press shows a ring 
 // A tile landing bounces (a damped spring, the standard squash and settle): 1. it arrives a little big, as it was carried;
 // 2. it swings below its size and back, the swing shrinking to nothing by LAND_MS.
 const LAND_MS = 280;  // routine: short
-function landing(t) { const u = fast || !t.landed ? 1 : (performance.now() - t.landed) / LAND_MS; return u >= 1 ? 1 : 1 + 0.08 * Math.cos(2 * Math.PI * u) * (1 - u); }
-function drawBoard() {
-  const { s, ox, oy } = L();
-  rrect(ox - 6, oy - 6, s * COLS + 12, s * ROWS + 12, 14, '#e2d3b0', '#c4b088', 2); drawn.push({ k: 'boardarea', x: ox, y: oy, w: s * COLS, h: s * ROWS });
-  cx.strokeStyle = '#d6c49c'; cx.lineWidth = 1; cx.beginPath();  // the grid, as one path
-  for (let x = 1; x < COLS; x++) { cx.moveTo(ox + x * s, oy); cx.lineTo(ox + x * s, oy + ROWS * s); }
-  for (let y = 1; y < ROWS; y++) { cx.moveTo(ox, oy + y * s); cx.lineTo(ox + COLS * s, oy + y * s); }
-  cx.stroke();
-  for (const c of G.cells.values()) drawn.push({ k: 'square', x: c.x, y: c.y, c: c.c, o: c.o });  // what the board shows, for the checks
-  for (const t of G.tiles.values()) {
-    const [x, y] = tileCentre(t.x, t.y, t.r);
-    const k = landing(t); if (k !== 1) drawn.push({ k: 'bounce', id: t.id, scale: k });
-    tileShape(x, y, s * k, t.cs, t.r, null, t.id);
-  }
-  cx.lineWidth = Math.max(4, s * 0.11); cx.lineCap = 'round';  // each land's border, all around its edges: one path per player
+function bounce(t) { const u = fast || !t.landed ? 1 : (performance.now() - t.landed) / LAND_MS; return u >= 1 ? 1 : 1 + 0.08 * Math.cos(2 * Math.PI * u) * (1 - u); }
+// The board's picture (sea, land, borders) only changes when the board does: it is made once onto its own canvas and that is drawn each frame.
+// A tile still bouncing in is left out of it and drawn on top, so its bounce shows; the picture is made again once it has settled.
+function landShapes(skip) {  // every square of land, borders and sea, drawn where cx points; skip: tiles drawn on their own
+  const { hh } = L(), cells = [...G.cells.values()].filter(c => !skip.has(c.t)), land = new Map(cells.map(c => [key(c.x, c.y), c])), has = (x, y) => land.has(key(x, y));
+  const order = cells.slice().sort((a, b) => a.x + a.y - b.x - b.y || a.x - b.x);  // back to front
+  const open = openSea(), shore = new Set();  // the open sea is one picture; only the sea diamonds touching land are drawn again, over the land's ground
+  if (open) cx.drawImage(open, 0, 0, W, H);
+  order.forEach(c => groundAt(c.c, ...squareCentre(c.x, c.y)));
+  cells.forEach(c => [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(([i, j]) => shore.add(key(c.x + i, c.y + j))));  // a square's 4 corner points
+  seaClip(() => shore.forEach(k => { const [i, j] = k.split(',').map(Number); seaAt(i, j, has); }));
+  cx.lineWidth = Math.max(3, hh * 0.2); cx.lineCap = 'round';  // each land's border, all around its edges: one path per player
+  const borders = [];
   for (const o of [0, 1]) {
     cx.beginPath();
-    for (const c of G.cells.values()) if (c.o === o) DIRS.forEach(([dx, dy]) => {
-      const n = G.cells.get(key(c.x + dx, c.y + dy)); if (n && n.o === o) return;
-      const x0 = ox + (c.x + (dx > 0 ? 1 : 0)) * s, y0 = oy + (c.y + (dy > 0 ? 1 : 0)) * s;
-      drawn.push({ k: 'border', o }); cx.moveTo(x0, y0); cx.lineTo(x0 + (dx ? 0 : s), y0 + (dy ? 0 : s));
-    });
+    for (const c of cells) if (c.o === o) DIRS.forEach(([dx, dy], d) => { const n = land.get(key(c.x + dx, c.y + dy)); if (n && n.o === o) return; const [e0, e1] = sideEnds(c.x, c.y, d); cx.moveTo(...e0); cx.lineTo(...e1); borders.push({ k: 'border', o }); });
     cx.strokeStyle = BORDER[o]; cx.stroke();
   }
+  cx.lineCap = 'butt';
+  order.forEach(c => thingsAt(c.c, ...squareCentre(c.x, c.y)));
+  return [{ k: 'sea', ready: !!open }, ...borders];
+}
+let openPic = null;
+function seaClip(draw) { const { cx: X, cy: Y, a, c: b } = boardDiamond(); cx.save(); cx.beginPath(); cx.moveTo(X, Y - b); cx.lineTo(X + a, Y); cx.lineTo(X, Y + b); cx.lineTo(X - a, Y); cx.closePath(); cx.clip(); draw(); cx.restore(); }  // the sea stays inside the board's diamond
+function openSea() {  // the board with no land: a sea diamond at every point where squares meet; made once per screen size
+  const d = devicePixelRatio || 1, mark = [W, H, d].join();
+  if (!pics.sea) return null; if (openPic && openPic.mark === mark) return openPic;
+  const c = document.createElement('canvas'), main = cx; c.width = W * d; c.height = H * d; cx = c.getContext('2d'); cx.setTransform(d, 0, 0, d, 0, 0);
+  seaClip(() => { for (let i = 0; i <= COLS; i++) for (let j = 0; j <= ROWS; j++) seaAt(i, j, () => false); });
+  cx = main; c.mark = mark; openPic = c; return c;
+}
+function areaShapes(i) {  // player i's area under his things: its tint (lit when it is his turn, with a glow in his colour) and a recess for each material's place
+  const lit = G.turn === i, { r, colX, rowY } = stock(i), shape = area(i), out = [{ k: 'panel', o: i, lit, x: i ? W / 2 : 0, w: W / 2 }];
+  const outline = () => { cx.beginPath(); shape.forEach(([x, y]) => cx.lineTo(x, y)); cx.closePath(); };
+  outline(); cx.fillStyle = lit ? TINT[i] : '#efe6d4'; cx.fill();
+  if (lit) { cx.save(); outline(); cx.clip(); outline(); cx.strokeStyle = BORDER[i] + '66'; cx.lineWidth = 16; cx.stroke(); cx.restore(); }  // the player whose turn it is: his area glows in his colour
+  for (const c of COLOUR_IDS) for (let k = 0; k < JAR_GOODS; k++) { dot(colX(c), rowY(k), r, '#00000014'); out.push({ k: 'place', o: i, c, x: colX(c), y: rowY(k), r }); }
+  return out;
+}
+function boardBox() { const { hw, hh, T } = L(); return { x: W / 2 - COLS * hw, y: T - 2 * hh, w: (COLS + ROWS) * hw, h: (COLS + ROWS + 2) * hh }; }  // the board, and room above it for things standing on its top squares
+function drawScene() {  // the band and both areas (one picture for each turn) and the board (one picture until it changes), together as one picture until either changes
+  const landing = [...G.tiles.values()].filter(t => bounce(t) !== 1), skip = new Set(landing.map(t => t.id)), { hw, hh, T } = L();
+  cx.clearRect(0, 0, W, H);  // a clear first: the browser then drops earlier frames it has not drawn yet (a full-screen fill does not)
+  const full = { x: 0, y: 0, w: W, h: H }, areas = layer('areas' + G.turn, G.turn, full, () => { cx.fillStyle = '#e6d6b2'; cx.fillRect(0, 0, W, T); return [{ k: 'band', y: 0, h: T }, ...areaShapes(0), ...areaShapes(1)]; });  // one for each turn; the band on top
+  const board = layer('board', [G.board, ...skip].join(), boardBox(), () => landShapes(skip));
+  drawLayer(layer('scene', areas.mark + '|' + board.mark, full, () => { [areas, board].forEach(c => cx.drawImage(c, c.box.x, c.box.y, c.box.w, c.box.h)); return areas.records.concat(board.records); }));  // both as one picture: one copy a frame
+  drawn.push({ k: 'boardarea', x: W / 2 - COLS * hw, y: T, w: (COLS + ROWS) * hw, h: (COLS + ROWS) * hh, cols: COLS, rows: ROWS });
+  for (const c of G.cells.values()) drawn.push({ k: 'square', x: c.x, y: c.y, c: c.c, o: c.o, pic: 'lands/' + LANDS[c.c], ready: picReady(groundPic(c.c)) && picReady(thingsPic(c.c)) });  // what the board shows, for the checks
+  for (const t of landing) { const k = bounce(t); drawn.push({ k: 'bounce', id: t.id, scale: k }); tileShape(...tileCentre(t.x, t.y, t.r), k, t.cs, t.r, null, t.id); }
   const B = G.burst, age = B ? performance.now() - B.t0 : GLOW_MS;  // the matched edges glow gold, then fade
   if (age < GLOW_MS) B.edges.forEach(e => {
-    const [ex, ey] = edgePoint(e.x, e.y, e.d), [dx, dy] = DIRS[e.d], a = Math.min(1, (GLOW_MS - age) / 500);
-    cx.globalAlpha = a; cx.strokeStyle = '#ffe27a'; cx.lineWidth = s * 0.22; cx.beginPath(); cx.moveTo(ex - dy * s * 0.45, ey - dx * s * 0.45); cx.lineTo(ex + dy * s * 0.45, ey + dx * s * 0.45); cx.stroke();
-    cx.strokeStyle = '#fffbe6'; cx.lineWidth = s * 0.08; cx.stroke(); cx.globalAlpha = 1; drawn.push({ k: 'edgeglow', x: ex, y: ey });
+    const [e0, e1] = sideEnds(e.x, e.y, e.d), [ex, ey] = edgePoint(e.x, e.y, e.d), a = Math.min(1, (GLOW_MS - age) / 500), at = k => [e0[0] + (e1[0] - e0[0]) * k, e0[1] + (e1[1] - e0[1]) * k];
+    cx.globalAlpha = a; cx.lineCap = 'round'; cx.strokeStyle = '#ffe27a'; cx.lineWidth = hh * 0.45; cx.beginPath(); cx.moveTo(...at(0.05)); cx.lineTo(...at(0.95)); cx.stroke();
+    cx.strokeStyle = '#fffbe6'; cx.lineWidth = hh * 0.16; cx.stroke(); cx.globalAlpha = 1; cx.lineCap = 'butt'; drawn.push({ k: 'edgeglow', x: ex, y: ey });
   });
-  cx.lineCap = 'butt';
 }
 function drawDraft() {
-  const { ds } = L(), who = wait ? wait.who : 0;
-  const [ax] = draftSlot(0), [bx, by] = draftSlot(3);  // the market: a tray with a place for each tile on offer
-  rrect(ax - ds - 22, by - ds / 2 - 18, bx - ax + 2 * ds + 44, ds + 36, 18, G.turn != null ? TINT[G.turn] : '#ffffff30', G.turn != null ? BORDER[G.turn] + '88' : null, 3); drawn.push({ k: 'market', o: G.turn, x: ax - ds - 22, y: by - ds / 2 - 18, w: bx - ax + 2 * ds + 44, h: ds + 36 });  // the market takes the colour of the player whose turn it is
-  for (let k = 0; k < 4; k++) if (!G.draft[k]) { const [x, y] = draftSlot(k); rrect(x - ds, y - ds / 2, 2 * ds, ds, ds * 0.14, '#00000014'); }  // an empty place shows as a recess
+  const { hw, hh, T } = L(), who = wait ? wait.who : 0;
+  const [ax, ay] = draftSlot(0), [bx] = draftSlot(3), m = { x: ax - 1.5 * hw - 16, y: ay - 1.5 * hh - 8, w: bx - ax + 3 * hw + 32, h: 3 * hh + 16 };  // the market: a tray with a place for each tile on offer
+  rrect(m.x, m.y, m.w, m.h, 18, G.turn != null ? TINT[G.turn] : '#ffffff30', G.turn != null ? BORDER[G.turn] + '88' : null, 3); drawn.push({ k: 'market', o: G.turn, ...m });  // the market takes the colour of the player whose turn it is
+  for (let k = 0; k < 4; k++) if (!G.draft[k]) { tilePath(...draftSlot(k), 1, 0); cx.fillStyle = '#00000014'; cx.fill(); }  // an empty place shows as a recess
   G.draft.forEach((t, k) => {
     const [x, y] = draftSlot(k);
     if (!t) return;
-    const ok = pickable(k, who);
-    tileShape(x, y, ds, t, 0, ok ? null : 'grey', 'draft-' + k);
-    if (ok && wait && wait.kind === 'pick') btn('draft-' + k, x - ds - 12, y - ds / 2 - 12, 2 * ds + 24, ds + 24, e => {  // pressing a tile takes it; the same press goes on as its drag
+    const ok = pickable(k, who), b = tileBox(x, y, 1, 0);
+    tileShape(x, y, 1, t, 0, ok ? null : 'grey', 'draft-' + k);
+    if (ok && wait && wait.kind === 'pick') btn('draft-' + k, b.x - 12, b.y - 12, b.w + 24, b.h + 24, e => {  // pressing a tile takes it; the same press goes on as its drag
       if (e) press = { x: e.clientX, y: e.clientY, dx: x - e.clientX, dy: y - e.clientY, moved: false, taking: true };
       answer(k);
     });
   });
-  const layers = G.bag.length, [px, top] = pileTop();
-  for (let k = 0; k < layers; k++) { const y = top + (layers - 1 - k) * pileStep(); rrect(px - ds, y - ds / 2, 2 * ds, ds, ds * 0.14, '#c9ad7f', '#8a6d42', 2); }
-  drawn.push({ k: 'pile', layers, x: px, y: top, step: pileStep(), bottom: top + (layers - 1) * pileStep() + ds / 2 });
+  const layers = G.bag.length, [px, top] = pileTop(), box = { x: px - 1.5 * hw - 2, y: top - 1.5 * hh - 2, w: 3 * hw + 4, h: (layers - 1) * PILE_STEP + 3 * hh + 4 };
+  drawLayer(layer('pile', layers, box, () => { for (let k = 0; k < layers; k++) { tilePath(px, top + (layers - 1 - k) * PILE_STEP, 1, 0); cx.fillStyle = '#c9ad7f'; cx.fill(); cx.strokeStyle = '#8a6d42'; cx.lineWidth = 1; cx.stroke(); }
+    return [{ k: 'pile', layers, x: px, y: top, step: PILE_STEP, bottom: top + (layers - 1) * PILE_STEP + 1.5 * hh }]; }));  // the pile: one layer per tile, drawn again only when it changes
 }
-function stock(i) {  // player i's area, top to bottom: his face; the goods tray (a row of JAR_GOODS places per colour, owner 24 Nov; set signs under its columns); the coins tray
-  const { P } = L(), p = G.players[i], x0 = i ? W - P : 0, pad = 16, top = 104, cw = (P - 2 * pad - 8) / JAR_GOODS, r = Math.min(cw * 0.36, 15), rp = Math.max(2 * r + 10, cw);
-  const rowY = c => top + 8 + rp * (c + 0.5), colX = k => x0 + pad + 4 + cw * (k + 0.5), base = top + 16 + COLOURS.length * rp;
-  // coins (owner 25 Nov): in the same 5 columns as the goods, in a tray right under theirs, rows of 5 from the top, a small gap after every 10; smaller only when the tray is full
-  const coinTop = base + 16, coinBottom = H - 80, rows = Math.max(2, Math.ceil(p.coins / 5)), tens = Math.floor((rows - 1) / 2), tg = 6;
-  const pitch = Math.min(rp * 0.82, (coinBottom - coinTop - 16 - tens * tg) / rows), cr = Math.max(2, Math.min(r, pitch * 0.46, (pitch - 2) / 2));  // always apart, however many
-  const coinAt = k => { const row = Math.floor(k / 5); return [colX(k % 5), coinTop + 8 + pitch * (row + 0.5) + Math.floor(row / 2) * tg]; };
-  return { x0, pad, cw, top, base, r, rp, colX, rowY, coinTop, coinBottom, cr, coinAt };
+function area(i) {  // player i's area: the two triangles beside the board on his side, joined by the strip at the board's side corner
+  const { T } = L(), { cx: X, cy: Y, a, c } = boardDiamond(), e = i ? W : 0;
+  return [[e, T], [X, T], [X + (i ? a : -a), Y], [X, Y + c], [X, H], [e, H]];
+}
+function stock(i) {  // player i's things in his area: materials in a column of JAR_GOODS places per colour, from the top, beside the screen edge (owner 25 Nov, design 3);
+  // coins in the bottom triangle, in rows from the bottom up, each as long as the triangle is wide there, at most COINS_PER_ROW; past what it holds they shrink, always apart
+  const { hh, T } = L(), p = G.players[i], r = GOOD_SIZE * hh, rp = 2 * r + 6, out = k => i ? W - k : k;
+  const colX = c => out(8 + rp * (c + 0.5)), rowY = k => T + 8 + rp * (k + 0.5);
+  const rowsFor = cr => {  // the coin rows at this size: [y, how many] from the bottom up, each row out from the screen edge until the next coin would touch the board
+    const cp = 2 * cr + 6, rows = [];
+    for (let j = 0; ; j++) {
+      const y = H - LOW - cp * (j + 0.5); if (y - cr < T + ROWS * hh) break;  // the bottom triangle: under the board's side corner
+      let n = 0; while (n < COINS_PER_ROW && clearOfBoard(out(8 + cp * (n + 0.5)), y, cr + 2)) n++;
+      if (!n) break; rows.push([y, n]);
+    }
+    return rows;
+  };
+  let cr = r, rows = rowsFor(cr); while (rows.reduce((a, [, n]) => a + n, 0) < p.coins && cr > 2) { cr *= 0.92; rows = rowsFor(cr); }
+  const coinAt = k => { for (const [y, n] of rows) { if (k < n) return [out(8 + (2 * cr + 6) * (k + 0.5)), y]; k -= n; } return [out(8 + cr), T + ROWS * hh]; };
+  return { r, colX, rowY, cr, coinAt };
 }
 function face(x, y, r, col) {  // a player: a round face in his colour
   dot(x, y, r, col); dot(x - r * 0.35, y - r * 0.15, r * 0.13, '#fff'); dot(x + r * 0.35, y - r * 0.15, r * 0.13, '#fff');
   cx.strokeStyle = '#fff'; cx.lineWidth = r * 0.12; cx.lineCap = 'round'; cx.beginPath(); cx.arc(x, y + r * 0.05, r * 0.45, 0.5, Math.PI - 0.5); cx.stroke(); cx.lineCap = 'butt';
 }
 function drawPanel(i) {
-  const { P } = L(), p = G.players[i], lit = G.turn === i, { x0, pad, cw, top, base, r, rp, colX, rowY, coinTop } = stock(i), cxm = x0 + P / 2;
-  if (lit) rrect(x0 + 2, 4, P - 4, H - 8, 20, null, BORDER[i] + '66', 10);  // the player whose turn it is: his area glows in his colour
-  rrect(x0 + 6, 8, P - 12, H - 16, 16, lit ? TINT[i] : '#efe6d4', BORDER[i], lit ? 5 : 2);
-  drawn.push({ k: 'panel', o: i, lit, x: x0, w: P });
-  const fr = lit ? 38 : 26; if (lit) dot(cxm, 54, fr + 8 + 3 * Math.sin(performance.now() / 250), BORDER[i] + '55');  // the player whose turn it is: a bigger face with a soft glow
-  face(cxm, 54, fr, BORDER[i]); drawn.push({ k: 'avatar', o: i, x: cxm, y: 54, r: fr });
-  if (G.first === i) { const [sx, sy] = starSpot(i); star(sx, sy, 16); drawn.push({ k: 'token', o: i, x: sx, y: sy }); }  // the first-player token, beside his face
-  // goods: a row of JAR_GOODS places per colour (a recess each)
-  rrect(x0 + pad, top - 4, P - 2 * pad, base - top + 4, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'goods', y: top - 4, h: base - top + 4 });
-  for (const c of COLOUR_IDS) {
-    rrect(colX(0) - cw / 2 + 2, rowY(c) - rp / 2 + 3, cw * JAR_GOODS - 4, rp - 6, (rp - 6) / 2, '#ffffff55');  // a groove per colour
-    for (let k = 0; k < JAR_GOODS; k++) { dot(colX(k), rowY(c), r, '#00000014'); drawn.push({ k: 'place', o: i, c, x: colX(k), y: rowY(c), r }); }
-  }
-  p.goods.forEach((g, c) => { for (let k = 0; k < g; k++) { dot(colX(k), rowY(c), r, COLOURS[c]); drawn.push({ k: 'good', o: i, c, x: colX(k), y: rowY(c), r }); } });
-  const { cr, coinAt, coinBottom } = stock(i);
-  rrect(x0 + pad, coinTop, P - 2 * pad, coinBottom - coinTop, 14, '#00000012'); drawn.push({ k: 'tray', o: i, for: 'coins', y: coinTop, h: coinBottom - coinTop });
+  const p = G.players[i], lit = G.turn === i, { r, colX, rowY, cr, coinAt } = stock(i), shape = area(i);  // his area's tint and places are in the scene
+  const [fx, fy] = faceSpot(i), fr = lit ? 38 : 26; if (lit) dot(fx, fy, fr + 6 + 2 * Math.sin(performance.now() / 250), BORDER[i] + '55');  // the player whose turn it is: a bigger face with a soft glow
+  face(fx, fy, fr, BORDER[i]); drawn.push({ k: 'avatar', o: i, x: fx, y: fy, r: fr });
+  if (G.first === i) { const [sx, sy] = starSpot(i); star(sx, sy, 16); drawn.push({ k: 'token', o: i, x: sx, y: sy, r: 16 }); }  // the first-player token, beside his face
+  p.goods.forEach((g, c) => { for (let k = 0; k < g; k++) { goodShape(c, colX(c), rowY(k), r, true); drawn.push({ k: 'good', o: i, c, x: colX(c), y: rowY(k), r, pic: 'materials/' + MATERIALS[c], ready: picReady('materials/' + MATERIALS[c]) }); } });
   for (let k = 0; k < p.coins - (G.ending ? G.ending[i] : 0); k++) { const [x, y] = coinAt(k); coin(x, y, cr); drawn.push({ k: 'coin', o: i, x, y, r: cr }); }
-  if (!lit) { cx.fillStyle = 'rgba(120,110,95,0.38)'; cx.beginPath(); cx.roundRect(x0 + 6, 8, P - 12, H - 16, 16); cx.fill(); }  // the other player's area is dimmed
+  if (!lit) { cx.beginPath(); shape.forEach(([x, y]) => cx.lineTo(x, y)); cx.fillStyle = 'rgba(120,110,95,0.38)'; cx.fill(); }  // the other player's area is dimmed
 }
 function drawHeld() {  // the tile in hand where it lies, and the place it will snap to
-  const { s } = L(), sp = snapSpot(), [x, y] = wait.pos, b = tileBox(x, y, s, wait.r);
-  const cs = wait.tile;
-  if (sp) { const [gx, gy] = tileCentre(sp.x, sp.y, sp.r), g = tileBox(gx, gy, s, sp.r); tileShape(gx, gy, s, cs, sp.r, 'ghost'); cx.setLineDash([8, 6]); rrect(g.x - 3, g.y - 3, g.w + 6, g.h + 6, s * 0.2, null, '#ffffff', 4); cx.setLineDash([]); }
+  const sp = snapSpot(), [x, y] = wait.pos, b = tileBox(x, y, 1, wait.r), cs = wait.tile;
+  if (sp) { const [gx, gy] = tileCentre(sp.x, sp.y, sp.r); tileShape(gx, gy, 1, cs, sp.r, 'ghost'); cx.setLineDash([8, 6]); tilePath(gx, gy, 1.08, sp.r); cx.strokeStyle = '#ffffff'; cx.lineWidth = 4; cx.stroke(); cx.setLineDash([]); }
   const tilt = tiltNow(wait); cx.save(); cx.translate(x, y); cx.rotate(tilt * Math.PI / 180); cx.translate(-x, -y);
-  rrect(b.x + 3, b.y + 7, b.w, b.h, s * 0.16, '#00000033'); tileShape(x, y, s * 1.06, cs, wait.r, null, 'held');  // a plain offset shadow: a blurred one costs a lot to draw every frame
-  rrect(b.x - 5, b.y - 5, b.w + 10, b.h + 10, s * 0.22, null, BORDER[wait.who], 4); cx.restore(); drawn.push({ k: 'heldmark', o: wait.who, tilt });  // his colour around it: this tile is his
+  tilePath(x + 3, y + 7, 1, wait.r); cx.fillStyle = '#00000033'; cx.fill(); tileShape(x, y, 1.06, cs, wait.r, null, 'held');  // a plain offset shadow: a blurred one costs a lot to draw every frame
+  tilePath(x, y, 1.14, wait.r); cx.strokeStyle = BORDER[wait.who]; cx.lineWidth = 4; cx.stroke(); cx.restore(); drawn.push({ k: 'heldmark', o: wait.who, tilt });  // his colour around it: this tile is his
   btn('held', b.x - 8, b.y - 8, b.w + 16, b.h + 16, e => { press = { x: e.clientX, y: e.clientY, dx: x - e.clientX, dy: y - e.clientY, moved: false }; });
 }
 function shade(a) { drawn.push({ k: 'shade' }); cx.fillStyle = 'rgba(40,25,10,' + a + ')'; cx.fillRect(0, 0, W, H); }
@@ -717,12 +800,12 @@ function drawDusk() {  // evening: the sky darkens from the top down, lightly, s
   cx.globalAlpha = 1; drawn.push({ k: 'moon', shape: 'crescent' });
 }
 function drawDawn() {  // morning: a band of warm light sweeps over the screen from left to right
-  const u = Math.min(1, (performance.now() - G.dawn) / DAWN_MS); if (u >= 1) return;
+  const u = fast ? 1 : Math.min(1, (performance.now() - G.dawn) / DAWN_MS); if (u >= 1) return;  // at test speed it is over at once, like everything that takes time
   const x = -W * 0.3 + u * W * 1.6, g = cx.createLinearGradient(x - W * 0.3, 0, x + W * 0.3, 0);
   g.addColorStop(0, 'rgba(255,230,150,0)'); g.addColorStop(0.5, 'rgba(255,230,150,0.45)'); g.addColorStop(1, 'rgba(255,230,150,0)');
   cx.fillStyle = g; cx.fillRect(0, 0, W, H); drawn.push({ k: 'dawn' });
 }
-function endBox() { const { s, ox, oy } = L(); return { x: ox + 20, y: oy + 20, w: s * COLS - 40, h: s * ROWS - 40 }; }  // over the board, a little smaller: the player areas stay in view
+function endBox() { const { hw, hh, T } = L(); return { x: W / 2 - 11 * hw, y: T + 4 * hh, w: 22 * hw, h: 26 * hh }; }  // over the board, inside its diamond's box: the player areas stay in view
 function endCoin(i, k) {  // the end's piles: each player's coins in rows of 10, the same size for both, stacking up from the box's bottom, side by side
   const b = endBox(), r = 9, col = b.x + b.w * (i ? 0.72 : 0.28), row = Math.floor(k / 10);
   return [col + (k % 10 - 4.5) * (2 * r + 3), b.y + b.h - 70 - row * (2 * r + 3)];
@@ -749,19 +832,19 @@ function drawFlights() {  // everything on its way, at its point on its curve
   const now = performance.now();
   for (const f of flights) {
     const [x, y, z] = flightAt(f, now), L0 = f.look;
-    if (L0.k === 'good') { const sp = stock(L0.o); dot(x, y, sp.r * z, COLOURS[L0.c]); }
+    if (L0.k === 'good') goodShape(L0.c, x, y, stock(L0.o).r * z);
     else if (L0.k === 'jar') jarShape(x, y, JAR_SIZE() * z);
     else if (L0.k === 'shown') shownCard(L0.j, L0.o, x, y, z);
     else if (L0.k === 'coin') coin(x, y, 12 * z);
     else if (L0.k === 'star') star(x, y, 16 * z);
-    else if (L0.k === 'tile') tileShape(x, y, L().ds * z, L0.cs, 0);
+    else if (L0.k === 'tile') tileShape(x, y, z, L0.cs, 0);
     drawn.push({ k: 'flight', look: L0.k, c: L0.c, x, y, fx: f.from[0], fy: f.from[1], tx: f.to[0], ty: f.to[1] });
   }
 }
 function render() {  // one picture of the game; it also lays out the buttons the taps (and the PC's hand) press
-  buttons = []; drawn = []; cx.clearRect(0, 0, W, H);
-  if (!G) return;
-  drawBoard(); drawDraft(); drawPanel(0); drawPanel(1);
+  buttons = []; drawn = [];
+  if (!G) { cx.clearRect(0, 0, W, H); return; }
+  drawScene(); drawDraft(); drawPanel(0); drawPanel(1);  // the scene covers the whole screen
   if (G.dusk != null) drawDusk();  // the evening lies over the board and areas, under the jars
   if (G.dawn != null) drawDawn();
   if (wait && wait.kind === 'place') drawHeld();
@@ -777,7 +860,7 @@ const human = () => (wait && G.players[wait.who].human) || G.over;  // after the
 cv.addEventListener('pointerdown', e => {
   if (!e.isPrimary) return;  // a stray second finger does nothing
   if (human()) for (let k = buttons.length - 1; k >= 0; k--) { const b = buttons[k]; if (e.clientX >= b.x && e.clientX <= b.x + b.w && e.clientY >= b.y && e.clientY <= b.y + b.h) { b.fn(e); return; } }
-  const { s, ox, oy } = L(); if (e.clientX >= ox && e.clientX <= ox + s * COLS && e.clientY >= oy && e.clientY <= oy + s * ROWS) { puff([e.clientX, e.clientY]); sound('board'); }  // the board answers any other tap, like a table: dust and a soft knock
+  if (!clearOfBoard(e.clientX, e.clientY, 0)) { puff([e.clientX, e.clientY]); sound('board'); }  // the board answers any other tap, like a table: dust and a soft knock
 });
 cv.addEventListener('pointermove', e => {
   if (!press || !human() || wait.kind !== 'place') return;
@@ -802,7 +885,7 @@ window.__dg = {
   soundKinds() { return [...new Set(Object.values(SOUNDS).map(v => v[0]))].sort(); },
   held() { return wait && wait.kind === 'place' ? wait.pos.slice() : null; },
   gaps() { return { lit: STAGGER }; },
-  tileAt: tileCentre, slot: draftSlot, square: squareCentre, colour: c => [1, 3, 5].map(k => parseInt(COLOURS[c].slice(k, k + 2), 16)),
+  tileAt: tileCentre, slot: draftSlot, square: squareCentre,
   edge: edgePoint,
   pixel(x, y) { const d = devicePixelRatio || 1; return [...cx.getImageData(Math.floor(x * d), Math.floor(y * d), 1, 1).data]; },
   sampleJars(n, who) { const m = {}; for (let k = 0; k < n; k++) { const j = rollJar(who); m[j.k] = (m[j.k] || 0) + 1; } return m; },
@@ -820,7 +903,7 @@ window.__dg = {
 };
 restart(params.has('seed') ? { seed: +params.get('seed') } : {});
 frame();
-__dg.ready = true;
+picsReady.then(() => { __dg.ready = true; });  // ready once every picture is drawn onto its canvas
 </script>
 </body>
 </html>
