@@ -53,7 +53,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
 // SECTION: MODEL -- the paint model in plain words
 /* The paint model (all of it runs on the graphics card, one small program per step). Words used: a medium is what
  you paint with, called a drawing tool (acrylic, watercolour, crayon (oil pastel), marker, simple brush, spray, shapes, ink, pencil); a brush shape is the shape of the brush or crayon
- tip (round, flat, dry brush, knife, mop; tip, side); paint load is how much paint the brush took (hold a colour longer).
+ tip (round, flat, filbert, fan, rigger, mop, dry brush; tip, side); paint load is how much paint the brush took (hold a colour longer).
  1. The picture is a grid of pixels on a canvas (watercolour paper, smooth paper, cotton canvas; each has its
     own surface grain). Each pixel holds how much light its paint swallows, per red/green/blue (absorbance,
     A = -ln(reflectance)), and how thick the paint is (H). Wet paints mix with each other like real pigment (Mixbox
@@ -69,7 +69,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#6e5a48;touch-action:n
     stroke's sides get a ridge. The bristles plough acrylic's wet paint: it moves from under the strong bristles into the gaps, so a stroke over
     wet paint leaves its own grooves, not the old ones. Each pixel remembers when its paint was laid; paint dries (acrylic much faster than
     oil), and only the wet part can be picked up, so new paint sits on top of dry paint. Acrylic is thinner, covers
-    better and is less glossy.
+    better and is less glossy. Impasto is the same brush with heavier paint: laid thicker, more heaped at the sides, deeper ridges.
  3. Watercolour (standard techniques: Curtis et al. 1997 for pigment in water; the virtual-pipes shallow-water model,
     O'Brien and Hodgins 1995 / Mei et al. 2007, for the flow): the brush puts water and pigment on the paper and makes
     it damp; the brush's water runs out along the stroke. Water flows to lower neighbours (deeper water, the paper's
@@ -122,11 +122,11 @@ const SIZES = [8, 16, 28, 48, 80]; // brush radius for each size dot, the same f
 const SOFT = [0.95, 0.05]; // sharp, blurred: how far out the dab stays full strength (owner 21 Nov: two rows, the brushes sharp and blurred)
 const LOADS = [0.12, 0.4, 1]; // paint in the brush for a third-, two-thirds- and full bucket (owner 21 Nov: the lowest even less)
 const FIXED = [Math.SQRT1_2, Math.SQRT1_2]; // brushes that are not round are held at one angle, a diagonal; they never turn by themselves (owner 21 Nov)
-const PAINT = [{ id: 'round', k: 0, al: 1 }, { id: 'flat', k: 1, al: 0.22, fixed: 1 }, { id: 'scrub', k: 1, al: 0.35, fixed: 1, scrub: 0.72 }, { id: 'knife', k: 1, al: 0.12, fixed: 1, knife: 1 }]; // round, flat, scrub, knife (smear); owner 21 Nov 18:29: the 3rd like the Brusheezy 'Acrylic Paint' pack: a broad brush scrubbed on, dense in the middle, breaking into dry streaks at its sides and on the paper's grain // no brush that differs from another only in size: size has its own button (owner 21 Nov)
+const PAINT = [{ id: 'round', k: 0, al: 1 }, { id: 'flat', k: 1, al: 0.22, fixed: 1 }, { id: 'filbert', k: 2, al: 0.4, fixed: 1 }, { id: 'fan', k: 1, al: 0.1, sc: 1.3, fixed: 1, fan: 1 }, { id: 'rigger', k: 0, al: 1, sc: 0.35 }]; // owner 25 Nov: 5 basic real brushes: round, flat, filbert (a flat with a rounded end), fan (thin bristle clumps spread wide, gaps between), rigger (long thin liner)
 const ring = (n, rad) => [...Array(n).keys()].map((i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n; return [rad(i) * Math.cos(a), rad(i) * Math.sin(a)]; }); // n points round the middle, the first at the top
 const heartPts = () => [...Array(28).keys()].map((i) => { const t = i * 2 * Math.PI / 28, x = 16 * Math.sin(t) ** 3, y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t); return [x / 20, -(y + 2) / 20]; }); // the usual heart curve, point down
 const SHAPES = { // brushes per tool (owner 21 Nov: all of them): kind (0 round, 1 flat, 2 oval), length along the stroke, size, edge softness, water, held at one angle
-  acrylic: PAINT, // dry brush: little paint on stiff, uneven bristles; knife: no bristles, scrapes and smears flat (owner 21 Nov: no oil)
+  acrylic: PAINT, // and each again with impasto paint, in the brush popup's second row (owner 25 Nov)
   water: [{ id: 'round', k: 0, al: 1 }, { id: 'flat', k: 1, al: 0.25, fixed: 1 }, { id: 'mop', k: 0, al: 1, soft: 0.1, water: 2.5, fringe: 1.6 }, { id: 'dry', k: 1, al: 0.35, fixed: 1, dry: 0.12 }], // owner 21 Nov: no sponge; dry brush: little water, full colour, breaks on the paper's tooth in streaks along the stroke,
   crayon: [{ id: 'tip', k: 0, al: 1 }, { id: 'side', k: 1, al: 0.3, light: 0.75, fixed: 1 }],
   marker: [{ id: 'bullet', k: 0, al: 1 }, { id: 'chisel', k: 1, al: 0.3, fixed: 1 }],
@@ -142,8 +142,8 @@ const SHAPES = { // brushes per tool (owner 21 Nov: all of them): kind (0 round,
 // tuning (the prototype answers these with the child)
 const K = {
   OIL_LOAD: 10 * 2 / 3, OIL_GIVE: 1 / 700, OIL_TAKE: 0.07, OIL_SURF: 0.3, OIL_RIDGE: 0.4, OIL_PAPER: 0.05, OIL_DRY: 1e6, // the 'oil' paint is the oil pastel's (no oil tool since 21 Nov): it never dries
-  OIL_HIDE: 0.045, OIL_MIXW: 4, OIL_EDGE: 0.85, KNIFE_TAKE: 3, KNIFE_RIDGE: 2.5, // a coat this thick hides about two thirds of what is under it; edge softness; the knife scrapes harder and pushes paint to its sides
-  ACR_PLOUGH: 0.05, ACR_GROOVE: 3, ACR_GIVE: 1.4 / 700, ACR_TAKE: 0.06, ACR_RIDGE: 1.2, ACR_HIDE: 0.035, ACR_EDGE: 0.95, ACR_DRY: 6, ACR_GLOSS: 0.35, ACR_LINES: 0.12, // acrylic, heavy body: thick paint that keeps the brush's lines (impasto), heaped at the sides, covers well, crisp edges, dries in about 15 s (owner 21 Nov: more leftover paint, in the brush's lines)
+  OIL_HIDE: 0.045, OIL_MIXW: 4, OIL_EDGE: 0.85, // a coat this thick hides about two thirds of what is under it; edge softness
+  ACR_PLOUGH: 0.05, ACR_GROOVE: 3, ACR_GIVE: 1.4 / 700, ACR_TAKE: 0.06, ACR_RIDGE: 1.2, ACR_HIDE: 0.035, ACR_EDGE: 0.95, ACR_DRY: 6, ACR_GLOSS: 0.35, ACR_LINES: 0.12, IMP_RIDGE: 4, IMP_GROOVE: 2.2, IMP_LOAD: 2, // impasto: the brush holds this many times more paint and lays it as fast (so a coat that much thicker, as long a stroke), its ridges and grooves deeper // acrylic, heavy body: thick paint that keeps the brush's lines (impasto), heaped at the sides, covers well, crisp edges, dries in about 15 s (owner 21 Nov: more leftover paint, in the brush's lines)
   BUMP: 2.8, GLOSS: 30, WETDARK: 0.08,
   LX: -0.45, LY: -0.55, LZ: 0.70, HX: -0.45 / 1.843, HY: -0.55 / 1.843, HZ: 1.7 / 1.843, // light from the top left; half-way vector between light and eye
   W_ADD: 0.35, W_MAX: 1.5, PDIF: 25, W_DENS: 0.8, W_LEN: 30, // water per dab, most water a pixel holds, pigment spreading, pigment per water, stroke length (in brush radii) a full brush's water lasts
@@ -283,7 +283,7 @@ const OUT3 = 'layout(location=0) out vec4 o0; layout(location=1) out vec4 o1; la
 const OUT4 = 'layout(location=0) out vec4 o0; layout(location=1) out vec4 o1; layout(location=2) out vec4 o2; layout(location=3) out vec4 o3;\n';
 const OUT2 = 'layout(location=0) out vec4 o0; layout(location=1) out vec4 o1;\n';
 const OUT1 = 'out vec4 o0;\n';
-const OIL = `uniform sampler2D P, M, T, BT, G, U; uniform ivec2 C; uniform int R, NB; uniform float SP, NOW, PRES, UGIVE, UTAKE, URIDGE, UEDGE, MAT, REACH, LUMPS, UPLOUGH, BMEAN; uniform vec3 RES;
+const OIL = `uniform sampler2D P, M, T, BT, G, U; uniform ivec2 C; uniform int R, NB; uniform float SP, NOW, PRES, UGIVE, UTAKE, URIDGE, UEDGE, MAT, REACH, LUMPS, UPLOUGH, UGROOVE, BMEAN; uniform vec3 RES;
 float hash1(vec2 v) { return fract(sin(dot(v, vec2(127.1, 311.7))) * 43758.5453); }
 bool oilAt(int i, int j, out vec4 pic, out vec4 mis, out vec4 tip, out vec4 und) { // one tip pixel against the picture pixel under it (model part 2)
   ivec2 cp = C + ivec2(i, j); pic = texelFetch(P, cl(cp), 0); mis = texelFetch(M, cl(cp), 0); und = texelFetch(U, cl(cp), 0); tip = texelFetch(T, ivec2(i + R, j + R), 0);
@@ -305,9 +305,9 @@ bool oilAt(int i, int j, out vec4 pic, out vec4 mis, out vec4 tip, out vec4 und)
   vec3 a = pic.rgb, b = tip.rgb;
   pic.rgb = cw + give > 1e-7 ? mb(a, b, give / (cw * OIL_MIXW + give)) : a; // wet paints mix like pigment (the wet paint there holds on: it weighs more than what the brush just laid); on paper or dry paint the new paint is its own colour
   tip.rgb = mb(b, a, wt); pic.a = h - take + give; und.a = cw + give; tip.a = L2;
-  if (UPLOUGH > 0.) { // the bristles plough the wet paint: it moves from under the strong bristles to the gaps between them, so the old grooves give way to this stroke's
+  if (UPLOUGH > 0.) { // the bristles plough the wet paint: it moves from under the strong bristles to the gaps between them, so the old grooves give way to this stroke's; a strong bristle pushes away a share of the paint, never more than there is
     float near = 0.; for (int k = 0; k < 16; k++) { float an = float(k) * 1.178; near += texelFetch(U, cl(cp + ivec2(round(fR * (k < 8 ? .15 : .3) * vec2(cos(an), sin(an))))), 0).a; } near /= 16.; // the wet paint round about, in every direction, wider than the old grooves
-    float b = texelFetch(BT, ivec2(bi, 0), 0).r, w = und.a, w2 = mix(w, max(0., near + give) * (1. + ACR_GROOVE * (BMEAN - b)), min(1., UPLOUGH * m * run));
+    float b = texelFetch(BT, ivec2(bi, 0), 0).r, w = und.a, w2 = mix(w, max(0., near + give) * exp(UGROOVE * (BMEAN - b)), min(1., UPLOUGH * m * run));
     pic.a += w2 - w; und.a = w2; }
   if (L2 > OIL_SURF) tip.rgb = mb(tip.rgb, RES, min(1., give / (4. * OIL_SURF))); // paint from deep in the bristles refills the outside
   if (cw + give > 1e-6) { float f = clamp(give / (cw + give), 0., 1.); mis.r = mix(mis.r, NOW, f); mis.a = mix(mis.a, MAT, f); }
@@ -515,14 +515,14 @@ async function undoOne() {
 }
 
 // SECTION: TOOLS -- one dab of each medium (the model's parts 2-5)
-const st = { tool: 'acrylic', palette: 0, color: 4, load: 3, size: 1, soft: { simple: 0, pencil: 0 }, turn: false, lift: false, splash: 1, shape: { oil: 0, acrylic: 0, water: 0, crayon: 1, marker: 0, simple: 0, spray: 0, shapes: 0, ink: 0, pencil: 0 }, canvas: 'wc' };
+const st = { tool: 'acrylic', palette: 0, color: 4, load: 3, size: 1, soft: { simple: 0, pencil: 0, acrylic: 0 }, turn: false, lift: false, splash: 1, shape: { oil: 0, acrylic: 0, water: 0, crayon: 1, marker: 0, simple: 0, spray: 0, shapes: 0, ink: 0, pencil: 0 }, canvas: 'wc' };
 const colorOf = (i) => (i === 'pick' ? st.picked : colorsNow()[Math.min(i, colorsNow().length - 1)]); // 'pick': the colour taken from the painting
 let stroke = null, clockShift = 0;
 const paintNow = () => performance.now() / 1000 + clockShift;
 const water = { steps: 0, active: false, rect: null, mask: new Uint8Array(TX * TY), recent: null, stroking: false, pend: null, dabNo: 0, frames: 0, acc: 0 };
 const MED = { // acrylic and oil pastel: same brush model, different paint (model parts 2 and 4)
-  crayon: { UGIVE: K.PASTEL_GIVE, UTAKE: K.PASTEL_TAKE, URIDGE: 0, UEDGE: 0.7, MAT: 0, UPLOUGH: 0 } /* a knife has no bristles to plough with */, // oil pastel (model part 4)
-  acrylic: { UGIVE: K.ACR_GIVE, UTAKE: K.ACR_TAKE, URIDGE: K.ACR_RIDGE, UEDGE: K.ACR_EDGE, MAT: 1, UPLOUGH: K.ACR_PLOUGH },
+  crayon: { UGIVE: K.PASTEL_GIVE, UTAKE: K.PASTEL_TAKE, URIDGE: 0, UEDGE: 0.7, MAT: 0, UPLOUGH: 0, UGROOVE: 0 }, // oil pastel (model part 4)
+  acrylic: { UGIVE: K.ACR_GIVE, UTAKE: K.ACR_TAKE, URIDGE: K.ACR_RIDGE, UEDGE: K.ACR_EDGE, MAT: 1, UPLOUGH: K.ACR_PLOUGH, UGROOVE: K.ACR_GROOVE },
 };
 const heldDir = (shape, dir) => (st.turn ? dir : shape.upright ? [1, 0] : shape.fixed ? FIXED : dir); // which way the brush is held: turned with the stroke, or at its one angle
 function shapeUni(s) { return { D: heldDir(s.shape, s.dir), SHK: s.shape.k, SAL: s.shape.al, SSC: (s.shape.sc || 1) * tipWide(s) }; } // a lighter touch makes a narrower mark
@@ -535,20 +535,19 @@ function bristles(s, n, lo, seed) { // strengths across the tip: soft grooves (o
 }
 function uploadBristles(s) { gl.bindTexture(gl.TEXTURE_2D, BTEX.t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, s.nb, 1, gl.RED, gl.FLOAT, s.bristle); }
 function oilStart(s) {
-  const R = s.r, n = 2 * R + 1, ca = s.ca, pastel = s.tool === 'crayon', L = K.OIL_LOAD * (pastel ? K.PASTEL_STICK : s.load); // a pastel stick does not run out in a stroke
-  s.n = n; s.res = ca;
+  const R = s.r, n = 2 * R + 1, ca = s.ca, pastel = s.tool === 'crayon', L = K.OIL_LOAD * (pastel ? K.PASTEL_STICK : s.load * (s.impasto ? K.IMP_LOAD : 1)); // a pastel stick does not run out in a stroke
+  s.n = n; s.res = ca; s.impasto = !pastel && st.soft.acrylic === 1;
   const d = new Float32Array(n * n * 4); for (let t = 0; t < n * n; t++) { d[t * 4] = ca[0]; d[t * 4 + 1] = ca[1]; d[t * 4 + 2] = ca[2]; d[t * 4 + 3] = L; }
   gl.bindTexture(gl.TEXTURE_2D, TIP[0].t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, n, n, gl.RGBA, gl.FLOAT, d);
-  bristles(s, n, pastel ? 0.75 : K.ACR_LINES, (Math.random() * 1e9) | 0); // one bristle per pixel across: the brush's lines (a pastel's tip is only a little uneven)
-  if (s.shape.knife) s.bristle.fill(1); // knife: one smooth blade
-  if (s.shape.scrub) { const r = rng(23); s.bristle = s.bristle.map((v, i) => { const x = Math.abs(2 * i / (n - 1) - 1); return x > 0.45 && r() < 0.55 * x ? 0.05 : v * (1 - 0.5 * x * x); }); } // scrub: fewer, weaker bristles towards the sides
+  const nb = 2 * Math.round(R * (s.shape.sc || 1)) + 1; bristles(s, nb, pastel ? 0.75 : K.ACR_LINES, (Math.random() * 1e9) | 0); // one bristle per pixel across the mark: the brush's lines (a pastel's tip is only a little uneven)
+  if (s.shape.fan) { const r = rng(31); let on = true, left = 0; for (let i = 0; i < nb; i++) { if (left <= 0) { on = !on; left = Math.max(1, Math.round(nb * (on ? 0.06 : 0.05) * (0.6 + 0.8 * r()))); } if (!on) s.bristle[i] = 0; left--; } } // fan: thin clumps of bristles spread apart, gaps between them; the same clumps every stroke (one brush)
 }
 function oilDab(s, cx, cy) {
   const R = s.r, n = s.n, X = Math.round(cx), Y = Math.round(cy), r = clip([X - R, Y - R, X + R, Y + R]);
-  if (!s.shape.knife) for (let i = 0; i < n; i++) s.bristle[i] = Math.min(1, Math.max(0.2, s.bristle[i] + (s.rnd() - 0.5) * 0.02)); // each bristle wanders
+  for (let i = 0; i < s.nb; i++) if (s.bristle[i] > 0) s.bristle[i] = Math.min(1, Math.max(0.2, s.bristle[i] + (s.rnd() - 0.5) * 0.02)); // each bristle wanders (a fan's gaps stay gaps)
   uploadBristles(s); capture(r);
-  const med = MED[s.tool], kn = s.shape.knife ? { UTAKE: med.UTAKE * K.KNIFE_TAKE, URIDGE: K.KNIFE_RIDGE, UPLOUGH: 0 } : {};
-  const uni = Object.assign({ P: PIC, M: MISC, U: UNDER, T: TIP[0], BT: BTEX, G: GRAIN, C: [X, Y], R, BMEAN: s.bristle.reduce((a, v) => a + v, 0) / n, NB: n, SP: s.sp, NOW: paintNow(), PRES: s.pres * liftPaint(s), RES: s.res, REACH: s.tool === 'crayon' ? K.PASTEL_REACH[st.load - 1] * (s.shape.light || 1) : s.shape.scrub || 0, LUMPS: s.tool === 'crayon' ? (s.lumps = (s.lumps || 0) + 1) : 0 }, med, kn, shapeUni(s));
+  const med = MED[s.tool], imp = s.impasto ? { URIDGE: med.URIDGE * K.IMP_RIDGE, UGROOVE: med.UGROOVE * K.IMP_GROOVE } : {}; // impasto: more heaped at the sides, deeper bristle ridges (thicker from the fuller brush, oilStart)
+  const uni = Object.assign({ P: PIC, M: MISC, U: UNDER, T: TIP[0], BT: BTEX, G: GRAIN, C: [X, Y], R, BMEAN: s.bristle.reduce((a, v) => a + v, 0) / Math.max(1, s.bristle.filter((v) => v > 0).length) /* over the bristles that touch: a fan's gaps do not */, NB: s.nb, SP: s.sp, NOW: paintNow(), PRES: s.pres * liftPaint(s), RES: s.res, REACH: s.tool === 'crayon' ? K.PASTEL_REACH[st.load - 1] * (s.shape.light || 1) : 0, LUMPS: s.tool === 'crayon' ? (s.lumps = (s.lumps || 0) + 1) : 0 }, med, imp, shapeUni(s));
   drawTo(TIP[1], n, n, PR.oilTip, uni); // the tip's new paint, from the tip and picture before this dab
   pass(PR.oilPic, r, [PIC, MISC, UNDER], uni); // the picture's new paint, from the same
   drawTo(TIP[0], n, n, PR.tipBlend, { T: TIP[1], NB: n });
@@ -666,7 +665,7 @@ function startStroke(p, pr, at) {
   else if (t === 'acrylic' || t === 'crayon') oilStart(stroke);
   else if (t === 'ink') inkStart(stroke);
   else if (t === 'spray') { const s = stroke; s.puffAt = at; s.puffWall = performance.now(); s.hold = setInterval(() => { // an airbrush puffs SPRAY_HOLD times a second as long as it is pressed (owner 23 Nov 22:37: so a faster hand leaves its puffs further apart)
-    if (stroke === s && performance.now() - s.puffWall >= 1000 / K.SPRAY_HOLD) { s.puffWall = performance.now(); if (s.puffAt != null) s.puffAt += 1000 / K.SPRAY_HOLD; dab(s, s.last.x, s.last.y); } }, 1000 / K.SPRAY_HOLD / 2); } // held still: puffs on the clock
+    const gap = 1000 / K.SPRAY_HOLD; while (stroke === s && performance.now() - s.puffWall >= gap) { s.puffWall += gap; if (s.puffAt != null) s.puffAt += gap; dab(s, s.last.x, s.last.y); } }, 1000 / K.SPRAY_HOLD / 2); } // held still: one puff for every 1/SPRAY_HOLD s held, missed ones caught up (a busy page fires the timer late)
   if (t === 'shapes') stroke.next = 1; else dab(stroke, p.x, p.y); // shapes: the first one where the hand first moves, as big as that move (owner 24 Nov: it can start small); a tap: see endStroke
 }
 const LIFTED = 0.02; // a brush lifted this far is off the paper
@@ -680,16 +679,16 @@ function moveStroke(p, pr, at) { // at: the event's time in ms, for the speed
     pr = speedPress(s.v); s.at = at; } else if (pr == null) pr = s.pres;
   const ux = dx / d, uy = dy / d;
   const turnBy = 1 - Math.exp(-d / Math.max(4, s.r * 0.5)); // the brush follows the stroke over a short distance, the same however often the finger is read
-  const p0 = s.pres, p1 = p0 + (pr - p0) * turnBy, l0 = s.lift; // pressure changes over the same short distance; pressure and lifting go evenly along the move, dab by dab
-  let vx = s.dir[0] * (1 - turnBy) + ux * turnBy, vy = s.dir[1] * (1 - turnBy) + uy * turnBy; const vl = Math.hypot(vx, vy) || 1; s.dir = [vx / vl, vy / vl]; if (Math.abs(Math.atan2(s.dir[0] * cursorDir[1] - s.dir[1] * cursorDir[0], s.dir[0] * cursorDir[0] + s.dir[1] * cursorDir[1])) > 0.07) { cursorDir = s.dir; updateCursor(); } // the pointer redrawn every 4 degrees it turns
+  const p0 = s.pres, p1 = p0 + (pr - p0) * turnBy, l0 = s.lift; // pressure changes over the same short distance; pressure, lifting and the brush's turn go evenly along the move, dab by dab
+  const d0 = s.dir, turnTo = (f) => { const vx = d0[0] * (1 - f) + ux * f, vy = d0[1] * (1 - f) + uy * f, vl = Math.hypot(vx, vy) || 1; return [vx / vl, vy / vl]; }; s.dir = turnTo(turnBy); if (Math.abs(Math.atan2(s.dir[0] * cursorDir[1] - s.dir[1] * cursorDir[0], s.dir[0] * cursorDir[0] + s.dir[1] * cursorDir[1])) > 0.07) { cursorDir = s.dir; updateCursor(); } // the pointer redrawn every 4 degrees it turns
   const sp = s.sp;
   if (s.tool === 'ink') { s.lift = l1; s.pres = p1; inkLines(s, s.last, p); s.last = p; return; } // ink's strands follow the hand move by move
   if (s.tool === 'spray' && at != null && s.puffAt != null && at > s.puffAt) { const a0 = s.at0 ?? s.puffAt, gap = 1000 / K.SPRAY_HOLD; // moving, the puffs fall along the path at the times they happen
     while (s.puffAt + gap <= at) { s.puffAt += gap; const f = Math.min(1, Math.max(0, (s.puffAt - a0) / (at - a0))); s.lift = l0 + (l1 - l0) * f; s.pres = p0 + (p1 - p0) * f; dab(s, s.last.x + dx * f, s.last.y + dy * f); s.puffWall = performance.now(); }
     s.at0 = at; s.lift = l1; s.pres = p1; s.last = p; return; }
   let t = s.next || sp; // the next dab's distance; a lifting brush is smaller, so its dabs come closer, and the mark stays smooth
-  while (t <= d) { s.lift = l0 + (l1 - l0) * t / d; s.pres = p0 + (p1 - p0) * t / d; s.dist = s.run + t; dab(s, s.last.x + ux * t, s.last.y + uy * t); t += s.tool === 'shapes' ? Math.max(1, shapeLen(s) * shapeStep(s.shape)) : sp * Math.max(0.1, liftWide(s)); } // never a step of nothing, even lifted off // shapes follow each other edge to edge, whatever their size
-  s.lift = l1; s.pres = p1; s.next = t - d; s.last = p; s.run += d;
+  const d1 = s.dir; while (t <= d) { s.lift = l0 + (l1 - l0) * t / d; s.pres = p0 + (p1 - p0) * t / d; s.dir = turnTo(1 - Math.exp(-t / Math.max(4, s.r * 0.5))); s.dist = s.run + t; dab(s, s.last.x + ux * t, s.last.y + uy * t); t += s.tool === 'shapes' ? Math.max(1, shapeLen(s) * shapeStep(s.shape)) : sp * Math.max(0.1, liftWide(s)); } // never a step of nothing, even lifted off // shapes follow each other edge to edge, whatever their size
+  s.lift = l1; s.pres = p1; s.dir = d1; s.next = t - d; s.last = p; s.run += d;
 }
 function endStroke() {
   if (!stroke) return;
@@ -820,9 +819,9 @@ function brushDraw(t, i, soft) { return (c) => { // both: the tip's shape (top l
   c.save(); c.translate(24, 24); c.fillStyle = '#3a2a1a'; tipShape(c, s, 13); c.fill(); c.restore(); }; }
 const brushBtn = makeBtn(right, 'brush', (c) => { if (SHAPES[st.tool]) brushDraw(st.tool, st.shape[st.tool], st.soft[st.tool])(c); }, () => openPop(brushBtn, (box) => {
   const t = st.tool, two = t in st.soft;
-  for (const soft of two ? [0, 1] : [0]) { // the simple tool and the pencil: the brushes, then the same brushes softer (simple: blurred; pencil: a thinner layer, owner 24 Nov); one choice at a time
+  for (const soft of two ? [0, 1] : [0]) { // simple, pencil, acrylic: the brushes, then the same brushes again (simple: blurred; pencil: a thinner layer, owner 24 Nov; acrylic: impasto, owner 25 Nov); one choice at a time
     const r = row(box);
-    SHAPES[t].forEach((s, i) => makeBtn(r, (soft ? (t === 'simple' ? 'blur-' : 'soft-') : 'shape-') + i, brushDraw(t, i, soft), () => { st.shape[t] = i; if (two) st.soft[t] = soft; closePop(); refresh(); },
+    SHAPES[t].forEach((s, i) => makeBtn(r, (soft ? ({ simple: 'blur-', acrylic: 'impasto-' }[t] || 'soft-') : 'shape-') + i, brushDraw(t, i, soft), () => { st.shape[t] = i; if (two) st.soft[t] = soft; closePop(); refresh(); },
       i === st.shape[t] && (!two || st.soft[t] === soft) ? 'on' : ''));
   }
   if (t === 'ink') { const r = row(box); K.INK_SPLASH.forEach((v, i) => makeBtn(r, 'splash-' + i, (c) => { c.fillStyle = '#3a2a1a'; // owner 23 Nov 10:27: how many drops a fast ink stroke throws

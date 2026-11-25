@@ -19,7 +19,7 @@ def reload(q):  # S(x, y): what the paper shows at a full-paper point, for check
 def scr(q, x, y): return q.evaluate("([x,y])=>__cb.screenOf(x,y)", [x - q.ox, y - q.oy])
 
 def tap(q, bid):
-    opener = {'size': 'size', 'shape': 'brush', 'blur': 'brush', 'soft': 'brush', 'splash': 'brush', 'lift': 'brush'}.get(bid.split('-')[0])  # owner 21 Nov: sizes and brushes are chosen in a popup
+    opener = {'size': 'size', 'shape': 'brush', 'blur': 'brush', 'soft': 'brush', 'impasto': 'brush', 'splash': 'brush', 'lift': 'brush'}.get(bid.split('-')[0])  # owner 21 Nov: sizes and brushes are chosen in a popup
     if opener: p = q.evaluate("(id)=>__cb.btn(id)", opener); q.mouse.click(p[0], p[1]); time.sleep(0.1)
     p = q.evaluate("(id)=>__cb.btn(id)", bid); q.mouse.click(p[0], p[1]); time.sleep(0.05)
 
@@ -256,7 +256,7 @@ PAPER = {  # flow: (test paper, where it starts on the full paper); not named: 4
     'shapes': ('600x200', (200, 100)), 'canvas': ('400x250', (200, 250)), 'flat': ('900x300', (250, 240)), 'crayon_levels': ('680x300', (260, 200)),
     'crayon_blend': ('680x120', (260, 240)), 'water_speed': ('1600x1000', (0, 0)), 'crayon_back_forth': ('680x120', (260, 340)), 'crayon_bend': ('500x300', (250, 250)),
     'picker': ('400x300', (250, 250)), 'simple_over': ('700x400', (250, 200)), 'water_no_hitch': ('1600x1000', (0, 0)), 'simple_soft_keeps': ('600x260', (350, 185)),
-    'picker_shows': ('500x200', (250, 200)), 'mop': ('680x500', (260, 180)), 'acrylic_scrub': ('1000x280', (150, 235)), 'pastel_smear': ('700x160', (250, 240)), 'simple_self_cross': ('600x350', (250, 150))}
+    'picker_shows': ('500x200', (250, 200)), 'mop': ('680x500', (260, 180)), 'pastel_smear': ('700x160', (250, 240)), 'simple_self_cross': ('600x350', (250, 150))}
 
 def f_test_paper(q):  # owner 21 Nov: tests on a smaller paper: the page takes its size from the address, and a stroke lands where it is drawn
     tap(q, 'tool-simple'); tap(q, 'color-1'); drag(q, [(100, 125), (300, 125)])
@@ -498,7 +498,7 @@ def f_mop(q):  # owner 21 Nov 18:29: the mop (3rd watercolour brush) is wetter a
     tap(q, 'shape-0'); drag(q, [(450, 300), (750, 300)], step=30)
     tap(q, 'shape-2'); drag(q, [(450, 560), (750, 560)], step=30)
     wait_dry(q)  # the paint runs until it dries, as he would see it
-    def prof(y0): return [lum(c) for c in q.evaluate("(y0)=>{const o=[];for(let y=y0-110;y<=y0+110;y+=2)o.push(S(600,y));return o}", y0)]
+    def prof(y0): return q.evaluate("(y0)=>{const o=[];for(let y=y0-110;y<=y0+110;y+=2){let t=0;for(let x=520;x<=680;x+=20){const c=S(x,y);t+=0.3*c[0]+0.59*c[1]+0.11*c[2]}o.push(t/9)}return o}", y0)  # averaged along the stroke: the paper's grain and the pigment's granulation differ place by place
     def shape(p):  # width of the mark, and of its edges (where it is between a fifth and three quarters of its darkest)
         paper = sorted(p[:15] + p[-15:])[15]; d = [paper - v for v in p]; top = max(d)
         return sum(2 for v in d if v > 0.2 * top), sum(2 for v in d if 0.2 * top < v < 0.75 * top)
@@ -541,16 +541,34 @@ def f_palettes(q):  # owner 22 Nov 00:21, changed by him 23 Nov 10:27 and 22:37:
            'columns %s, monochromes wider than his %s, grey scale %s, rainbows %s, above %d, popup %.0f%% x %.0f%%' % ([len(x) for x in c], wider, grey_ok, c[1][:5] == rainbow, above, box[0] * 100, box[1] * 100))
 FLOWS['palettes'] = f_palettes
 
-def f_acrylic_scrub(q):  # owner 21 Nov 18:29: a 3rd acrylic brush like the Brusheezy acrylic packs (broad scrubbed strokes breaking into dry streaks), clearly unlike the flat
-    n = q.evaluate("()=>__cb.shapes.acrylic.length")
-    if n < 4: report(False, 'acrylic: a scrubby 3rd brush unlike the flat', 'only %d acrylic brushes' % n); return
-    tap(q, 'tool-acrylic'); tap(q, 'size-3'); tap(q, 'color-6')
-    tap(q, 'shape-1'); drag(q, [(200, 300), (1100, 300)])
-    tap(q, 'shape-2'); drag(q, [(200, 450), (1100, 450)])
-    def paper_share(y0): return q.evaluate("(y0)=>{let n=0,p=0;for(let x=400;x<900;x+=4)for(let y=y0-30;y<=y0+30;y+=3){n++;const c=S(x,y);if(c[0]>150&&c[1]>150)p++;}return p/n}", y0)
-    flat, scrub = paper_share(300), paper_share(450)
-    report(scrub > flat + 0.12 and scrub < 0.7, 'acrylic: a scrubby 3rd brush unlike the flat', 'paper showing through: flat %.2f, scrub %.2f' % (flat, scrub))
-FLOWS['acrylic_scrub'] = f_acrylic_scrub
+def f_acrylic_brushes(q):  # owner 25 Nov: "many brushes ... ACTUAL brushes, like other software has, real brushes each with its brush shape ... 2 versions of the brush: one with normal acrylic and one with impasto"; then "5 basic ones that allow many drawing options, you choose" (replacing round, flat, scrub, knife)
+    import statistics
+    names = q.evaluate("()=>__cb.shapes.acrylic.map(s=>s.id)")
+    tap(q, 'tool-acrylic'); tap(q, 'size-2'); bad = []
+    if names != ['round', 'flat', 'filbert', 'fan', 'rigger']: bad.append('brushes %s' % names)
+    p = q.evaluate("(id)=>__cb.btn(id)", 'brush'); q.mouse.click(p[0], p[1]); time.sleep(0.2)
+    shown = q.evaluate("()=>[...document.querySelectorAll('[data-id^=shape-],[data-id^=impasto-]')].filter(e=>!e.classList.contains('hide')).map(e=>e.dataset.id)")
+    q.keyboard.press('Escape'); time.sleep(0.1)
+    if len([b for b in shown if b.startswith('impasto-')]) != len(names): bad.append('impasto row %s' % shown)
+    def stroke(row, i, y):
+        tap(q, ('impasto-' if row else 'shape-') + str(i)); tap(q, 'color-6'); x0 = 100 + row * 780
+        glide(q, lambda d: (x0 + d, y), 600, 900, 900)
+        return q.evaluate("""([x0,y])=>{const L=(c)=>0.3*c[0]+0.59*c[1]+0.11*c[2];let paper=0,n=0,lo=1e9,hi=-1e9;
+          for(let x=x0+150;x<x0+450;x+=3)for(let yy=y-60;yy<=y+60;yy++){const l=L(S(x,yy));if(l<200){lo=Math.min(lo,yy);hi=Math.max(hi,yy)}}
+          for(let x=x0+150;x<x0+450;x+=3)for(let yy=lo;yy<=hi;yy++){n++;if(L(S(x,yy))>=200)paper++}
+          let s=0,k=0;for(let x=x0+150;x<x0+450;x+=3){const c=[];for(let yy=lo;yy<=hi;yy++)c.push(L(S(x,yy)));const v=c.filter((l,j)=>j>=2&&j<c.length-2&&c.slice(j-2,j+3).every(u=>u<200));if(v.length<4)continue;const m=v.reduce((a,b)=>a+b,0)/v.length;s+=Math.sqrt(v.reduce((a,b)=>a+(b-m)*(b-m),0)/v.length);k++}
+          let dk=0,dn=0;for(let x=x0+150;x<x0+450;x+=3)for(let yy=lo;yy<=hi;yy++){const l=L(S(x,yy));dk+=245-l;dn++}return [Math.max(0,hi-lo), s/Math.max(1,k), paper/Math.max(1,n), dk/Math.max(1,dn)]}""", [x0, y])
+    two = [[[stroke(row, i, 70 + (i + 5 * k) * 95) for i in range(len(names))] for row in (0, 1)] for k in (0, 1)]  # each brush twice: its bristles are new every stroke
+    got = [[[(a + b) / 2 for a, b in zip(two[0][row][i], two[1][row][i])] for i in range(len(names))] for row in (0, 1)]
+    w = {n: got[0][i][0] for i, n in enumerate(names)}; gap = {n: got[0][i][2] for i, n in enumerate(names)}
+    if not w['rigger'] < w['round'] * 0.6: bad.append('rigger not thin')
+    if not gap['fan'] > gap['flat'] + 0.05: bad.append('fan shows no gaps between its bristle clumps')
+    if not w['flat'] > w['filbert'] * 0.8 > 0: bad.append('filbert')
+    rel = [sum(g[1] for g in r) for r in got]  # light and shade across each stroke away from its edges, all five brushes together (a fan's random clumps make one stroke alone vary)
+    if not rel[1] > rel[0] * 1.3: bad.append('impasto not more raised than normal: light and shade %.0f against %.0f' % (rel[1], rel[0]))
+    report(not bad, 'acrylic: 5 real brushes, each also as impasto', '%s; width, relief, paper, paint: %s' % ('; '.join(bad) or 'ok', [[('%d %.0f %.2f %.0f' % tuple(g)) for g in r] for r in got]))
+FLOWS['acrylic_brushes'] = f_acrylic_brushes
+PAPER['acrylic_brushes'] = ('1600x1000', (0, 0))
 
 def f_acrylic_pushes(q):  # owner 25 Nov: "in acrylic, the wet paint pushed other wet paint, now ... the second crossing goes OVER the grooves of the first one"
     tap(q, 'tool-acrylic'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-3')
@@ -559,6 +577,32 @@ def f_acrylic_pushes(q):  # owner 25 Nov: "in acrylic, the wet paint pushed othe
     cross, alone = grooves(115, 110), grooves(305, 110)
     report(cross < 1, 'acrylic: a wet stroke pushes the wet paint under it (its grooves, not the old ones)', 'grooves where they cross %.2f, the second alone %.2f (<1: running down)' % (cross, alone))
 FLOWS['acrylic_pushes'] = f_acrylic_pushes
+
+def stripe_turn(q, cx, cy, R, a):  # how far the brush lines at the paper point on a circle round (cx, cy) are turned from running round it, in degrees (the main slope of the colour there, from its gradients)
+    return q.evaluate("""([cx,cy,R,a])=>{const x0=cx+R*Math.cos(a),y0=cy+R*Math.sin(a);let xx=0,yy=0,xy=0;const L=(x,y)=>{const c=S(Math.round(x),Math.round(y));return 0.3*c[0]+0.59*c[1]+0.11*c[2]};
+      for(let j=-12;j<=12;j++)for(let i=-12;i<=12;i++){const x=x0+i,y=y0+j,gx=L(x+1,y)-L(x-1,y),gy=L(x,y+1)-L(x,y-1);xx+=gx*gx;yy+=gy*gy;xy+=gx*gy}
+      let d=0.5*Math.atan2(2*xy,xx-yy)-a;d=((d%Math.PI)+1.5*Math.PI)%Math.PI-Math.PI/2;return d*180/Math.PI}""", [cx, cy, R, a])
+
+def f_acrylic_curve(q):  # owner 25 Nov: "look at the circle below, the brush hairlines are not curving smoothly, they are like lines in an angle"
+    import math
+    tap(q, 'tool-acrylic'); tap(q, 'shape-0'); tap(q, 'size-4'); tap(q, 'color-1'); R = 220
+    glide(q, lambda d: (800 + R * math.cos(d / R), 500 + R * math.sin(d / R)), 2 * math.pi * R * 0.9, 1800, 1800)  # a steady hand going round, moves 16 ms apart as his screen sends them
+    errs = [abs(stripe_turn(q, 800, 500, R + e, 2 * math.pi * k / 200)) for k in range(40, 170) for e in (-30, 0, 30)]
+    m = sum(errs) / len(errs)
+    report(m < 6, 'acrylic: brush lines curve smoothly round a circle', 'lines turned from the circle by %.1f degrees on average' % m)
+FLOWS['acrylic_curve'] = f_acrylic_curve
+PAPER['acrylic_curve'] = ('1600x1000', (0, 0))
+
+def f_acrylic_no_groove(q):  # owner 25 Nov (owner-shots/2026-11-25-acrylic-groove.png): "the latest acrylic changes made it have a weird gap, groove, in the middle of the line"
+    out = []
+    for i in range(4):  # the bristles are new every stroke (WARNINGS): several strokes
+        y = 130 + i * 240; tap(q, 'tool-acrylic'); tap(q, 'shape-0'); tap(q, 'size-4'); tap(q, 'color-1')
+        glide(q, lambda d: (150 + d, y), 1250, 1800, 1800)
+        rows = q.evaluate("""(y)=>{const o=[];const L=(c)=>0.3*c[0]+0.59*c[1]+0.11*c[2];for(let yy=y-70;yy<=y+70;yy++){let n=0,k=0;for(let x=400;x<1200;x+=8){k++;if(L(S(x,yy))>150)n++}o.push(n/k)}return o}""", y)
+        inner = [r for r in rows if r < 0.9]; out.append(max(inner[6:-6]) if len(inner) > 12 else 1)  # the rows inside the stroke, away from its edges
+    report(max(out) < 0.3, 'acrylic: no light line (paper or a gap) along a stroke', 'most of one row inside each stroke showing light: %s' % ['%.2f' % v for v in out])
+FLOWS['acrylic_no_groove'] = f_acrylic_no_groove
+PAPER['acrylic_no_groove'] = ('1600x1000', (0, 0))
 
 def f_pastel_smear(q):  # owner 21 Nov 18:29: the crayon is an oil pastel: passing over pastel smears it, carrying its colour along past where it was
     tap(q, 'tool-crayon'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-4')
@@ -766,8 +810,8 @@ def f_pencil_grain(q):  # owner 23 Nov: a drawing pencil: colour only on the pap
 def f_ink_speed(q):  # owner 23 Nov: an ink pen: a slow line is wider than a fast one
     tap(q, 'tool-ink'); tap(q, 'size-3'); tap(q, 'color-1')
     drag(q, [(40, 70), (360, 70)], step=400, per_move=True); drag(q, [(40, 180), (360, 180)], step=2, per_move=True)
-    fast, slow = width_across(q, 300, 70, 0, 1, 50), width_across(q, 300, 180, 0, 1, 50)
-    report(slow > fast * 1.5, 'ink: slow lines wider than fast', 'width fast %d, slow %d' % (fast, slow))
+    fast, slow = (sum(width_across(q, x, y, 0, 1, 50) for x in range(100, 341, 20)) / 13 for y in (70, 180))  # ink widths differ along a line (WARNINGS): averaged over many places
+    report(slow > fast * 1.5, 'ink: slow lines wider than fast', 'width fast %.1f, slow %.1f' % (fast, slow))
 def f_pencil_like_pictures(q):  # owner 23 Nov (his pencil pictures): passes build up, a line is lighter at its edges, a light pass is pale
     def dark(x0, x1, y, h=0): return q.evaluate("([x0,x1,y,h])=>{let t=0,n=0;for(let x=x0;x<x1;x+=2)for(let j=-h;j<=h;j++){const c=S(x,y+j);t+=255-(0.3*c[0]+0.59*c[1]+0.11*c[2]);n++}return t/n}", [x0, x1, y, h])
     tap(q, 'tool-pencil'); tap(q, 'shape-0'); tap(q, 'size-3'); tap(q, 'color-6'); hold(q, 'color-6', 0.6)  # light: a third
@@ -943,17 +987,17 @@ FLOWS['previews_drawn'] = f_previews_drawn
 LOOKS = GAME.parent / 'tools' / 'looks'  # one saved picture per brush: how its normal stroke looked when the owner last saw it
 def brush_jobs(q):
     n = q.evaluate("()=>Object.fromEntries(Object.entries(__cb.shapes).map(([t,v])=>[t,v.length]))")
-    return [(t, i) for t in ('acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil') for i in range(n[t])]
+    return [(t, i, '') for t in ('acrylic', 'water', 'crayon', 'marker', 'simple', 'spray', 'shapes', 'ink', 'pencil') for i in range(n[t])] + [('acrylic', i, 'impasto-') for i in range(n['acrylic'])]  # acrylic's second row: the same brushes with impasto paint (owner 25 Nov)
 def brush_strokes(q):  # every drawing tool and brush, one stroke each at his usual speed, run dry; returns {name: picture}
     from PIL import Image; import io
     jobs = brush_jobs(q); out = {}
-    for k, (t, i) in enumerate(jobs):
+    for k, (t, i, row) in enumerate(jobs):
         x, y = 30 + (k % 4) * 400, 60 + (k // 4) * 125
-        tap(q, 'tool-' + t); tap(q, 'shape-%d' % i); tap(q, 'size-1'); tap(q, 'color-6'); jerk(q, x, x + 330, y, 550)
+        tap(q, 'tool-' + t); tap(q, (row or 'shape-') + str(i)); tap(q, 'size-1'); tap(q, 'color-6'); jerk(q, x, x + 330, y, 550)
     wait_dry(q)
-    for k, (t, i) in enumerate(jobs):
+    for k, (t, i, row) in enumerate(jobs):
         x, y = 10 + (k % 4) * 400, (k // 4) * 125; a, b = scr(q, x, y), scr(q, x + 380, y + 120)
-        out['%s-%d' % (t, i)] = Image.open(io.BytesIO(q.screenshot(clip={'x': a[0], 'y': a[1], 'width': b[0] - a[0], 'height': b[1] - a[1]}))).convert('L')
+        out['%s-%s%d' % (t, row, i)] = Image.open(io.BytesIO(q.screenshot(clip={'x': a[0], 'y': a[1], 'width': b[0] - a[0], 'height': b[1] - a[1]}))).convert('L')
     return out
 
 def f_brush_looks(q):  # owner 23 Nov 20:11: a change must not alter how any brush looks unless that brush was meant to change: every brush's normal stroke matches its saved picture
@@ -1043,14 +1087,21 @@ FLOWS['long_lift'] = f_long_lift
 PAPER['long_lift'] = ('1600x500', (0, 0))
 
 def f_spray_sizes(q):  # owner 24 Nov 08:50, point 4: smaller spray sizes put the drops closer together: every size sprays its drops equally far apart
-    tap(q, 'tool-spray'); tap(q, 'shape-0'); tap(q, 'color-1'); out = []
-    for i, (x0, R) in enumerate(((60, 8), (130, 16), (230, 28), (380, 48))):
-        tap(q, 'size-%d' % i); tap(q, 'color-1'); r = int(R * 0.7); got = []
-        for y0 in (60, 150, 240):  # three puffs of 0.3 s each, averaged (a small size gets only a drop or two a puff)
-            x, y = scr(q, x0, y0); q.mouse.move(x, y); q.mouse.down(); time.sleep(0.3); q.mouse.up(); time.sleep(0.1)
-            got.append(q.evaluate("([x0,y0,r])=>{let n=0,k=0;for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){if(dx*dx+dy*dy>r*r)continue;k++;const c=S(x0+dx,y0+dy);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<200)n++}return n/k}", [x0, y0, r]))
-        out.append(sum(got) / 3)
-    report(max(out) < min(out) * 1.6 and min(out) > 0, 'spray: drops as far apart at every size', 'share of the middle painted, small to big %s' % ['%.2f' % v for v in out])
+    tap(q, 'tool-spray'); tap(q, 'shape-0'); tap(q, 'color-1')
+    def shares(y0s):
+        out = []
+        for i, (x0, R) in enumerate(((60, 8), (130, 16), (230, 28), (380, 48))):
+            tap(q, 'size-%d' % i); tap(q, 'color-1'); r = int(R * 0.7); got = []
+            for y0 in y0s:  # puffs of 0.3 s each, averaged (a small size gets only a drop or two a puff)
+                x, y = scr(q, x0, y0); q.mouse.move(x, y); q.mouse.down(); time.sleep(0.3); q.mouse.up(); time.sleep(0.1)
+                got.append(q.evaluate("([x0,y0,r])=>{let n=0,k=0;for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){if(dx*dx+dy*dy>r*r)continue;k++;const c=S(x0+dx,y0+dy);if(0.3*c[0]+0.59*c[1]+0.11*c[2]<200)n++}return n/k}", [x0, y0, r]))
+            out.append(sum(got) / len(got))
+        return out
+    out = shares((50, 110))
+    cdp = q.context.new_cdp_session(q); cdp.send('Emulation.setCPUThrottlingRate', {'rate': 20})  # a slow, busy machine (it failed once on GitHub): the spray must not lose puffs
+    slow = shares((190, 250)); cdp.send('Emulation.setCPUThrottlingRate', {'rate': 1}); cdp.detach()
+    ok = max(out) < min(out) * 1.6 and min(out) > 0 and max(slow) < min(slow) * 1.6 and min(slow) > min(out) * 0.7
+    report(ok, 'spray: drops as far apart at every size, also on a slow machine', 'share of the middle painted, small to big %s; slow machine %s' % (['%.2f' % v for v in out], ['%.2f' % v for v in slow]))
 FLOWS['spray_sizes'] = f_spray_sizes
 PAPER['spray_sizes'] = ('500x300', (0, 0))
 
