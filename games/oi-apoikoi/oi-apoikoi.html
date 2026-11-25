@@ -27,7 +27,7 @@ const COLOURS = ['#e8c547', '#3f86c8', '#8e5bb0', '#e27fb0', '#9a6a3a', '#3fb0a6
 const COLOUR_IDS = COLOURS.map((c, k) => k), noGoods = () => COLOURS.map(() => 0);
 const HALVES = [10, 10, 9, 9, 9, 9];  // the 56 halves of the 28 tiles, per colour (owner 25 Nov)
 const BORDER = ['#22a33a', '#d42a2a'], TINT = ['#eef8e6', '#fbebe8'];  // the kid's land green, the PC's red; their areas' light tints
-const JAR_MIX = { empty: 10, coins: 40, coins2: 10, tile: 2.5, slot: 5, first: 7.5, jar: 7.5, set: 7.5 };  // what jars hold, per 95 (owner 25 Nov: no stealing; a random tile)
+const JAR_MIX = { empty: 10, coins: 45, coins2: 10, tile: 4, slot: 5, first: 8, jar: 8, set: 10 };  // what jars hold, per 100 jars (owner 25 Nov)
 const JAR_GOODS = 5;  // this many goods of one colour make a jar at once (owner 24 Nov)
 const COLS = 20, ROWS = 13, STARTS = [[4, 6], [14, 6]];  // the start tiles sit at the centres of the board's two halves
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half is, by turn

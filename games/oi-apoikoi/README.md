@@ -14,7 +14,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 
 ## Where things are
 
-- `design.md`: the full design (draft): rules, jars, slot machine, points, rejected ideas, tensions, sheet rows, everything open.
+- `design.md`: the full design (draft): rules, jars, slot machine, points, tensions, sheet rows, everything open.
 - `WARNINGS.md`: traps found in this game.
 - `src/index.html`: the game source; `build.py` makes `oi-apoikoi.html` from it, with the hand pictures put in.
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
@@ -33,12 +33,11 @@ A playable game against the PC on one shared board, colours only: 6 colours and 
 
 ## Open
 
-- The jar mix is given "per 95" but its numbers add up to 90; the game draws by the numbers (40 one-coin jars are 44% of jars). Ask the owner which he meant.
-- The star (first-player token): the owner saw it make him play next in the same round; the code only uses it at the next round's start. Unknown whether he saw a skipped turn: ask him.
 - The full test run is about 17-19 s of the 20 s limit on a 2-core machine; keep flows sampling with skip, not run_for.
 - The owner's own sound files, when they come, replace the built-in sounds.
-- See also `design.md` sections 6 and 7.
+- See also `design.md` sections 5 and 6.
 
 ## Task list
 
-(empty)
+- Better look: simple 3D tiles for the 6 terrains that look right when turned and merge into one area when connected (pictures first, for the owner to choose).
+- Make the tiles on the board look bigger (pictures of finished boards first, to see the unused space).
