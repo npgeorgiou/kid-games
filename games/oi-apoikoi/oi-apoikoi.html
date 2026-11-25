@@ -273,7 +273,7 @@ async function makeJar(i, c, landing) {  // a full row of colour c: its jar drop
     return fly({ k: 'good', c, o: i }, from, mouth, INTO_MS, { arc: 90, z1: 0.6 }).then(() => G === my && g === JAR_GOODS - 1 && sound('made'));
   }));
 }
-async function pass(i) { G.players[i].passes++; sound('pass'); G.passing = i; if (!G.players[i].human) G.hand.g = 'raised'; await pause(2400); G.passing = null; G.hand.g = 'point'; }
+async function pass(i) { G.players[i].passes++; sound('pass'); G.passing = i; if (!G.players[i].human) G.hand.g = 'raised'; await pause(1200); G.passing = null; G.hand.g = 'point'; }  // a skipped turn: only its sound (owner 25 Nov); the PC raises its hand
 const pickable = (k, i) => fits(G.draft[k], i);  // fits his land
 function pick(i) {
   let best = -1, bm = -1; G.draft.forEach((t, k) => { if (pickable(k, i) && jarsFor(t, i) > bm) { bm = jarsFor(t, i); best = k; } });
@@ -494,9 +494,9 @@ function star(x, y, r) {  // the first-player token
   cx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r; cx.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); }
   cx.closePath(); cx.fillStyle = '#f4cf4a'; cx.fill(); cx.strokeStyle = '#a07810'; cx.lineWidth = 2; cx.stroke();
 }
-function arrow(x0, y0, x1, y1, col, lw) { cx.strokeStyle = col; cx.lineWidth = lw; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(x1, y1); const a = Math.atan2(y1 - y0, x1 - x0), h = lw * 2.5; cx.moveTo(x1 - h * Math.cos(a - 0.6), y1 - h * Math.sin(a - 0.6)); cx.lineTo(x1, y1); cx.lineTo(x1 - h * Math.cos(a + 0.6), y1 - h * Math.sin(a + 0.6)); cx.stroke(); }
 function content(j, x, y, s) {  // what a jar held
-  if (j.k === 'coins') coin(x, y, s * 0.24);
+  if (j.k === 'empty') nothing(x, y, s * 0.2);  // an X: nothing (owner 25 Nov)
+  else if (j.k === 'coins') coin(x, y, s * 0.24);
   else if (j.k === 'coins2') { coin(x - s * 0.16, y, s * 0.22); coin(x + s * 0.16, y, s * 0.22); }
   else if (j.k === 'slot') { rrect(x - s * 0.42, y - s * 0.24, s * 0.84, s * 0.48, 8, '#7a2f2f'); for (let k = 0; k < 3; k++) rrect(x - s * 0.36 + k * s * 0.25, y - s * 0.17, s * 0.21, s * 0.34, 4, '#fff'); }
   else if (j.k === 'first') star(x, y, s * 0.3);
@@ -708,12 +708,6 @@ function drawDawn() {  // morning: a band of warm light sweeps over the screen f
   g.addColorStop(0, 'rgba(255,230,150,0)'); g.addColorStop(0.5, 'rgba(255,230,150,0.45)'); g.addColorStop(1, 'rgba(255,230,150,0)');
   cx.fillStyle = g; cx.fillRect(0, 0, W, H); drawn.push({ k: 'dawn' });
 }
-function drawPass() {  // nothing fits: this turn passes to the other player
-  const i = G.passing, x = W / 2, y = H * 0.5, k = Math.min(1, (performance.now() % 1200) / 900);
-  shade(0.3); rrect(x - 260, y - 110, 520, 220, 30, '#fff8e8', BORDER[i], 6);
-  dot(i ? x + 170 : x - 170, y, 46, BORDER[i]); dot(i ? x - 170 : x + 170, y, 46, BORDER[1 - i]);
-  const a = i ? x + 110 : x - 110, b = i ? x - 110 : x + 110; arrow(a, y, a + (b - a) * k, y, '#555', 12);
-}
 function drawEnd() {  // the two rows of coins side by side; the longer one wins
   shade(0.4); rrect(W * 0.08, H * 0.28, W * 0.84, H * 0.44, 30, '#fff8e8', '#e0a020', 6);
   G.players.forEach((p, i) => {
@@ -751,7 +745,6 @@ function render() {  // one picture of the game; it also lays out the buttons th
   if (wait && wait.kind === 'place') drawHeld();
   if ((wait && wait.kind === 'jar') || G.shown.length || (G.jarWho != null && G.players[G.jarWho].jars)) drawJars();  // jars waiting to be opened are always drawn
   if (G.slot) drawSlot();
-  if (G.passing != null) drawPass();
   if (G.over) drawEnd();
   drawFlights(); drawSpecks(); hand(G.hand);
 }

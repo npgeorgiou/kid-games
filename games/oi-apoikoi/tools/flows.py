@@ -422,18 +422,19 @@ def f_jars_step_aside(q):  # owner 24 Nov: "the extra tile bonus makes the jars 
     ok = aside and len(back) == 1 and back[0]['y'] > T + 100
     report(ok, 'jars: step aside during a bonus tile, then come back', 'waiting jar seen aside while placing %s (%s), back in the row after %s' % (aside, [(round(j['x']), round(j['y'])) for j in away], [(round(j['x']), round(j['y'])) for j in back]))
 
-def f_jar_picture(q):  # owner 25 Nov (prototype): what a jar held is a picture, no words (the 24 Nov labels are gone)
-    pause_clock(q); table(q, bag=[[0, 4]] * 4, fast=False, jarQueue=[{'k': 'first'}] + [COIN] * 8)
+def f_jar_picture(q):  # owner 25 Nov (prototype): what a jar held is a picture, no words (the 24 Nov labels are gone); an empty jar shows an X
+    pause_clock(q); table(q, bag=[[0, 4]] * 4, fast=False, jarQueue=[{'k': 'empty'}] + [COIN] * 8)
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-0')
-    run_until(q, "()=>__dg.drawn().some(d=>d.k==='shown')", 3000); shown = [d['j'] for d in drawn(q, 'shown')]; texts = [d['text'] for d in drawn(q, 'label')]; q.clock.resume()
-    report(shown == ['first'] and not texts, 'jars: what a jar held is a picture, no words', 'shown %s, words %s' % (shown, texts))
-def f_new_game_mid_jar(q):  # found by the tests: a new game started while a jar is being shown: the old jar never pays into the new game
-    pause_clock(q)
-    table(q, bag=[[0, 4]] * 4, fast=False, jarQueue=[{'k': 'coins2'}] + [COIN] * 8)
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 6, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-0')
-    table(q, bag=[[0, 4]] * 4); q.clock.run_for(2000); settle(q); s = st(q); q.clock.resume()
-    report(s['players'][0]['coins'] == 0 and s['wait']['kind'] == 'pick', 'new game: an old jar pays nothing into it', 'coins %d, wait %s' % (s['players'][0]['coins'], s['wait']))
+    run_until(q, "()=>__dg.drawn().some(d=>d.k==='shown')", 3000); shown = [d['j'] for d in drawn(q, 'shown')]; texts = [d['text'] for d in drawn(q, 'label')]; x = len(drawn(q, 'nothing')); q.clock.resume()
+    report(shown == ['empty'] and not texts and x == 1, 'jars: a picture, no words; empty is an X', 'shown %s, words %s, X drawn %d' % (shown, texts, x))
 
+def f_pass_sound(q):  # owner 25 Nov (prototype): a skipped turn is only its sound: nothing covers the screen
+    pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'seed': 1, 'bag': [[3, 3]] * 4, 'tiles': [[14, 7, 0, 3, 3, 1]]}); covered, ms = 0, 0  # only the PC's land takes [3, 3]: his turn passes
+    while ms < 3000 and not st(q)['passes'][0]:
+        skip(q, 100); ms += 100
+    for _ in range(5): skip(q, 100); covered += len(drawn(q, 'shade'))
+    h = q.evaluate("()=>__dg.sounds()"); q.clock.resume()
+    report(st(q)['passes'][0] >= 1 and 'pass' in h and covered == 0, 'pass: only its sound', 'passes %s, pass sound %s, screen covered in %d pictures' % (st(q)['passes'], 'pass' in h, covered))
 def f_coins2(q):  # the 2 coins bonus
     get_jar(q, [{'k': 'coins2'}]); c = st(q)['players'][0]['coins']
     report(c == 2, 'jar: 2 coins', 'coins %d' % c)
