@@ -146,7 +146,7 @@ def f_own_land(q):  # a tile must have a matching edge with your own land; match
 
 def f_pile_no_frames(q):  # owner 24 Nov: no outline around the pile's tiles
     table(q, bag=[[0, 4]] * 4); c = q.evaluate("()=>__dg.btn('draft-0')"); hw = (q.evaluate("()=>__dg.btnBox('draft-0')")['w'] - 24) / 3; m = drawn(q, 'market')[0]
-    beside = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [c[0] - hw - 6, c[1]])  # just left of the tile's middle: the market tray's own colour, not a frame
+    hh = hw / 3 ** 0.5; beside = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [c[0] - 1.5 * hw - 6, c[1] - hh / 2])  # just left of the tile's left corner (its walls hang below it): the market tray's own colour, not a frame
     tray = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [m['x'] + 12, m['y'] + m['h'] - 12])  # the tray, away from the tile
     report(beside == tray, 'pile: tiles have no outline', 'beside the tile %s, the tray %s' % (beside, tray))
 
@@ -603,6 +603,17 @@ def f_scales(q):  # owner 25 Nov: "make sure your ui is adoptable to all laptop 
     same = all(abs(x[k] - seen[1][k]) <= 0.02 * seen[1][k] for x in seen[1:] for k in range(3)) and all(abs(seen[0][k] - seen[1][k]) <= 0.02 * seen[1][k] for k in (0, 2))
     small = seen[0][1] * small_hh >= 540 - 1  # on a small screen the machine keeps its made size (its buttons stay big enough to touch), as long as it fits
     report(same and small and all(x[3] for x in seen), 'scales: sizes grow with the screen, on screen', 'per size (face, machine width, hand, in half-square heights; on screen) %s' % seen)
+def f_thick_land(q):  # owner 25 Nov: land squares are blocks with some thickness: walls of earth under the top's front edges, the sea below them
+    table(q, bag=[[0, 4]] * 4); a, c = q.evaluate("()=>[__dg.square(0,0), __dg.square(1,0)]"); hh = c[1] - a[1]
+    x, y = q.evaluate("()=>__dg.square(5,10)"); px = lambda dy: q.evaluate("([x,y])=>__dg.pixel(x,y)", [x, y + hh + dy * hh])[:3]  # under the start tile's front corner
+    wet = lambda p: p[2] > p[0] + 30; wall, sea = px(0.4), px(1.3)
+    report(not wet(wall) and wet(sea), 'land: blocks with walls over the sea', 'under the front corner: %s at 0.4 of a half square, %s at 1.3' % (wall, sea))
+def f_moving_water(q):  # owner 25 Nov: the water moves (ripples drift over it, foam around the land); the land stays still (test pages keep the water still unless asked: it costs the run)
+    pause_clock(q); table(q, fast=False, stillWater=False, bag=[[0, 4]] * 4); spot = q.evaluate("()=>__dg.square(8,2)"); land = q.evaluate("()=>__dg.square(4,10)")
+    look = lambda: [q.evaluate("([x,y])=>__dg.pixel(x,y)", [p[0] + dx, p[1] + dy])[:3] for p in (spot, land) for dx in (-9, -3, 3, 9) for dy in (-4, 4)]
+    a = look(); skip(q, 1500); b = look(); q.clock.resume()
+    moved = sum(1 for k in range(8) if a[k] != b[k]); still = all(a[k] == b[k] for k in range(8, 16))
+    report(moved >= 4 and still and drawn(q, 'foam'), 'water: it moves, the land does not', 'sea pixels changed %d of 8, land unchanged %s, foam %s' % (moved, still, bool(drawn(q, 'foam'))))
 def f_borders(q):  # each player's land has a border all around: green for the kid, red for the PC; a tile's two halves meet with no gap (no sea between them)
     table(q, bag=[[0, 4]] * 4); b = drawn(q, 'border'); kid = sum(1 for x in b if x['o'] == 0); pc = sum(1 for x in b if x['o'] == 1)
     seam = q.evaluate("()=>__dg.edge(4,10,0)"); mid = q.evaluate("(p)=>__dg.pixel(p[0],p[1]+4)", seam)[:3]

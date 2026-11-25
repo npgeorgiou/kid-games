@@ -33,7 +33,7 @@ const COINS_PER_ROW = 8, GOOD_SIZE = 0.9;  // coins in a row at most; a material
 const COLS = 16, ROWS = 16, STARTS = [[4, 10, 0], [11, 5, 2]];  // a square board of sea (owner 25 Nov, design 3); each start tile at the centre of its half of the diamond; they face each other: the PC's is the kid's turned half a turn around the board's centre (owner 25 Nov)
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half is, by turn
 const params = new URLSearchParams(location.search);
-let fast = params.has('fast');  // tests: the PC moves without waiting, and nothing travels: it is where it goes at once
+let fast = params.has('fast'), stillWater = fast;  // tests: the PC moves without waiting, and nothing travels: it is where it goes at once
 const HAND_SPEED = 450;  // px per second: slow enough to follow
 const STAGGER = 120, GOOD_FLY = 450;  // things that go one after another leave STAGGER apart; a good flies GOOD_FLY
 const RISE_MS = 500, SHOW_MS = 900, GLIDE_MS = 300, REWARD_MS = 550;  // a jar opened: what it held rises out of it, shows, and its reward flies to its place; the other jars close up
@@ -426,6 +426,7 @@ async function slot(i) {
 function restart(o = {}) {
   wait = null; press = null; tileNo = 1;
   fast = o.fast ?? params.has('fast');
+  stillWater = o.stillWater ?? params.has('fast');  // a page opened for tests keeps its water still unless the table asks: each new picture of it costs the test run (WARNINGS)
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
@@ -447,22 +448,24 @@ let W = 0, H = 0, buttons = [], drawn = [];
 function btn(id, x, y, w, h, fn) { const t = cx.getTransform(), d = devicePixelRatio || 1; buttons.push({ id, x: (t.a * x + t.e) / d, y: (t.d * y + t.f) / d, w: w * t.a / d, h: h * t.d / d, fn }); }  // where it is on screen, whatever the drawing's scale
 function resize() { const d = devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; cx.setTransform(d, 0, 0, d, 0, 0); }
 addEventListener('resize', resize); resize();
+const GROUND_TALL = 180 / 128, WALL_HH = 2 * (GROUND_TALL - 1);  // the ground picture: the square's diamond (128 high) and its walls under it (52; see tools/make_lands.py; owner 25 Nov: land with thickness); the walls in half-square heights
 const PAD = 12, LOW = 8, PILE_STEP = 1.5, SIDE_MIN = 48;  // the band's margin; the board's gap above the screen's bottom edge; px between the pile's layers; the narrowest strip beside the board
 function L() {  // hw, hh: half a square's width and height on screen; T: the band's height; s: from one square's centre to the next
-  const hh = Math.min((H - LOW - 2 * PAD - (PILE_LAYERS - 1) * PILE_STEP) / (ROWS + COLS + 3), (W - 2 * SIDE_MIN) / (COLS + ROWS) / Math.sqrt(3));  // the band holds a tile (3 half heights) and the pile's rise
-  const hw = hh * Math.sqrt(3), T = 3 * hh + 2 * PAD + (PILE_LAYERS - 1) * PILE_STEP;
+  const hh = Math.min((H - LOW - 2 * PAD - (PILE_LAYERS - 1) * PILE_STEP) / (ROWS + COLS + 3 + WALL_HH), (W - 2 * SIDE_MIN) / (COLS + ROWS) / Math.sqrt(3));  // the band holds a tile (3 half heights and its walls) and the pile's rise
+  const hw = hh * Math.sqrt(3), T = (3 + WALL_HH) * hh + 2 * PAD + (PILE_LAYERS - 1) * PILE_STEP;
   return { hw, hh, T, s: 2 * hh, ds: 2 * hh, bx: W / 2 };
 }
+function squareUnder(x, y) { const { hw, hh, T } = L(), a = (x - W / 2) / hw, b = (y - T) / hh; return [Math.floor((a + b) / 2), Math.floor((b - a) / 2)]; }  // the square a screen point lies on (iso turned back)
 function iso(u, v) { const { hw, hh, T, bx } = L(); return [bx + (u - v) * hw, T + (u + v) * hh]; }  // a point of the board (in squares) on screen
 function boardDiamond() { const { hw, hh, T } = L(); return { cx: W / 2, cy: T + ROWS * hh, a: COLS * hw, c: ROWS * hh }; }  // the board's centre and half sizes
 function clearOfBoard(x, y, r) { const { cx: X, cy: Y, a, c } = boardDiamond(); return (Math.abs(x - X) * c + Math.abs(y - Y) * a - a * c) / Math.hypot(a, c) >= r; }  // a round thing at (x, y) stays off the board
-function draftSlot(k) { const { T, hw, hh } = L(); return [W / 2 + (k - 1.5) * (3 * hw + 24), T - PAD - 1.5 * hh]; }  // the 4 places in the band, along its bottom
+function draftSlot(k) { const { T, hw, hh } = L(); return [W / 2 + (k - 1.5) * (3 * hw + 24), T - PAD - (1.5 + WALL_HH) * hh]; }  // the 4 places in the band, along its bottom
 function tileCentre(x, y, r) { const d = DIRS[r]; return iso(x + 0.5 + d[0] / 2, y + 0.5 + d[1] / 2); }
 function tileBox(x, y, z, r) { const { hw, hh } = L(); return { x: x - 1.5 * hw * z, y: y - 1.5 * hh * z, w: 3 * hw * z, h: 3 * hh * z }; }  // around a tile's ground, whichever way it is turned
 function squareCentre(x, y) { return iso(x + 0.5, y + 0.5); }
 function sideEnds(x, y, d) { const [a, b] = [[[1, 0], [1, 1]], [[0, 1], [1, 1]], [[0, 0], [0, 1]], [[0, 0], [1, 0]]][d]; return [iso(x + a[0], y + a[1]), iso(x + b[0], y + b[1])]; }  // a square's side d, end to end
 function edgePoint(x, y, d) { return iso(x + 0.5 + DIRS[d][0] / 2, y + 0.5 + DIRS[d][1] / 2); }  // the middle of a square's side
-const UI_HH = 28.8, UI = () => L().hh / UI_HH;  // things with their own size (faces, the hand, the slot machine, jars) were made for a half-square UI_HH high (a 1920 x 1080 screen): they grow with the board (owner 25 Nov: all screen sizes)
+const UI_HH = 28.1, UI = () => L().hh / UI_HH;  // things with their own size (faces, the hand, the slot machine, jars) were made for a half-square UI_HH high (a 1920 x 1080 screen): they grow with the board (owner 25 Nov: all screen sizes)
 const TIP_PLACES = 3, TIP_GREY = '#a9a9a9';  // the grey tips: material places thick where they end (owner 25 Nov)
 const FACE_ROOM = 46;  // the lit face's size and a gap: the face sits in the thin top corner, touching the band and the board's edge with this room
 function faceSpot(i) { const { T } = L(), { rp } = goodRoom(), dx = 8 + JAR_GOODS * rp + 8 + FACE_ROOM * UI(); return [i ? W - dx : dx, T + FACE_ROOM * UI()]; }  // the corner is 30 degrees: its middle line is at 15
@@ -513,19 +516,14 @@ function layer(name, mark, box, draw) {  // box: the part of the screen it cover
 }
 function drawLayer(c) { cx.drawImage(c, c.box.x, c.box.y, c.box.w, c.box.h); drawn.push(...c.records); }
 const groundPic = c => 'lands/' + LANDS[c] + '-ground', thingsPic = c => 'lands/' + LANDS[c] + '-things';
-function groundAt(c, x, y, z = 1, grey) { const { hw, hh } = L(); atSize(z, groundPic(c), x - hw * z, y - hh * z, 2 * hw * z, 2 * hh * z, grey); }  // (x, y): the square's centre
+const wallHigh = () => WALL_HH * L().hh;
+function groundAt(c, x, y, z = 1, grey) { const { hw, hh } = L(); atSize(z, groundPic(c), x - hw * z, y - hh * z, 2 * hw * z, 2 * hh * z * GROUND_TALL, grey); }  // (x, y): the square's centre
 function thingsAt(c, x, y, z = 1, grey) { const { hw, hh } = L(); atSize(z, thingsPic(c), x - hw * z, y - 3 * hh * z, 2 * hw * z, 4 * hh * z, grey); }  // twice as high as the diamond, standing on it
 function goodShape(c, x, y, r, fit) { (fit ? fittedAt : picture)('materials/' + MATERIALS[c], x - r, y - r, 2 * r, 2 * r); }  // fit: at its place's size  // a material: its own picture, as big as its place
-// The sea (the owner's water pack, design 3): each sheet is 4 x 4 diamonds, one for each way the 4 corners of a diamond can be water or land (the standard "dual grid"
-// tile set): 1. one sea diamond is drawn at each point where 4 board squares meet, its 4 corners at their centres; 2. a corner is water where its square has no land
-// (squares off the board are sea); 3. the land shows through its land corners, with the shore drawn along it. Where each corner set lies on the sheet, by corners N E S W (8 4 2 1):
-const SEA_CELL = [null, [3, 3], [0, 0], [3, 2], [1, 3], [0, 1], [3, 0], [2, 0], [0, 2], [1, 2], [2, 3], [3, 1], [1, 0], [2, 2], [1, 1], [2, 1]];
-function seaAt(i, j, land) {  // the sea diamond where squares (i-1, j-1), (i, j-1), (i, j), (i-1, j) meet; land(x, y): whether a square has land
-  const mask = (land(i - 1, j - 1) ? 0 : 8) | (land(i, j - 1) ? 0 : 4) | (land(i, j) ? 0 : 2) | (land(i - 1, j) ? 0 : 1), cell = SEA_CELL[mask];
-  if (!cell) return;
-  const { hw, hh } = L(), [x, y] = iso(i, j);
-  fittedAt('sea', x - hw - 0.5, y - hh - 0.5, 2 * hw + 1, 2 * hh + 1, [cell[0] / 4, cell[1] / 4, 1 / 4, 1 / 4]);  // a little over: no hairline between diamonds
-}
+// The sea: the owner's water pack (design 3), a sheet of 4 x 4 diamonds; the open-water one is drawn at every point where 4 board squares meet, its corners at their centres.
+// The land stands on it as blocks (their walls are the shore), so no shore pieces are used. Over it, under the land, the water moves (drawWater).
+const OPEN_SEA = [2, 1];  // the sheet's diamond that is all water
+function seaAt(i, j) { const { hw, hh } = L(), [x, y] = iso(i, j); fittedAt('sea', x - hw - 0.5, y - hh - 0.5, 2 * hw + 1, 2 * hh + 1, [OPEN_SEA[0] / 4, OPEN_SEA[1] / 4, 1 / 4, 1 / 4]); }  // a little over: no hairline between diamonds
 
 // SECTION: SHAPES -- tiles, jars, coins, sets, the token, the hand
 function rrect(x, y, w, h, r, fill, stroke, lw) {
@@ -601,14 +599,10 @@ const LAND_MS = 280;  // routine: short
 function bounce(t) { const u = fast || !t.landed ? 1 : (performance.now() - t.landed) / LAND_MS; return u >= 1 ? 1 : 1 + 0.08 * Math.cos(2 * Math.PI * u) * (1 - u); }
 // The board's picture (sea, land, borders) only changes when the board does: it is made once onto its own canvas and that is drawn each frame.
 // A tile still bouncing in is left out of it and drawn on top, so its bounce shows; the picture is made again once it has settled.
-function landShapes(skip) {  // every square of land, borders and sea, drawn where cx points; skip: tiles drawn on their own
-  const { hh } = L(), cells = [...G.cells.values()].filter(c => !skip.has(c.t)), land = new Map(cells.map(c => [key(c.x, c.y), c])), has = (x, y) => land.has(key(x, y));
-  const order = cells.slice().sort((a, b) => a.x + a.y - b.x - b.y || a.x - b.x);  // back to front
-  const open = openSea(), shore = new Set();  // the open sea is one picture; only the sea diamonds touching land are drawn again, over the land's ground
-  if (open) cx.drawImage(open, 0, 0, W, H);
+function landShapes(skip) {  // every square of land (blocks: walls, top, things) and the borders, drawn where cx points, over nothing: the sea and its motion are under it; skip: tiles drawn on their own
+  const { hh } = L(), cells = [...G.cells.values()].filter(c => !skip.has(c.t)), land = new Map(cells.map(c => [key(c.x, c.y), c]));
+  const order = cells.slice().sort((a, b) => a.x + a.y - b.x - b.y || a.x - b.x);  // back to front: a square's walls go under the squares in front of it
   order.forEach(c => groundAt(c.c, ...squareCentre(c.x, c.y)));
-  cells.forEach(c => [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(([i, j]) => shore.add(key(c.x + i, c.y + j))));  // a square's 4 corner points
-  seaClip(() => shore.forEach(k => { const [i, j] = k.split(',').map(Number); seaAt(i, j, has); }));
   cx.lineWidth = Math.max(3, hh * 0.2); cx.lineCap = 'round';  // each land's border, all around its edges: one path per player
   const borders = [];
   for (const o of [0, 1]) {
@@ -618,15 +612,67 @@ function landShapes(skip) {  // every square of land, borders and sea, drawn whe
   }
   cx.lineCap = 'butt';
   order.forEach(c => thingsAt(c.c, ...squareCentre(c.x, c.y)));
-  return [{ k: 'sea', ready: !!open }, ...borders];
+  return borders;
 }
 let openPic = null;
 function seaClip(draw) { const { cx: X, cy: Y, a, c: b } = boardDiamond(); cx.save(); cx.beginPath(); cx.moveTo(X, Y - b); cx.lineTo(X + a, Y); cx.lineTo(X, Y + b); cx.lineTo(X - a, Y); cx.closePath(); cx.clip(); draw(); cx.restore(); }  // the sea stays inside the board's diamond
+// The moving water (owner 25 Nov): two layers of light ripples drifting different ways over the sea (ripples), foam that swells and fades around the land at the walls' foot,
+// and a few glints. Over the still sea picture and under the still land picture; at test speed it stands still (time 0), and in a page opened for tests unless the table asks.
+const RIPPLE = 192, RIPPLE_MS = [26000, 38000], FOAM_MS = 2600, GLINTS = 14, GLINT_MS = 2200, WATER_STEP = 200;  // WATER_STEP: ms between the water's pictures (made once each, then copied every frame)
+let ripplePic = null;
+function rippleTile() {  // a tile that repeats seamlessly: bright where two of its scattered points are about as near (cell edges, like light on waves)
+  if (ripplePic) return ripplePic;
+  const n = RIPPLE, c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d'), im = g.createImageData(n, n), r = seeded(7), ps = Array.from({ length: 22 }, () => [r() * n, r() * n]);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    let a = 1e9, b = 1e9;
+    for (const [px, py] of ps) for (let ox = -n; ox <= n; ox += n) for (let oy = -n; oy <= n; oy += n) { const d = Math.hypot(x - px - ox, y - py - oy); if (d < a) { b = a; a = d; } else if (d < b) b = d; }
+    const k = Math.max(0, 1 - (b - a) / 5), o = 4 * (y * n + x); im.data[o] = 255; im.data[o + 1] = 255; im.data[o + 2] = 255; im.data[o + 3] = Math.round(255 * k * k);
+  }
+  g.putImageData(im, 0, 0); ripplePic = c; return c;
+}
+const rippleSheets = {};
+function rippleSheet(k) {  // ripple layer k already squashed into the board's view, as one picture over the board and one repeat more along its drift (made once per screen size)
+  const box = boardBox(), d = devicePixelRatio || 1, mark = [W, H, d].join(), old = rippleSheets[k]; if (old && old.mark === mark) return old;
+  const s = L().hh / 60 * (k ? 1.4 : 1), m = new DOMMatrix().scale(s * 1.73, s).rotate(k ? -20 : 30), v = m.transformPoint(new DOMPoint(RIPPLE * (k ? -1 : 1), RIPPLE));  // ripples about a square across; v: one repeat along the drift
+  const c = document.createElement('canvas'), x = box.x - Math.max(0, v.x), y = box.y - Math.max(0, v.y), w = Math.ceil(box.w + Math.abs(v.x)), h = Math.ceil(box.h + Math.abs(v.y));
+  c.width = Math.ceil(w * d); c.height = Math.ceil(h * d); const g = c.getContext('2d'), pat = g.createPattern(rippleTile(), 'repeat');
+  pat.setTransform(new DOMMatrix().scale(d).translate(-x, -y).multiply(m)); g.fillStyle = pat; g.fillRect(0, 0, c.width, c.height);  // the pattern as it lies on the screen
+  Object.assign(c, { mark, x, y, w, h, vx: v.x, vy: v.y }); rippleSheets[k] = c; return c;
+}
+function foamPath() {  // the land's outline at the walls' foot, where the water meets it (made when the land changes)
+  const mark = G.board + '|' + W + 'x' + H; if (foamPath.mark === mark) return foamPath.path;
+  const p = new Path2D(), dy = wallHigh(), has = (x, y) => G.cells.has(key(x, y));
+  for (const c of G.cells.values()) DIRS.forEach(([dx, dz], d) => { if (has(c.x + dx, c.y + dz)) return; const [e0, e1] = sideEnds(c.x, c.y, d); p.moveTo(e0[0], e0[1] + dy); p.lineTo(e1[0], e1[1] + dy); });
+  foamPath.mark = mark; foamPath.path = p; return p;
+}
+const waterStep = () => fast || stillWater ? 0 : Math.floor(performance.now() / WATER_STEP);  // the water's picture is made again each WATER_STEP (at test speed, or with still water: never)
+function ripples(now) {  // the ripple layers over the sea, each drifting its own way: its sheet slides one whole repeat a cycle, so it joins up seamlessly
+  seaClip(() => RIPPLE_MS.forEach((ms, k) => { const u = (now / ms) % 1, sh = rippleSheet(k); cx.globalAlpha = k ? 0.16 : 0.22; cx.drawImage(sh, Math.round(sh.x + u * sh.vx), Math.round(sh.y + u * sh.vy), sh.w, sh.h); }));
+  cx.globalAlpha = 1; return [];
+}
+function waterShapes(now) {  // what moves at the land: glints, and foam at its foot
+  const { hh } = L();
+  seaClip(() => {
+    const r = seeded(3);  // glints: each at its own place, flaring and fading in turn
+    for (let k = 0; k < GLINTS; k++) {
+      const [x, y] = iso(r() * COLS, r() * ROWS), t = ((now / GLINT_MS + r()) % 1), a = Math.max(0, Math.sin(t * Math.PI * 2)) ** 3, z = hh * 0.3 * a;
+      if (a < 0.05 || G.cells.has(key(...squareUnder(x, y)))) continue;  // none on the land
+      cx.globalAlpha = 0.85 * a; cx.fillStyle = '#ffffff'; cx.beginPath(); cx.moveTo(x - z * 1.7, y); cx.lineTo(x, y - z * 0.35); cx.lineTo(x + z * 1.7, y); cx.lineTo(x, y + z * 0.35); cx.closePath(); cx.fill();
+    }
+    const f = 0.5 + 0.5 * Math.sin(now / FOAM_MS * Math.PI * 2), path = foamPath();  // foam at the land's foot, swelling and fading (the land covers its inner half)
+    cx.lineJoin = cx.lineCap = 'round'; cx.strokeStyle = '#ffffff';
+    cx.globalAlpha = 0.25 + 0.2 * f; cx.lineWidth = hh * (0.7 + 0.35 * f); cx.stroke(path);
+    cx.globalAlpha = 0.8; cx.lineWidth = hh * 0.28; cx.stroke(path);
+    cx.globalAlpha = 1; cx.lineJoin = 'miter'; cx.lineCap = 'butt';
+  });
+  return [{ k: 'water', t: now }, { k: 'foam' }];
+}
+
 function openSea() {  // the board with no land: a sea diamond at every point where squares meet; made once per screen size
   const d = devicePixelRatio || 1, mark = [W, H, d].join();
   if (!pics.sea) return null; if (openPic && openPic.mark === mark) return openPic;
   const c = document.createElement('canvas'), main = cx; c.width = W * d; c.height = H * d; cx = c.getContext('2d'); cx.setTransform(d, 0, 0, d, 0, 0);
-  seaClip(() => { for (let i = 0; i <= COLS; i++) for (let j = 0; j <= ROWS; j++) seaAt(i, j, () => false); });
+  seaClip(() => { for (let i = 0; i <= COLS; i++) for (let j = 0; j <= ROWS; j++) seaAt(i, j); });
   cx = main; c.mark = mark; openPic = c; return c;
 }
 function areaShapes(i) {  // player i's area under his things: its tint (lit when it is his turn, with a glow in his colour) and a recess for each material's place
@@ -637,13 +683,18 @@ function areaShapes(i) {  // player i's area under his things: its tint (lit whe
   for (const c of COLOUR_IDS) for (let k = 0; k < JAR_GOODS; k++) { const [x, y] = placeAt(c, k); dot(x, y, r, '#00000014'); out.push({ k: 'place', o: i, c, x, y, r }); }
   return out;
 }
-function boardBox() { const { hw, hh, T } = L(); return { x: W / 2 - COLS * hw, y: T - 2 * hh, w: (COLS + ROWS) * hw, h: (COLS + ROWS + 2) * hh }; }  // the board, and room above it for things standing on its top squares
+function boardBox() { const { hw, hh, T } = L(); return { x: W / 2 - COLS * hw, y: T - 2 * hh, w: (COLS + ROWS) * hw, h: (COLS + ROWS + 2) * hh + wallHigh() }; }  // the board, room above it for things standing on its top squares and under it for the walls of its front squares
 function drawScene() {  // the band and both areas (one picture for each turn) and the board (one picture until it changes), together as one picture until either changes
   const landing = [...G.tiles.values()].filter(t => bounce(t) !== 1), skip = new Set(landing.map(t => t.id)), { hw, hh, T } = L();
   cx.clearRect(0, 0, W, H);  // a clear first: the browser then drops earlier frames it has not drawn yet (a full-screen fill does not)
-  const full = { x: 0, y: 0, w: W, h: H }, areas = layer('areas' + G.turn, G.turn, full, () => { cx.fillStyle = '#e6d6b2'; cx.fillRect(0, 0, W, T); return [{ k: 'band', y: 0, h: T }, ...areaShapes(0), ...areaShapes(1)]; });  // one for each turn; the band on top
+  const full = { x: 0, y: 0, w: W, h: H }, open = openSea();  // the areas and the sea: one picture for each turn; the band on top
+  const step = waterStep(), now = step * WATER_STEP;  // the water moves under the land (the land is one still picture over it)
+  const areas = layer('areas' + G.turn, [G.turn, !!open].join(), full, () => { cx.fillStyle = '#e6d6b2'; cx.fillRect(0, 0, W, T); if (open) cx.drawImage(open, 0, 0, W, H); return [{ k: 'band', y: 0, h: T }, { k: 'sea', ready: !!open }, ...areaShapes(0), ...areaShapes(1)]; });
   const board = layer('board', [G.board, ...skip].join(), boardBox(), () => landShapes(skip));
-  drawLayer(layer('scene', areas.mark + '|' + board.mark, full, () => { [areas, board].forEach(c => cx.drawImage(c, c.box.x, c.box.y, c.box.w, c.box.h)); return areas.records.concat(board.records); }));  // both as one picture: one copy a frame
+  drawLayer(layer('scene', [areas.mark, step, board.mark].join('|'), full, () => {  // all as one picture, made again when any part changes: one copy a frame
+    cx.drawImage(areas, areas.box.x, areas.box.y, areas.box.w, areas.box.h); ripples(now); const water = waterShapes(now); cx.drawImage(board, board.box.x, board.box.y, board.box.w, board.box.h);
+    return [...areas.records, ...water, ...board.records];
+  }));
   drawn.push({ k: 'boardarea', x: W / 2 - COLS * hw, y: T, w: (COLS + ROWS) * hw, h: (COLS + ROWS) * hh, cols: COLS, rows: ROWS });
   for (const c of G.cells.values()) drawn.push({ k: 'square', x: c.x, y: c.y, c: c.c, o: c.o, pic: 'lands/' + LANDS[c.c], ready: picReady(groundPic(c.c)) && picReady(thingsPic(c.c)) });  // what the board shows, for the checks
   for (const t of landing) { const k = bounce(t); drawn.push({ k: 'bounce', id: t.id, scale: k }); tileShape(...tileCentre(t.x, t.y, t.r), k, t.cs, t.r, null, t.id); }
