@@ -311,19 +311,26 @@ function rollJar() {  // what a jar holds: the owner's mix
   let u = rnd() * all; for (const [k, v] of mix) { u -= v; if (u < 0) return { k }; }
   return { k: 'coins' };
 }
-async function openJars(i) {  // a tapped jar breaks where it stands, leaving its place empty; what it held rises out of it and shows
-  const p = G.players[i], my = G; G.jarWho = i;
-  while (G === my && p.jars > 0) {
+async function openJars(i) {  // tap jars as fast as he likes (owner 25 Nov): each breaks at once where it stands, leaving its place empty; what it held pops up above it,
+  // stays a moment, then flies to its place; only a bonus that needs him (the slot machine, a tile to place) waits for the others to finish and then for him
+  const p = G.players[i], my = G, open = new Set(); G.jarWho = i;
+  while (G === my && (p.jars > 0 || open.size)) {
+    if (!p.jars) { await Promise.race(open); continue; }  // a prize still on its way may bring more jars
     const k = await choose('jar', i, {}, () => pcTap('jar-0')) || 0; if (G !== my) return;
     const jar = p.jarList[k], at = jarAt(jar, p), j = rollJar(); p.jarList.splice(k, 1);
     sound('jar'); shatter(at, '#c46a3c', JAR_SIZE() * 0.3);
-    await fly({ k: 'shown', j, o: i }, at, shownSpot(), RISE_MS, { arc: 0, z0: 0.2 }); if (G !== my) return;
-    G.shown = { who: i, j }; await pause(SHOW_MS); G.shown = null; if (G !== my) return;
-    await bonus(i, j);
+    const show = { who: i, j, at: [at[0], at[1] - JAR_SIZE() * 1.1] }, needsHim = j.k === 'slot' || j.k === 'tile';
+    const run = (async () => {
+      await fly({ k: 'shown', j, o: i }, at, show.at, RISE_MS, { arc: 0, z0: 0.2 }); if (G !== my) return;
+      G.shown.push(show); await pause(SHOW_MS); G.shown = G.shown.filter(x => x !== show); if (G !== my) return;
+      if (needsHim) await Promise.all([...open].filter(x => x !== run)); await bonus(i, j, show.at);
+    })();
+    open.add(run); run.then(() => open.delete(run));
+    if (needsHim) await run;
   }
 }
-async function bonus(i, j) {  // the reward flies from where the jar showed it to its place, and counts when it lands
-  const p = G.players[i], my = G, from = shownSpot();
+async function bonus(i, j, from) {  // the reward flies from where the jar showed it to its place, and counts when it lands
+  const p = G.players[i], my = G;
   if (j.k === 'coins' || j.k === 'coins2') for (let c = 0; c < (j.k === 'coins' ? 1 : 2); c++) { await fly({ k: 'coin' }, from, coinSpot(i, p.coins), REWARD_MS); if (G !== my) return; p.coins++; sound('coin'); }
   else if (j.k === 'first') { await fly({ k: 'star' }, from, starSpot(i), REWARD_MS, { arc: 100 }); if (G !== my) return; G.first = i; sound('token'); }
   else if (j.k === 'jar') await dropJar(i, from);  // it takes the first free place
@@ -407,7 +414,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); heard = []; flights = []; specks = []; G = { slotFaces: o.slotFaces || null, fromNowhere: 0, board: 0, round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], over: false, winner: null, slot: null, turn: null, shown: null, jarWho: null, parked: false, parking: false, burst: null, dusk: null, dawn: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; flights = []; specks = []; G = { slotFaces: o.slotFaces || null, fromNowhere: 0, board: 0, round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], over: false, winner: null, slot: null, turn: null, shown: [], jarWho: null, parked: false, parking: false, burst: null, dusk: null, dawn: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y], k) => put({ id: 's' + k, cs: [0, 1], x, y, r: 0, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; if (o.goods) p.goods = o.goods[k].slice(); });  // a saved game: each player's coins and goods
@@ -442,7 +449,6 @@ const PILE_LAYERS = Math.ceil(HALVES.reduce((a, b) => a + b) / 2 / 4);  // a ful
 function pileStep() { const { T, ds } = L(); return Math.min(6, (T / 2 + 2 - ds / 2) / (PILE_LAYERS - 1)); }  // the layers squeeze so that a full pile still ends 4 px below the screen's top
 function pileTop() { const { T, P, ds } = L(), layers = Math.max(1, Math.ceil(G.bag.length / 4)); return [(P + draftSlot(0)[0] - ds - 22) / 2, T / 2 + 6 - (layers - 1) * pileStep()]; }  // the pile: a stack of face-down tiles beside the market, one layer per round left
 function giftSpot() { const { T, ds, P } = L(); return [(W - P + draftSlot(3)[0] + ds + 22) / 2, T / 2]; }  // a bonus tile's place: just right of the market's 4 tiles
-function shownSpot() { return [W / 2, H * 0.2 + 80]; }  // where an opened jar shows what it held
 function homeSpot() { const { P } = L(); return [W - P / 2, H * 0.72]; }  // the PC's hand rests in its panel
 function snapSpot() {  // the nearest place the tile in hand fits, if it lies close to it
   if (!wait || wait.kind !== 'place') return null;
@@ -620,7 +626,7 @@ function jarSpot(k, n) {  // place k when the lines hold n places: lines of JARS
 }
 function jarAt(j, p) { return j.x != null ? [j.x, j.y] : jarSpot(j.slot, places(p)); }  // where a jar is drawn now
 function drawJars() {  // big jars at their places; tap one to open it
-  const who = wait && wait.kind === 'jar' ? wait.who : G.shown ? G.shown.who : G.jarWho, p = G.players[who], z = JAR_SIZE(), s = z * 1.5, n = places(p), parked = p.jarList.filter(j => j.parked);  // z: a jar's size, always the same; s: the space each jar has
+  const who = wait && wait.kind === 'jar' ? wait.who : G.jarWho, p = G.players[who], z = JAR_SIZE(), s = z * 1.5, n = places(p), parked = p.jarList.filter(j => j.parked);  // z: a jar's size, always the same; s: the space each jar has
   if (wait && wait.kind === 'jar') shade(0.35);  // the board dims only while he chooses a jar
   p.jarList.forEach((j, k) => {
     if (j.moving) return;  // drawn as it flies
@@ -631,11 +637,11 @@ function drawJars() {  // big jars at their places; tap one to open it
     jarShape(x, y, z); drawn.push({ k: 'jar', o: who, new: j.fresh, x, y, size: z, row, slot: j.slot });
     if (wait && wait.kind === 'jar') btn('jar-' + k, x - s / 2, y - s / 2, s, s, () => answer(k));
   });
-  if (G.shown) shownCard(G.shown.j, G.shown.who, ...shownSpot(), 1);
+  G.shown.forEach(x => shownCard(x.j, x.who, ...x.at, 1));
 }
 function shownCard(j, who, x, y, z) {  // what a jar held, as a picture, no words (owner 25 Nov); z: its size (it grows as it rises out of the jar)
   cx.save(); cx.translate(x, y); cx.scale(z, z); rrect(-100, -90, 200, 180, 24, '#fff8e8', BORDER[who], 6); content(j, 0, 0, 160); cx.restore();
-  drawn.push({ k: 'shown', j: j.k });
+  drawn.push({ k: 'shown', j: j.k, x, y });
 }
 // The slot machine's look (owner 24 Nov, said twice): 1. each wheel is a many-sided drum seen from the front (the standard reel window): a face shows
 // where the drum turns it toward you, squashed as it turns away, and at rest only the face it lands on shows; 2. a kept wheel has a clamp on it;
@@ -743,7 +749,7 @@ function render() {  // one picture of the game; it also lays out the buttons th
   if (G.dusk != null) drawDusk();  // the evening lies over the board and areas, under the jars
   if (G.dawn != null) drawDawn();
   if (wait && wait.kind === 'place') drawHeld();
-  if ((wait && wait.kind === 'jar') || G.shown || (G.jarWho != null && G.players[G.jarWho].jars)) drawJars();  // jars waiting to be opened are always drawn
+  if ((wait && wait.kind === 'jar') || G.shown.length || (G.jarWho != null && G.players[G.jarWho].jars)) drawJars();  // jars waiting to be opened are always drawn
   if (G.slot) drawSlot();
   if (G.passing != null) drawPass();
   if (G.over) drawEnd();

@@ -401,6 +401,17 @@ def f_jar_breaks(q):  # owner 24 Nov: "jars should visually break and the reveal
     q.clock.resume()
     report(broke and came_out and coin_flew and star_flew, 'jars: break where tapped, the bonus comes out, rewards fly to their place', 'broke where tapped %s, bonus out of it %s, coin flew to his coins %s, star flew to its place %s' % (broke, came_out, coin_flew, star_flew))
 
+def f_jars_at_once(q):  # owner 25 Nov (prototype): jars break at once, as fast as he taps; each prize (a picture) pops up above its own jar, stays a moment, then flies to its place;
+    # only the slot machine and a tile to place wait (for the other prizes to land, then for him)
+    pause_clock(q); table(q, fast=False, bag=[[0, 1]] * 4, jarQueue=[COIN, {'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 1, 3], slotFaces=FACES)
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 8000)  # 2 connections: 2 jars
+    jars = sorted((d['x'], d['y'], d['size']) for d in drawn(q, 'jar')); tap(q, 'jar-0'); again = (st(q)['wait'] or {}).get('kind') == 'jar'; tap(q, 'jar-0'); left = st(q)['players'][0]['jars']
+    run_until(q, "()=>{const d=__dg.drawn();return d.filter(x=>x.k==='shown').length===2&&!d.some(x=>x.k==='flight'&&x.look==='shown')}", 2000); cards = sorted((d['x'], d['y']) for d in drawn(q, 'shown'))
+    above = len(cards) == 2 and all(abs(c[0] - j[0]) < 5 and c[1] < j[1] - j[2] / 2 for c, j in zip(cards, jars))  # risen out of it, above it
+    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='slot'}", 8000); coins = st(q)['players'][0]['coins']; tap(q, 'tray'); q.clock.resume()
+    ok = again and left == 0 and above and coins == 1
+    report(ok, 'jars: break at once; prize above its jar; the slot machine waits', 'next tap taken at once %s, jars left %d, prizes above their jars %s (%s over %s), coin landed before the machine %s' % (again, left, above, [(round(x), round(y)) for x, y in cards], [(round(x), round(y)) for x, y, _ in jars], coins == 1))
+
 def f_jars_step_aside(q):  # owner 24 Nov: "the extra tile bonus makes the jars I was opening disappear; it should temporarily fly them to some free area"
     pause_clock(q); table(q, fast=False, bag=[[0, 1]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8)  # 2 jars; the first holds a tile
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 7, 'r': 0}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 8000); tap(q, 'jar-1')
