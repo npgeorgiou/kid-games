@@ -36,7 +36,7 @@ let fast = params.has('fast');  // tests: the PC moves without waiting, and noth
 const HAND_SPEED = 450;  // px per second: slow enough to follow
 const STAGGER = 120, GOOD_FLY = 450;  // things that go one after another leave STAGGER apart; a good flies GOOD_FLY
 const RISE_MS = 500, SHOW_MS = 900, GLIDE_MS = 300, REWARD_MS = 550;  // a jar opened: what it held rises out of it, shows, and its reward flies to its place; the other jars close up
-const DROP_MS = 600, INTO_MS = 450, SPECK_MS = 700;  // 5 of a colour: a jar dropping from the top; each good flying into it; a broken jar's specks fading
+const DEAL_MS = 260, DROP_MS = 600, INTO_MS = 450, SPECK_MS = 700;  // a market tile dealt from the pile; a jar dropping from the top; each good flying into it; a broken jar's specks fading
 const DUSK_MS = 1600, DAWN_MS = 900;  // evening falling at a round's end; morning light sweeping over at a round's start
 const GLOW_MS = 1800;  // a connection's edge glows GLOW_MS
 let rnd = Math.random;
@@ -49,7 +49,7 @@ const pause = ms => { const my = G; return fast ? Promise.resolve() : new Promis
 // Made like real objects (the standard Web Audio recipes): a knock is a short tone that drops in pitch, like wood; a clink is a bell-like
 // pair of partials, like metal; a break is a burst of filtered noise with a few shards, like clay; a chime is soft sine notes; a whoosh is noise swept upward.
 const SOUNDS = {  // kind and its notes (Hz)
-  good: ['knock', [640]], board: ['knock', [180]], pick: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], clamp: ['knock', [250]], pass: ['chime', [392, 294]],
+  good: ['knock', [640]], board: ['knock', [180]], pick: ['knock', [520]], deal: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], clamp: ['knock', [250]], pass: ['chime', [392, 294]],
   jar: ['break', []], coin: ['clink', [1320, 1760]], made: ['chime', [392, 494, 587]], win: ['chime', [523, 659, 784, 1047]],
   dawn: ['chime', [392, 523, 659]], token: ['chime', [523, 784]], into: ['knock', [460]], edge: ['chime', [784]], turn: ['chime', [587, 784]], roundend: ['chime', [784, 659, 523, 392]], spin: ['whoosh', []], roll: ['knock', [700]],
 };
@@ -234,7 +234,8 @@ async function play() {
     G.round++; G.phase = 'round';
     await dawn(); if (G !== my) return;
     G.players.forEach(p => { p.got = 0; });
-    G.draft = G.bag.splice(0, 4);
+    G.draft = [null, null, null, null];  // dealt one by one from the pile (owner 25 Nov)
+    for (let k = 0; k < 4 && G.bag.length; k++) { const t = G.bag.shift(); sound('deal'); await fly({ k: 'tile', cs: t }, pileTop(), draftSlot(k), DEAL_MS); if (G !== my) return; G.draft[k] = t; }
     let turn = G.first ?? 0, passes = 0, passed = null;
     while (G === my && G.draft.some(t => t) && passes < 2) {
       const other = 1 - turn, P = G.players;
@@ -445,9 +446,9 @@ function starSpot(i) { const { P } = L(); return [(i ? W - P : 0) + P / 2 + 56, 
 function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { const sp = stock(i); return [sp.colX(k), sp.rowY(c)]; }  // where good number k of colour c stands in player i's stockpile: place k of row c
 function edgePoint(x, y, d) { const { s, ox, oy } = L(); return [ox + (x + 0.5 + DIRS[d][0] / 2) * s, oy + (y + 0.5 + DIRS[d][1] / 2) * s]; }  // the middle of a square's side
-const PILE_LAYERS = Math.ceil(HALVES.reduce((a, b) => a + b) / 2 / 4);  // a full pile: one layer per round
+const PILE_LAYERS = HALVES.reduce((a, b) => a + b) / 2;  // a full pile: one layer per tile (owner 25 Nov)
 function pileStep() { const { T, ds } = L(); return Math.min(6, (T / 2 + 2 - ds / 2) / (PILE_LAYERS - 1)); }  // the layers squeeze so that a full pile still ends 4 px below the screen's top
-function pileTop() { const { T, P, ds } = L(), layers = Math.max(1, Math.ceil(G.bag.length / 4)); return [(P + draftSlot(0)[0] - ds - 22) / 2, T / 2 + 6 - (layers - 1) * pileStep()]; }  // the pile: a stack of face-down tiles beside the market, one layer per round left
+function pileTop() { const { T, P, ds } = L(), layers = Math.max(1, G.bag.length); return [(P + draftSlot(0)[0] - ds - 22) / 2, T / 2 + 6 - (layers - 1) * pileStep()]; }  // the pile: a stack of face-down tiles beside the market, one layer per tile
 function giftSpot() { const { T, ds, P } = L(); return [(W - P + draftSlot(3)[0] + ds + 22) / 2, T / 2]; }  // a bonus tile's place: just right of the market's 4 tiles
 function homeSpot() { const { P } = L(); return [W - P / 2, H * 0.72]; }  // the PC's hand rests in its panel
 function snapSpot() {  // the nearest place the tile in hand fits, if it lies close to it
@@ -570,7 +571,7 @@ function drawDraft() {
       answer(k);
     });
   });
-  const layers = Math.ceil(G.bag.length / 4), [px, top] = pileTop();
+  const layers = G.bag.length, [px, top] = pileTop();
   for (let k = 0; k < layers; k++) { const y = top + (layers - 1 - k) * pileStep(); rrect(px - ds, y - ds / 2, 2 * ds, ds, ds * 0.14, '#c9ad7f', '#8a6d42', 2); }
   drawn.push({ k: 'pile', layers, x: px, y: top, step: pileStep(), bottom: top + (layers - 1) * pileStep() + ds / 2 });
 }

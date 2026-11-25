@@ -143,12 +143,20 @@ def f_pile_no_frames(q):  # owner 24 Nov: no outline around the pile's tiles
     tray = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [c[0] - ds - 14, c[1] - ds / 2 - 10])  # the tray, away from the tile
     report(beside == tray, 'pile: tiles have no outline', 'beside the tile %s, the tray %s' % (beside, tray))
 
-def f_pile_fits(q):  # owner 24 Nov ("rethink all UI"): the pile stacked a layer per round up from its place and ran off the top of the screen; a full pile stays on screen, a layer per round
-    table(q); pile = drawn(q, 'pile')[0]; ds = (q.evaluate("()=>__dg.btnBox('draft-0')")['w'] - 24) / 2; T = drawn(q, 'market')[0]
+def f_pile_fits(q):  # owner 24 Nov ("rethink all UI"): the pile ran off the top of the screen; a full pile stays on screen; owner 25 Nov: the pile holds every tile, a layer each
+    table(q); pile = drawn(q, 'pile')[0]; ds = drawn(q, 'tile')[0]['h']; T = drawn(q, 'market')[0]; s = st(q); in_pile = s['left'] - sum(1 for t in s['draft'] if t)
     top, bottom = pile['y'] - ds / 2, pile['bottom']
-    ok = pile['layers'] >= 6 and top >= 4 and bottom <= T['y'] + T['h'] and pile['step'] >= 3
-    report(ok, 'pile: a full pile stays on screen', '%d layers, %.1f px apart, from %.0f to %.0f px (screen top 0, market bottom %.0f)' % (pile['layers'], pile['step'], top, bottom, T['y'] + T['h']))
+    ok = pile['layers'] == in_pile and top >= 4 and bottom <= T['y'] + T['h'] and pile['step'] >= 1  # every layer still its own line
+    report(ok, 'pile: every tile a layer, on screen', '%d layers for %d tiles, %.1f px apart, from %.0f to %.0f px (screen top 0, market bottom %.0f)' % (pile['layers'], in_pile, pile['step'], top, bottom, T['y'] + T['h']))
 
+def f_deal(q):  # owner 25 Nov (prototype): the 4 market tiles are dealt one by one from the pile
+    pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'seed': 1}); counts, ms = [], 0
+    while ms < 4000 and not st(q)['wait']:
+        skip(q, 50); ms += 50; n = sum(1 for t in st(q)['draft'] if t); f = [x for x in drawn(q, 'flight') if x['look'] == 'tile']
+        if not counts or counts[-1][0] != n: counts.append((n, len(f)))
+    h = q.evaluate("()=>__dg.sounds()"); q.clock.resume()
+    ok = [n for n, _ in counts] == [0, 1, 2, 3, 4] and all(f <= 1 for _, f in counts) and h.count('deal') == 4
+    report(ok, 'market: dealt one by one', 'market tiles seen %s (tiles flying at once %s), deal sounds %d' % ([n for n, _ in counts], [f for _, f in counts], h.count('deal')))
 def f_round_start_no_goods(q):  # owner 24 Nov: land does not make goods each round, a tile's halves make none; goods left carry over to the next round; a round starts with morning light
     table(q, bag=[[2, 2], [2, 2], [3, 3], [3, 3], [2, 2]], tiles=[[4, 7, 0, 2, 2, 0]], goods=[[0, 0, 0, 0, 0, 1], [0] * 6], jarQueue=[COIN] * 8)  # only the kid can place: the PC passes; [3, 3] fits nobody; his 1 teal good is never touched
     s = kid_plays(q, lambda s: s['round'] == 2 and s['wait'] and s['wait']['kind'] == 'pick'); h = q.evaluate("()=>__dg.sounds()"); g = s['players'][0]['goods']
@@ -240,13 +248,13 @@ def f_put_back(q):  # owner 24 Nov: a picked tile can be put back on its market 
 
 def f_sounds(q):  # owner 24 Nov: "add some sounds, it's hard to follow what happens": each thing that happens has its sound, in the order it happens
     get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot'); tap(q, 'wheel-0'); tap(q, 'wheel-1'); tap(q, 'lever')
-    q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); a = [n for n in q.evaluate("()=>__dg.sounds()") if n not in ('dawn', 'turn', 'into')]  # the morning, the turn sound and the goods going into a jar have their own flows
+    q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); a = [n for n in q.evaluate("()=>__dg.sounds()") if n not in ('dawn', 'deal', 'turn', 'into')]  # the morning, the deal, the turn sound and the goods going into a jar have their own flows
     want = ['pick', 'snap', 'edge', 'edge', 'jar', 'roll', 'roll', 'roll', 'spin', 'stop', 'stop', 'stop', 'clamp', 'clamp', 'roll', 'spin', 'stop', 'win']  # each wheel ticks as it rolls (owner 24 Nov)
     ok = a[:len(want)] == want
     report(ok, 'sounds: one for each thing, in order', 'slot jar: %s, heard %s' % (a[:len(want)], sorted(set(a))))
 
 def f_sound_kinds(q):  # owner 24 Nov: "a weird blip when I tap a piece"; "jars must make a breaking sound": a tap knocks like wood, a jar breaks like clay, a coin clinks; no beeps anywhere
-    get_jar(q, [COIN]); settle(q); h = [k for n, k in zip(q.evaluate("()=>__dg.sounds()"), q.evaluate("()=>__dg.heardKinds()")) if n not in ('dawn', 'turn', 'into', 'made')]  # the morning, the turn sound and the jar being made have their own flows
+    get_jar(q, [COIN]); settle(q); h = [k for n, k in zip(q.evaluate("()=>__dg.sounds()"), q.evaluate("()=>__dg.heardKinds()")) if n not in ('dawn', 'deal', 'turn', 'into', 'made')]  # the morning, the deal, the turn sound and the jar being made have their own flows
     ok = h[:6] == ['knock', 'knock', 'chime', 'chime', 'break', 'clink']  # tap, snap, a material out of each of the 2 lit squares, the jar opened, its coin
     ok = ok and set(q.evaluate("()=>__dg.soundKinds()")) <= {'break', 'chime', 'clink', 'knock', 'whoosh'}
     report(ok, 'sounds: wood tap, clay break, coin clink', 'heard %s; kinds in the game %s' % (h[:6], q.evaluate("()=>__dg.soundKinds()")))
@@ -341,7 +349,7 @@ def f_screen_parts(q):  # owner 24 Nov: "the sidebar doesn't portray any info"; 
     pile = [x for x in d if x['k'] == 'pile']; bars = [x for x in d if x['k'] == 'roundsleft']
     parts = {o: (len(kinds('avatar', o)), sorted(x['for'] for x in kinds('tray', o))) for o in (0, 1)}
     gaps = (min_gap(kinds('good', 0)), min_gap(kinds('coin', 0)))
-    ok = parts == {0: (1, ['coins', 'goods']), 1: (1, ['coins', 'goods'])} and min(gaps) >= 3 and len(pile) == 1 and pile[0]['layers'] == 2 and not bars
+    ok = parts == {0: (1, ['coins', 'goods']), 1: (1, ['coins', 'goods'])} and min(gaps) >= 3 and len(pile) == 1 and pile[0]['layers'] == 8 and not bars
     report(ok, 'screen: faces, goods and coins trays, things apart, a pile', 'parts %s, smallest gaps goods/coins %s px, pile %s' % (parts, [round(g, 1) for g in gaps], pile))
 
 def f_pc_best(q):  # the PC picks and places for the most goods
