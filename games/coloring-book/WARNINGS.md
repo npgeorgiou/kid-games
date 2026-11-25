@@ -53,3 +53,4 @@
 - A brush that picks up wet paint must not pick up its own fresh paint, and can hold only so much: otherwise its paint grows without end.
 - A brush is an axis, not an arrow: going back the same way must not flip which bristle is on which side, or back-and-forth strokes bend the paint.
 - A bristle's emptying goes per pixel of travel, not per pixel touched: rim bristles touch fewer pixels per dab, kept their paint and left outlines.
+- Acrylic references are only owner-shots/2026-11-25-acrylic-1..4, -blue-strokes and -impasto-1..3; error screenshots from earlier chats are not references. Compare every version with all of them (trials/look_all_refs.py, look_reference.py) before sending.
