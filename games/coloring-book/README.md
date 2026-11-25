@@ -78,7 +78,7 @@ Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Word
 ## Open
 
 Do next, in this order (his words are in the Task list):
-- p5.brush (https://p5-brush.cargo.site/, MIT): its page says it is meant for high-resolution artworks, maybe not live painting. Try it on one brush, measure stroke delay on a full paper at his screen size, show him, let him decide.
+- p5.brush (MIT): trial page shown (not in the game); waiting for his pick: live strokes show beads/seams at every finger move, whole strokes appear only after lifting (0.1-0.6 s on the test machine).
 - Batches 4-6: acrylic (11-14, 25), watercolour (17-21), crayon (22, his oil pastel pictures owner-shots/2026-11-23-oil-pastel-*), marker from scratch (23).
 - Spray other shapes: stars and other icons as spray brushes.
 - The whole flow run takes about 30 minutes on one machine: find the slow separate tests.
