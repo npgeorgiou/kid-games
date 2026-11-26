@@ -55,3 +55,5 @@
 - A bristle's emptying goes per pixel of travel, not per pixel touched: rim bristles touch fewer pixels per dab, kept their paint and left outlines.
 - Acrylic references are only owner-shots/2026-11-25-acrylic-1..4 and -blue-strokes; error screenshots from earlier chats are not references. Compare every version with all of them (trials/look_all_refs.py) before sending.
 - trials/acrylic-trial.src.html puts several statements on one line: a // comment anywhere but the line's end swallows the code after it (broke the page three times); build_trial.py now refuses a script that does not parse.
+- Acrylic trial: "never pick up its own fresh paint" is per amount (mine), not per pixel: marking a pixel as this stroke's stopped all pickup after the first step and left the paint under it in place (looked see-through).
+- Acrylic trial: paint laid a step at a time is thin wherever only some steps touch (dry-brush, a fast hand): thin coats must already hide (HIDE), or dry-brush marks look pale and see-through.
