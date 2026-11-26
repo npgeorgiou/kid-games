@@ -33,9 +33,9 @@ Order: Eraser, Markers, Pencils, Chalk/Pastel, Dry Painting, Dry Textured, Stamp
 
 | Path | What it is |
 |---|---|
-| `brushes.html` | **The tuning page.** Built by `build.py`; never edit it by hand. Pick a preset: Krita's picture of it, a paper to paint on, a slider for each of its numbers, and the numbers to send back. Built so far: Eraser. |
-| `build.py` | Inlines the core, each family's presets and its Krita picture into `brushes.html` (its `FAMILIES` list: the families built so far). The game's `build.py` runs it. |
-| `src/brush-core.js` | The shared core: Krita's pixel brush (tips, pressure curves, spacing, opacity and flow, normal and erase), ported from Krita's code. |
+| `brushes.html` | **The tuning page.** Built by `build.py`; never edit it by hand. Pick a preset: Krita's picture of it, a paper to paint on, a slider for each of its numbers, and the numbers to send back. Every family is on it: a button per family, then its presets. |
+| `build.py` | Inlines the core, each family's presets, its Krita picture (where each preset's strip is in it) and the tips and textures the presets name into `brushes.html`. The game's `build.py` runs it. |
+| `src/brush-core.js` | The shared core, ported from Krita's code: the pixel brush (auto and picture tips, sensors and curves, rotation, ratio, scatter, mirror, spacing, textures, build-up and wash, erase), the colour smudge engine and the spray engine. |
 | `src/brushes.html` | The tuning page's source. |
 | `krita/presets/` | Every preset of the families above, read from Krita's bundle: one setting per line (`name = value`; pressure curves on one line as `x,y;` points). |
 | `krita/tips/` | The brush tips the presets name (Krita `.gbr`, `.gih` animated tips, `.png`, `.svg`). |

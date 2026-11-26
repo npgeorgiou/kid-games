@@ -79,7 +79,7 @@ Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Word
 ## Open
 
 Do next, in this order (his words are in the Task list):
-- Brushes copied from Krita's presets (his choice, 26 Nov), built in `experiments/` (method there): Eraser, Markers, Pencils, Chalk/Pastel, Dry Painting, Dry Textured, Stamps, Wet painting, Watercolors. The acrylic trial is dropped. Pull request #31 (5 brushes + impasto row, groove and curve fixes, spray fix) is NOT merged: he rejected those brushes (keep the spray, groove and curve fixes).
+- Brushes copied from Krita's presets (his choice, 26 Nov), built in `experiments/` (method there): all nine families are on the tuning page `experiments/brushes.html`; next he tunes them with the sliders and sends numbers, then they move into the game. Tests are off by his choice (26 Nov) until he turns them on. The acrylic trial is dropped. Pull request #31 (5 brushes + impasto row, groove and curve fixes, spray fix) is NOT merged: he rejected those brushes (keep the spray, groove and curve fixes).
 - Watercolour brush library and look (his 25 Nov pages), then 17-21; crayon (22); marker (23); spray other shapes; slow separate tests; drying times; outline pictures later.
 
 ## Task list

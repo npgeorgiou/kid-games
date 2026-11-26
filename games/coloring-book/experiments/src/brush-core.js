@@ -6,7 +6,8 @@
 // 2. Along the stroke a dab is placed each time the distance since the last one reaches the spacing ellipse of that dab's size.
 // 3. Each dab is the tip's mask at that size and angle, times the paper texture, laid by Krita's painting mode: build-up straight on the layer,
 //    or wash into a stroke layer (alpha darken: opacity caps it, flow builds it) that goes on the layer by the preset's composite op.
-// 4. The colour smudge engine (wet painting) takes the paint under the last dab, or its average colour, mixes the paint colour in, and lays that.
+// 4. Two other Krita engines share the dabs: spray (particles of the tip in a circle) and colour smudge, which takes the paint under the last dab, or its
+//    average colour, mixes the paint colour in, and lays that.
 // Not ported (no preset of the families uses them): spikes, Krita's 1-px rim ramp of the gauss tip, fan corners and locked drawing angle,
 // lightness and gradient tip modes, the average-opacity part of alpha darken.
 const KritaBrush = (() => {
@@ -44,7 +45,21 @@ const KritaBrush = (() => {
       mirror: option(f, '', 'Mirror', true), softness: option(f, '', 'Softness', true), spacingOption: option(f, '', 'Spacing', true),
       scatterX: f['Scattering/AxisX'] !== 'false', scatterY: f['Scattering/AxisY'] !== 'false',
       mirrorH: f.HorizontalMirrorEnabled === 'true', mirrorV: f.VerticalMirrorEnabled === 'true',
-      wash: f.paintop !== 'colorsmudge' && (f.PaintOpAction ?? '2') !== '1', compositeOp: f.CompositeOp || 'normal',
+      wash: f.paintop === 'paintbrush' && (f.PaintOpAction ?? '2') !== '1', compositeOp: f.CompositeOp || 'normal',
+      airbrush: f['PaintOpSettings/isAirbrushing'] === 'true' || f['AirbrushOption/isAirbrushing'] === 'true' ? +(f['PaintOpSettings/rate'] ?? f['AirbrushOption/rate'] ?? 50) : 0,
+      rateOption: option(f, '', 'Rate', true),
+      spray: f.paintop !== 'spraybrush' ? null : {  // Krita's spray engine (KisSprayOpOptionData, shape dynamics, colour options); the particle is the brush tip
+        diameter: +f['Spray/diameter'], aspect: +(f['Spray/aspect'] ?? 1), scale: +(f['Spray/scale'] ?? 1), rotation: +(f['Spray/rotation'] ?? 0), spacing: +(f['Spray/spacing'] ?? 0.5),
+        jitter: f['Spray/jitterMovement'] === 'true', jitterAmount: +(f['Spray/jitterMoveAmount'] ?? 1), useDensity: f['Spray/useDensity'] === 'true',
+        coverage: +(f['Spray/coverage'] ?? 0.1), particleCount: +(f['Spray/particleCount'] ?? 1),
+        dyn: { enabled: f['ShapeDynamics/enabled'] === 'true', fixedRotation: f['ShapeDynamics/fixedRotation'] === 'true', fixedAngle: +(f['ShapeDynamics/fixedAngle'] ?? 0),
+          randomRotation: f['ShapeDynamics/randomRotation'] === 'true', randomRotationWeight: +(f['ShapeDynamics/randomRotationWeight'] ?? 0),
+          followCursor: f['ShapeDynamics/followCursor'] === 'true', followCursorWeight: +(f['ShapeDynamics/followCursorWeigth'] ?? 0),
+          followDrawingAngle: f['ShapeDynamics/followDrawingAngle'] === 'true', followDrawingAngleWeight: +(f['ShapeDynamics/followDrawingAngleWeigth'] ?? 0),
+          randomSize: f['ShapeDynamics/randomSize'] === 'true' },
+        col: { colorPerParticle: f['ColorOption/colorPerParticle'] === 'true', useRandomHSV: f['ColorOption/useRandomHSV'] === 'true', useRandomOpacity: f['ColorOption/useRandomOpacity'] === 'true',
+          hue: +(f['ColorOption/hue'] ?? 0), saturation: +(f['ColorOption/saturation'] ?? 0), value: +(f['ColorOption/value'] ?? 0) },
+      },
       smudge: f.paintop !== 'colorsmudge' ? null : {  // Krita's colour smudge (legacy engine): smear or dull, then the paint colour by its rate
         mode: +(f.SmudgeRateMode ?? 0), smearAlpha: f.SmudgeRateSmearAlpha !== 'false', rate: option(f, '', 'SmudgeRate', true), colorRate: option(f, '', 'ColorRate', true),
         radius: (o => { if (+(f.SmudgeRadiusVersion ?? 1) < 2) o.value /= 100; return o; })(option(f, '', 'SmudgeRadius', true)),
@@ -164,6 +179,15 @@ const KritaBrush = (() => {
       return 1 - Math.floor(255 * n * (nf - 1) / (nf - n)) / 255;
     };
   }
+  function hslShift(c, dh, ds, dl) {  // KisHSVAdjustment, HSL in compatibility mode: hue turned, saturation scaled, lightness towards white
+    const [r, g, b] = c.map(v => v / 255), M = Math.max(r, g, b), m = Math.min(r, g, b);
+    let l = (M + m) / 2, sat = M === m ? 0 : (l > 0.5 ? (M - m) / (2 - M - m) : (M - m) / (M + m)), h = 0;
+    if (M !== m) h = 60 * (M === r ? (g - b) / (M - m) + (g < b ? 6 : 0) : M === g ? (b - r) / (M - m) + 2 : (r - g) / (M - m) + 4);
+    h = wrap(h + dh * 180, 0, 360); sat = Math.min(1, sat * (ds + 1)); l = dl < 0 ? l * (dl + 1) : l + dl * (1 - l);
+    const q = l < 0.5 ? l * (1 + sat) : l + sat - l * sat, p = 2 * l - q;
+    const f = t => { t = wrap(t, 0, 1); return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+    return [f(h / 360 + 1 / 3), f(h / 360), f(h / 360 - 1 / 3)].map(v => v * 255);
+  }
   function halton(i, base) { let f = 1, r = 0; while (i > 0) { f /= base; r += f * (i % base); i = Math.floor(i / base); } return r; }
   function erf(x) {  // Abramowitz-Stegun 7.1.26 (Krita uses the C library's erf)
     const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x);
@@ -243,10 +267,11 @@ const KritaBrush = (() => {
 
     function shapeOf() {  // KisDabShape: size, ratio and rotation of this dab
       const scale = sizeLike(s.size, ctx), ratio = sizeLike(s.ratioOption, ctx), rot = rotationOf(s.rotation, ctx);
-      const [bw, bh] = pic ? [pic.cells[0].w * s.scale, pic.cells[0].h * s.scale] : [s.diameter, s.diameter * s.ratio];
+      const [bw, bh] = baseSize();
       return { scale, ratio, rot, w: bw * scale, h: bh * scale * ratio };
     }
-    function spacingOf(d) {  // KisPaintOpUtils::effectiveSpacing
+    function spacingOf(d) {  // KisPaintOpUtils::effectiveSpacing (spray: half its diameter times its spacing, the same every way)
+      if (s.spray) { const v = s.spray.diameter / 2 > 1 ? s.spray.diameter / 2 * s.spray.spacing : 1; return { x: v, y: v, rot: 0 }; }
       const auto = v => s.autoSpacingCoeff * (v < 1 ? v : Math.sqrt(v)), extra = s.spacingOption.on ? sizeLike(s.spacingOption, ctx) : 1;
       const xy = (s.isotropic ? [Math.max(d.w, d.h), Math.max(d.w, d.h)] : [d.w, d.h]).map(v => (s.useAutoSpacing ? auto(v) : v * s.spacing) * extra);
       return { x: Math.max(0.5, xy[0]), y: Math.max(0.5, xy[1]), rot: s.isotropic ? 0 : d.rot };
@@ -257,7 +282,26 @@ const KritaBrush = (() => {
       for (let k = 0; k < 3; k++) D[i + k] = Math.round((c[k] * a + D[i + k] * da * (1 - a)) / oa);
       D[i + 3] = Math.round(oa * 255);
     }
+    function tipOf(d, mx, my) {  // the tip's mask at this dab's shape: tipAt(u, v) from the dab's centre gives [mask, picture colour or null]
+      const ang = d.rot + s.angle, ca = Math.cos(ang), sa = Math.sin(ang);
+      if (pic) {
+        const t = pic.cells[pic.selection === 'incremental' ? cell++ % pic.cells.length : Math.floor(Math.random() * pic.cells.length)];
+        const sx = s.scale * d.scale, sy = s.scale * d.scale * d.ratio;
+        return (u, v) => sample(t, (ca * u - sa * v) * mx / sx + t.w / 2, (sa * u + ca * v) * my / sy + t.h / 2);
+      }
+      const m = autoMask(s, d.w, d.h, s.softness.on ? sizeLike(s.softness, ctx) : 1), ss = s.antialias && (d.w < 10 || d.h < 10) ? (d.w < 1 || d.h < 1 ? 6 : 3) : 1;
+      return (u, v) => {  // KisBrushMaskScalarApplicator: supersampled when small, then randomness and density
+        let sum = 0;
+        for (let i = 0; i < ss; i++) for (let j = 0; j < ss; j++) { const a = u + (i + 0.5) / ss - 0.5, b = v + (j + 0.5) / ss - 0.5; sum += m((ca * a - sa * b) * mx, (sa * a + ca * b) * my); }
+        let val = sum / (ss * ss);
+        if (s.randomness) val *= (1 - s.randomness) + s.randomness * Math.random();
+        if (s.density < 1 && val > 0 && !(s.density >= Math.random())) val = 0;
+        return [val, null];
+      };
+    }
+    function baseSize() { return pic ? [pic.cells[0].w * s.scale, pic.cells[0].h * s.scale] : [s.diameter, s.diameter * s.ratio]; }
     function dab(x, y) {
+      if (s.spray) return sprayDab(x, y);
       const d = shapeOf(); if (d.w < 0.01 || d.h < 0.01) return d;
       if (s.scatter.on && (s.scatterX || s.scatterY)) {  // KisScatterOption: jitter by the dab's larger side
         const dia = Math.max(d.w, d.h), v = sizeLike(s.scatter, ctx), j = () => (2 * Math.random() - 1) * dia * v;
@@ -267,23 +311,7 @@ const KritaBrush = (() => {
       let mx = 1, my = 1;  // KisMirrorOption: flip when its value reaches a half
       if (s.mirror.on && sizeLike(s.mirror, ctx) >= 0.5) { if (s.mirrorH) mx = -1; if (s.mirrorV) my = -1; }
       const flow = sizeLike(s.flow, ctx), opacity = sizeLike(s.opacity, ctx, !s.wash), strength = tex ? sizeLike(s.texture.strength, ctx) : 0;
-      const ang = d.rot + s.angle, ca = Math.cos(ang), sa = Math.sin(ang);
-      let tipAt;
-      if (pic) {
-        const t = pic.cells[pic.selection === 'incremental' ? cell++ % pic.cells.length : Math.floor(Math.random() * pic.cells.length)];
-        const sx = s.scale * d.scale, sy = s.scale * d.scale * d.ratio;
-        tipAt = (u, v) => sample(t, (ca * u - sa * v) * mx / sx + t.w / 2, (sa * u + ca * v) * my / sy + t.h / 2);
-      } else {
-        const m = autoMask(s, d.w, d.h, s.softness.on ? sizeLike(s.softness, ctx) : 1), ss = s.antialias && (d.w < 10 || d.h < 10) ? (d.w < 1 || d.h < 1 ? 6 : 3) : 1;
-        tipAt = (u, v) => {  // KisBrushMaskScalarApplicator: supersampled when small, then randomness and density
-          let sum = 0;
-          for (let i = 0; i < ss; i++) for (let j = 0; j < ss; j++) { const a = u + (i + 0.5) / ss - 0.5, b = v + (j + 0.5) / ss - 0.5; sum += m((ca * a - sa * b) * mx, (sa * a + ca * b) * my); }
-          let val = sum / (ss * ss);
-          if (s.randomness) val *= (1 - s.randomness) + s.randomness * Math.random();
-          if (s.density < 1 && val > 0 && !(s.density >= Math.random())) val = 0;
-          return [val, null];
-        };
-      }
+      const tipAt = tipOf(d, mx, my);
       const R = Math.ceil(Math.hypot(d.w, d.h) / 2) + 1, x0 = Math.max(0, Math.floor(x - R)), x1 = Math.min(W - 1, Math.ceil(x + R)), y0 = Math.max(0, Math.floor(y - R)), y1 = Math.min(H - 1, Math.ceil(y + R));
       const maskAt = (px, py) => {  // the tip, then the paper pattern by multiply or subtract with the texture's strength (soft texturing off)
         const r = tipAt(px + 0.5 - x, py + 0.5 - y);
@@ -306,6 +334,49 @@ const KritaBrush = (() => {
       }
       dirty[0] = Math.min(dirty[0], x0); dirty[1] = Math.min(dirty[1], y0); dirty[2] = Math.max(dirty[2], x1); dirty[3] = Math.max(dirty[3], y1);
       return d;
+    }
+    // SprayBrush::paint: particles at random places in a circle, each the tip at a random size, coloured once a dab (or per particle) with random
+    // hue, saturation, lightness and opacity; they are gathered on a dab layer that goes on the paper at the opacity option.
+    function sprayDab(x, y) {
+      const sp = s.spray, radius = sp.diameter / 2 * sizeLike(s.size, ctx), opacity = sizeLike(s.opacity, ctx);
+      if (sp.jitter) { x += (2 * radius * Math.random() - radius) * sp.jitterAmount; y += (2 * radius * Math.random() - radius) * sp.jitterAmount; }
+      const n = sp.useDensity ? Math.floor(sp.coverage * Math.PI * radius * radius) : sp.particleCount;
+      const rot = -rotationOf(s.rotation, ctx) + sp.rotation * Math.PI / 180, cr = Math.cos(rot), sr = Math.sin(rot);
+      const [bw, bh] = baseSize(), R = Math.ceil(radius * Math.max(1, sp.aspect) * sp.scale + Math.hypot(bw, bh) / 2) + 2;
+      const x0 = Math.max(0, Math.floor(x - R)), x1 = Math.min(W - 1, Math.ceil(x + R)), y0 = Math.max(0, Math.floor(y - R)), y1 = Math.min(H - 1, Math.ceil(y + R));
+      if (x1 < x0 || y1 < y0) return null;
+      const w = x1 - x0 + 1, buf = new Float32Array(w * (y1 - y0 + 1) * 4);
+      let ink = color, inkA = 1;
+      for (let k = 0; k < n; k++) {
+        const ang = Math.random() * TAU, len = Math.random();
+        let rz = 0, ps = 1;
+        if (sp.dyn.enabled) {
+          if (sp.dyn.fixedRotation) rz = sp.dyn.fixedAngle * Math.PI / 180;
+          if (sp.dyn.randomRotation) rz += (TAU * Math.random() - rz) * sp.dyn.randomRotationWeight;
+          if (sp.dyn.followCursor) rz += (ang - rz) * sp.dyn.followCursorWeight;
+          if (sp.dyn.followDrawingAngle) rz += (ctx.angle - rz) * sp.dyn.followDrawingAngleWeight;
+          if (sp.dyn.randomSize) ps = Math.random();
+        }
+        let nx = radius * Math.cos(ang) * len, ny = radius * Math.sin(ang) * len * sp.aspect;
+        [nx, ny] = [(cr * nx - sr * ny) * sp.scale, (sr * nx + cr * ny) * sp.scale];
+        if (k === 0 || sp.col.colorPerParticle) {
+          ink = color; inkA = 1;
+          if (sp.col.useRandomHSV) ink = hslShift(ink, sp.col.hue / 180 * Math.random(), sp.col.saturation / 100 * Math.random(), sp.col.value / 100 * Math.random());
+          if (sp.col.useRandomOpacity) inkA = Math.random();
+        }
+        const d = { scale: ps, ratio: 1, rot: -rz, w: bw * ps, h: bh * ps }, tipAt = tipOf(d, 1, 1), px0 = x + nx, py0 = y + ny, r = Math.ceil(Math.hypot(d.w, d.h) / 2) + 1;
+        for (let py = Math.max(y0, Math.floor(py0 - r)); py <= Math.min(y1, Math.ceil(py0 + r)); py++) for (let px = Math.max(x0, Math.floor(px0 - r)); px <= Math.min(x1, Math.ceil(px0 + r)); px++) {
+          const [m, rgb] = tipAt(px + 0.5 - px0, py + 0.5 - py0), a = m * inkA; if (a <= 0) continue;
+          const i = ((py - y0) * w + px - x0) * 4, c = rgb || ink, da = buf[i + 3], oa = a + da * (1 - a);
+          for (let j = 0; j < 3; j++) buf[i + j] = (c[j] * a + buf[i + j] * da * (1 - a)) / oa;
+          buf[i + 3] = oa;
+        }
+      }
+      for (let py = y0; py <= y1; py++) for (let px = x0; px <= x1; px++) {
+        const i = ((py - y0) * w + px - x0) * 4; if (buf[i + 3] > 0) lay(L, (py * W + px) * 4, buf[i + 3] * opacity, [buf[i], buf[i + 1], buf[i + 2]]);
+      }
+      dirty[0] = Math.min(dirty[0], x0); dirty[1] = Math.min(dirty[1], y0); dirty[2] = Math.max(dirty[2], x1); dirty[3] = Math.max(dirty[3], y1);
+      return null;
     }
     // KisColorSmudgeOp::paintAt with KisColorSmudgeStrategyMaskLegacy: the paint under the last dab (smearing) or its average colour (dulling),
     // the paint colour laid over it by the colour rate, then put down through the dab's mask at smudge rate times opacity.
@@ -340,7 +411,8 @@ const KritaBrush = (() => {
         else lay(L, i, a * blend[j + 3] / 255, [blend[j], blend[j + 1], blend[j + 2]]);
       }
     }
-    function place(x, y) { sp = spacingOf(dab(x, y)); acc = [0, 0]; }
+    let lastDabAt = 0;
+    function place(x, y) { sp = spacingOf(dab(x, y)); acc = [0, 0]; lastDabAt = performance.now(); }
     const washRGB = i => [wash.rgb[i * 3], wash.rgb[i * 3 + 1], wash.rgb[i * 3 + 2]];
     return {
       to(x, y, pen) {  // pen: pressure, tiltX, tiltY
@@ -359,6 +431,12 @@ const KritaBrush = (() => {
           x0 += (x - x0) * t; y0 += (y - y0) * t; place(x0, y0);
         }
         last = [x, y];
+      },
+      tick() {  // the airbrush: with the finger held still, a dab each 1/rate second (KisPaintOpPluginUtils::effectiveTiming)
+        if (!s.airbrush || !last) return;
+        const now = performance.now(), every = 1000 / s.airbrush / Math.max(1e-6, sizeLike(s.rateOption, ctx));
+        ctx.time = now - t0;
+        if (now - lastDabAt >= every) place(last[0], last[1]);
       },
       shown(view) {  // what the paper shows in the box changed since last time: the layer with the stroke layer on it; returns the box
         const [x0, y0, x1, y1] = dirty; if (x1 < 0) return null;
