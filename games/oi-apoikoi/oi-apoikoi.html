@@ -680,6 +680,26 @@ function foamAt(i, j, land) {  // the foam where squares (i-1, j-1), (i, j-1), (
 }
 
 // SECTION: SHAPES -- tiles, jars, coins, sets, the token, the hand
+function stoneSlab(x, y, w, h, seed) {  // a cartoon stone slab filling a box (owner 26 Nov: his stone UI pictures): chipped corners, a dark rim, a light bevel, cracks and specks; the same stone every time (seeded)
+  let t = seed * 9973; const rnd = () => ((t = (t * 16807) % 2147483647) / 2147483647);
+  const m = 6, x0 = x + m, y0 = y + m, x1 = x + w - m, y1 = y + h - m, pts = [];
+  const edge = (ax, ay, bx, by) => { const n = Math.max(2, Math.round(Math.hypot(bx - ax, by - ay) / 40)); for (let k = 0; k < n; k++) { const f = k / n; pts.push([ax + (bx - ax) * f + (rnd() - 0.5) * 3, ay + (by - ay) * f + (rnd() - 0.5) * 3]); } };
+  const ch = () => 8 + rnd() * 14;  // each corner chipped off by its own amount
+  const [a, b, c, d] = [ch(), ch(), ch(), ch()];
+  edge(x0 + a, y0, x1 - b, y0); edge(x1 - b, y0, x1, y0 + b); edge(x1, y0 + b, x1, y1 - c); edge(x1, y1 - c, x1 - c, y1); edge(x1 - c, y1, x0 + d, y1); edge(x0 + d, y1, x0, y1 - d); edge(x0, y1 - d, x0, y0 + a); edge(x0, y0 + a, x0 + a, y0);
+  const path = (dx = 0, dy = 0) => { cx.beginPath(); pts.forEach(([px, py]) => cx.lineTo(px + dx, py + dy)); cx.closePath(); };
+  path(0, 5); cx.fillStyle = '#3d3646'; cx.fill();  // its dark underside
+  const g = cx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, '#9a91a6'); g.addColorStop(1, '#756c82'); path(); cx.fillStyle = g; cx.fill();
+  cx.save(); path(); cx.clip();
+  path(2, 2); cx.strokeStyle = '#c3bccc'; cx.lineWidth = 3; cx.stroke();  // the bevel's light top edge
+  for (let k = 0; k < (w * h) / 900; k++) { cx.globalAlpha = 0.25; dot(x0 + rnd() * (x1 - x0), y0 + rnd() * (y1 - y0), 1 + rnd() * 3, rnd() < 0.5 ? '#5d5568' : '#b0a8bb'); }
+  cx.globalAlpha = 1; cx.strokeStyle = '#4b4456'; cx.lineWidth = 1.5; cx.lineCap = 'round';
+  for (let k = 0; k < 4; k++) {  // cracks, each from an edge a little way in
+    let px = x0 + rnd() * (x1 - x0), py = rnd() < 0.5 ? y0 : y1, dir = py === y0 ? 1 : -1; cx.beginPath(); cx.moveTo(px, py);
+    for (let s = 0; s < 4; s++) { px += (rnd() - 0.5) * 30; py += dir * (8 + rnd() * 16); cx.lineTo(px, py); } cx.stroke();
+  }
+  cx.restore(); cx.lineCap = 'butt'; path(); cx.strokeStyle = '#3d3646'; cx.lineWidth = 3; cx.stroke();  // the dark rim
+}
 function rrect(x, y, w, h, r, fill, stroke, lw) {
   cx.beginPath(); cx.roundRect(x, y, w, h, r);
   if (fill) { cx.fillStyle = fill; cx.fill(); }
@@ -872,6 +892,7 @@ function areaShapes(i) {  // player i's area under his things: its tint (lit whe
     outline(); cx.fillStyle = own ? (lit ? TINT[i] : '#efe6d4') : TIP_GREY; cx.fill();
     if (own && !lit) { outline(); cx.fillStyle = 'rgba(120,110,95,0.38)'; cx.fill(); }
     outline(); cx.strokeStyle = own && lit ? BORDER[i] + '99' : '#00000033'; cx.lineWidth = 2; cx.stroke();
+    if (kind === 'materials') { const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]); stoneSlab(Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), 7 + i); }  // owner 26 Nov: a stone look, tried on the materials first
     out.push({ k: 'area', o: i, kind, pts });
   }
   for (const c of COLOUR_IDS) for (let k = 0; k < JAR_GOODS; k++) { const [x, y] = placeAt(c, k); dot(x, y, r, '#00000014'); out.push({ k: 'place', o: i, c, x, y, r }); }
