@@ -22,13 +22,15 @@ body{margin:0;font:14px system-ui,sans-serif;background:#ddd;color:#222;padding:
 /*%BRUSH_CORE%*/
 // SECTION: PAGE -- Krita's presets beside Krita's picture; a paper to paint on, colours, the everyday settings (owner 26 Nov, experiments/README.md)
 const FAMILIES = /*%FAMILIES%*/[];
-const ASSETS = /*%ASSETS%*/{};  // tips and textures the presets name: file name -> data URL
+const ASSETS = /*%ASSETS%*/{};
+const MIXBOX_LUT = /*%MIXBOX_LUT%*/'';  // Mixbox's table as RGB bytes, gzipped (../lib/mixbox, CC BY-NC 4.0)  // tips and textures the presets name: file name -> data URL
 const LAYER_GREY = [150, 150, 150];  // what the erasers take away: an even grey, so the checkerboard shows where the paper is erased
 const cv = document.getElementById('paper'), g = cv.getContext('2d');
 let layer, view, brush, chosen, strength = 1, assets = {};
 
 // SECTION: ASSETS -- tips and textures decoded once: pictures (png, svg) to pixels, GIMP brushes (gbr, gih) read by the core
 async function loadAssets() {
+  KritaBrush.useMixbox(new Uint8Array(await new Response((await fetch('data:application/gzip;base64,' + MIXBOX_LUT)).body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()));
   for (const [name, url] of Object.entries(ASSETS)) {
     if (/\.(gbr|gih)$/.test(name)) { const b = new Uint8Array(await new Response((await fetch(url)).body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()); assets[name] = name.endsWith('.gih') ? { gih: KritaBrush.readGih(b) } : { gbr: KritaBrush.readGbr(b) }; continue; }
     const img = new Image(); img.src = url; await img.decode();
@@ -138,5 +140,6 @@ window.__kb = {
   curve: n => brush[n].raw[0].curve.split(';').filter(Boolean).map(p => p.split(',').map(Number)),
   screenOf: (x, y) => { const r = cv.getBoundingClientRect(); return [r.left + x, r.top + y]; },
   alpha: (x, y) => layer.data[(Math.round(y) * cv.width + Math.round(x)) * 4 + 3] / 255,
+  color: (x, y) => { const i = (Math.round(y) * cv.width + Math.round(x)) * 4; return [layer.data[i], layer.data[i + 1], layer.data[i + 2]]; },
 };
 </script></body></html>

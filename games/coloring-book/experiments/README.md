@@ -35,7 +35,7 @@ Order: Eraser, Markers, Pencils, Chalk/Pastel, Dry Painting, Dry Textured, Stamp
 |---|---|
 | `brushes.html` | **The brushes page.** Built by `build.py`; never edit it by hand. A button per family, then its presets; Krita's picture of the chosen preset, a paper to paint on (grey or white), colours, and the everyday settings with "Like the picture". |
 | `build.py` | Inlines the core, each family's presets, its Krita picture (where each preset's strip is in it) and the tips and textures the presets name into `brushes.html`. The game's `build.py` runs it. |
-| `src/brush-core.js` | The shared core, ported from Krita's code: the freehand tool's basic smoothing, dab spacing and airbrush timing, fan corners, the pixel brush (Krita's mask generators and image pyramid, sub-pixel dabs and the dab cache's precision, sensors and curves, rotation, ratio, scatter, mirror, softness, textures, build-up and wash with average opacity, erase, masking brush), the colour smudge engine (legacy mask strategy) and the spray engine (its distributions). |
+| `src/brush-core.js` | The shared core, ported from Krita's code: the freehand tool's basic smoothing, dab spacing and airbrush timing, fan corners, the pixel brush (Krita's mask generators and image pyramid, sub-pixel dabs and the dab cache's precision, sensors and curves, rotation, ratio, scatter, mirror, softness, textures, build-up and wash with average opacity, erase, masking brush), the colour smudge engine (legacy mask strategy, its colours mixed as pigment through Mixbox instead of Krita's RGB) and the spray engine (its distributions). |
 | `src/brushes.html` | The brushes page's source. |
 | `krita/presets/` | Every preset of the families above, read from Krita's bundle: one setting per line (`name = value`; pressure curves on one line as `x,y;` points). |
 | `krita/tips/` | The brush tips the presets name (Krita `.gbr`, `.gih` animated tips, `.png`, `.svg`). |
@@ -46,7 +46,7 @@ Order: Eraser, Markers, Pencils, Chalk/Pastel, Dry Painting, Dry Textured, Stamp
 | `tools/kpp.py` | Reads Krita presets (`.kpp`) into `krita/presets/`, `krita/tips/`, `krita/patterns/`. |
 | `tools/get_krita.sh` | Fetches Krita's source (GPL) for the brush engines and the preset bundle, at the commit these presets come from, into the temp folder. |
 
-Tests: the `kb_` flows in `../tools/flows.py` (section KRITA BRUSHES).
+Tests: the `kb_` flows in `../tools/flows.py` (section KRITA BRUSHES): presets' numbers, eraser strokes, settings, wet mixing, long strokes with every brush (time and memory).
 
 To read the presets again: `sh tools/get_krita.sh`, unzip `krita/data/bundles/Krita_4_Default_Resources.bundle` from it into a folder, then `python3 tools/kpp.py <folder>/paintoppresets/<presets>.kpp --out krita/presets --bundle <folder>`.
 

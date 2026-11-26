@@ -491,6 +491,37 @@ const KritaBrush = (() => {
     }
   }
 
+  // SECTION: MIXING -- wet paint mixes like real pigment (Mixbox, ../lib/mixbox, CC BY-NC 4.0, Secret Weapons; the rule for these pages, ../README.md How we work 6),
+  // where Krita mixes RGB (blue and yellow make grey there, green here). Ported from mixbox.glsl: a colour's latent is its pigment amounts (from the table) and what they miss.
+  let LUT = null, LUT_FLIP = false;  // the table: 512 x 512 RGB bytes, 64 blue slices of 64 x 64 (red, green) in 8 x 8 tiles
+  function useMixbox(rgb) { LUT = rgb; LUT_FLIP = rgb[2] < 0.1 * 255; }  // mixbox_rgb_to_latent's check of the table's first texel
+  const MB = [[.07717053, .02826978, .24832992], [.95912302, .80256528, .03561839], [.74683774, .04868586, 0], [.99518138, .99978149, .99704802], [.04819146, .83363781, .32515377],
+    [-.68146950, 1.46107803, 1.06980936], [.27058419, -.15324870, 1.98735057], [.80478189, .67093710, .18424500], [-.35031003, 1.37855826, 3.68865000], [1.05128046, 1.97815239, 2.82989073],
+    [3.21607125, .81270228, 1.03384539], [2.78893374, .41565549, -.04487295], [3.02162577, 2.55374103, .32766114], [2.95124691, 2.81201112, 1.17578442], [2.82677043, .79933038, 1.81715262],
+    [2.99691099, 1.22593053, 1.80653661], [1.87394106, 2.05027182, -.29835996], [2.56609566, 7.03428198, .62575374], [4.08329484, -1.40408358, 2.14995522], [6.00078678, 2.55552042, 1.90739502]];
+  function poly(c0, c1, c2, out) {  // mixbox_eval_polynomial
+    const c3 = 1 - (c0 + c1 + c2), w = [c0 * c0 * c0, c1 * c1 * c1, c2 * c2 * c2, c3 * c3 * c3, c0 * c0 * c1, c0 * c1 * c1, c0 * c0 * c2, c0 * c2 * c2, c0 * c0 * c3, c0 * c3 * c3,
+      c1 * c1 * c2, c1 * c2 * c2, c1 * c1 * c3, c1 * c3 * c3, c2 * c2 * c3, c2 * c3 * c3, c0 * c1 * c2, c0 * c1 * c3, c0 * c2 * c3, c1 * c2 * c3];
+    out[0] = out[1] = out[2] = 0; for (let i = 0; i < 20; i++) for (let k = 0; k < 3; k++) out[k] += w[i] * MB[i][k];
+  }
+  function texel(x, y, z, k) { const tx = (z % 8) * 64 + Math.min(63, x), ty = Math.floor(z / 8) * 64 + Math.min(63, y); return LUT[((LUT_FLIP ? 511 - ty : ty) * 512 + tx) * 3 + k] / 255; }
+  const P3 = [0, 0, 0];
+  function toLatent(rgb, L, o) {  // mixbox_rgb_to_latent into L[o..o+5]: the table's pigments (bilinear in red and green, linear in blue), then the rest
+    const x = Math.min(1, Math.max(0, rgb[0])) * 63, y = Math.min(1, Math.max(0, rgb[1])) * 63, z = Math.min(1, Math.max(0, rgb[2])) * 63;
+    const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z), fx = x - ix, fy = y - iy, fz = z - iz;
+    for (let k = 0; k < 3; k++) {
+      const slice = zz => (texel(ix, iy, zz, k) * (1 - fx) + texel(ix + 1, iy, zz, k) * fx) * (1 - fy) + (texel(ix, iy + 1, zz, k) * (1 - fx) + texel(ix + 1, iy + 1, zz, k) * fx) * fy;
+      L[o + k] = fz > 0 ? slice(iz) * (1 - fz) + slice(Math.min(63, iz + 1)) * fz : slice(iz);
+    }
+    poly(L[o], L[o + 1], L[o + 2], P3); for (let k = 0; k < 3; k++) L[o + 3 + k] = Math.min(1, Math.max(0, rgb[k])) - P3[k];
+  }
+  const LA = new Float64Array(6), LB = new Float64Array(6);
+  function mixInto(dst, src, t) {  // mixbox_lerp: dst's colour (0..1) becomes t of the way to src's, as pigments mix
+    if (t <= 0) return; if (t >= 1 || !LUT) { for (let k = 0; k < 3; k++) dst[k] += (src[k] - dst[k]) * Math.min(1, t); return; }
+    toLatent(dst, LA, 0); toLatent(src, LB, 0); for (let i = 0; i < 6; i++) LA[i] += (LB[i] - LA[i]) * t;
+    poly(LA[0], LA[1], LA[2], P3); for (let k = 0; k < 3; k++) dst[k] = Math.min(1, Math.max(0, P3[k] + LA[3 + k]));
+  }
+
   // SECTION: PAINT OPS -- what one dab does: the brush op (KisBrushOp), the spray op (KisSprayPaintOp, SprayBrush), the colour smudge op (KisColorSmudgeOp, legacy mask strategy)
   function spacingOf(s, brush, scale, rot, info) {  // KisPaintOpPluginUtils::effectiveSpacing; the dab's ratio and turn do not count, the spacing's turn does
     const extra = s.spacing.on ? sizeLike(s.spacing, info) : 1, [w, h] = brush.characteristic(scale, 1, 0), t = s.tip;
@@ -618,8 +649,8 @@ const KritaBrush = (() => {
     const paint = target.color.map(v => v / 255);
     let lastCenter = null;
     const read = (X, Y, o) => { if (X < 0 || Y < 0 || X >= W || Y >= H) { o[0] = o[1] = o[2] = o[3] = 0; return o; } const i = (Y * W + X) * 4; o[0] = P[i]; o[1] = P[i + 1]; o[2] = P[i + 2]; o[3] = P[i + 3]; return o; };
-    const overF = (dst, src, sa) => { if (sa <= 0) return; const da = dst[3]; if (da >= 1) { for (let k = 0; k < 3; k++) dst[k] += (src[k] - dst[k]) * sa; return; }
-      if (da <= 0) { dst[0] = src[0]; dst[1] = src[1]; dst[2] = src[2]; dst[3] = sa; return; } const na = da + (1 - da) * sa, b = sa / na; dst[3] = na; for (let k = 0; k < 3; k++) dst[k] += (src[k] - dst[k]) * b; };
+    const overF = (dst, src, sa) => { if (sa <= 0) return; const da = dst[3]; if (da >= 1) { mixInto(dst, src, sa); return; }
+      if (da <= 0) { dst[0] = src[0]; dst[1] = src[1]; dst[2] = src[2]; dst[3] = sa; return; } const na = da + (1 - da) * sa; dst[3] = na; mixInto(dst, src, sa / na); };
     function dullingColor(rect, radius) {  // KisColorSmudgeSampleUtils::sampleColor with AveragedSampleWrapper (Halton points, until the colour settles)
       const cx = rect.x + ((rect.w - 1) >> 1), cy = rect.y + ((rect.h - 1) >> 1);
       let r = { x: cx, y: cy, w: 1, h: 1 };
@@ -668,7 +699,7 @@ const KritaBrush = (() => {
           if (sm.smearAlpha) {  // KoCompositeOpCopy2
             const da = P[o + 3], na = da + (b[3] - da) * m;
             if (m >= 1) { P[o] = b[0]; P[o + 1] = b[1]; P[o + 2] = b[2]; P[o + 3] = b[3]; }
-            else if (na > 0) { for (let k = 0; k < 3; k++) P[o + k] = Math.min(1, (P[o + k] * da + (b[k] * b[3] - P[o + k] * da) * m) / na); P[o + 3] = na; }
+            else if (na > 0) { const dst = P.subarray(o, o + 3); mixInto(dst, b, b[3] * m / na); P[o + 3] = na; }  // the premultiplied lerp's colour share, mixed as pigment
             else P[o + 3] = 0;
           } else { const dst = P.subarray(o, o + 4); overF(dst, b, b[3] * m); }
           for (let k = 0; k < 4; k++) D[o + k] = Math.round(P[o + k] * 255);
@@ -853,5 +884,5 @@ const KritaBrush = (() => {
       if (a) layOn(D, i, [strokeLayer[i], strokeLayer[i + 1], strokeLayer[i + 2]], a, u8(s.opacity.value), s.compositeOp);
     }
   }
-  return { fromPreset, stroke, readGbr, readGih };
+  return { fromPreset, stroke, readGbr, readGih, useMixbox };
 })();

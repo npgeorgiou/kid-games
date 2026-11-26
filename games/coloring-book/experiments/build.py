@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build src/brushes.html into one self-contained brushes.html (the brushes page): inlines src/brush-core.js,
-each family's Krita presets (krita/presets/) and its Krita reference picture (references/krita/)."""
-import base64, gzip, json, pathlib, re, struct
+each family's Krita presets (krita/presets/), its Krita reference picture (references/krita/) and Mixbox's table (../lib/mixbox, CC BY-NC 4.0)."""
+import base64, gzip, json, pathlib, re, struct, zlib
 here = pathlib.Path(__file__).resolve().parent
 FAMILIES = [  # the families built so far, in the README's order: name, Krita's picture, its zoom to Krita's scale, the presets in the picture's order,
     # where the first preset's strip starts (x, y) and the step down to the next one, all in the picture's own pixels
@@ -30,7 +30,24 @@ for fam in fams:
         for name in re.findall(r'filename="([^"]+)"', p['text']) + re.findall(r'^Texture/Pattern/Name = (.+)$', p['text'], re.M):
             f = here / 'krita' / ('patterns' if name in re.findall(r'^Texture/Pattern/Name = (.+)$', p['text'], re.M) else 'tips') / name
             assets[name] = data_url(f)
+def png_rgb(f):  # an 8-bit RGB or RGBA png's RGB bytes, read raw (through a canvas the colours spoil where alpha is low)
+    b = f.read_bytes(); w, h, depth, kind = struct.unpack('>IIBB', b[16:26]); n = {2: 3, 6: 4}[kind]; assert depth == 8
+    data, i = b'', 8
+    while i < len(b):
+        size, tag = struct.unpack('>I4s', b[i:i + 8]); data += b[i + 8:i + 8 + size] if tag == b'IDAT' else b''; i += 12 + size
+    raw, out, prev, stride = zlib.decompress(data), bytearray(), bytearray(w * n), w * n
+    for y in range(h):
+        ft, row = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+        for x in range(stride):  # PNG's row filters
+            a, c, up = row[x - n] if x >= n else 0, prev[x - n] if x >= n else 0, prev[x]
+            if ft == 1: row[x] = (row[x] + a) & 255
+            elif ft == 2: row[x] = (row[x] + up) & 255
+            elif ft == 3: row[x] = (row[x] + (a + up) // 2) & 255
+            elif ft == 4: pa, pb, pc = abs(up - c), abs(a - c), abs(a + up - 2 * c); row[x] = (row[x] + (a if pa <= pb and pa <= pc else up if pb <= pc else c)) & 255
+        out += bytes(v for x in range(w) for v in row[x * n:x * n + 3]); prev = row
+    return bytes(out)
+lut = base64.b64encode(gzip.compress(png_rgb(here.parent / 'lib' / 'mixbox' / 'mixbox_lut.png'), 9, mtime=0)).decode()  # Mixbox's table for the wet brushes' mixing
 out = (here / 'src' / 'brushes.html').read_text(encoding='utf-8')
-out = out.replace('/*%BRUSH_CORE%*/', (here / 'src' / 'brush-core.js').read_text(encoding='utf-8')).replace('/*%FAMILIES%*/[]', json.dumps(fams)).replace('/*%ASSETS%*/{}', json.dumps(assets))
+out = out.replace('/*%BRUSH_CORE%*/', (here / 'src' / 'brush-core.js').read_text(encoding='utf-8')).replace('/*%FAMILIES%*/[]', json.dumps(fams)).replace('/*%ASSETS%*/{}', json.dumps(assets)).replace("/*%MIXBOX_LUT%*/''", json.dumps(lut))
 (here / 'brushes.html').write_text(out, encoding='utf-8')
 print('wrote brushes.html', len(out), 'bytes')

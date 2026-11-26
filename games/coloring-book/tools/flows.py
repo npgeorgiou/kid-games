@@ -1232,7 +1232,17 @@ def f_kb_settings(q):  # owner 26 Nov: "bring back the everyday settings (size, 
            'kb_settings a picture tip has no softness; each preset has its own strength', 'softness off: %s' % q.evaluate("()=>document.getElementById('s-softness').disabled"))
 FLOWS['kb_settings'] = f_kb_settings
 
-KB_FLOWS = {'kb_eraser_presets', 'kb_eraser_strokes', 'kb_long_strokes', 'kb_settings'}
+def f_kb_wet_mixing(q):  # owner 26 Nov: "wet painting brushes do not mix colours: they must mix with the paint under them": yellow pulled through blue makes green, as pigments do
+    kb_tap(q, 'f-Wet_painting'); greens = {}                                  # (mixed as light, blue and yellow only make a grey green: its green is never 35 over its red and blue)
+    for pid in kb_presets(q)[[f for f, _ in kb_presets(q)].index('f-Wet_painting')][1]:
+        kb_tap(q, pid); kb_tap(q, 'clear'); kb_tap(q, 'c-1e88e5')
+        for y in (120, 140, 160, 180): kb_stroke(q, [(100 + 6 * i, y) for i in range(100)])
+        kb_tap(q, 'c-fdd835'); kb_stroke(q, [(300 + 30 * math.sin(i / 8), 40 + 4 * i) for i in range(60)])
+        greens[pid[2:]] = q.evaluate("()=>{let n=0;for(let y=100;y<240;y++)for(let x=240;x<360;x++){const c=__kb.color(x,y);if(c[1]-Math.max(c[0],c[2])>50)n++}return n}")
+    report(all(n >= 30 for n in greens.values()), 'kb_wet_mixing every wet brush mixes yellow into blue as green', 'green pixels where yellow crossed blue: %s' % greens)
+FLOWS['kb_wet_mixing'] = f_kb_wet_mixing
+
+KB_FLOWS = {'kb_eraser_presets', 'kb_eraser_strokes', 'kb_long_strokes', 'kb_settings', 'kb_wet_mixing'}
 
 # SECTION: WHOLE GAME -- one run in the order the child meets the game: painting, drawing tools, brush popup, buckets, palettes, picker, undo, stickers, guide, canvas, gallery, delete
 # Every other flow is a short separate test of how a tool looks or behaves, each on its own fresh paper, run at the same time as this one (owner 25 Nov).
