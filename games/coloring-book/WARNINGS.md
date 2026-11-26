@@ -57,3 +57,6 @@
 - trials/acrylic-trial.src.html puts several statements on one line: a // comment anywhere but the line's end swallows the code after it (broke the page three times); build_trial.py now refuses a script that does not parse.
 - Acrylic trial: "never pick up its own fresh paint" is per amount (mine), not per pixel: marking a pixel as this stroke's stopped all pickup after the first step and left the paint under it in place (looked see-through).
 - Acrylic trial: paint laid a step at a time is thin wherever only some steps touch (dry-brush, a fast hand): thin coats must already hide (HIDE), or dry-brush marks look pale and see-through.
+- The similarity test's network is a Caffe model: OpenCV 5 cannot read Caffe; it runs with OpenCV 4 installed into <temp>/cv4.
+- tune.py rebuilds nothing: rebuild the trial before a search, and never change the trial's code while a search runs (its tries would mix two versions).
+- Scenes for his pictures: use his picture's own colours from the more colourful half of each group; the network's first layers mostly compare colour.
