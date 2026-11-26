@@ -87,8 +87,6 @@ Do next, in this order (his words are in the Task list):
 - Krita brushes, his review (26 Nov evening); the port is on branch `krita-brushes-port` (pull request 48, not merged: GitHub runs no checks):
   - Wet painting brushes do not mix colours: they must mix with the paint under them.
   - Tests he cannot run himself: wet brushes mix, the page survives long strokes with every brush, every preset beside its picture; written into WARNINGS.
-  - Full strength makes strokes unlike the pictures: lower it where needed, and give him a setting button that puts each brush in the state its picture shows.
-  - Bring back the everyday settings on the page (size, softness, opacity, flow), not the full number list.
 
 Numbers are his points of 23 Nov; pictures in `owner-shots/2026-11-23-*`. Acrylic and impasto references of 25 Nov: `owner-shots/2026-11-25-acrylic-*`, `owner-shots/2026-11-25-impasto-*`.
 

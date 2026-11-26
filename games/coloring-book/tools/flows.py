@@ -1147,6 +1147,12 @@ def kb_drag(q, a, c):  # a stroke on the test paper from paper point a to c at a
     n = max(1, int(math.dist(a, c) / 9)); q.mouse.move(*s); q.mouse.down()
     for i in range(1, n + 1): q.mouse.move(s[0] + (e[0] - s[0]) * i / n, s[1] + (e[1] - s[1]) * i / n); time.sleep(0.016)
     q.mouse.up(); time.sleep(0.1)
+def kb_slide(q, sid, frac):  # drags a setting's slider knob to frac of the way along it; returns the number it then shows
+    x, y, w, h = q.evaluate("(id)=>__kb.box(id)", 's-' + sid); lo, hi, v = q.evaluate("(id)=>{const r=document.getElementById(id);return [+r.min,+r.max,+r.value]}", 's-' + sid)
+    at = lambda f: x + 8 + (w - 16) * f
+    q.mouse.move(at((v - lo) / (hi - lo)), y + h / 2); q.mouse.down(); q.mouse.move(at(frac), y + h / 2, steps=5); q.mouse.up(); time.sleep(0.05)
+    return float(q.evaluate("(id)=>document.getElementById(id).value", 's-' + sid))
+def kb_strength(name): return float(dict(l.split(' = ') for l in (KB.parent / 'krita' / 'picture-strength.txt').read_text().splitlines() if ' = ' in l and not l.startswith('#'))[name])
 def kb_line(q, x0, y0, dx, dy, n): return q.evaluate("([x,y,dx,dy,n])=>{const o=[];for(let i=0;i<n;i++)o.push(__kb.alpha(x+dx*i,y+dy*i));return o}", [x0, y0, dx, dy, n])
 def kb_cut(q, x, y, half=60, vertical=True):  # the paper's alpha across a stroke, one value per pixel, centred on (x, y)
     return kb_line(q, x, y - half, 0, 1, 2 * half + 1) if vertical else kb_line(q, x - half, y, 1, 0, 2 * half + 1)
@@ -1176,7 +1182,7 @@ def f_kb_eraser_strokes(q):  # owner 26 Nov: Krita's erasers: Circle erases its 
     report(min(circle) < 0.05 and min(far) > 0.99 and 0.5 * d < kb_width(circle) < 1.05 * d, 'kb_eraser_strokes circle', 'centre %.2f, width %d of %g, far %.2f' % (min(circle), kb_width(circle), d, min(far)))
     kb_tap(q, 'p-Eraser_Soft'); kb_drag(q, (100, 220), (400, 220)); soft = kb_cut(q, 250, 220)
     report(min(soft) < 0.05 and kb_soft(soft) > 2 * kb_soft(circle), 'kb_eraser_strokes soft rim', 'rim %d px vs circle %d px' % (kb_soft(soft), kb_soft(circle)))
-    kb_tap(q, 'p-Eraser_Small'); kb_drag(q, (500, 60), (800, 60)); kb_drag(q, (650, 120), (650, 280))
+    kb_tap(q, 'p-Eraser_Small'); kb_slide(q, 'strength', 1); kb_drag(q, (500, 60), (800, 60)); kb_drag(q, (650, 120), (650, 280))  # at full strength, the preset's own size
     d, r = q.evaluate("()=>__kb.value('diameter')"), q.evaluate("()=>__kb.value('ratio')")
     across, along = kb_width(kb_cut(q, 650, 60, 40)), kb_width(kb_cut(q, 650, 200, 40, vertical=False))
     report(abs(across - d * r) <= 3 and abs(along - d) <= 3, 'kb_eraser_strokes small rectangle', 'across a sideways stroke %d (%g), across a downward one %d (%g)' % (across, d * r, along, d))
@@ -1209,7 +1215,24 @@ def f_kb_long_strokes(q):  # owner 26 Nov: "the page crashes the browser tab": e
     report(heaps[-1] - heaps[0] < 100, 'kb_long_strokes memory does not grow brush after brush', 'MB after each family: %s' % [round(h) for h in heaps])
 FLOWS['kb_long_strokes'] = f_kb_long_strokes
 
-KB_FLOWS = {'kb_eraser_presets', 'kb_eraser_strokes', 'kb_long_strokes'}
+def f_kb_settings(q):  # owner 26 Nov: "bring back the everyday settings (size, softness, opacity, flow)" and "a setting that puts each brush in the state its picture shows"
+    kb_tap(q, 'f-Eraser'); kb_tap(q, 'p-Eraser_Circle'); f = kb_file('a)_Eraser_Circle'); d0 = float(kb_tip(f)['diameter'])
+    opened = q.evaluate("()=>[__kb.value('strength'), __kb.value('diameter'), __kb.value('opacity'), __kb.value('flow')]")
+    report(abs(opened[0] - kb_strength('a)_Eraser_Circle')) < 1e-6 and abs(opened[1] - d0) < 1e-6, 'kb_settings a brush opens at its own numbers and its picture\'s strength', 'strength, size, opacity, flow: %s' % opened)
+    size = kb_slide(q, 'size', 0.1); kb_tap(q, 'clear'); kb_drag(q, (100, 80), (400, 80)); w = kb_width(kb_cut(q, 250, 80))
+    report(abs(q.evaluate("()=>__kb.value('diameter')") - size) < 1e-6 and size < d0 and 0.5 * size < w < 1.05 * size + 2, 'kb_settings size changes how wide the brush paints', 'size %g, erased %d px' % (size, w))
+    soft = kb_slide(q, 'softness', 0.9); op = kb_slide(q, 'opacity', 0.3); fl = kb_slide(q, 'flow', 0.3); st = kb_slide(q, 'strength', 0.3)
+    got = q.evaluate("()=>[__kb.value('hfade'), __kb.value('opacity'), __kb.value('flow'), __kb.value('strength')]")
+    report(abs(got[0] - (1 - soft / 100)) < 1e-6 and abs(got[1] - op / 100) < 1e-6 and abs(got[2] - fl / 100) < 1e-6 and abs(got[3] - st / 100) < 1e-6,
+           'kb_settings softness, opacity, flow and strength change the brush', 'set %s, brush has fade, opacity, flow, strength %s' % ([soft, op, fl, st], got))
+    kb_tap(q, 'like'); back = q.evaluate("()=>[__kb.value('strength'), __kb.value('diameter'), __kb.value('opacity'), __kb.value('flow'), __kb.value('hfade')]")
+    report(back[:4] == opened and abs(back[4] - float(kb_tip(f)['hfade'])) < 1e-6, 'kb_settings "Like the picture" puts the brush back as its picture shows', 'now %s, opened %s' % (back, opened))
+    kb_tap(q, 'f-Stamps'); kb_tap(q, 'p-Stamp_Grass')
+    report(q.evaluate("()=>document.getElementById('s-softness').disabled") and abs(q.evaluate("()=>__kb.value('strength')") - kb_strength('z)_Stamp_Grass')) < 1e-6,
+           'kb_settings a picture tip has no softness; each preset has its own strength', 'softness off: %s' % q.evaluate("()=>document.getElementById('s-softness').disabled"))
+FLOWS['kb_settings'] = f_kb_settings
+
+KB_FLOWS = {'kb_eraser_presets', 'kb_eraser_strokes', 'kb_long_strokes', 'kb_settings'}
 
 # SECTION: WHOLE GAME -- one run in the order the child meets the game: painting, drawing tools, brush popup, buckets, palettes, picker, undo, stickers, guide, canvas, gallery, delete
 # Every other flow is a short separate test of how a tool looks or behaves, each on its own fresh paper, run at the same time as this one (owner 25 Nov).

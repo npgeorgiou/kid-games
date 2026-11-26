@@ -20,8 +20,9 @@ MIME = {'.png': 'image/png', '.svg': 'image/svg+xml'}
 def data_url(f):  # GIMP brushes are raw pixels: gzipped (the page unzips them)
     raw = f.read_bytes() if f.suffix in MIME else gzip.compress(f.read_bytes(), 9)
     return 'data:%s;base64,%s' % (MIME.get(f.suffix, 'application/gzip'), base64.b64encode(raw).decode())
+STRENGTH = dict(l.split(' = ') for l in (here / 'krita' / 'picture-strength.txt').read_text(encoding='utf-8').splitlines() if ' = ' in l and not l.startswith('#'))  # the pen pressure each preset's picture shows
 fams = [{'name': name, 'zoom': zoom, 'width': struct.unpack('>I', (here / 'references' / 'krita' / pic).read_bytes()[16:20])[0], 'picture': 'data:image/png;base64,' + base64.b64encode((here / 'references' / 'krita' / pic).read_bytes()).decode(),
-         'presets': [{'id': fn[3:], 'file': fn, 'text': (here / 'krita' / 'presets' / (fn + '.txt')).read_text(encoding='utf-8'), 'row': [x0 * zoom, (y0 + k * step) * zoom]} for k, fn in enumerate(files)]}
+         'presets': [{'id': fn[3:], 'file': fn, 'text': (here / 'krita' / 'presets' / (fn + '.txt')).read_text(encoding='utf-8'), 'row': [x0 * zoom, (y0 + k * step) * zoom], 'strength': float(STRENGTH[fn])} for k, fn in enumerate(files)]}
         for name, pic, zoom, files, (x0, y0), step in FAMILIES]
 assets = {}  # every tip and texture the presets name
 for fam in fams:

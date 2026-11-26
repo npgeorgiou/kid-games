@@ -7,6 +7,7 @@ body{margin:0;font:14px system-ui,sans-serif;background:#ddd;color:#222;padding:
 #presets button.on{background:#335;color:#fff} #families button{font:inherit;padding:5px 9px;margin:0 4px 5px 0;border:0;border-radius:6px;background:#bbb} #families button.on{background:#557;color:#fff}
 #ref{width:880px;height:150px;background-repeat:no-repeat}
 #paper{display:block;margin-top:8px;touch-action:none;background:repeating-conic-gradient(#fff 0 25%,#ccc 0 50%) 0 0/20px 20px}
+#settings{margin-top:6px} #settings label{display:inline-block;margin:4px 14px 0 0} #settings input{width:130px;vertical-align:middle} #settings span{display:inline-block;width:42px}
 #palette button{width:30px;height:30px;border:2px solid #fff;border-radius:50%;margin:4px 3px 0 0;vertical-align:middle} #palette button.on{border-color:#222;outline:2px solid #222}
 </style></head><body>
 <div id="left">
@@ -15,15 +16,16 @@ body{margin:0;font:14px system-ui,sans-serif;background:#ddd;color:#222;padding:
   <div id="ref"></div>
   <canvas id="paper" width="880" height="300"></canvas>
   <div><button id="fill">Grey paper</button> <button id="clear">White paper</button> <span id="palette"></span></div>
+  <div id="settings"><button id="like">Like the picture</button></div>
 </div>
 <script>
 /*%BRUSH_CORE%*/
-// SECTION: PAGE -- Krita's presets beside Krita's picture; a paper to paint on, colours, nothing to tune (owner 26 Nov, experiments/README.md)
+// SECTION: PAGE -- Krita's presets beside Krita's picture; a paper to paint on, colours, the everyday settings (owner 26 Nov, experiments/README.md)
 const FAMILIES = /*%FAMILIES%*/[];
 const ASSETS = /*%ASSETS%*/{};  // tips and textures the presets name: file name -> data URL
 const LAYER_GREY = [150, 150, 150];  // what the erasers take away: an even grey, so the checkerboard shows where the paper is erased
 const cv = document.getElementById('paper'), g = cv.getContext('2d');
-let layer, view, brush, chosen, assets = {};
+let layer, view, brush, chosen, strength = 1, assets = {};
 
 // SECTION: ASSETS -- tips and textures decoded once: pictures (png, svg) to pixels, GIMP brushes (gbr, gih) read by the core
 async function loadAssets() {
@@ -43,12 +45,37 @@ function fill(rgba) {
   g.putImageData(layer, 0, 0);
 }
 
-function choose(p) {
-  chosen = p; brush = KritaBrush.fromPreset(p.text);
+function choose(p) {  // the preset with its own numbers, at the strength its picture shows
+  chosen = p; brush = KritaBrush.fromPreset(p.text); strength = p.strength; showSettings();
   for (const b of document.querySelectorAll('#presets button')) b.classList.toggle('on', b.id === 'p-' + p.id);
   const ref = document.getElementById('ref'), fam = FAMILIES.find(f => f.presets.includes(p));
   ref.style.backgroundImage = 'url(' + fam.picture + ')'; ref.style.backgroundSize = fam.width * fam.zoom + 'px auto'; ref.style.backgroundPosition = `-${p.row[0]}px -${p.row[1]}px`;
 }
+
+// SECTION: SETTINGS -- the everyday settings (owner 26 Nov): each slider changes one of the chosen preset's own numbers; strength is the pen pressure
+// (no pen here), so the preset's pressure curves act as in Krita at that pressure. "Like the picture" chooses the preset again: its numbers and its picture's strength.
+const tipWidth = t => { const a = assets[t.file]; return a.gih ? a.gih.cells[0].w : (a.gbr || a.image).w; };  // a picture tip's own width in pixels
+const fades = () => brush.tip.type === 'auto_brush' && !brush.spray && ['default', 'gauss'].includes(brush.tip.gen.id);  // the tips whose edge Krita sets by fade
+const SETTINGS = [
+  { id: 'size', label: 'Size', min: 1, max: 300, unit: 'px',  // Krita's size: the auto tip's diameter, the picture tip's scale, the spray's diameter
+    get: () => brush.spray ? brush.spray.diameter : brush.tip.type === 'auto_brush' ? brush.tip.gen.diameter : tipWidth(brush.tip) * brush.tip.scale,
+    set: v => { if (brush.spray) { brush.spray.diameter = v; brush.sprayStep = v * 0.5 > 1 ? v * 0.5 * brush.spray.spacing : 1; }  // KisSprayOpOption: the step follows the diameter
+      else if (brush.tip.type === 'auto_brush') brush.tip.gen.diameter = v; else brush.tip.scale = v / tipWidth(brush.tip); } },
+  { id: 'softness', label: 'Softness', min: 0, max: 100, unit: '%', on: fades,  // Krita's fade: 1 is a hard edge
+    get: () => 100 * (1 - (brush.tip.gen.hfade + brush.tip.gen.vfade) / 2), set: v => { brush.tip.gen.hfade = brush.tip.gen.vfade = 1 - v / 100; } },
+  { id: 'opacity', label: 'Opacity', min: 0, max: 100, unit: '%', get: () => 100 * brush.opacity.value, set: v => { brush.opacity.value = v / 100; } },
+  { id: 'flow', label: 'Flow', min: 0, max: 100, unit: '%', on: () => !brush.smudge, get: () => 100 * brush.flow.value, set: v => { brush.flow.value = v / 100; } },  // the smudge engine has no flow
+  { id: 'strength', label: 'Strength', min: 0, max: 100, unit: '%', get: () => 100 * strength, set: v => { strength = v / 100; } },
+];
+for (const o of SETTINGS) {
+  const l = document.createElement('label'), r = document.createElement('input'), n = document.createElement('span');
+  r.type = 'range'; r.id = 's-' + o.id; r.min = o.min; r.max = o.max; l.append(o.label + ' ', r, n); document.getElementById('settings').appendChild(l);
+  r.oninput = () => { o.set(+r.value); n.textContent = r.value + o.unit; };
+  o.show = () => { const on = !o.on || o.on(); r.disabled = !on; l.style.opacity = on ? 1 : 0.4; if (!on) { n.textContent = ''; return; }
+    const v = Math.round(o.get()); r.max = Math.max(o.max, v); r.value = v; n.textContent = v + o.unit; };
+}
+function showSettings() { for (const o of SETTINGS) o.show(); }
+document.getElementById('like').onclick = () => choose(chosen);
 
 // SECTION: PAINTING -- one finger or the mouse paints a stroke with the chosen brush
 let stroke = null;
@@ -72,7 +99,7 @@ const hover = { first: null, second: null, push(p) {
 cv.onpointerdown = e => {
   if (stroke) return; cv.setPointerCapture(e.pointerId);
   const p = at(e); if (e.pointerType !== 'mouse') hover.first = hover.second = p;
-  stroke = KritaBrush.stroke(layer, brush, hex(), assets); stroke.id = e.pointerId; stroke.down(...p, e.timeStamp, hover.push(p));
+  stroke = KritaBrush.stroke(layer, brush, hex(), assets, strength); stroke.id = e.pointerId; stroke.down(...p, e.timeStamp, hover.push(p));
   const held = stroke, frame = t => { if (stroke !== held) return; stroke.tick(performance.now()); show(); requestAnimationFrame(frame); };  // the airbrush and the pause that ends a curve
   requestAnimationFrame(frame);
 };
@@ -106,7 +133,8 @@ const centre = el => { const r = el.getBoundingClientRect(); return [r.left + r.
 window.__kb = {
   ready: false, btn: id => centre(document.getElementById(id)), refShown: () => chosen.id,
   value: k => ({ diameter: brush.tip.gen.diameter, ratio: brush.tip.gen.ratio, hfade: brush.tip.gen.hfade, vfade: brush.tip.gen.vfade, spacing: brush.tip.spacing,
-    autoSpacingCoeff: brush.tip.autoSpacingCoeff, opacity: brush.opacity.value, flow: brush.flow.value })[k],
+    autoSpacingCoeff: brush.tip.autoSpacingCoeff, opacity: brush.opacity.value, flow: brush.flow.value, strength, pictureStrength: chosen.strength })[k],
+  box: id => { const r = document.getElementById(id).getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; },
   curve: n => brush[n].raw[0].curve.split(';').filter(Boolean).map(p => p.split(',').map(Number)),
   screenOf: (x, y) => { const r = cv.getBoundingClientRect(); return [r.left + x, r.top + y]; },
   alpha: (x, y) => layer.data[(Math.round(y) * cv.width + Math.round(x)) * 4 + 3] / 255,

@@ -83,7 +83,7 @@ const KritaBrush = (() => {
 
   // SECTION: PRESET -- a preset file of krita/presets/ (one "name = value" a line) into the brush's settings, as Krita's option data read them
   function parse(text) { const f = {}; for (const l of text.split('\n')) { const i = l.indexOf(' = '); if (i > 0) f[l.slice(0, i)] = l.slice(i + 3); } return f; }
-  const PEN = { pressure: 1, pressurein: 1, tangentialpressure: 1, ascension: 1, declination: 1, xtilt: 1, ytilt: 1, rotation: 1, perspective: 1 };  // sensors only a pen has
+  const PEN = { pressurein: 1, tangentialpressure: 1, ascension: 1, declination: 1, xtilt: 1, ytilt: 1, rotation: 1, perspective: 1 };  // sensors only a pen has (pressure comes from the page's strength setting)
   function sensorList(def) {  // KisKritaSensorPack::read: the sensors with their curves, and the common curve (the last one listed)
     if (!def) return { list: [{ id: 'pressure', curve: null }], common: null };
     const one = (tag, body) => { const m = /<curve>([^<]*)<\/curve>/.exec(body || ''); return { ...attrs(tag), curve: m ? m[1] : '0,0;1,1;' }; };
@@ -169,6 +169,7 @@ const KritaBrush = (() => {
       case 'fuzzystroke': return info.stroke.random[s.key] ??= 2 * Math.random() - 1;
       case 'drawingangle': { let r = 0.5 + info.drawingAngle / TAU + s.angleOffset / 360; if (r > 1) r -= 1; return r; }
       case 'time': return (s.periodic ? info.time % s.length : Math.min(info.time, s.length)) / s.length;
+      case 'pressure': return info.stroke.pressure;  // no pen: the page's strength setting is the pen pressure of the whole stroke
       default: return 1;
     }
   }
@@ -776,18 +777,18 @@ const KritaBrush = (() => {
     if (v1 > v2) { c1 = toward(p1, k1, coeff); coeff *= sim; c2 = toward(p2, k2, coeff); } else { c2 = toward(p2, k2, coeff); coeff *= sim; c1 = toward(p1, k1, coeff); }
     return [c1, c2];
   }
-  // A stroke: layer is the paper's ImageData; s the brush; color [r, g, b]; assets the decoded tips and textures.
+  // A stroke: layer is the paper's ImageData; s the brush; color [r, g, b]; assets the decoded tips and textures; pressure 0..1 for the whole stroke.
   // down(x, y, t, from) starts it (from: where the mouse hovered before, for the first dab's angle), move(x, y, t) for each finger move,
   // tick(t) each frame (the airbrush and the 100 ms pause that ends a curve), shown(view) draws what changed, end() finishes it.
-  function stroke(layer, s, color, assets) {
+  function stroke(layer, s, color, assets, pressure = 1) {
     const W = layer.width, H = layer.height, L = layer.data, dirty = [W, H, -1, -1];
     const markDirty = (x0, y0, x1, y1) => { dirty[0] = Math.min(dirty[0], x0); dirty[1] = Math.min(dirty[1], y0); dirty[2] = Math.max(dirty[2], x1); dirty[3] = Math.max(dirty[3], y1); };
-    const shared = { random: {}, texOff: [], precise: null };
+    const shared = { random: {}, texOff: [], precise: null, pressure };
     const wash = s.wash && !s.spray;  // a wash stroke paints on a stroke layer first (indirect painting); spray and smudge paint on the layer
     const strokeLayer = wash ? new Uint8ClampedArray(W * H * 4) : null, maskLayer = wash && s.masking ? new Uint8ClampedArray(W * H * 4) : null;
     const painters = [painterOf(s, { data: wash ? strokeLayer : L, W, H, color, mode: wash ? 'wash' : s.compositeOp, indirect: wash, dirty: markDirty }, assets, shared)];
     if (maskLayer) {  // the masking brush: its own preset, white dabs in wash mode on the mask, sized from the main brush (createMaskingSettings)
-      const ms = s.masking.settings, mshared = { random: {}, texOff: [], precise: null };
+      const ms = s.masking.settings, mshared = { random: {}, texOff: [], precise: null, pressure };
       if (s.masking.useMasterSize) {
         const main = s.tip.type === 'auto_brush' ? s.tip.gen.diameter : (assets[s.tip.file].gih ? assets[s.tip.file].gih.cells[0].w : (assets[s.tip.file].gbr || assets[s.tip.file].image).w) * s.tip.scale;
         const size = Math.min(1000, s.masking.coeff * main);

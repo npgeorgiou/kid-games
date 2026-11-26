@@ -24,7 +24,7 @@ Order: Eraser, Markers, Pencils, Chalk/Pastel, Dry Painting, Dry Textured, Stamp
 
 1. **Krita's settings, not guesses.** Each brush starts from its preset's own numbers (`krita/presets/<name>.txt`), its own tip (`krita/tips/`) and texture (`krita/patterns/`), and Krita's engine code for how those numbers are used (`tools/get_krita.sh`). Nothing is invented; anything Krita does not say is tuned by eye.
 2. **One shared core.** Krita's pixel brush is one engine: dabs of a tip stamped along the stroke (spacing, size, opacity, flow, rotation, scatter, each with its pressure/speed curve), multiplied by a paper texture. The color smudge engine adds picking up the canvas colour under each dab. Built once; a brush is a preset (numbers + tip + texture).
-3. **Krita's code, not tuning.** Every part of a brush is ported from Krita's engine code; the page has no sliders (owner 26 Nov). No pen: pressure and tilt sensors are left out, so a preset is painted as at full strength.
+3. **Krita's code, not tuning.** Every part of a brush is ported from Krita's engine code. The page has only the everyday settings (owner 26 Nov): size, softness, opacity, flow and strength. No pen: the strength setting is the pen pressure of the whole stroke; tilt and the other pen sensors are left out. Each preset opens at the strength its picture shows (`krita/picture-strength.txt`, by eye); "Like the picture" goes back to it.
 4. **Judged by eye, beside Krita's picture**, at the same scale. No similarity scores.
 5. **One brush at a time, two rounds at most.** Still wrong after two: keep it as it is or drop it.
 6. **Mixing** (wet painting, watercolour): Spectral.js (`vendor/spectral/`, MIT, pigment-like mixing; blue + yellow make green), or Mixbox (`../lib/mixbox/`, CC BY-NC).
@@ -33,12 +33,13 @@ Order: Eraser, Markers, Pencils, Chalk/Pastel, Dry Painting, Dry Textured, Stamp
 
 | Path | What it is |
 |---|---|
-| `brushes.html` | **The brushes page.** Built by `build.py`; never edit it by hand. A button per family, then its presets; Krita's picture of the chosen preset, a paper to paint on (grey or white) and colours. |
+| `brushes.html` | **The brushes page.** Built by `build.py`; never edit it by hand. A button per family, then its presets; Krita's picture of the chosen preset, a paper to paint on (grey or white), colours, and the everyday settings with "Like the picture". |
 | `build.py` | Inlines the core, each family's presets, its Krita picture (where each preset's strip is in it) and the tips and textures the presets name into `brushes.html`. The game's `build.py` runs it. |
 | `src/brush-core.js` | The shared core, ported from Krita's code: the freehand tool's basic smoothing, dab spacing and airbrush timing, fan corners, the pixel brush (Krita's mask generators and image pyramid, sub-pixel dabs and the dab cache's precision, sensors and curves, rotation, ratio, scatter, mirror, softness, textures, build-up and wash with average opacity, erase, masking brush), the colour smudge engine (legacy mask strategy) and the spray engine (its distributions). |
 | `src/brushes.html` | The brushes page's source. |
 | `krita/presets/` | Every preset of the families above, read from Krita's bundle: one setting per line (`name = value`; pressure curves on one line as `x,y;` points). |
 | `krita/tips/` | The brush tips the presets name (Krita `.gbr`, `.gih` animated tips, `.png`, `.svg`). |
+| `krita/picture-strength.txt` | The strength (pen pressure) each preset opens at: what its picture shows, chosen by eye. |
 | `krita/patterns/` | The paper textures the presets name (taken out of the presets, where Krita keeps them). |
 | `references/krita/` | The pictures of each family from the Krita manual page (docs.krita.org, Krita 4 Preset Bundle Overview; GNU FDL 1.3+). |
 | `vendor/spectral/` | Spectral.js and its shader (`LICENSE`: MIT). |
