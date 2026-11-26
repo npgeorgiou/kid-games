@@ -1,47 +1,70 @@
 // SECTION: BRUSH CORE -- Krita's pixel brush ("paintbrush" paint op), ported from Krita's source (GPL, see ../README.md), at the commit in tools/get_krita.sh.
 // Standard technique: dabs of a brush tip stamped along the stroke (Krita: KisBrushOp::paintAt, KisDistanceInformation).
 // The model, in Krita's own parts:
-// 1. A preset is numbers: the tip (shape, size, ratio, fades, spacing) and options whose value follows the pen's pressure through a curve.
+// 1. A preset is numbers: the tip (auto shape or picture, size, ratio, fades, spacing) and options (size, opacity, flow, rotation, ratio, scatter,
+//    mirror, softness, spacing, texture strength) whose value follows sensors (pressure, tilt, drawing angle, random, time) through curves.
 // 2. Along the stroke a dab is placed each time the distance since the last one reaches the spacing ellipse of that dab's size.
-// 3. Each dab is the tip's mask at that size, times opacity and flow, laid on the layer by the preset's composite op (normal or erase).
-// Not ported yet (no preset so far turns them on): scatter, rotation and ratio options, textures, spikes, Krita's 1-px rim ramp of the gauss tip.
+// 3. Each dab is the tip's mask at that size and angle, times the paper texture, laid by Krita's painting mode: build-up straight on the layer,
+//    or wash into a stroke layer (alpha darken: opacity caps it, flow builds it) that goes on the layer by the preset's composite op.
+// Not ported (no preset of the families uses them): spikes, Krita's 1-px rim ramp of the gauss tip, fan corners and locked drawing angle,
+// lightness and gradient tip modes, the average-opacity part of alpha darken.
 const KritaBrush = (() => {
+  const TAU = 2 * Math.PI, wrap = (v, lo, hi) => { const r = hi - lo; return v - r * Math.floor((v - lo) / r); };
+  const attrs = s => { const o = {}; for (const [, k, v] of (s || '').matchAll(/(\w+)="([^"]*)"/g)) o[k] = v; return o; };
+
   // SECTION: PRESET -- a preset file of krita/presets/ (one "name = value" a line) into the brush's numbers
   function parse(text) {
     const f = {};
     for (const l of text.split('\n')) { const i = l.indexOf(' = '); if (i > 0) f[l.slice(0, i)] = l.slice(i + 3); }
     return f;
   }
-  function curveOf(sensor) {  // <params id="pressure"> <curve>x,y;...</curve>: no curve is Krita's straight line
-    const m = /<curve>([^<]*)<\/curve>/.exec(sensor || '');
-    return m ? m[1].split(';').filter(Boolean).map(p => p.split(',').map(Number)) : [[0, 0], [1, 1]];
+  function sensorsOf(xml) {  // one <params id=...> or a sensorslist of <ChildSensor id=...>, each with its curve (none: straight line)
+    xml = xml || '<params id="pressure"/>';
+    const one = (tag, body) => { const a = attrs(tag), m = /<curve>([^<]*)<\/curve>/.exec(body || ''); return { ...a, curve: m ? m[1].split(';').filter(Boolean).map(p => p.split(',').map(Number)) : null }; };
+    if (/id="sensorslist"/.test(xml)) return [...xml.matchAll(/<ChildSensor([^>]*?)(?:\/>|>(.*?)<\/ChildSensor>)/g)].map(m => one(m[1], m[2]));
+    const m = /<params([^>]*?)(?:\/>|>(.*?)<\/params>)/.exec(xml); return [one(m[1], m[2])];
   }
-  function option(f, name, checkable) {  // Krita's curve option: on when not checkable or checked; the curve is used only with UseCurve
-    return { on: !checkable || f['Pressure' + name] === 'true', useCurve: f[name + 'UseCurve'] === 'true', value: +(f[name + 'Value'] ?? 1), curve: curveOf(f[name + 'Sensor']) };
+  const RANGE = { Scatter: [0, 5], Softness: [0.1, 1] };  // Krita's option ranges; every other option is 0..1
+  function option(f, prefix, name, checkable) {  // Krita's curve option: on when not checkable or checked; sensors only with UseCurve
+    const k = s => f[prefix + s] ?? f[prefix + name + s];
+    return { name, on: !checkable || f['Pressure' + name] === 'true',
+      useCurve: k('UseCurve') === 'true', value: +(k('Value') ?? 1), mode: +(k('curveMode') ?? 0), sensors: sensorsOf(k('Sensor')), range: RANGE[name] || [0, 1] };
   }
   function fromPreset(text) {
-    const f = parse(text), t = {};
-    for (const [, k, v] of (f.brush_definition || '').matchAll(/(\w+)="([^"]*)"/g)) t[k] = v;
-    const m = /<MaskGenerator([^>]*)>/.exec(f.brush_definition)[1], g = {};
-    for (const [, k, v] of m.matchAll(/(\w+)="([^"]*)"/g)) g[k] = v;
+    const f = parse(text), def = f.brush_definition || '', t = attrs(/<Brush([^>]*)>/.exec(def)[1]), g = attrs((/<MaskGenerator([^>]*)>/.exec(def) || [])[1]);
+    const P = 'Texture/Pattern/';
     return {
-      shape: g.type, fade: g.id,  // circle or rect; default (fade by hfade/vfade) or gauss
-      diameter: +g.diameter, ratio: +g.ratio, hfade: +g.hfade, vfade: +g.vfade, antialias: g.antialiasEdges === '1', angle: +t.angle,
-      spacing: +t.spacing, useAutoSpacing: t.useAutoSpacing === '1', autoSpacingCoeff: +t.autoSpacingCoeff,
-      size: option(f, 'Size', true), opacity: option(f, 'Opacity', false), flow: option(f, 'Flow', false), spacingOption: option(f, 'Spacing', true),
-      compositeOp: f.CompositeOp || 'normal',
+      tipType: t.type, file: t.filename, scale: +(t.scale ?? 1), angle: +(t.angle ?? 0), colorAsMask: (t.ColorAsMask ?? '1') === '1',
+      shape: g.type, fade: g.id, diameter: +(g.diameter ?? 0), ratio: +(g.ratio ?? 1), hfade: +(g.hfade ?? 0), vfade: +(g.vfade ?? 0), antialias: g.antialiasEdges === '1',
+      randomness: +(t.randomness ?? 0), density: +(t.density ?? 1),
+      spacing: +t.spacing, useAutoSpacing: t.useAutoSpacing === '1', autoSpacingCoeff: +t.autoSpacingCoeff, isotropic: f['Spacing/Isotropic'] === 'true',
+      size: option(f, '', 'Size', true), opacity: option(f, '', 'Opacity', false), flow: option(f, '', 'Flow', false),
+      rotation: option(f, '', 'Rotation', true), ratioOption: option(f, '', 'Ratio', true), scatter: option(f, '', 'Scatter', true),
+      mirror: option(f, '', 'Mirror', true), softness: option(f, '', 'Softness', true), spacingOption: option(f, '', 'Spacing', true),
+      scatterX: f['Scattering/AxisX'] !== 'false', scatterY: f['Scattering/AxisY'] !== 'false',
+      mirrorH: f.HorizontalMirrorEnabled === 'true', mirrorV: f.VerticalMirrorEnabled === 'true',
+      wash: (f.PaintOpAction ?? '2') !== '1', compositeOp: f.CompositeOp || 'normal',
+      texture: f[P + 'Enabled'] !== 'true' ? null : {
+        pattern: f[P + 'Name'], scale: +(f[P + 'Scale'] ?? 1), brightness: +(f[P + 'Brightness'] ?? 0), contrast: +(f[P + 'Contrast'] ?? 1),
+        neutralPoint: +(f[P + 'NeutralPoint'] ?? 0.5), invert: f[P + 'Invert'] === 'true', cutoffPolicy: +(f[P + 'CutoffPolicy'] ?? 0),
+        cutoffLeft: +(f[P + 'CutoffLeft'] ?? 0), cutoffRight: +(f[P + 'CutoffRight'] ?? 255), mode: +(f[P + 'TexturingMode'] ?? 0),
+        offsetX: +(f[P + 'OffsetX'] ?? 0), offsetY: +(f[P + 'OffsetY'] ?? 0), randomX: f[P + 'isRandomOffsetX'] === 'true', randomY: f[P + 'isRandomOffsetY'] === 'true',
+        strength: option(f, 'Texture/Strength/', 'Strength', false),
+      },
     };
   }
 
-  // SECTION: CURVE -- Krita's pressure curve: a natural cubic spline through the points, clamped to 0..1 (KisCubicCurve)
+  // SECTION: CURVE -- Krita's curve: a natural cubic spline through the points, clamped to 0..1 (KisCubicCurve)
   function spline(pts) {
-    const n = pts.length - 1, h = [], a = pts.map(p => p[1]), c = new Array(n + 1).fill(0), b = [], d = [];
+    const n = pts.length - 1;
+    if (n === 0) return () => pts[0][1];
+    const h = [], a = pts.map(p => p[1]), c = new Array(n + 1).fill(0), b = [], d = [];
     for (let i = 0; i < n; i++) h[i] = pts[i + 1][0] - pts[i][0];
-    if (n > 1) {  // the tridiagonal system for the second derivatives, natural ends (Thomas algorithm)
-      const lo = [], di = [], up = [], r = [];
-      for (let i = 0; i < n - 1; i++) { di.push(2 * (h[i] + h[i + 1])); r.push(6 * ((a[i + 2] - a[i + 1]) / h[i + 1] - (a[i + 1] - a[i]) / h[i])); lo.push(h[i]); up.push(h[i + 1]); }
-      for (let i = 1; i < n - 1; i++) { const w = lo[i] / di[i - 1]; di[i] -= w * up[i - 1]; r[i] -= w * r[i - 1]; }
-      for (let i = n - 2; i >= 0; i--) c[i + 1] = (r[i] - (i < n - 2 ? up[i] * c[i + 2] : 0)) / di[i];
+    if (n > 1) {  // the second derivatives, natural ends (tridiagonal system, Thomas algorithm)
+      const di = [], up = [], r = [];
+      for (let i = 0; i < n - 1; i++) { di.push(2 * (h[i] + h[i + 1])); r.push(6 * ((a[i + 2] - a[i + 1]) / h[i + 1] - (a[i + 1] - a[i]) / h[i])); up.push(h[i + 1]); }
+      for (let i = 1; i < n - 1; i++) { const w = h[i] / di[i - 1]; di[i] -= w * up[i - 1]; r[i] -= w * r[i - 1]; }
+      for (let i = n - 2; i >= 0; i--) c[i + 1] = (r[i] - up[i] * c[i + 2]) / di[i];
     }
     for (let i = 0; i < n; i++) { d[i] = (c[i + 1] - c[i]) / h[i]; b[i] = -0.5 * c[i] * h[i] - d[i] * h[i] * h[i] / 6 + (a[i + 1] - a[i]) / h[i]; }
     return x => {
@@ -51,21 +74,74 @@ const KritaBrush = (() => {
       return Math.min(1, Math.max(0, a[i] + b[i] * u + 0.5 * c[i] * u * u + d[i] * u * u * u / 6));
     };
   }
-  function optionValue(o, pressure) {  // KisCurveOption::computeSizeLikeValue: strength times the curve's value
+
+  // SECTION: SENSORS -- what the pen and the stroke tell each dab (KisDynamicSensor*); ctx: pressure, tiltX/Y in degrees, angle, time
+  const ADDITIVE = { fuzzy: 1, fuzzystroke: 1, ascension: 1 }, ABSOLUTE = { drawingangle: 1 };
+  function sensorValue(s, ctx) {
+    switch (s.id) {
+      case 'pressure': return ctx.pressure;
+      case 'fuzzy': return 2 * Math.random() - 1;
+      case 'fuzzystroke': return ctx.strokeRandom[s.id] ??= 2 * Math.random() - 1;
+      case 'drawingangle': return wrap(0.5 + ctx.angle / TAU + +(s.angleOffset ?? 0) / 360, 0, 1);
+      case 'ascension': {  // tilt direction; a pen standing straight up points to 3 o'clock
+        const d = ctx.tiltX === 0 && ctx.tiltY === 0 ? -Math.PI / 2 : Math.atan2(-ctx.tiltX, ctx.tiltY);
+        return 2 * (d / TAU + 0.5) - 1;
+      }
+      case 'declination': {  // tilt elevation, 60 degrees full tilt
+        const x = Math.max(-1, Math.min(1, ctx.tiltX / 60)), y = Math.max(-1, Math.min(1, ctx.tiltY / 60));
+        const e = Math.abs(x) > Math.abs(y) ? Math.sqrt(1 + y * y) : Math.sqrt(1 + x * x);
+        return Math.acos(Math.hypot(x, y) / e) / (Math.PI / 2);
+      }
+      case 'xtilt': return 1 - Math.abs(ctx.tiltX) / 60;
+      case 'ytilt': return 1 - Math.abs(ctx.tiltY) / 60;
+      case 'time': { const dur = +(s.duration ?? 1000), t = ctx.time / dur; return s.periodic === '1' ? t % 1 : Math.min(1, t); }
+      default: return 1;  // a sensor no preset of these families uses
+    }
+  }
+  function sensorParameter(s, ctx) {  // KisDynamicSensor::parameter: the value through its curve
+    const v = sensorValue(s, ctx);
+    if (!s.curve) return v;
+    const add = ADDITIVE[s.id], abs = ABSOLUTE[s.id];
+    const fn = s.fn ||= spline(s.curve), x = fn(add ? 0.5 * (1 + v) : abs ? wrap(v + 0.5, 0, 1) : v);
+    return add ? 2 * x - 1 : abs ? wrap(x + 0.5, 0, 1) : x;
+  }
+  function components(o, ctx, useStrength = true) {  // KisCurveOption::computeValueComponents
+    const c = { constant: useStrength ? o.value : 1, scaling: 1, additive: 0, hasScaling: false, hasAdditive: false, abs: null };
+    if (!o.useCurve) return c;
+    const scal = [];
+    for (const s of o.sensors) {
+      const v = sensorParameter(s, ctx);
+      if (ADDITIVE[s.id]) { c.additive += v; c.hasAdditive = true; } else if (ABSOLUTE[s.id]) c.abs = v; else scal.push(v);
+    }
+    if (scal.length) {
+      c.hasScaling = true;
+      c.scaling = o.mode === 1 ? scal.reduce((a, b) => a + b) : o.mode === 2 ? Math.max(...scal) : o.mode === 3 ? Math.min(...scal)
+        : o.mode === 4 ? Math.max(...scal) - Math.min(...scal) : scal.reduce((a, b) => a * b);
+    }
+    return c;
+  }
+  function sizeLike(o, ctx, useStrength = true) {
     if (!o.on) return 1;
-    return o.value * (o.useCurve ? (o.fn ||= spline(o.curve))(pressure) : 1);
+    const c = components(o, ctx, useStrength);
+    return Math.max(o.range[0], Math.min(o.range[1], c.constant * (c.abs ?? 1) * (c.hasScaling ? c.scaling : 1) * (c.hasAdditive ? 0.5 * (1 + c.additive) : 1)));
+  }
+  function rotationOf(o, ctx) {  // KisRotationOption::apply, canvas not turned
+    if (!o.on) return 0;
+    const c = components(o, ctx), v = wrap(2 * (c.abs ?? 0) + c.constant * (-(c.hasScaling ? 2 * c.scaling - 1 : 0) + (c.hasAdditive ? c.additive : 0)), -1, 1);
+    return wrap((1 - v) * Math.PI, 0, TAU);
   }
 
-  // SECTION: TIP -- the auto brush's mask: 1 = full dab, 0 = nothing (Krita stores 255 - this), x and y from the dab's centre
-  function tipMask(s, w, hgt) {
+  // SECTION: TIPS -- the dab's mask (1 = full): auto shapes computed (Kis*MaskGenerator), pictures sampled (gbr, gih, png, svg)
+  function autoMask(s, w, h, soft) {
+    const fadeSoft = 1 / Math.max(0.01, soft);
     if (s.fade === 'gauss') {  // KisGaussCircleMaskGenerator
       let fade = 1 - (s.hfade + s.vfade) / 2; if (fade === 0) fade = 1e-6; else if (fade === 1) fade = 1 - 1e-6;
       const center = 2.5 * (6761 * fade - 10000) / (Math.SQRT2 * 6761 * fade), alphaf = 255 / (2 * erf(center));
-      const distf = Math.SQRT2 * 12500 / (6761 * fade * w / 2), yc = w / hgt, r = w / 2;
+      const distf = Math.SQRT2 * 12500 / (6761 * fade * w / 2), yc = w / h, r = w / 2;
       return (x, y) => { const dist = Math.hypot(x, y * yc); if (dist > r) return 0; return Math.min(255, Math.floor(alphaf * (erf(dist * distf + center) - erf(dist * distf - center)))) / 255; };
     }
-    const xc = 2 / w, yc = 2 / hgt, aa = s.antialias ? 1 : 0;
-    const fx = (s.hfade === 0 ? 1 : 2 / (s.hfade * w)), fy = (s.vfade === 0 ? 1 : 2 / (s.vfade * hgt));  // the softness option (off in every preset so far) would divide these
+    const xc = 2 / w, yc = 2 / h, aa = s.antialias ? 1 : 0;
+    const fx = (s.hfade === 0 ? 1 : 2 / (s.hfade * w)) * fadeSoft, fy = (s.vfade === 0 ? 1 : 2 / (s.vfade * h)) * fadeSoft;
     if (s.shape === 'rect') return (x, y) => {  // KisRectangleMaskGenerator
       x = Math.abs(x); y = Math.abs(y);
       const nx = x * xc, ny = y * yc; if (nx > 1 || ny > 1) return 0;
@@ -83,49 +159,174 @@ const KritaBrush = (() => {
     const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x);
     return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x));
   }
+  // A picture tip is { w, h, mask: Float32Array (0..1), rgb: Uint8Array or null (an image stamp keeps its colours) }; a gih is a list of them.
+  function tipFromRGBA(w, h, px, stamp) {  // KisBrush: alpha mask = (255 - grey) * alpha
+    const mask = new Float32Array(w * h), rgb = stamp ? new Uint8Array(w * h * 3) : null;
+    for (let i = 0; i < w * h; i++) {
+      const r = px[i * 4], g = px[i * 4 + 1], b = px[i * 4 + 2], a = px[i * 4 + 3] / 255;
+      if (stamp) { mask[i] = a; rgb.set([r, g, b], i * 3); } else mask[i] = (255 - (r * 11 + g * 16 + b * 5) / 32) * a / 255;
+    }
+    return { w, h, mask, rgb };
+  }
+  function readGbr(bytes, at = 0) {  // GIMP brush: header (size, version, width, height, bytes per pixel, 'GIMP', spacing, name), then pixels
+    const dv = new DataView(bytes.buffer, bytes.byteOffset + at), hs = dv.getUint32(0), w = dv.getUint32(8), h = dv.getUint32(12), bpp = dv.getUint32(16);
+    const px = new Uint8Array(w * h * 4), data = bytes.subarray(at + hs, at + hs + w * h * bpp);
+    let color = false;
+    for (let i = 0; i < w * h; i++) {
+      if (bpp === 1) px.set([255 - data[i], 255 - data[i], 255 - data[i], 255], i * 4);
+      else { px.set(data.subarray(i * 4, i * 4 + 4), i * 4); if (data[i * 4] !== data[i * 4 + 1] || data[i * 4 + 1] !== data[i * 4 + 2]) color = true; }
+    }
+    return { px, w, h, color, end: at + hs + w * h * bpp };
+  }
+  function readGih(bytes) {  // GIMP image pipe: a name line, a parameters line (ncells, sel0), then each cell as a gbr
+    let i = 0; const line = () => { const s = i; while (bytes[i] !== 10) i++; return new TextDecoder().decode(bytes.subarray(s, i++)); };
+    line(); const params = line(), n = +params.split(' ')[0], cells = [];
+    for (let k = 0; k < n; k++) { const c = readGbr(bytes, i); cells.push(c); i = c.end; }
+    return { cells, selection: (/sel0:(\w+)/.exec(params) || [])[1] || 'random' };
+  }
+  function pictureTip(s, asset) {  // the tip's cells, as KisPredefinedBrushFactory chooses alpha mask or image stamp
+    const stampOf = color => color && !s.colorAsMask;
+    if (asset.gih) return { cells: asset.gih.cells.map(c => tipFromRGBA(c.w, c.h, c.px, stampOf(c.color))), selection: asset.gih.selection };
+    if (asset.gbr) return { cells: [tipFromRGBA(asset.gbr.w, asset.gbr.h, asset.gbr.px, stampOf(asset.gbr.color))], selection: 'random' };
+    const { w, h, px } = asset.image; let color = false;
+    for (let i = 0; i < w * h && !color; i++) color = px[i * 4] !== px[i * 4 + 1] || px[i * 4 + 1] !== px[i * 4 + 2];
+    return { cells: [tipFromRGBA(w, h, px, stampOf(color))], selection: 'random' };
+  }
+  function sample(t, u, v) {  // bilinear, outside is empty
+    const x = u - 0.5, y = v - 0.5, x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
+    let m = 0, r = 0, g = 0, b = 0;
+    for (const [i, j, k] of [[x0, y0, (1 - fx) * (1 - fy)], [x0 + 1, y0, fx * (1 - fy)], [x0, y0 + 1, (1 - fx) * fy], [x0 + 1, y0 + 1, fx * fy]]) {
+      if (i < 0 || j < 0 || i >= t.w || j >= t.h) continue;
+      const p = j * t.w + i, a = t.mask[p] * k; m += a;
+      if (t.rgb) { r += t.rgb[p * 3] * a; g += t.rgb[p * 3 + 1] * a; b += t.rgb[p * 3 + 2] * a; }
+    }
+    return t.rgb ? [m, m ? [r / m, g / m, b / m] : null] : [m, null];
+  }
 
-  // SECTION: DAB -- one dab laid on the layer (RGBA bytes), by Krita's composite ops
-  function dab(layer, s, x, y, pressure, color) {
-    const scale = optionValue(s.size, pressure), w = s.diameter * scale, h = s.diameter * s.ratio * scale;
-    if (w < 0.01) return;
-    const mask = tipMask(s, w, h), str = optionValue(s.opacity, pressure) * optionValue(s.flow, pressure);
-    const ca = Math.cos(-s.angle), sa = Math.sin(-s.angle), R = Math.ceil(Math.hypot(w, h) / 2) + 1, D = layer.data, W = layer.width;
-    for (let py = Math.max(0, Math.floor(y - R)); py <= Math.min(layer.height - 1, Math.ceil(y + R)); py++)
-      for (let px = Math.max(0, Math.floor(x - R)); px <= Math.min(W - 1, Math.ceil(x + R)); px++) {
-        const dx = px + 0.5 - x, dy = py + 0.5 - y, m = mask(dx * ca - dy * sa, dx * sa + dy * ca) * str;
-        if (m <= 0) continue;
-        const i = (py * W + px) * 4;
-        if (s.compositeOp === 'erase') { D[i + 3] = Math.round(D[i + 3] * (1 - m)); continue; }  // KoCompositeOpErase
-        const da = D[i + 3] / 255, oa = m + da * (1 - m);  // normal: source over
-        for (let k = 0; k < 3; k++) D[i + k] = Math.round((color[k] * m + D[i + k] * da * (1 - m)) / oa);
-        D[i + 3] = Math.round(oa * 255);
+  // SECTION: TEXTURE -- the paper pattern applied to each dab (KisTextureMaskInfo, KisTextureOption, masking composite ops)
+  function textureMask(tx, image) {
+    const sc = tx.scale, w = Math.max(2, Math.round(image.w * sc)), h = Math.max(2, Math.round(image.h * sc)), m = new Float32Array(w * h), px = image.px;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const p = (Math.min(image.h - 1, Math.floor((y + 0.5) / sc)) * image.w + Math.min(image.w - 1, Math.floor((x + 0.5) / sc))) * 4;
+      const a = px[p + 3] / 255, grey = Math.floor((px[p] * 11 + px[p + 1] * 16 + px[p + 2] * 5) / 32);
+      let v = grey / 255 * a + (1 - a);
+      v = Math.max(0, Math.min(1, ((v - tx.brightness) - 0.5) * tx.contrast + 0.5));
+      if (tx.invert) v = 1 - v;
+      const np = tx.neutralPoint;
+      v = (np === 1 || (np !== 0 && v <= np)) ? v / (2 * np) : 0.5 + (v - np) / (2 - 2 * np);
+      if (tx.cutoffPolicy && (v < tx.cutoffLeft / 255 || v > tx.cutoffRight / 255)) v = tx.cutoffPolicy === 1 ? 0 : 1;
+      m[y * w + x] = v;
+    }
+    return { w, h, m };
+  }
+
+  // SECTION: DAB AND STROKE -- dabs along the finger's path (KisDistanceInformation::getNextPointPositionAnisotropic), laid by the painting mode
+  function stroke(layer, s, color, assets) {
+    const W = layer.width, H = layer.height, L = layer.data;
+    const pic = s.tipType === 'auto_brush' ? null : (s.pic ||= pictureTip(s, assets[s.file]));
+    const tex = s.texture && assets[s.texture.pattern] ? (s.texture.mask ||= textureMask(s.texture, assets[s.texture.pattern].image)) : null;
+    const texOff = tex ? [s.texture.randomX ? Math.floor(Math.random() * tex.w) : s.texture.offsetX, s.texture.randomY ? Math.floor(Math.random() * tex.h) : s.texture.offsetY] : null;
+    const wash = s.wash ? { a: new Float32Array(W * H), rgb: new Float32Array(W * H * 3) } : null;
+    const ctx = { pressure: 1, tiltX: 0, tiltY: 0, angle: 0, time: 0, strokeRandom: {} };
+    const t0 = performance.now(), dirty = [W, H, -1, -1];
+    let last = null, acc = [0, 0], sp = null, cell = 0;
+
+    function shapeOf() {  // KisDabShape: size, ratio and rotation of this dab
+      const scale = sizeLike(s.size, ctx), ratio = sizeLike(s.ratioOption, ctx), rot = rotationOf(s.rotation, ctx);
+      const [bw, bh] = pic ? [pic.cells[0].w * s.scale, pic.cells[0].h * s.scale] : [s.diameter, s.diameter * s.ratio];
+      return { scale, ratio, rot, w: bw * scale, h: bh * scale * ratio };
+    }
+    function spacingOf(d) {  // KisPaintOpUtils::effectiveSpacing
+      const auto = v => s.autoSpacingCoeff * (v < 1 ? v : Math.sqrt(v)), extra = s.spacingOption.on ? sizeLike(s.spacingOption, ctx) : 1;
+      const xy = (s.isotropic ? [Math.max(d.w, d.h), Math.max(d.w, d.h)] : [d.w, d.h]).map(v => (s.useAutoSpacing ? auto(v) : v * s.spacing) * extra);
+      return { x: Math.max(0.5, xy[0]), y: Math.max(0.5, xy[1]), rot: s.isotropic ? 0 : d.rot };
+    }
+    function lay(D, i, a, c) {  // the preset's composite op: erase, or normal (source over)
+      if (s.compositeOp === 'erase') { D[i + 3] = Math.round(D[i + 3] * (1 - a)); return; }
+      const da = D[i + 3] / 255, oa = a + da * (1 - a); if (oa <= 0) return;
+      for (let k = 0; k < 3; k++) D[i + k] = Math.round((c[k] * a + D[i + k] * da * (1 - a)) / oa);
+      D[i + 3] = Math.round(oa * 255);
+    }
+    function dab(x, y) {
+      const d = shapeOf(); if (d.w < 0.01 || d.h < 0.01) return d;
+      if (s.scatter.on && (s.scatterX || s.scatterY)) {  // KisScatterOption: jitter by the dab's larger side
+        const dia = Math.max(d.w, d.h), v = sizeLike(s.scatter, ctx), j = () => (2 * Math.random() - 1) * dia * v;
+        if (s.scatterX && s.scatterY) { x += j(); y += j(); }
+        else { const k = j(), c = Math.cos(ctx.angle), sn = Math.sin(ctx.angle); if (s.scatterX) { x += c * k; y += sn * k; } else { x -= sn * k; y += c * k; } }
       }
-  }
-
-  // SECTION: STROKE -- dabs along the finger's path (KisDistanceInformation::getNextPointPositionAnisotropic)
-  function spacingOf(s, pressure) {  // KisPaintOpUtils::effectiveSpacing, not isotropic
-    const scale = optionValue(s.size, pressure), w = s.diameter * scale, h = s.diameter * s.ratio * scale;
-    const auto = v => s.autoSpacingCoeff * (v < 1 ? v : Math.sqrt(v)), extra = optionValue(s.spacingOption, pressure);
-    return (s.useAutoSpacing ? [auto(w), auto(h)] : [w * s.spacing, h * s.spacing]).map(v => Math.max(0.5, v * extra));
-  }
-  function stroke(layer, s, color) {
-    let last = null, acc = [0, 0], sp;
+      let mx = 1, my = 1;  // KisMirrorOption: flip when its value reaches a half
+      if (s.mirror.on && sizeLike(s.mirror, ctx) >= 0.5) { if (s.mirrorH) mx = -1; if (s.mirrorV) my = -1; }
+      const flow = sizeLike(s.flow, ctx), opacity = sizeLike(s.opacity, ctx, !s.wash), strength = tex ? sizeLike(s.texture.strength, ctx) : 0;
+      const ang = d.rot + s.angle, ca = Math.cos(ang), sa = Math.sin(ang);
+      let tipAt;
+      if (pic) {
+        const t = pic.cells[pic.selection === 'incremental' ? cell++ % pic.cells.length : Math.floor(Math.random() * pic.cells.length)];
+        const sx = s.scale * d.scale, sy = s.scale * d.scale * d.ratio;
+        tipAt = (u, v) => sample(t, (ca * u - sa * v) * mx / sx + t.w / 2, (sa * u + ca * v) * my / sy + t.h / 2);
+      } else {
+        const m = autoMask(s, d.w, d.h, s.softness.on ? sizeLike(s.softness, ctx) : 1), ss = s.antialias && (d.w < 10 || d.h < 10) ? (d.w < 1 || d.h < 1 ? 6 : 3) : 1;
+        tipAt = (u, v) => {  // KisBrushMaskScalarApplicator: supersampled when small, then randomness and density
+          let sum = 0;
+          for (let i = 0; i < ss; i++) for (let j = 0; j < ss; j++) { const a = u + (i + 0.5) / ss - 0.5, b = v + (j + 0.5) / ss - 0.5; sum += m((ca * a - sa * b) * mx, (sa * a + ca * b) * my); }
+          let val = sum / (ss * ss);
+          if (s.randomness) val *= (1 - s.randomness) + s.randomness * Math.random();
+          if (s.density < 1 && val > 0 && !(s.density >= Math.random())) val = 0;
+          return [val, null];
+        };
+      }
+      const R = Math.ceil(Math.hypot(d.w, d.h) / 2) + 1, x0 = Math.max(0, Math.floor(x - R)), x1 = Math.min(W - 1, Math.ceil(x + R)), y0 = Math.max(0, Math.floor(y - R)), y1 = Math.min(H - 1, Math.ceil(y + R));
+      for (let py = y0; py <= y1; py++) for (let px = x0; px <= x1; px++) {
+        let [m, rgb] = tipAt(px + 0.5 - x, py + 0.5 - y);
+        if (m <= 0) continue;
+        if (tex) {  // multiply or subtract by the pattern, with the texture's strength (soft texturing off)
+          const tv = tex.m[wrap(py - texOff[1], 0, tex.h) * tex.w + wrap(px - texOff[0], 0, tex.w)];
+          m = s.texture.mode === 1 ? Math.max(0, m - (tv + 1 - strength)) : tv * m * strength;
+          if (m <= 0) continue;
+        }
+        const c = rgb || color, i = py * W + px;
+        if (wash) {  // alpha darken, creamy (KoCompositeOpAlphaDarken): the stroke layer strives to opacity, by flow
+          const dA = wash.a[i], src = m * opacity, full = opacity > dA ? dA + (opacity - dA) * m : dA;
+          for (let k = 0; k < 3; k++) wash.rgb[i * 3 + k] = dA ? wash.rgb[i * 3 + k] + (c[k] - wash.rgb[i * 3 + k]) * src : c[k];
+          wash.a[i] = dA + (full - dA) * flow;
+        } else lay(L, i * 4, m * opacity * flow, c);
+      }
+      dirty[0] = Math.min(dirty[0], x0); dirty[1] = Math.min(dirty[1], y0); dirty[2] = Math.max(dirty[2], x1); dirty[3] = Math.max(dirty[3], y1);
+      return d;
+    }
+    function place(x, y) { sp = spacingOf(dab(x, y)); acc = [0, 0]; }
+    const washRGB = i => [wash.rgb[i * 3], wash.rgb[i * 3 + 1], wash.rgb[i * 3 + 2]];
     return {
-      to(x, y, pressure) {
-        if (!last) { dab(layer, s, x, y, pressure, color); sp = spacingOf(s, pressure); last = [x, y, pressure]; return; }
+      to(x, y, pen) {  // pen: pressure, tiltX, tiltY
+        ctx.pressure = pen.pressure; ctx.tiltX = pen.tiltX; ctx.tiltY = pen.tiltY; ctx.time = performance.now() - t0;
+        if (!last) { place(x, y); last = [x, y]; return; }
+        if (x === last[0] && y === last[1]) return;
+        ctx.angle = Math.atan2(y - last[1], x - last[0]);
         let [x0, y0] = last;
         while (true) {
-          const dx = x - x0, dy = y - y0, L = Math.hypot(dx, dy); if (L === 0) break;
-          const ax = Math.abs(dx), ay = Math.abs(dy), a = (ax / sp[0]) ** 2 + (ay / sp[1]) ** 2;  // (acc + t·d)/spacing on the ellipse: solve for t
-          const b = 2 * (acc[0] * ax / sp[0] ** 2 + acc[1] * ay / sp[1] ** 2), c = (acc[0] / sp[0]) ** 2 + (acc[1] / sp[1]) ** 2 - 1;
+          let ex = x - x0, ey = y - y0;
+          if (sp.rot) { const c = Math.cos(sp.rot), sn = Math.sin(sp.rot); [ex, ey] = [c * ex - sn * ey, sn * ex + c * ey]; }
+          const ax = Math.abs(ex), ay = Math.abs(ey), a = (ax / sp.x) ** 2 + (ay / sp.y) ** 2;  // (acc + t·d)/spacing on the ellipse: solve for t
+          const b = 2 * (acc[0] * ax / sp.x ** 2 + acc[1] * ay / sp.y ** 2), c = (acc[0] / sp.x) ** 2 + (acc[1] / sp.y) ** 2 - 1;
           const t = c >= 0 ? 0 : (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a);
           if (t > 1) { acc = [acc[0] + ax, acc[1] + ay]; break; }
-          const nx = x0 + dx * t, ny = y0 + dy * t, f = Math.hypot(nx - last[0], ny - last[1]) / Math.hypot(x - last[0], y - last[1]), np = last[2] + (pressure - last[2]) * f;
-          dab(layer, s, nx, ny, np, color); sp = spacingOf(s, np); acc = [0, 0]; [x0, y0] = [nx, ny];
+          x0 += (x - x0) * t; y0 += (y - y0) * t; place(x0, y0);
         }
-        last = [x, y, pressure];
+        last = [x, y];
+      },
+      shown(view) {  // what the paper shows in the box changed since last time: the layer with the stroke layer on it; returns the box
+        const [x0, y0, x1, y1] = dirty; if (x1 < 0) return null;
+        const V = view.data;
+        for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+          const i = y * W + x; for (let c = 0; c < 4; c++) V[i * 4 + c] = L[i * 4 + c];
+          if (wash && wash.a[i]) lay(V, i * 4, wash.a[i] * s.opacity.value, washRGB(i));
+        }
+        dirty[0] = W; dirty[1] = H; dirty[2] = dirty[3] = -1;
+        return [x0, y0, x1 - x0 + 1, y1 - y0 + 1];
+      },
+      end() {  // the stroke layer goes onto the layer at the opacity's strength, by the preset's composite op
+        if (wash) for (let i = 0; i < W * H; i++) if (wash.a[i]) lay(L, i * 4, wash.a[i] * s.opacity.value, washRGB(i));
       },
     };
   }
-  return { fromPreset, stroke, optionValue };
+  return { fromPreset, stroke, readGbr, readGih };
 })();

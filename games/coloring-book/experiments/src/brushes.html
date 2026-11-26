@@ -3,19 +3,20 @@
 <style>
 body{margin:0;font:14px system-ui,sans-serif;background:#ddd;color:#222;display:flex;gap:12px;padding:8px;user-select:none}
 #left{width:880px} #right{flex:1;max-height:calc(100vh - 16px);overflow:auto}
-#presets button{font:inherit;padding:6px 10px;margin:0 4px 6px 0;border:1px solid #888;border-radius:6px;background:#f4f4f4}
-#presets button.on{background:#335;color:#fff}
+#presets{max-height:84px;overflow:auto}
+#presets button{font:inherit;padding:5px 9px;margin:0 4px 5px 0;border:1px solid #888;border-radius:6px;background:#f4f4f4}
+#presets button.on{background:#335;color:#fff} #presets b{margin-right:6px}
 #ref{width:880px;height:150px;background-repeat:no-repeat}
 #paper{display:block;margin-top:8px;touch-action:none;background:repeating-conic-gradient(#fff 0 25%,#ccc 0 50%) 0 0/20px 20px}
-#numbers{width:880px;height:110px;margin-top:8px;font:12px monospace}
-.row{display:flex;align-items:center;gap:6px;margin:3px 0} .row label{width:130px} .row input[type=range]{flex:1} .row input[type=number]{width:70px}
-h3{margin:10px 0 4px;font-size:14px}
+#numbers{width:880px;height:90px;margin-top:6px;font:12px monospace}
+.row{display:flex;align-items:center;gap:6px;margin:2px 0} .row label{width:150px;font-size:13px} .row input[type=range]{flex:1} .row input[type=number]{width:70px}
+h3{margin:8px 0 3px;font-size:14px}
 </style></head><body>
 <div id="left">
   <div id="presets"></div>
   <div id="ref"></div>
   <canvas id="paper" width="880" height="300"></canvas>
-  <div><button id="krita">Krita's numbers</button> <button id="fill">Fill the paper again</button></div>
+  <div><button id="krita">Krita's numbers</button> <button id="fill">Fill the paper again</button> <button id="clear">Empty the paper</button> colour <input type="color" id="colour" value="#202020"></div>
   <textarea id="numbers" readonly></textarea>
 </div>
 <div id="right"></div>
@@ -23,29 +24,45 @@ h3{margin:10px 0 4px;font-size:14px}
 /*%BRUSH_CORE%*/
 // SECTION: PAGE -- Krita's presets beside Krita's picture; every number of the chosen brush is a slider (owner 26 Nov, experiments/README.md)
 const FAMILIES = /*%FAMILIES%*/[];
+const ASSETS = /*%ASSETS%*/{};  // tips and textures the presets name: file name -> data URL
 const LAYER_GREY = [150, 150, 150];  // what the erasers take away: an even grey, so the checkerboard shows where the paper is erased
-const SLIDERS = [  // [name, min, max, step]: the tip's numbers (brush_definition) and the options' strengths
-  ['diameter', 1, 300, 1], ['ratio', 0.01, 1, 0.01], ['hfade', 0, 1, 0.01], ['vfade', 0, 1, 0.01],
-  ['spacing', 0.01, 5, 0.01], ['autoSpacingCoeff', 0.1, 5, 0.01], ['opacity', 0, 1, 0.01], ['flow', 0, 1, 0.01]];
-const OPTION_OF = { opacity: 'opacity', flow: 'flow' };  // sliders that set an option's strength
 const cv = document.getElementById('paper'), g = cv.getContext('2d');
-let layer, brush, chosen, pressure = 1;
+const pen = { pressure: 1, tiltX: 0, tiltY: 0 };  // a mouse or finger has none: Krita gives it pressure 1 and no tilt; a pen gives its own
+let layer, view, brush, chosen, assets = {};
 
-function fill() {
-  layer = g.createImageData(cv.width, cv.height);
-  for (let i = 0; i < layer.data.length; i += 4) layer.data.set([...LAYER_GREY, 255], i);
+// SECTION: ASSETS -- tips and textures decoded once: pictures (png, svg) to pixels, GIMP brushes (gbr, gih) read by the core
+async function loadAssets() {
+  for (const [name, url] of Object.entries(ASSETS)) {
+    if (/\.(gbr|gih)$/.test(name)) { const b = Uint8Array.from(atob(url.split(',')[1]), c => c.charCodeAt(0)); assets[name] = name.endsWith('.gih') ? { gih: KritaBrush.readGih(b) } : { gbr: KritaBrush.readGbr(b) }; continue; }
+    const img = new Image(); img.src = url; await img.decode();
+    const c = document.createElement('canvas'); c.width = img.naturalWidth || 256; c.height = img.naturalHeight || 256;
+    const x = c.getContext('2d'); x.drawImage(img, 0, 0, c.width, c.height);
+    assets[name] = { image: { w: c.width, h: c.height, px: x.getImageData(0, 0, c.width, c.height).data } };
+  }
+}
+
+// SECTION: PAPER -- the layer painted on, and what is shown
+function fill(rgba) {
+  layer = g.createImageData(cv.width, cv.height); view = g.createImageData(cv.width, cv.height);
+  for (let i = 0; i < layer.data.length; i += 4) layer.data.set(rgba, i);
   g.putImageData(layer, 0, 0);
 }
-function value(k) { return OPTION_OF[k] ? brush[k].value : brush[k]; }
-function setValue(k, v) { if (OPTION_OF[k]) brush[k].value = v; else brush[k] = v; }
-function choose(p) {
-  chosen = p; brush = KritaBrush.fromPreset(p.text);
-  for (const b of document.querySelectorAll('#presets button')) b.classList.toggle('on', b.id === 'p-' + p.id);
-  const ref = document.getElementById('ref'), fam = FAMILIES.find(f => f.presets.includes(p));
-  ref.style.backgroundImage = 'url(' + fam.picture + ')'; ref.style.backgroundPosition = `-${p.row[0]}px -${p.row[1]}px`;
-  panel(); fill();
+const fresh = () => fill(brush.compositeOp === 'erase' ? [...LAYER_GREY, 255] : [255, 255, 255, 255]);
+
+// SECTION: SLIDERS -- each number of the chosen preset; names are Krita's
+function numberList(b) {  // [label, get, set, min, max, step]
+  const L = [], put = (label, o, k, min, max, step) => L.push([label, () => o[k], v => { o[k] = v; delete b.pic; if (b.texture) delete b.texture.mask; }, min, max, step]);
+  if (b.tipType === 'auto_brush') {
+    put('diameter', b, 'diameter', 1, 400, 1); put('ratio', b, 'ratio', 0.01, 1, 0.01); put('hfade', b, 'hfade', 0, 1, 0.01); put('vfade', b, 'vfade', 0, 1, 0.01);
+    put('density', b, 'density', 0, 1, 0.01); put('randomness', b, 'randomness', 0, 1, 0.01);
+  } else put('scale', b, 'scale', 0.01, 3, 0.001);
+  put('angle', b, 'angle', 0, 6.2832, 0.0001); put('spacing', b, 'spacing', 0.01, 5, 0.01); put('autoSpacingCoeff', b, 'autoSpacingCoeff', 0.1, 5, 0.01);
+  for (const o of options(b)) put(o.name + 'Value', o, 'value', o.range[0], o.range[1], 0.01);
+  if (b.texture) for (const [k, a, z, s] of [['scale', 0.1, 3, 0.01], ['brightness', -1, 1, 0.01], ['contrast', 0, 2, 0.01]]) put('texture ' + k, b.texture, k, a, z, s);
+  return L;
 }
-function slider(box, label, min, max, step, get, set) {
+function options(b) { return [b.size, b.opacity, b.flow, b.rotation, b.ratioOption, b.scatter, b.mirror, b.softness, b.spacingOption, b.texture?.strength].filter(o => o && o.on); }
+function slider(box, label, get, set, min, max, step) {
   const r = document.createElement('div'); r.className = 'row';
   r.innerHTML = `<label>${label}</label><input type=range min=${min} max=${max} step=${step}><input type=number min=${min} max=${max} step=${step} id="n-${label.replace(/ /g, '-')}">`;
   const [, range, num] = r.children; range.value = num.value = get();
@@ -53,51 +70,66 @@ function slider(box, label, min, max, step, get, set) {
   num.onchange = () => { range.value = num.value; set(+num.value); numbers(); };
   box.appendChild(r);
 }
-function check(box, label, get, set) {
-  const r = document.createElement('div'); r.className = 'row';
-  r.innerHTML = `<label>${label}</label><input type=checkbox id="n-${label}">`; const c = r.children[1]; c.checked = get();
-  c.onchange = () => { set(c.checked); numbers(); }; box.appendChild(r);
-}
 function panel() {
-  const box = document.getElementById('right'); box.innerHTML = `<h3>${chosen.id.replace(/_/g, ' ')}: tip ${brush.shape}, ${brush.fade}, ${brush.compositeOp}</h3>`;
-  slider(box, 'pressure', 0, 1, 0.01, () => pressure, v => pressure = v);  // a mouse or finger has none: Krita gives it 1; a pen gives its own
-  for (const [k, a, b, s] of SLIDERS) slider(box, k, a, b, s, () => value(k), v => setValue(k, v));
-  check(box, 'useAutoSpacing', () => brush.useAutoSpacing, v => brush.useAutoSpacing = v);
-  check(box, 'antialiasEdges', () => brush.antialias, v => brush.antialias = v);
-  for (const name of ['size', 'opacity', 'flow']) {
-    const o = brush[name]; if (!o.on || !o.useCurve) continue;
-    const h = document.createElement('h3'); h.textContent = name + ' by pressure (curve points)'; box.appendChild(h);
-    o.curve.forEach((pt, i) => { for (const j of [0, 1]) slider(box, `${name} ${'xy'[j]}${i}`, 0, 1, 0.001, () => pt[j], v => { pt[j] = v; o.fn = null; }); });
+  const b = brush, box = document.getElementById('right');
+  box.innerHTML = `<h3>${chosen.id.replace(/_/g, ' ')}: ${b.tipType === 'auto_brush' ? b.shape + ' ' + b.fade : b.file}, ${b.wash ? 'wash' : 'build-up'}, ${b.compositeOp}</h3>`;
+  for (const k of ['pressure', 'tiltX', 'tiltY']) slider(box, k, () => pen[k], v => pen[k] = v, k === 'pressure' ? 0 : -60, k === 'pressure' ? 1 : 60, 0.01);
+  for (const n of numberList(b)) slider(box, ...n);
+  for (const o of options(b)) {
+    if (!o.useCurve) continue;
+    o.sensors.forEach((s, si) => {
+      if (!s.curve) return;
+      const h = document.createElement('h3'); h.textContent = `${o.name} by ${s.id} (curve points)`; box.appendChild(h);
+      s.curve.forEach((pt, i) => { for (const j of [0, 1]) slider(box, `${o.name.toLowerCase()}${si ? si : ''} ${'xy'[j]}${i}`, () => pt[j], v => { pt[j] = v; s.fn = null; }, 0, 1, 0.001); });
+    });
   }
   numbers();
 }
-function numbers() {  // what he sends back: the chosen preset's numbers in Krita's own words
-  const b = brush, c = o => o.curve.map(p => p.map(v => +v.toFixed(4)).join(',')).join(';') + ';';
-  document.getElementById('numbers').value = [chosen.file,
-    `brush_definition: type="${b.shape}" id="${b.fade}" diameter="${b.diameter}" ratio="${b.ratio}" hfade="${b.hfade}" vfade="${b.vfade}" antialiasEdges="${+b.antialias}" spacing="${b.spacing}" useAutoSpacing="${+b.useAutoSpacing}" autoSpacingCoeff="${b.autoSpacingCoeff}"`,
-    `OpacityValue = ${b.opacity.value}`, `FlowValue = ${b.flow.value}`,
-    ...['size', 'opacity', 'flow'].filter(n => b[n].on && b[n].useCurve).map(n => `${n[0].toUpperCase() + n.slice(1)}Sensor curve = ${c(b[n])}`)].join('\n');
+function numbers() {  // what he sends back: the chosen preset's numbers in Krita's words
+  const b = brush, tip = numberList(b).filter(n => !/Value$|^texture /.test(n[0])).map(n => `${n[0]}="${+n[1]().toFixed(4)}"`).join(' ');
+  document.getElementById('numbers').value = [chosen.file, 'brush_definition: ' + tip,
+    ...options(b).map(o => `${o.name}Value = ${o.value}` + (o.useCurve ? o.sensors.filter(s => s.curve).map(s => ` | ${s.id} curve ${s.curve.map(p => p.map(v => +v.toFixed(4)).join(',')).join(';')};`).join('') : '')),
+    ...(b.texture ? [`texture scale ${b.texture.scale} brightness ${b.texture.brightness} contrast ${b.texture.contrast}`] : [])].join('\n');
+}
+function choose(p) {
+  chosen = p; brush = KritaBrush.fromPreset(p.text);
+  for (const b of document.querySelectorAll('#presets button')) b.classList.toggle('on', b.id === 'p-' + p.id);
+  const ref = document.getElementById('ref'), fam = FAMILIES.find(f => f.presets.includes(p));
+  ref.style.backgroundImage = 'url(' + fam.picture + ')'; ref.style.backgroundPosition = `-${p.row[0]}px -${p.row[1]}px`;
+  panel(); fresh();
 }
 
 // SECTION: PAINTING -- one finger or pen paints a stroke with the chosen brush
 let stroke = null;
-const at = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top, e.pointerType === 'pen' ? e.pressure : pressure]; };
-cv.onpointerdown = e => { if (stroke) return; cv.setPointerCapture(e.pointerId); stroke = KritaBrush.stroke(layer, brush, [0, 0, 0]); stroke.id = e.pointerId; stroke.to(...at(e)); g.putImageData(layer, 0, 0); };
-cv.onpointermove = e => { if (!stroke || e.pointerId !== stroke.id) return; for (const c of e.getCoalescedEvents?.() || [e]) stroke.to(...at(c)); g.putImageData(layer, 0, 0); };
-cv.onpointerup = cv.onpointercancel = e => { if (stroke && e.pointerId === stroke.id) stroke = null; };
+const hex = () => { const v = document.getElementById('colour').value; return [1, 3, 5].map(i => parseInt(v.slice(i, i + 2), 16)); };
+const at = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top, e.pointerType === 'pen' ? { pressure: e.pressure, tiltX: e.tiltX, tiltY: e.tiltY } : pen]; };
+function show() { const box = stroke.shown(view); if (box) g.putImageData(view, 0, 0, ...box); }
+cv.onpointerdown = e => {
+  if (stroke) return; cv.setPointerCapture(e.pointerId);
+  stroke = KritaBrush.stroke(layer, brush, hex(), assets); stroke.id = e.pointerId; stroke.to(...at(e)); show();
+};
+cv.onpointermove = e => { if (!stroke || e.pointerId !== stroke.id) return; for (const c of e.getCoalescedEvents?.() || [e]) stroke.to(...at(c)); show(); };
+cv.onpointerup = cv.onpointercancel = e => { if (!stroke || e.pointerId !== stroke.id) return; stroke.end(); stroke = null; g.putImageData(layer, 0, 0); };
 
-for (const f of FAMILIES) for (const p of f.presets) {
-  const b = document.createElement('button'); b.id = 'p-' + p.id; b.textContent = p.id.replace(/_/g, ' '); b.onclick = () => choose(p);
-  document.getElementById('presets').appendChild(b);
-}
 document.getElementById('krita').onclick = () => choose(chosen);
-document.getElementById('fill').onclick = fill;
-choose(FAMILIES[0].presets[0]);
+document.getElementById('fill').onclick = () => fill([...LAYER_GREY, 255]);
+document.getElementById('clear').onclick = () => fill([255, 255, 255, 255]);
+loadAssets().then(() => {
+  for (const f of FAMILIES) {
+    const box = document.getElementById('presets'), t = document.createElement('b'); t.textContent = f.name; box.appendChild(t);
+    for (const p of f.presets) { const b = document.createElement('button'); b.id = 'p-' + p.id; b.textContent = p.id.replace(/_/g, ' '); b.onclick = () => choose(p); box.appendChild(b); }
+    box.appendChild(document.createElement('br'));
+  }
+  choose(FAMILIES[0].presets[0]);
+  window.__kb.ready = true;
+});
 
 // SECTION: TEST HOOKS -- read-only views for the flow tests (tools/flows.py, KRITA BRUSHES)
 const centre = el => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
 window.__kb = {
-  ready: true, btn: id => centre(document.getElementById(id)), value, curve: n => brush[n].curve.map(p => [...p]), refShown: () => chosen.id,
+  ready: false, btn: id => centre(document.getElementById(id)), refShown: () => chosen.id,
+  value: k => numberList(brush).find(n => n[0] === k || n[0] === k + 'Value' || n[0].toLowerCase() === k + 'value')[1](),
+  curve: n => brush[n].sensors[0].curve.map(p => [...p]),
   screenOf: (x, y) => { const r = cv.getBoundingClientRect(); return [r.left + x, r.top + y]; },
   alpha: (x, y) => layer.data[(Math.round(y) * cv.width + Math.round(x)) * 4 + 3] / 255,
 };
