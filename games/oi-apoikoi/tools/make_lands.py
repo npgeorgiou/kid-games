@@ -3,7 +3,9 @@
 # lighter, right wall darker), soft shadows, many small things packed close. Seeded: the same pictures every run. python3 tools/make_lands.py
 import math, random, pathlib
 
-S = 256                 # a square's diamond is S wide and S / 2 high
+S = 256                 # a square's diamond is S wide and D high
+RATIO = 1.76            # owner 26 Nov: a square's width to height on screen; the same as BOARD_RATIO in src/index.html
+D = S / RATIO
 WALL = 52               # the walls' height (about 0.4 of the diamond's height)
 OUT = pathlib.Path(__file__).resolve().parent.parent / 'art' / 'lands'
 
@@ -19,7 +21,7 @@ def pts(ps): return ' '.join(f(x) + ',' + f(y) for x, y in ps)
 
 class Iso:  # a point on the square (u, v from 0 to 1 across it), z up, on a picture whose diamond's top corner is at (S / 2, oy)
     def __init__(self, oy): self.oy = oy
-    def __call__(self, u, v, z=0): return (S / 2 + (u - v) * S / 2, self.oy + (u + v) * S / 4 - z)
+    def __call__(self, u, v, z=0): return (S / 2 + (u - v) * S / 2, self.oy + (u + v) * D / 2 - z)
 
 
 def poisson(rng, n, gap, lo=0.08, hi=0.92, tries=4000):  # up to n points on the square, at least gap apart (in u, v), back to front
@@ -40,8 +42,8 @@ def wavy(rng, x0, y0, x1, y1, amp, n=14):  # points from (x0, y0) to (x1, y1) wi
 
 def wall(rng, side, land):  # one front wall: side 0 the left (lit), 1 the right (shaded): a band of the top's own colour, then plain earth, a dark foot
     shade = 0.0 if side == 0 else 0.25
-    if side == 0: a, b = (0, S / 4), (S / 2, S / 2)
-    else: a, b = (S / 2, S / 2), (S, S / 4)
+    if side == 0: a, b = (0, D / 2), (S / 2, D)
+    else: a, b = (S / 2, D), (S, D / 2)
     at = lambda s, t: (a[0] + (b[0] - a[0]) * s, a[1] + (b[1] - a[1]) * s + t * WALL)
     quad = lambda t0, t1: pts([at(0, t0), at(1, t0), at(1, t1), at(0, t1)])
     o = ['<polygon points="%s" fill="%s"/>' % (quad(0, 1), dark(land['soil'], shade))]
@@ -77,10 +79,10 @@ def under(rng, land, at, shade):  # what shows in the earth under the top layer,
 def ground(land, rng):
     d = Iso(0)
     top = pts([d(0, 0), d(1, 0), d(1, 1), d(0, 1)])
-    o = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">' % (S, S // 2 + WALL, S, S // 2 + WALL), '<defs>',
+    o = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">' % (S, round(D + WALL), S, round(D + WALL)), '<defs>',
          '<clipPath id="d"><polygon points="%s"/></clipPath>' % top,
-         '<clipPath id="w0"><polygon points="%s"/></clipPath>' % pts([(0, S / 4), (S / 2, S / 2), (S / 2, S / 2 + WALL), (0, S / 4 + WALL)]),
-         '<clipPath id="w1"><polygon points="%s"/></clipPath>' % pts([(S / 2, S / 2), (S, S / 4), (S, S / 4 + WALL), (S / 2, S / 2 + WALL)]),
+         '<clipPath id="w0"><polygon points="%s"/></clipPath>' % pts([(0, D / 2), (S / 2, D), (S / 2, D + WALL), (0, D / 2 + WALL)]),
+         '<clipPath id="w1"><polygon points="%s"/></clipPath>' % pts([(S / 2, D), (S, D / 2), (S, D / 2 + WALL), (S / 2, D + WALL)]),
          '<linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0.55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#0b2030" stop-opacity="0.35"/></linearGradient>',
          '<linearGradient id="sun" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.18"/><stop offset="0.6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.08"/></linearGradient>',
          '</defs>']
@@ -294,10 +296,10 @@ def town_things(d, rng):
     return o
 
 
-def things(land, rng):
+def things(land, rng):  # the square's diamond under S / 2 of room for what stands on it
     d = Iso(S / 2)
     body = land['things'](d, rng)
-    return '\n'.join(['<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 %d %d" width="%d" height="%d">' % (S, S, S, S)] + body + ['</svg>'])
+    return '\n'.join(['<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 %d %d" width="%d" height="%d">' % (S, round(S / 2 + D), S, round(S / 2 + D))] + body + ['</svg>'])
 
 
 # ---------- the top's own detail (on the ground picture, under the things)

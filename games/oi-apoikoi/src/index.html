@@ -30,15 +30,15 @@ const HALVES = [10, 10, 9, 9, 9, 9];  // the 56 halves of the 28 tiles, per colo
 const BORDER = ['#22a33a', '#d42a2a'], TINT = ['#eef8e6', '#fbebe8'];  // the kid's land green, the PC's red; their areas' light tints
 const JAR_MIX = { empty: 10, coins: 45, coins2: 10, tile: 4, slot: 5, first: 8, jar: 8, set: 10 };  // what jars hold, per 100 jars (owner 25 Nov)
 const JAR_GOODS = 5;  // this many goods of one colour make a jar at once (owner 24 Nov)
-const COIN_SLOTS = 8, COIN_STACK = 10, GOODS_SHARE = 0.18;  // owner 26 Nov: coins in 8 places of 10, filled one place at a time; the materials' area reaches GOODS_SHARE of the screen's width (his mark)  // coin places in his line (owner 25 Nov);  // coins in a row at most; a material's and a coin's radius, in half square heights: 1.5 times their old size (owner 25 Nov, design 3)
+const COIN_SLOTS = 8, COIN_STACK = 10, GOODS_SHARE = 0.2175;  /* owner 26 Nov: coins 1/8 smaller; the coin stack's room this saves goes to the materials' area (was 0.18) */  // owner 26 Nov: coins in 8 places of 10, filled one place at a time; the materials' area reaches GOODS_SHARE of the screen's width (his mark)  // coin places in his line (owner 25 Nov);  // coins in a row at most; a material's and a coin's radius, in half square heights: 1.5 times their old size (owner 25 Nov, design 3)
 const COLS = 16, ROWS = 16, STARTS = [[4, 10, 0], [11, 5, 2]];  // a square board of sea (owner 25 Nov, design 3); each start tile at the centre of its half of the diamond; they face each other: the PC's is the kid's turned half a turn around the board's centre (owner 25 Nov)
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half is, by turn
 const params = new URLSearchParams(location.search);
 let fast = params.has('fast'), stillWater = fast;  // tests: the PC moves without waiting, and nothing travels: it is where it goes at once
 const HAND_SPEED = 700;  // owner 25 Nov: the PC moves faster  // px per second: slow enough to follow
-const EDGE_JAR_MS = 2200, EDGE_JAR_GAP = 500;  // owner 26 Nov: a connection's jar rises slowly out of its edge, one after another
+const EDGE_GROW_MS = 1755, EDGE_IN_PLACE = 0.7, EDGE_GO_MS = EDGE_GROW_MS * (1 - Math.cbrt(1 - EDGE_IN_PLACE)), EDGE_GLIDE_MS = 1440, EDGE_JAR_MS = EDGE_GO_MS + EDGE_GLIDE_MS;  // owner 26 Nov: growing 10% and gliding 20% faster than before; owner 26 Nov: a connection's jars grow slowly out of their edges, all at once, as the land's harvest starts
 const STAGGER = 120, GOOD_FLY = 675, COIN_FLY = 825;  // things that go one after another leave STAGGER apart; a good flies GOOD_FLY, a coin COIN_FLY (owner 26 Nov: goods and coins a third slower)
-const RISE_MS = 500, SHOW_MS = 1000, GLIDE_MS = 300, REWARD_MS = 550;  // a jar opened: what it held rises out of it, shows, and its reward flies to its place; the other jars close up
+const RISE_MS = 500, SHOW_MS = 900,  /* owner 26 Nov: 10% shorter */ GLIDE_MS = 300, REWARD_MS = 550;  // a jar opened: what it held rises out of it, shows, and its reward flies to its place; the other jars close up
 const DEAL_MS = 260, DROP_MS = 600, INTO_MS = 900, SPECK_MS = 700;  // a market tile dealt from the pile; a jar dropping from the top; each good flying into it; a broken jar's specks fading
 const DUSK_MS = 1600, DAWN_MS = 900;  // evening falling at a round's end; morning light sweeping over at a round's start
 const GLOW_MS = 1800, RIPPLE_STEP = 300, POP_MS = 420, SHINE_MS = 500;  // a connection's edge glows GLOW_MS; its lit land ripples out a square each RIPPLE_STEP, each square lighting and jumping POP_MS (owner 25 Nov)
@@ -211,7 +211,7 @@ function marketSpot() {  // the empty market place the tile in hand lies on, if 
 let flights = [];
 const easeInOut = u => u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u), easeSine = u => (1 - Math.cos(Math.PI * u)) / 2;
 function fly(look, from, to, ms, o = {}) {
-  const my = G, wait0 = o.delay || 0, f = { look, from, to, t0: performance.now() + wait0, ms, arc: o.arc ?? 70, z0: o.z0 ?? 1, z1: o.z1 ?? 1, ease: o.ease || (look.k === 'good' || look.k === 'coin' ? easeSine : easeInOut), target: o.target, source: o.source, via: o.via };  // target(): where it goes, asked each frame (a place that may move while it flies)
+  const my = G, wait0 = o.delay || 0, f = { look, from, to, t0: performance.now() + wait0, ms, arc: o.arc ?? 70, z0: o.z0 ?? 1, z1: o.z1 ?? 1, ease: o.ease || (look.k === 'good' || look.k === 'coin' ? easeSine : easeInOut), target: o.target, source: o.source, via: o.via, path: o.path };  // target(): where it goes, asked each frame (a place that may move while it flies)
   if (!fast) flights.push(f);
   return pause(ms + wait0).then(() => { if (G === my) flights = flights.filter(g => g !== f); });  // delay: it waits where it is, seen, until its turn
 }
@@ -242,6 +242,7 @@ function puff(at) { const t0 = performance.now(); for (let k = 0; k < 8; k++) { 
 const fall = u => u * u;  // a thing falling: faster and faster until it lands
 function flightAt(f, now) {
   if (f.target) f.to = f.target(); if (f.source) f.from = f.source(); const u = Math.min(1, Math.max(0, (now - f.t0) / f.ms)), e = f.ease(u), z = f.z0 + (f.z1 - f.z0) * e;
+  if (f.path) return f.path(u);  // path(u): its own way, for a motion made of overlapping parts
   if (f.via) { const a = (1 - e) * (1 - e), b = 2 * e * (1 - e), c = e * e; return [a * f.from[0] + b * f.via[0] + c * f.to[0], a * f.from[1] + b * f.via[1] + c * f.to[1], z]; }
   return [f.from[0] + (f.to[0] - f.from[0]) * e, f.from[1] + (f.to[1] - f.from[1]) * e - Math.sin(Math.PI * u) * f.arc, z];
 }
@@ -268,10 +269,20 @@ async function gain(i, list, gap) {  // list: [colour, from, sound, step, square
 const freeSlot = p => { let k = 0; while (p.jarList.some(j => j.slot === k) || p.reserved.has(k)) k++; return k; };
 const places = p => Math.max(p.hold, ...p.jarList.map(j => j.slot + 1), ...[...p.reserved].map(k => k + 1));  // how many places his jars' lines hold now
 async function dropJar(i, from, slot = G.players[i].planned.shift() ?? freeSlot(G.players[i])) {  // one more jar for player i: it flies to its place (one kept for it, the first free one, or the place given), then counts; it gives where it landed
-  // owner 26 Nov: a jar from an edge rises out of it straight up, then goes over to its place, at its own size
-  const my = G, p = G.players[i]; G.jarWho = i; p.reserved.add(slot); const at = jarSpot(slot, places(p)), target = () => jarSpot(slot, places(p));  // it falls straight onto its place, even if its line re-centres meanwhile (owner 25 Nov)
-  await fly({ k: 'jar' }, from || [at[0], -JAR_SIZE()], at, from ? EDGE_JAR_MS : DROP_MS, from ? { target, via: [from[0], Math.min(from[1], at[1]) - JAR_SIZE() * 1.2] } : { arc: 0, target, source: () => [target()[0], -JAR_SIZE()], ease: fall });  // from above its own place (owner 25 Nov) if (G !== my) return at;
+  // 1. with no start it falls from the top of the screen straight onto its place (owner 25 Nov); 2. from a start (where a broken jar showed it, the slot machine) it drops from there to its place (owner 26 Nov: just drop);
+  // the place is asked each frame, so it lands on it even if its line re-centres meanwhile
+  const my = G, p = G.players[i]; G.jarWho = i; p.reserved.add(slot); const target = () => jarSpot(slot, places(p)), start = from || [target()[0], -JAR_SIZE()];
+  await fly({ k: 'jar' }, start, target(), DROP_MS, { arc: 0, target, source: from ? undefined : () => [target()[0], -JAR_SIZE()], ease: fall }); if (G !== my) return target();
   p.reserved.delete(slot); p.jarList.push({ slot, fresh: true }); sound('jarland'); return jarSpot(slot, places(p));
+}
+// A connection's jar (owner 26 Nov; the source shows itself, then the thing comes out of it), one motion: 1. the edge glows; 2. the jar grows out of the edge, its foot on it,
+// over EDGE_GROW_MS (eased out); 3. once it has grown EDGE_IN_PLACE of the way (EDGE_GO_MS), it flies straight to its place over EDGE_GLIDE_MS (eased in and out), growing the rest on the way.
+async function edgeJar(i, at, slot) {
+  const my = G, p = G.players[i]; G.jarWho = i; p.reserved.add(slot); const target = () => jarSpot(slot, places(p));
+  const path = u => { const z = 0.1 + 0.9 * easeOut(Math.min(1, u * EDGE_JAR_MS / EDGE_GROW_MS)), foot = [at[0], at[1] - JAR_SIZE() * JAR_TALL / 2 * z], v = Math.max(0, (u * EDGE_JAR_MS - EDGE_GO_MS) / EDGE_GLIDE_MS), e = easeInOut(v), t = target();
+    return [foot[0] + (t[0] - foot[0]) * e, foot[1] + (t[1] - foot[1]) * e, z]; };
+  await fly({ k: 'jar' }, at, target(), EDGE_JAR_MS, { path, target }); if (G !== my) return;
+  p.reserved.delete(slot); p.jarList.push({ slot, fresh: true }); sound('jarland');
 }
 async function parkJars(i, away) {  // the waiting jars fly together, smaller, to stand beside his lower board edge, and back again to their places
   const p = G.players[i], my = G, list = away ? p.jarList.slice() : p.jarList.filter(j => j.parked), n = list.length;
@@ -332,7 +343,7 @@ async function makeJar(i, c, landing) {  // a full row of colour c: its jar drop
   const my = G, p = G.players[i], [at] = await Promise.all([dropJar(i), landing.then(() => { if (G !== my) return; G.shines.push({ o: i, c, t0: performance.now() }); sound('shine'); return pause(SHINE_MS); })]); if (G !== my) return [];  // owner 26 Nov: the full column shines like the harvest for SHINE_MS, then its goods leave
   // owner 26 Nov: each good jumps into the jar's top opening: a thrown thing's path (a quadratic Bezier at an even pace is a parabola), up over the jar and straight down into the mouth;
   // it keeps its size and goes out of sight below the rim
-  const r = stock(i).r, rim = at[1] - JAR_SIZE() * JAR_TALL * 0.47, mouth = [at[0], rim + 1.3 * r], via = g0 => [mouth[0], Math.min(g0[1], rim) - JAR_SIZE() * 1.2];
+  const r = stock(i).r, h = JAR_SIZE() * JAR_TALL, rim = { x: at[0], y: at[1] - h * 0.47, w: h * JAR_ASPECT, h: h * 0.97 }, mouth = [at[0], rim.y + 1.3 * r], via = g0 => [mouth[0], Math.min(g0[1], rim.y) - JAR_SIZE() * 1.2];
   return [...Array(JAR_GOODS).keys()].map(g => pause(g * STAGGER).then(() => {
     if (G !== my) return; const from = slotPos(i, c, p.goods[c] - 1); p.goods[c]--; sound('into');
     return fly({ k: 'good', c, o: i, rim }, from, mouth, INTO_MS, { via: via(from), ease: u => u }).then(() => G === my && g === JAR_GOODS - 1 && sound('made'));
@@ -366,7 +377,7 @@ async function place(i, cs, pos, home, lies = 0) {  // lies: how it is turned to
   // owner 26 Nov: every jar this placing gives gets its place first (its connections' jars and the jars its full columns make), so the lines never re-centre while they fly
   const lit = litLand(edges), P = G.players[i], fills = COLOUR_IDS.reduce((n, c) => n + Math.floor((P.goods[c] + P.coming[c] + lit.filter(l => l[0] === c).length) / JAR_GOODS), 0), keep = () => { const k = freeSlot(P); P.reserved.add(k); return k; };
   const edgeSlots = edges.map(keep); P.planned.push(...Array.from({ length: fills }, keep));
-  await Promise.all([gain(i, lit, RIPPLE_STEP), ...edges.map((e, k) => pause(k * EDGE_JAR_GAP).then(() => G === my && dropJar(i, edgePoint(e.x, e.y, e.d), edgeSlots[k])))]); P.planned.splice(0).forEach(k => P.reserved.delete(k));  // a place kept for a jar that never came is free again if (G !== my) return false;  // a jar for each connection drops in while its land's materials fly
+  await Promise.all([gain(i, lit, RIPPLE_STEP), ...edges.map((e, k) => edgeJar(i, edgePoint(e.x, e.y, e.d), edgeSlots[k]))]); P.planned.splice(0).forEach(k => P.reserved.delete(k));  // a place kept for a jar that never came is free again if (G !== my) return false;  // a jar for each connection drops in while its land's materials fly
   if (G.parked) { await parkJars(i, false); if (G !== my) return false; }
   await openJars(i); return true;
 }
@@ -514,16 +525,21 @@ const WATER_DPR = () => Math.min(1, devicePixelRatio || 1);
 function resize() { const d = devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; cx.setTransform(d, 0, 0, d, 0, 0);
   for (const [k, c] of Object.entries(planes)) { const e = k === 'water' ? WATER_DPR() : d; c.width = W * e; c.height = H * e; planeMark[k] = null; } }
 addEventListener('resize', resize); resize();
-const GROUND_TALL = 180 / 128, WALL_HH = 2 * (GROUND_TALL - 1);  // the ground picture: the square's diamond (128 high) and its walls under it (52; see tools/make_lands.py; owner 25 Nov: land with thickness); the walls in half-square heights
-const BOARD_ROOM = 1.2, TOP_ROOM = 0.5;  // owner 25 Nov: room kept beside the board, in half-square heights: TOP_ROOM of it above its top corner (so what stands on its top square shows), the rest below it (more room for the stockpile)  // owner 25 Nov: room above the board's top corner, in half-square heights, so what stands on its top square is not cut off
-const TOP = 8, PAD = 12, LOW = 8, PILE_STEP = 1.5, SIDE_MIN = 48;  // the band's margin; the board's gap above the screen's bottom edge; px between the pile's layers; the narrowest strip beside the board
-function L() {  // hw, hh: half a square's width and height on screen; T: the band's height; s: from one square's centre to the next
-  const hh0 = (H - LOW - TOP) / (ROWS + COLS + WALL_HH + BOARD_ROOM), T = TOP + TOP_ROOM * hh0, hh = hh0, hw = Math.min(2 * hh, (W - 2 * SIDE_MIN) / (COLS + ROWS));  // the board from the screen's top to its bottom, as wide as fits (at most 2 to 1, the pictures' own shape)
+// owner 26 Nov: the board's width to height, the one that leaves the largest board on the worst of the common PC screens (4:3 to 16:9, full screen and in a browser window)
+const BOARD_RATIO = 1.76;
+const LAND_PIC = 256, LAND_WALL = 52;  // the land pictures (tools/make_lands.py): a square's diamond LAND_PIC wide, its walls LAND_WALL high, and LAND_PIC / 2 of room above it for what stands on it
+const GROUND_TALL = 1 + LAND_WALL * BOARD_RATIO / LAND_PIC, WALL_HH = 2 * (GROUND_TALL - 1);  // the ground picture: the square's diamond and its walls under it ( see tools/make_lands.py; owner 25 Nov: land with thickness); the walls in half-square heights
+const BOARD_BORDER = 1;  // owner 26 Nov: the board's border, the same width all round: at the board's corners, in half-square heights (top, bottom) and widths (sides); its walls (WALL_HH) stand inside it
+const PAD = 12, LOW = 8, PILE_STEP = 1.5;  // the band's margin; the stockpile's gap above the screen's bottom edge; px between the pile's layers
+function L() {  // hw, hh: half a square's width and height on screen; T: the board's top corner; s: from one square's centre to the next
+  // owner 26 Nov: a square has one shape (BOARD_RATIO wide to 1 high) at every screen size, only its size changes: the board with its border as big as fits both ways, touching the screen's edges on the tighter side; the board's centre is the screen's centre
+  const hh = Math.min(H, W / BOARD_RATIO) / (ROWS + COLS + 2 * BOARD_BORDER), hw = BOARD_RATIO * hh, T = H / 2 - ROWS * hh;  // T: the board's top corner
   return { hw, hh, T, s: 2 * hh, ds: 2 * hh, bx: W / 2 };
 }
 function squareUnder(x, y) { const { hw, hh, T } = L(), a = (x - W / 2) / hw, b = (y - T) / hh; return [Math.floor((a + b) / 2), Math.floor((b - a) / 2)]; }  // the square a screen point lies on (iso turned back)
 function iso(u, v) { const { hw, hh, T, bx } = L(); return [bx + (u - v) * hw, T + (u + v) * hh]; }  // a point of the board (in squares) on screen
 function boardDiamond() { const { hw, hh, T } = L(); return { cx: W / 2, cy: T + ROWS * hh, a: COLS * hw, c: ROWS * hh }; }  // the board's centre and half sizes
+function borderDiamond() { const { hw, hh } = L(), d = boardDiamond(); return { ...d, a: d.a + BOARD_BORDER * hw, c: d.c + BOARD_BORDER * hh }; }  // the board with its border: its outer edge
 function clearOfBoard(x, y, r) { const { cx: X, cy: Y, a, c } = boardDiamond(); return (Math.abs(x - X) * c + Math.abs(y - Y) * a - a * c) / Math.hypot(a, c) >= r; }  // a round thing at (x, y) stays off the board
 function marketY() { const { hh } = L(); return PAD + 2.5 * hh; }  // the market tiles' centres along the top
 function draftSlot(k) { const r = marketReach(), d = k === 1 || k === 2 ? r.inner : r.outer; return [k < 2 ? W / 2 - d : W / 2 + d, marketY()]; }  // owner 25 Nov: 2 tiles on the left, 2 on the right, mirrored; the pile top left, the buttons top right  // the 4 places in the band, along its bottom
@@ -599,7 +615,7 @@ function groundAt(c, x, y, z = 1, grey, wet) {  // (x, y): the square's centre; 
 function thingsAt(c, x, y, z = 1, grey, life) {  // twice as high as the diamond, standing on it; life: the square is on the board (its sheep wander, the wind bends it): its cell
   const { hw, hh } = L(), bend = life ? WIND_BEND[LANDS[c]] * gust(x, life.now) : 0;
   if (bend) { cx.save(); cx.transform(1, 0, -bend, 1, bend * y, 0); }  // bent at its foot (a skew: the higher, the further over)
-  atSize(z, thingsPic(c), x - hw * z, y - 3 * hh * z, 2 * hw * z, 4 * hh * z, grey); if (bend) cx.restore();
+  atSize(z, thingsPic(c), x - hw * z, y - (hh + hw) * z, 2 * hw * z, (2 * hh + hw) * z, grey);  // the things picture: the room above the diamond is half its width if (bend) cx.restore();
   if (LANDS[c] === 'plains') flock(x, y, z, grey, life);
 }
 // The wind (owner 26 Nov): every WIND_EVERY a gust crosses the board from left to right in GUST_MS; where it passes, the wheat bends over and back up, the forest less
@@ -668,12 +684,17 @@ function rrect(x, y, w, h, r, fill, stroke, lw) {
   if (stroke) { cx.strokeStyle = stroke; cx.lineWidth = lw || 2; cx.stroke(); }
 }
 function dot(x, y, r, fill) { cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fillStyle = fill; cx.fill(); }
+const COIN_SLICES = 32;  // upright slices of a coin's side
 function flatCoin(x, y, r, th) {  // a coin lying flat, seen from the board's angle: its edge in the coin picture's own dark gold, then his coin picture squashed to lie flat (owner 25 Nov)
   const e = (yy, col) => { cx.beginPath(); cx.ellipse(x, yy, r, r * 0.5, 0, 0, 7); cx.fillStyle = col; cx.fill(); };
   // owner 26 Nov: the side as wide as the face, all round, showing the grooves of his coin's edge picture
   cx.save(); cx.beginPath(); cx.moveTo(x - r, y - th); cx.lineTo(x + r, y - th); cx.lineTo(x + r, y); cx.ellipse(x, y, r, r * 0.5, 0, 0, Math.PI); cx.closePath(); cx.clip();
-  if (pics['things/coin-edge']) picture('things/coin-edge', x - r, y - th - r * 0.1, 2 * r, th + r * 0.62); else { cx.fillStyle = '#a8700e'; cx.fillRect(x - r, y - th, 2 * r, th + r * 0.5); } cx.restore();
-  cx.beginPath(); cx.ellipse(x, y, r, r * 0.5, 0, 0, Math.PI); cx.strokeStyle = '#6e4604'; cx.lineWidth = 1; cx.stroke();  // a dark line under each coin: the coins can be counted
+  // owner 26 Nov: the side is the side picture's grooved band, straight sides, bent along the coin's round front: drawn in thin upright slices, each lowered by the rim's curve there
+  const side = pics['things/coin-edge'];
+  if (side) for (let k = 0, n = COIN_SLICES; k < n; k++) { const sx = x - r + 2 * r * k / n, dy = r * 0.5 * Math.sqrt(Math.max(0, 1 - ((sx + r / n - x) / r) ** 2));
+    cx.drawImage(side, side.width * (0.3 + 0.4 * k / n), side.height * 0.44, side.width * 0.4 / n, side.height * 0.4, sx, y - th + dy - 1, 2 * r / n + 0.6, th + 1 + r * 0.05); }
+  else { cx.fillStyle = '#a8700e'; cx.fillRect(x - r, y - th, 2 * r, th + r * 0.5); }
+  cx.restore(); cx.beginPath(); cx.ellipse(x, y, r, r * 0.5, 0, 0, Math.PI); cx.strokeStyle = '#8a5a08'; cx.lineWidth = 1; cx.stroke();  // owner 26 Nov: a line under each coin: the coins in a stack can be counted
   if (pics['things/coin']) picture('things/coin', x - r, y - th - r * 0.5, 2 * r, r); else e(y - th, '#f2c53d');
 }
 function coin(x, y, r) { if (pics['things/coin']) picture('things/coin', x - r * 1.1, y - r * 1.1, r * 2.2, r * 2.2); else dot(x, y, r, '#b8860b'); }  // owner 25 Nov: his coin picture
@@ -719,7 +740,7 @@ function content(j, x, y, s) {  // what a jar held
   else if (j.k === 'slot') { const k = 0.6; rrect(x - s * 0.42 * k, y - s * 0.24 * k, s * 0.84 * k, s * 0.48 * k, 8, '#7a2f2f'); for (let n = 0; n < 3; n++) rrect(x + (-0.36 + n * 0.25) * s * k, y - s * 0.17 * k, s * 0.21 * k, s * 0.34 * k, 4, '#fff'); }
   else if (j.k === 'first') star(x, y, s * 0.27);
   else if (j.k === 'tile') j.cs ? tileShape(x, y, s * 0.55 / (3 * L().hw), j.cs, 0) : nothing(x, y, s * 0.2);  // owner 26 Nov: the very tile he gets; nothing when none fits
-  else if (j.k === 'jar') jarShape(x, y, s * 0.4);
+  else if (j.k === 'jar') jarShape(x, y, JAR_SIZE());  // owner 26 Nov: full size, as it will stand in its place
   else if (j.k === 'set') setShape(x, y, s * 0.26);
 }
 const HANDS = /*HANDS*/{};  // the hand pictures, put in by build.py
@@ -744,11 +765,15 @@ const LAND_MS = 280;  // routine: short
 function bounce(t) { const u = fast || !t.landed ? 1 : (performance.now() - t.landed) / LAND_MS; return u >= 1 ? 1 : 1 + 0.08 * Math.cos(2 * Math.PI * u) * (1 - u); }
 // The board's picture (sea, land, borders) only changes when the board does: it is made once onto its own canvas and that is drawn each frame.
 // A tile still bouncing in is left out of it and drawn on top, so its bounce shows; the picture is made again once it has settled.
-function landShapes(skip) {  // every square of land (blocks: walls, top, things) and the borders, drawn where cx points, over nothing: the sea and its motion are under it; skip: tiles drawn on their own
+function landShapes(skip, bands) {  // bands: a tile is out, so each player's land shows its border  // every square of land (blocks: walls, top, things) and the borders, drawn where cx points, over nothing: the sea and its motion are under it; skip: tiles drawn on their own
   const { hh } = L(), cells = [...G.cells.values()].filter(c => !skip.has(c.t)), land = new Map(cells.map(c => [key(c.x, c.y), c]));
   const order = cells.slice().sort((a, b) => a.x + a.y - b.x - b.y || a.x - b.x);  // back to front: a square's walls go under the squares in front of it
-  order.forEach(c => groundAt(c.c, ...squareCentre(c.x, c.y), 1, false, true));
-  const borders = [];  // owner 25 Nov: no borders around either player's land
+  const borders = [], wv = waterDrop();
+  // owner 25 Nov: while a tile is out, each player's land shows its border in his colour; owner 26 Nov: it colours the land's walls that stand out of the sea (its front sides facing the water),
+  // a little see-through, nothing over the land's top; each wall's band is drawn with its square, so the land in front covers it (no see-through land)
+  order.forEach(c => { groundAt(c.c, ...squareCentre(c.x, c.y), 1, false, true); if (!bands || c.o == null) return;
+    [0, 1].forEach(d => { const [dx, dy] = DIRS[d]; if (G.cells.get(key(c.x + dx, c.y + dy))) return; const [e0, e1] = sideEnds(c.x, c.y, d);
+      cx.beginPath(); cx.moveTo(...e0); cx.lineTo(...e1); cx.lineTo(e1[0], e1[1] + wv); cx.lineTo(e0[0], e0[1] + wv); cx.closePath(); cx.globalAlpha = 0.55; cx.fillStyle = BORDER[c.o]; cx.fill(); cx.globalAlpha = 1; borders.push({ k: 'shoreband', o: c.o }); }); });
   const now = performance.now(); order.forEach(c => thingsAt(c.c, ...squareCentre(c.x, c.y), 1, false, { x: c.x, y: c.y, now }));
   return borders;
 }
@@ -778,15 +803,18 @@ function rippleSheet(k) {  // ripple layer k already squashed into the board's v
 }
 const waterStep = () => fast || stillWater ? 0 : Math.floor(performance.now() / WATER_STEP);  // the water's picture is made again each WATER_STEP (at test speed, or with still water: never)
 // A tile dropped on the water (owner 26 Nov: a bigger wave, as if dropped on water; the standard ripple rings): 1. rings leave the tile one after another, SPLASH_GAP apart;
-// 2. each grows from the tile's edge outward over SPLASH_MS, in the tile's own shape at the water's line, thinning and fading as it goes.
-const SPLASH_MS = 1300, SPLASH_GAP = 170, SPLASH_RINGS = 3;
+// 2. each grows from the tile's edge outward over SPLASH_MS, from the moment it lands, slowing as it goes, in the tile's own shape at the water's line, thinning and fading as it goes;
+// 3. its corners round as it grows, from SPLASH_ROUND of a square's side to 5 times that at its full reach (owner 26 Nov).
+const SPLASH_MS = 1500, SPLASH_GAP = 380, SPLASH_RINGS = 2, SPLASH_REACH = 0.5, SPLASH_ROUND = 0.1;  // owner 26 Nov: two rings, half a square out, less sudden
 function splashRings(now) {
   G.splashes = G.splashes.filter(q => now - q.t0 < SPLASH_MS + SPLASH_GAP * SPLASH_RINGS); if (!G.splashes.length) return;
   const { hw, hh } = L(), v = waterDrop();
   seaClip(() => G.splashes.forEach(q => { for (let k = 0; k < SPLASH_RINGS; k++) {
     const u = (now - q.t0 - k * SPLASH_GAP) / SPLASH_MS; if (u <= 0 || u >= 1) continue;
-    const d = 0.12 + 1.7 * easeOut(u), [x, y] = q.at, [c, sn] = turnDir(q.r);  // owner 26 Nov: the tile's own shape, d squares out from its sides, at the water's line
-    cx.beginPath(); [[-1, -0.5], [1, -0.5], [1, 0.5], [-1, 0.5]].forEach(([a, b]) => { const p = a + Math.sign(a) * d, w = b + Math.sign(b) * d, uu = p * c - w * sn, vv = p * sn + w * c; cx.lineTo(x + (uu - vv) * hw, y + v + (uu + vv) * hh); }); cx.closePath(); cx.lineJoin = 'round'; cx.strokeStyle = 'rgba(255,255,255,' + (0.75 * (1 - u) * (1 - k * 0.22)) + ')'; cx.lineWidth = hh * (0.28 - 0.18 * u); cx.stroke(); cx.lineJoin = 'miter';
+    const e = 1 - (1 - u) * (1 - u), d = 0.12 + SPLASH_REACH * e, [x, y] = q.at, [c, sn] = turnDir(q.r), round = SPLASH_ROUND * (1 + 4 * e) * Math.hypot(hw, hh);  // owner 26 Nov: the tile's own shape, d squares out from its sides, at the water's line
+    const pts = [[-1, -0.5], [1, -0.5], [1, 0.5], [-1, 0.5]].map(([a, b]) => { const p = a + Math.sign(a) * d, w = b + Math.sign(b) * d, uu = p * c - w * sn, vv = p * sn + w * c; return [x + (uu - vv) * hw, y + v + (uu + vv) * hh]; });
+    cx.beginPath(); cx.moveTo((pts[3][0] + pts[0][0]) / 2, (pts[3][1] + pts[0][1]) / 2); pts.forEach((pt, j) => cx.arcTo(...pt, ...pts[(j + 1) % 4], round)); cx.closePath();  // rounded corners
+    cx.strokeStyle = 'rgba(255,255,255,' + (0.55 * (1 - u) * (1 - k * 0.25)) + ')'; cx.lineWidth = hh * (0.22 - 0.14 * u); cx.stroke();
     drawn.push({ k: 'splashring', n: k });
   } }));
 }
@@ -869,7 +897,7 @@ function drawScene() {  // the band and both areas (one picture for each turn) a
   const full = { x: 0, y: 0, w: W, h: H }, open = openSea();  // the areas and the sea: one picture for each turn; the band on top
   const step = waterStep(), now = step * WATER_STEP;  // the water moves under the land (the land is one still picture over it)
   const areas = layer('areas' + G.turn, [G.turn, open && open.mark].join(), full, () => { const out = [...areaShapes(0), ...areaShapes(1)]; if (open) cx.drawImage(open, 0, 0, W, H); return [{ k: 'sea', ready: !!open }, ...out]; });
-  const alive = !fast && [...G.cells.values()].some(c => ['plains', 'wheat', 'forest'].includes(LANDS[c.c])), board = layer('board', [G.board, ...skip, alive ? step : 0].join(), boardBox(), () => landShapes(skip));  // sheep and wind: drawn again each step
+  const alive = !fast && [...G.cells.values()].some(c => ['plains', 'wheat', 'forest'].includes(LANDS[c.c])), bands = !!(wait && wait.kind === 'place'), board = layer('board', [G.board, ...skip, alive ? step : 0, bands].join(), boardBox(), () => landShapes(skip, bands));  // sheep and wind: drawn again each step
   const onPlane = (k, mark, draw) => {  // draw on plane k only when its mark changed; its records kept for the frames between
     if (planeMark[k] === mark) return planes[k].records; const c = planes[k], e = k === 'water' ? WATER_DPR() : (devicePixelRatio || 1), main = cx;
     cx = c.getContext('2d'); cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, c.width, c.height); cx.setTransform(e, 0, 0, e, 0, 0); c.records = draw() || []; cx = main; planeMark[k] = mark; return c.records;
@@ -915,7 +943,12 @@ function drawDraft() {
     });
   });
   const layers = G.bag.length, [px, top] = pileTop(), bottom = pileLayerY(0), box = { x: px - 1.5 * hw - 2, y: top - 1.5 * hh - 2, w: 3 * hw + 4, h: bottom - top + 3 * hh + 4 };
-  drawLayer(layer('pile', layers, box, () => { for (let k = 0; k < layers; k++) { const y = pileLayerY(k); tilePath(px, y, 1, 0); cx.fillStyle = '#c9ad7f'; cx.fill(); const cut = k % ROUND_TILES === 0 && k; cx.strokeStyle = cut ? '#4a3418' : '#8a6d42'; cx.lineWidth = cut ? 2 : 1; cx.stroke(); }  // one pile; a dark line where each round's tiles begin (owner 25 Nov)
+  drawLayer(layer('pile', layers, box, () => {  // owner 26 Nov: one block of tiles: two flat front sides and the top tile, each tile's line drawn on the sides (nothing sticks out); a dark line where each round's tiles begin (owner 25 Nov)
+    if (!layers) return [{ k: 'pile', layers, x: px, y: top, step: PILE_STEP, bottom: bottom + 1.5 * hh }];
+    const left = y => [px - 1.5 * hw, y - 0.5 * hh], front = y => [px + 0.5 * hw, y + 1.5 * hh], right = y => [px + 1.5 * hw, y + 0.5 * hh], y0 = bottom;  // the tile's three front corners
+    cx.beginPath(); [left(top), front(top), right(top), right(y0), front(y0), left(y0)].forEach(q => cx.lineTo(...q)); cx.closePath(); cx.fillStyle = '#c9ad7f'; cx.fill();
+    for (let k = 1; k < layers - 1; k++) { const y = pileLayerY(k), cut = k % ROUND_TILES === 0; cx.beginPath(); [left(y), front(y), right(y)].forEach(q => cx.lineTo(...q)); cx.strokeStyle = cut ? '#4a3418' : '#8a6d42'; cx.lineWidth = cut ? 1 : 0.5; cx.stroke(); }
+    tilePath(px, top, 1, 0); cx.fillStyle = '#c9ad7f'; cx.fill(); cx.strokeStyle = '#8a6d42'; cx.lineWidth = 0.5; cx.stroke();
     return [{ k: 'pile', layers, x: px, y: top, step: PILE_STEP, bottom: bottom + 1.5 * hh }]; }));  // the pile: one layer per tile, drawn again only when it changes
 }
 function area(i) {  // player i's area: the two triangles beside the board on his side, joined by the strip at the board's side corner
@@ -923,9 +956,9 @@ function area(i) {  // player i's area: the two triangles beside the board on hi
   return [[e, 0], [X, 0], [X, T], [X + (i ? a : -a), Y], [X, Y + c], [X, H], [e, H]];
 }
 const goodsEdge = () => GOODS_SHARE * W;  // how far his materials' area reaches from the screen's edge
-function goodRoom() {  // a material's radius and the step between places: as big as his materials' area allows, clear of the board
-  const { hh } = L(), { cx: X, cy: Y, a, c } = boardDiamond(), h = Math.hypot(a, c);  // the top place of the inner column is nearest the board's lower edge
-  const fit = ((H - LOW - Y) * a - (8 - X + a) * c + h) / ((JAR_GOODS - 0.5) * a + (LANDS.length - 0.5) * c + h / 2);  // that place's circle 2 px clear of the edge (r = (rp - 6) / 2)
+function goodRoom() {  // a material's radius and the step between places: as big as his materials' area allows; the area's box (its places and their icons above) stays clear of the board's border (owner 26 Nov)
+  const { cx: X, cy: Y, a, c } = borderDiamond(), g = 4;  // the box's inner top corner, (8 + LANDS.length * rp, H - LOW - (JAR_GOODS + 1) * rp), lies g px outside the border's lower edge
+  const fit = ((X - 8 - g) / a + (H - LOW - Y - g) / c - 1) / (LANDS.length / a + (JAR_GOODS + 1) / c);
   const rp = Math.min(fit, (goodsEdge() - 8) / LANDS.length); return { r: (rp - 6) / 2, rp };  // and inside his area's width
 }
 const EDGE_CLEAR = 0.5;  // owner 25 Nov: the market's tiles stay this many half-square heights clear of the board's upper edges, so what stands on the land there is never hidden; owner 26 Nov: closer to the board
@@ -971,17 +1004,9 @@ function drawPanel(i) {
   if (G.first === i) { const [sx, sy] = starSpot(i); star(sx, sy, 16 * u); drawn.push({ k: 'token', o: i, x: sx, y: sy, r: 16 * u }); }  // the first-player token, beside his face
 }
 function drawHeld() {  // the tile in hand where it lies, and the place it will snap to
-  const { hh } = L(); cx.lineWidth = Math.max(3, hh * 0.2); cx.lineCap = 'round';  // owner 25 Nov: while a tile is out, each player's land shows its border in his colour
-  // owner 26 Nov: the border hugs the land: it colours the land's walls that stand out of the sea (its front sides facing the water), a little see-through;
-  // nothing is drawn over the land's top (lines there crossed over the land)
-  const wv = waterDrop(); cx.globalAlpha = 0.55;
-  for (const o of [0, 1]) { cx.beginPath(); let n = 0; for (const c of G.cells.values()) if (c.o === o) [0, 1].forEach(d => { const [dx, dy] = DIRS[d]; if (G.cells.get(key(c.x + dx, c.y + dy))) return; const [e0, e1] = sideEnds(c.x, c.y, d); cx.moveTo(...e0); cx.lineTo(...e1); cx.lineTo(e1[0], e1[1] + wv); cx.lineTo(e0[0], e0[1] + wv); cx.closePath(); n++; });
-    cx.fillStyle = BORDER[o]; cx.fill(); drawn.push({ k: 'shoreband', o, n }); }
-  cx.globalAlpha = 1;
-  cx.lineCap = 'butt';
   const sp = snapSpot(), [x, y] = wait.pos, b = tileBox(x, y, 1, wait.r), cs = wait.tile;
   const ms = sp ? null : marketSpot(), lying = ms != null && Math.hypot(x - draftSlot(ms)[0], y - draftSlot(ms)[1]) < 1, ghost = lying ? null : sp ? [...tileCentre(sp.x, sp.y, sp.r), sp.r] : ms != null ? [...draftSlot(ms), marketLie(turnShown(wait), ms).r1] : null;  // owner 26 Nov: no preview of the place it already lies on (just taken)  // owner 26 Nov: an empty market place shows the same preview as the board
-  if (ghost) { const [gx, gy, gr] = ghost; tileShape(gx, gy, 1, cs, gr, 'ghost'); cx.setLineDash([8, 6]); tilePath(gx, gy, 1.08, gr); cx.strokeStyle = '#ffffff'; cx.lineWidth = 4; cx.stroke(); cx.setLineDash([]); drawn.push({ k: 'preview', where: sp ? 'board' : 'market' }); }
+  if (ghost) { const [gx, gy, gr] = ghost; tileShape(gx, gy, 1, cs, gr, 'ghost'); cx.setLineDash([8, 6]); cx.lineCap = 'round'; tilePath(gx, gy, 1.08, gr); cx.strokeStyle = '#ffffff'; cx.lineWidth = 4; cx.stroke(); cx.setLineDash([]); cx.lineCap = 'butt'; drawn.push({ k: 'preview', where: sp ? 'board' : 'market' }); }
   const tilt = tiltNow(wait); cx.save(); cx.translate(x, y); cx.rotate(tilt * Math.PI / 180); cx.translate(-x, -y);
   const tr = turnShown(wait); tilePath(x + 3, y + 7, 1, tr); cx.fillStyle = '#00000033'; cx.fill(); tileShape(x, y, 1.06, cs, tr, null, 'held');  // a plain offset shadow: a blurred one costs a lot to draw every frame
   cx.restore(); drawn.push({ k: 'heldmark', o: wait.who, tilt });  // owner 25 Nov: no colour around a held tile, either player's
@@ -1124,8 +1149,8 @@ function drawFlights() {  // everything on its way, at its point on its curve
     const [x, y, z] = flightAt(f, now), L0 = f.look;
     if (L0.k === 'good' || L0.k === 'coin') {  // the trail first: where it was TRAIL_STEP and twice that ago, fainter
       const one = (x, y, z) => L0.k === 'good' ? goodShape(L0.c, x, y, stock(L0.o).r * z) : coin(x, y, L0.r * z);
-      if (L0.rim != null) { cx.save(); cx.beginPath(); cx.rect(0, 0, W, L0.rim); cx.clip(); }  // going into a jar: nothing shows below its rim
-      TRAIL.forEach((a, k) => { if (now - (k + 1) * TRAIL_STEP <= f.t0) return; cx.globalAlpha = a; one(...flightAt(f, now - (k + 1) * TRAIL_STEP)); }); cx.globalAlpha = 1; one(x, y, z); if (L0.rim != null) cx.restore();
+      if (L0.rim) { const m = L0.rim; cx.save(); cx.beginPath(); cx.rect(0, 0, W, H); cx.rect(m.x - m.w / 2, m.y, m.w, m.h); cx.clip('evenodd'); }  // going into a jar: only what is inside the jar, below its rim, is out of sight
+      TRAIL.forEach((a, k) => { if (now - (k + 1) * TRAIL_STEP <= f.t0) return; cx.globalAlpha = a; one(...flightAt(f, now - (k + 1) * TRAIL_STEP)); }); cx.globalAlpha = 1; one(x, y, z); if (L0.rim) cx.restore();
     }
     else if (L0.k === 'jar') jarShape(x, y, JAR_SIZE() * z);
     else if (L0.k === 'shown') shownCard(L0.j, L0.o, x, y, z);

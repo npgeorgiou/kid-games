@@ -34,7 +34,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 
 ## Now
 
-A playable game against the PC on one shared board in the new look (sea board of 16 x 16 squares in isometric view, land and material pictures, market band, triangle areas): 6 lands and 28 tiles; each connection gives a jar and lights its connected land (both players') for one material a square; 5 of a colour make a jar; jars hold coins, the first-player star, another jar, one of each material, a random tile or the slot machine (the same 4 faces on every wheel, only three of a kind wins). Land squares are blocks with walls of earth, standing in moving water (ripples, foam, glints). The start tiles face each other. Faces, the hand, jars and the slot machine grow with the screen. The board is as tall as the screen under the market band allows; a tile is the same size everywhere. Jars stand in centred lines of 6, break as fast as he taps and show their prize as a picture above them. The end is a box over the board with each player's coin pile. The PC picks and places for the most jars this turn. Rules and built-for-now choices are in `design.md`.
+A playable game against the PC on one shared board in the new look (sea board of 16 x 16 squares in isometric view, land and material pictures, market band, triangle areas): 6 lands and 28 tiles; each connection gives a jar and lights its connected land (both players') for one material a square; 5 of a colour make a jar; jars hold coins, the first-player star, another jar, one of each material, a random tile or the slot machine (the same 4 faces on every wheel, only three of a kind wins). Land squares are blocks with walls of earth, standing in moving water (ripples, foam, glints). The start tiles face each other. Faces, the hand, jars and the slot machine grow with the screen. The board is as tall as the screen under the market band allows; a tile is the same size everywhere. Jars stand in centred lines of 6, break as fast as he taps and show their prize as a picture above them. The end is a box over the board with each player's coin pile. The PC picks and places for the most jars this turn. Rules and built-for-now choices are in `design.md`. The board is 1.76 wide to 1 high at every screen size (land pictures drawn to match), as big as fits with room for a border, centred on the screen; coins are 1/8 smaller and the materials' area wider.
 
 ## Open
 
@@ -43,9 +43,12 @@ A playable game against the PC on one shared board in the new look (sea board of
 - The owner's own sound files, when they come, replace the built-in sounds.
 - The sea pack's terms of use are not checked.
 - See also `design.md` sections 6 and 7.
-- Design phase (25-26 Nov): many look and layout changes are built but not pushed and the flow tests are not updated (renamed lands and materials: plains/meat, stone; 4 stacked canvases; coins in 8 stacks of 10; moved-aside jars beside the lower board edge; tile swap and drop on any empty market place; bigger materials, jars that move up and overlap, goods jumping into the jar's mouth, gift tile shown in the jar, wandering sheep, wind, smooth turning, splash rings, borders on the land's walls, sound hooks). Update the tests, then push.
+- Design phase (25-26 Nov): look, motion and layout changes are on pull request #47 (branch `oi-apoikoi-motion-fixes`), pushed with the commit check off for the owner to merge by hand; 27 flow steps fail, the same as on main, because the flow tests are not updated yet.
 - City: open ground made beige dirt; owner to reconsider, with the 3 suggestions A (terracotta roofs), B (chapel), C (coloured doors, flowers, olive trees) still open.
 - Owner to confirm on his own screen that flying things now move smoothly.
+- Areas: a sketch (drawn over the game, not built) splits each player's side into deck/buttons, market, face + extra tile, a free triangle, materials and coins, with a board border of one width all round; awaiting the owner's yes.
 
 ## Task list
 
+- Update the flow tests to the design phase so the commit check passes again.
+- Once the owner approves the areas sketch: build the areas as plain colours and lines, draw the board border, and move the extra tile to its marked place (below the market's inner tile, in the face area, turned the same way).
