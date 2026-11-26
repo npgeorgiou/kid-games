@@ -528,11 +528,11 @@ addEventListener('resize', resize); resize();
 const GROUND_TALL = 180 / 128, WALL_HH = 2 * (GROUND_TALL - 1);  // the ground picture: the square's diamond (128 high) and its walls under it (52; see tools/make_lands.py; owner 25 Nov: land with thickness); the walls in half-square heights
 // owner 26 Nov: the board's width to height, the one that leaves the largest board on the worst of the common PC screens (4:3 to 16:9, full screen and in a browser window)
 const BOARD_RATIO = 1.76;
-const EDGE_ROOM = Math.max(0.5, WALL_HH);  // room kept above and below the board, in half-square heights: what stands on its top square, and its walls under its bottom corner
-const TOP = 8, PAD = 12, LOW = 8, PILE_STEP = 1.5;  // the band's margin; the board's gap above the screen's bottom edge; px between the pile's layers
+const BOARD_BORDER = 1;  // owner 26 Nov: the board's border, the same width all round: at the board's corners, in half-square heights (top, bottom) and widths (sides); its walls (WALL_HH) stand inside it
+const PAD = 12, LOW = 8, PILE_STEP = 1.5;  // the band's margin; the stockpile's gap above the screen's bottom edge; px between the pile's layers
 function L() {  // hw, hh: half a square's width and height on screen; T: the board's top corner; s: from one square's centre to the next
-  // owner 26 Nov: a square has one shape (BOARD_RATIO wide to 1 high) at every screen size, only its size changes: as big as fits both ways, end to end at most; the board's centre is the screen's centre
-  const hh = Math.min((H - LOW - TOP) / (ROWS + COLS + 2 * EDGE_ROOM), W / (COLS + ROWS) / BOARD_RATIO), hw = BOARD_RATIO * hh, T = H / 2 - ROWS * hh;  // T: the board's top corner
+  // owner 26 Nov: a square has one shape (BOARD_RATIO wide to 1 high) at every screen size, only its size changes: the board with its border as big as fits both ways, touching the screen's edges on the tighter side; the board's centre is the screen's centre
+  const hh = Math.min(H, W / BOARD_RATIO) / (ROWS + COLS + 2 * BOARD_BORDER), hw = BOARD_RATIO * hh, T = H / 2 - ROWS * hh;  // T: the board's top corner
   return { hw, hh, T, s: 2 * hh, ds: 2 * hh, bx: W / 2 };
 }
 function squareUnder(x, y) { const { hw, hh, T } = L(), a = (x - W / 2) / hw, b = (y - T) / hh; return [Math.floor((a + b) / 2), Math.floor((b - a) / 2)]; }  // the square a screen point lies on (iso turned back)
