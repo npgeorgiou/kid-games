@@ -270,7 +270,7 @@ const KritaBrush = (() => {
       const a = assets[tip.file], stamp = color => color && !tip.colorAsMask;  // KisPredefinedBrushFactory: a colour picture is a stamp unless used as a mask
       const raw = a.gih ? a.gih.cells : [a.gbr || (im => ({ w: im.w, h: im.h, px: im.px, color: [...Array(im.w * im.h).keys()].some(i => im.px[i * 4] !== im.px[i * 4 + 1] || im.px[i * 4 + 1] !== im.px[i * 4 + 2]) }))(a.image)];
       if (a.gih) selection = a.gih.selection;
-      const pictures = a.pictures ||= raw.map(c => { const px = new Float32Array(c.w * c.h * 4);  // premultiplied, with their pyramids made once
+      const pictures = tip.pictures ||= raw.map(c => { const px = new Float32Array(c.w * c.h * 4);  // premultiplied, with their pyramids made once; the preset owns them, so they go when another is chosen
         for (let i = 0; i < c.w * c.h; i++) { const al = c.px[i * 4 + 3]; for (let k = 0; k < 3; k++) px[i * 4 + k] = c.px[i * 4 + k] * al / 255; px[i * 4 + 3] = al; }
         return { color: c.color, img: { w: c.w, h: c.h, px }, pyr: null }; });
       cells = pictures.map(c => ({ stamp: stamp(c.color), img: c.img, get pyr() { return c.pyr; }, set pyr(v) { c.pyr = v; } }));

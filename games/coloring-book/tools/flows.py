@@ -1182,7 +1182,34 @@ def f_kb_eraser_strokes(q):  # owner 26 Nov: Krita's erasers: Circle erases its 
     report(abs(across - d * r) <= 3 and abs(along - d) <= 3, 'kb_eraser_strokes small rectangle', 'across a sideways stroke %d (%g), across a downward one %d (%g)' % (across, d * r, along, d))
 FLOWS['kb_eraser_strokes'] = f_kb_eraser_strokes
 
-KB_FLOWS = {'kb_eraser_presets', 'kb_eraser_strokes'}
+def kb_presets(q): return q.evaluate("()=>FAMILIES.map(f=>['f-'+f.name.replace(/\\W+/g,'_'), f.presets.map(p=>'p-'+p.id)])")
+def kb_stroke(q, pts, dt=0.008):  # a stroke with the times his screen gives each move (dt seconds apart, a pair given as (x, y, dt) keeps its own gap); returns the slowest move in ms
+    cdp = q.context.new_cdp_session(q); ox, oy = q.evaluate("()=>__kb.screenOf(0,0)"); t, worst = time.time(), 0
+    for k, pt in enumerate(pts):
+        t += pt[2] if len(pt) > 2 else dt; a = time.time()
+        cdp.send('Input.dispatchMouseEvent', {'type': 'mousePressed' if k == 0 else 'mouseMoved', 'x': ox + pt[0], 'y': oy + pt[1], 'button': 'left', 'buttons': 1, 'clickCount': 1, 'timestamp': t})
+        worst = max(worst, time.time() - a)
+    cdp.send('Input.dispatchMouseEvent', {'type': 'mouseReleased', 'x': ox + pts[-1][0], 'y': oy + pts[-1][1], 'button': 'left', 'buttons': 0, 'clickCount': 1, 'timestamp': t + dt})
+    q.evaluate("()=>new Promise(r=>requestAnimationFrame(()=>r()))"); cdp.detach(); return worst * 1000
+def kb_heap(q):  # the page's memory in MB (objects and the pixel arrays they hold), after the browser has thrown away what nothing holds
+    cdp = q.context.new_cdp_session(q); cdp.send('HeapProfiler.collectGarbage'); h = cdp.send('Runtime.getHeapUsage'); cdp.detach()
+    return (h['usedSize'] + h['backingStorageSize']) / 1e6
+
+def f_kb_long_strokes(q):  # owner 26 Nov: "the page crashes the browser tab": every brush survives a long scribble and a quick flick across the paper, and the page's memory does not grow with each brush tried
+    scribble = [(100 + (s % 600 if (s // 600) % 2 == 0 else 600 - s % 600), 150 + 90 * math.sin(k / 12)) for k in range(60) for s in [k * 12]]  # a quick back-and-forth
+    fling = scribble[:20] + [(120 + 64 * k, 60, 0.016) for k in range(1, 12)] + [(824 - 8 * k, 60 + 3 * k) for k in range(1, 20)]  # a flick 700 px across at 4000 px a second (64 px a frame), then on
+    slow, heaps = {}, []
+    for fam, presets in kb_presets(q):
+        kb_tap(q, fam)
+        for pid in presets:
+            kb_tap(q, pid); kb_tap(q, 'clear'); worst = max(kb_stroke(q, scribble), kb_stroke(q, fling))
+            if worst > 1000: slow[pid[2:]] = round(worst)
+        heaps.append(kb_heap(q))
+    report(not slow, 'kb_long_strokes every brush paints a long scribble and a flick, no move over 1 s', 'slowest moves (ms): %s' % (slow or 'none'))
+    report(heaps[-1] - heaps[0] < 100, 'kb_long_strokes memory does not grow brush after brush', 'MB after each family: %s' % [round(h) for h in heaps])
+FLOWS['kb_long_strokes'] = f_kb_long_strokes
+
+KB_FLOWS = {'kb_eraser_presets', 'kb_eraser_strokes', 'kb_long_strokes'}
 
 # SECTION: WHOLE GAME -- one run in the order the child meets the game: painting, drawing tools, brush popup, buckets, palettes, picker, undo, stickers, guide, canvas, gallery, delete
 # Every other flow is a short separate test of how a tool looks or behaves, each on its own fresh paper, run at the same time as this one (owner 25 Nov).
