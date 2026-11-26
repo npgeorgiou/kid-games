@@ -539,6 +539,7 @@ function L() {  // hw, hh: half a square's width and height on screen; T: the bo
 function squareUnder(x, y) { const { hw, hh, T } = L(), a = (x - W / 2) / hw, b = (y - T) / hh; return [Math.floor((a + b) / 2), Math.floor((b - a) / 2)]; }  // the square a screen point lies on (iso turned back)
 function iso(u, v) { const { hw, hh, T, bx } = L(); return [bx + (u - v) * hw, T + (u + v) * hh]; }  // a point of the board (in squares) on screen
 function boardDiamond() { const { hw, hh, T } = L(); return { cx: W / 2, cy: T + ROWS * hh, a: COLS * hw, c: ROWS * hh }; }  // the board's centre and half sizes
+function borderDiamond() { const { hw, hh } = L(), d = boardDiamond(); return { ...d, a: d.a + BOARD_BORDER * hw, c: d.c + BOARD_BORDER * hh }; }  // the board with its border: its outer edge
 function clearOfBoard(x, y, r) { const { cx: X, cy: Y, a, c } = boardDiamond(); return (Math.abs(x - X) * c + Math.abs(y - Y) * a - a * c) / Math.hypot(a, c) >= r; }  // a round thing at (x, y) stays off the board
 function marketY() { const { hh } = L(); return PAD + 2.5 * hh; }  // the market tiles' centres along the top
 function draftSlot(k) { const r = marketReach(), d = k === 1 || k === 2 ? r.inner : r.outer; return [k < 2 ? W / 2 - d : W / 2 + d, marketY()]; }  // owner 25 Nov: 2 tiles on the left, 2 on the right, mirrored; the pile top left, the buttons top right  // the 4 places in the band, along its bottom
@@ -955,9 +956,9 @@ function area(i) {  // player i's area: the two triangles beside the board on hi
   return [[e, 0], [X, 0], [X, T], [X + (i ? a : -a), Y], [X, Y + c], [X, H], [e, H]];
 }
 const goodsEdge = () => GOODS_SHARE * W;  // how far his materials' area reaches from the screen's edge
-function goodRoom() {  // a material's radius and the step between places: as big as his materials' area allows, clear of the board
-  const { hh } = L(), { cx: X, cy: Y, a, c } = boardDiamond(), h = Math.hypot(a, c);  // the top place of the inner column is nearest the board's lower edge
-  const fit = ((H - LOW - Y) * a - (8 - X + a) * c + h) / ((JAR_GOODS - 0.5) * a + (LANDS.length - 0.5) * c + h / 2);  // that place's circle 2 px clear of the edge (r = (rp - 6) / 2)
+function goodRoom() {  // a material's radius and the step between places: as big as his materials' area allows, clear of the board's border (owner 26 Nov)
+  const { hh } = L(), { cx: X, cy: Y, a, c } = borderDiamond(), h = Math.hypot(a, c);  // the inner column's icon, above its top place, is nearest the border's lower edge
+  const fit = ((H - LOW - Y) * a - (8 - X + a) * c + h) / ((JAR_GOODS + 0.5) * a + (LANDS.length - 0.5) * c + h / 2);  // that icon's circle 2 px clear of the edge (r = (rp - 6) / 2)
   const rp = Math.min(fit, (goodsEdge() - 8) / LANDS.length); return { r: (rp - 6) / 2, rp };  // and inside his area's width
 }
 const EDGE_CLEAR = 0.5;  // owner 25 Nov: the market's tiles stay this many half-square heights clear of the board's upper edges, so what stands on the land there is never hidden; owner 26 Nov: closer to the board
