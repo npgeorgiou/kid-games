@@ -1,0 +1,171 @@
+engine = paintbrush
+ColorSource/Type = plain
+CompositeOp = normal
+DarkenSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+DarkenUseCurve = true
+DarkenUseSameCurve = true
+DarkenValue = 1
+DarkencurveMode = 0
+EraserMode = false
+FlowSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.471616;0.75,1;</curve> </params>
+FlowUseCurve = false
+FlowUseSameCurve = true
+FlowValue = 1
+FlowcurveMode = 0
+HorizontalMirrorEnabled = true
+KisPrecisionOption/AutoPrecisionEnabled = false
+KisPrecisionOption/DeltaValue = 30
+KisPrecisionOption/SizeToStartFrom = 90
+KisPrecisionOption/precisionLevel = 1
+MaskingBrush/Enabled = false
+MaskingBrush/MaskingCompositeOp = multiply
+MaskingBrush/MasterSizeCoeff = 2.0474444444444444
+MaskingBrush/Preset/FlowSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/FlowUseCurve = true
+MaskingBrush/Preset/FlowUseSameCurve = true
+MaskingBrush/Preset/FlowValue = 1
+MaskingBrush/Preset/FlowcurveMode = 0
+MaskingBrush/Preset/HorizontalMirrorEnabled = false
+MaskingBrush/Preset/MirrorSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/MirrorUseCurve = true
+MaskingBrush/Preset/MirrorUseSameCurve = true
+MaskingBrush/Preset/MirrorValue = 1
+MaskingBrush/Preset/MirrorcurveMode = 0
+MaskingBrush/Preset/OpacitySensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/OpacityUseCurve = true
+MaskingBrush/Preset/OpacityUseSameCurve = true
+MaskingBrush/Preset/OpacityValue = 1
+MaskingBrush/Preset/OpacitycurveMode = 0
+MaskingBrush/Preset/PressureMirror = false
+MaskingBrush/Preset/PressureRatio = false
+MaskingBrush/Preset/PressureRotation = false
+MaskingBrush/Preset/PressureScatter = false
+MaskingBrush/Preset/PressureSize = false
+MaskingBrush/Preset/RatioSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/RatioUseCurve = true
+MaskingBrush/Preset/RatioUseSameCurve = true
+MaskingBrush/Preset/RatioValue = 1
+MaskingBrush/Preset/RatiocurveMode = 0
+MaskingBrush/Preset/RotationSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+MaskingBrush/Preset/RotationUseCurve = true
+MaskingBrush/Preset/RotationUseSameCurve = true
+MaskingBrush/Preset/RotationValue = 1
+MaskingBrush/Preset/RotationcurveMode = 0
+MaskingBrush/Preset/ScatterSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/ScatterUseCurve = true
+MaskingBrush/Preset/ScatterUseSameCurve = true
+MaskingBrush/Preset/ScatterValue = 5
+MaskingBrush/Preset/ScattercurveMode = 0
+MaskingBrush/Preset/Scattering/AxisX = true
+MaskingBrush/Preset/Scattering/AxisY = true
+MaskingBrush/Preset/SizeSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/SizeUseCurve = true
+MaskingBrush/Preset/SizeUseSameCurve = true
+MaskingBrush/Preset/SizeValue = 1
+MaskingBrush/Preset/SizecurveMode = 0
+MaskingBrush/Preset/VerticalMirrorEnabled = false
+MaskingBrush/Preset/brush_definition = <Brush scale="0.614233" type="png_brush" useAutoSpacing="0" autoSpacingCoeff="1" angle="0" spacing="0.12" BrushVersion="2" filename="abominable_snowman.png"/>
+MaskingBrush/Preset/requiredBrushFile = abominable_snowman.png
+MaskingBrush/Preset/requiredBrushFilesList = abominable_snowman.png
+MaskingBrush/UseMasterSize = true
+MirrorSensor = <!DOCTYPE params> <params id="fuzzy"> <curve>0,0;1,1;</curve> </params>
+MirrorUseCurve = true
+MirrorUseSameCurve = true
+MirrorValue = 1
+MirrorcurveMode = 0
+MixSensor = <!DOCTYPE params> <params id="fuzzy"> <curve>0,0.502183;0.525317,1;</curve> </params>
+MixUseCurve = true
+MixUseSameCurve = true
+MixValue = 1
+MixcurveMode = 0
+OpacitySensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;0.25,0.1;0.75,0.9;1,1;</curve> </params>
+OpacityUseCurve = true
+OpacityUseSameCurve = false
+OpacityValue = 1
+OpacitycurveMode = 0
+PaintOpAction = 2
+PaintOpSettings/ignoreSpacing = false
+PaintOpSettings/isAirbrushing = false
+PaintOpSettings/rate = 20
+PaintOpSettings/updateSpacingBetweenDabs = false
+PressureDarken = false
+PressureMirror = true
+PressureMix = false
+PressureRate = false
+PressureRatio = false
+PressureRotation = true
+PressureScatter = false
+PressureSharpness = false
+PressureSize = false
+PressureSoftness = false
+PressureSpacing = true
+PressureTexture/Strength/ = true
+Pressureh = false
+Pressures = false
+Pressurev = false
+RateSensor = <!DOCTYPE params> <params id="pressure"/>
+RateUseCurve = true
+RateUseSameCurve = true
+RateValue = 1
+RatecurveMode = 0
+RatioSensor = <!DOCTYPE params> <params id="pressure"/>
+RatioUseCurve = true
+RatioUseSameCurve = true
+RatioValue = 1
+RatiocurveMode = 0
+RotationSensor = <!DOCTYPE params> <params fanCornersStep="30" fanCornersEnabled="0" lockedAngleMode="0" angleOffset="0" id="drawingangle"> <curve>0,0;1,1;</curve> </params>
+RotationUseCurve = true
+RotationUseSameCurve = true
+RotationValue = 1
+RotationcurveMode = 0
+ScatterSensor = <!DOCTYPE params> <params id="fuzzy"> <curve>0,0;1,1;</curve> </params>
+ScatterUseCurve = true
+ScatterUseSameCurve = true
+ScatterValue = 0.15
+ScattercurveMode = 0
+Scattering/AxisX = true
+Scattering/AxisY = false
+Sharpness/threshold = 54
+SharpnessSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+SharpnessUseCurve = false
+SharpnessUseSameCurve = true
+SharpnessValue = 1
+SharpnesscurveMode = 0
+SizeSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;0.25,0.1;0.75,0.9;1,1;</curve> </params>
+SizeUseCurve = true
+SizeUseSameCurve = true
+SizeValue = 1
+SizecurveMode = 0
+SoftnessSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+SoftnessUseCurve = true
+SoftnessUseSameCurve = true
+SoftnessValue = 1
+SoftnesscurveMode = 0
+Spacing/Isotropic = true
+SpacingSensor = <!DOCTYPE params> <params id="pressure"> <curve>0.658228,1;0.892405,0.502184;</curve> </params>
+SpacingUseCurve = true
+SpacingUseSameCurve = true
+SpacingValue = 1
+SpacingcurveMode = 0
+Texture/Pattern/Enabled = false
+VerticalMirrorEnabled = true
+brush_definition = <Brush scale="0.3" type="gbr_brush" useAutoSpacing="0" autoSpacingCoeff="1" ColorAsMask="1" angle="0" spacing="0.12" BrushVersion="2" filename="rock_pitted.gih"/>
+hSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.432314;1,0.567686;</curve> </params>
+hUseCurve = true
+hUseSameCurve = true
+hValue = 1
+hcurveMode = 0
+lodUserAllowed = false
+paintop = paintbrush
+requiredBrushFile = rock_pitted.gih
+requiredBrushFilesList = rock_pitted.gih;abominable_snowman.png
+sSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+sUseCurve = true
+sUseSameCurve = true
+sValue = 1
+scurveMode = 0
+vSensor = <!DOCTYPE params> <params id="fuzzy"> <curve>0,0.423581;1,0.576419;</curve> </params>
+vUseCurve = true
+vUseSameCurve = true
+vValue = 1
+vcurveMode = 0

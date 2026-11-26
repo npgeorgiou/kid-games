@@ -1,0 +1,195 @@
+engine = paintbrush
+ColorSource/Type = plain
+CompositeOp = normal
+DarkenSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+DarkenUseCurve = true
+DarkenUseSameCurve = true
+DarkenValue = 1
+DarkencurveMode = 0
+EraserMode = false
+FlowSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.235808;1,1;</curve> </params>
+FlowUseCurve = true
+FlowUseSameCurve = true
+FlowValue = 1
+FlowcurveMode = 0
+HorizontalMirrorEnabled = false
+KisPrecisionOption/AutoPrecisionEnabled = false
+KisPrecisionOption/DeltaValue = 15
+KisPrecisionOption/SizeToStartFrom = 0
+KisPrecisionOption/precisionLevel = 5
+MaskingBrush/Enabled = false
+MaskingBrush/MaskingCompositeOp = multiply
+MaskingBrush/MasterSizeCoeff = 0.08333333333333333
+MaskingBrush/Preset/FlowSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/FlowUseCurve = true
+MaskingBrush/Preset/FlowUseSameCurve = true
+MaskingBrush/Preset/FlowValue = 1
+MaskingBrush/Preset/FlowcurveMode = 0
+MaskingBrush/Preset/HorizontalMirrorEnabled = false
+MaskingBrush/Preset/MirrorSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/MirrorUseCurve = true
+MaskingBrush/Preset/MirrorUseSameCurve = true
+MaskingBrush/Preset/MirrorValue = 1
+MaskingBrush/Preset/MirrorcurveMode = 0
+MaskingBrush/Preset/OpacitySensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/OpacityUseCurve = true
+MaskingBrush/Preset/OpacityUseSameCurve = true
+MaskingBrush/Preset/OpacityValue = 1
+MaskingBrush/Preset/OpacitycurveMode = 0
+MaskingBrush/Preset/PressureMirror = false
+MaskingBrush/Preset/PressureRatio = false
+MaskingBrush/Preset/PressureRotation = false
+MaskingBrush/Preset/PressureScatter = false
+MaskingBrush/Preset/PressureSize = false
+MaskingBrush/Preset/RatioSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/RatioUseCurve = true
+MaskingBrush/Preset/RatioUseSameCurve = true
+MaskingBrush/Preset/RatioValue = 1
+MaskingBrush/Preset/RatiocurveMode = 0
+MaskingBrush/Preset/RotationSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/RotationUseCurve = true
+MaskingBrush/Preset/RotationUseSameCurve = true
+MaskingBrush/Preset/RotationValue = 1
+MaskingBrush/Preset/RotationcurveMode = 0
+MaskingBrush/Preset/ScatterSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/ScatterUseCurve = true
+MaskingBrush/Preset/ScatterUseSameCurve = true
+MaskingBrush/Preset/ScatterValue = 5
+MaskingBrush/Preset/ScattercurveMode = 0
+MaskingBrush/Preset/Scattering/AxisX = true
+MaskingBrush/Preset/Scattering/AxisY = true
+MaskingBrush/Preset/SizeSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/SizeUseCurve = true
+MaskingBrush/Preset/SizeUseSameCurve = true
+MaskingBrush/Preset/SizeValue = 1
+MaskingBrush/Preset/SizecurveMode = 0
+MaskingBrush/Preset/VerticalMirrorEnabled = false
+MaskingBrush/Preset/brush_definition = <Brush angle="0" BrushVersion="2" density="1" useAutoSpacing="0" randomness="0" autoSpacingCoeff="1" spacing="0.1" type="auto_brush"> <MaskGenerator hfade="0.5" vfade="0.5" id="default" antialiasEdges="0" ratio="1" diameter="5" spikes="2" type="circle"/> </Brush>
+MaskingBrush/Preset/requiredBrushFile = 
+MaskingBrush/Preset/requiredBrushFilesList = 
+MaskingBrush/UseMasterSize = true
+MirrorSensor = <!DOCTYPE params> <params id="pressure"/>
+MirrorUseCurve = true
+MirrorUseSameCurve = true
+MirrorValue = 1
+MirrorcurveMode = 0
+MixSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+MixUseCurve = true
+MixUseSameCurve = true
+MixValue = 1
+MixcurveMode = 0
+OpacitySensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.698795;0.396396,0.871486;1,1;</curve> </params>
+OpacityUseCurve = true
+OpacityUseSameCurve = true
+OpacityValue = 1
+OpacitycurveMode = 0
+PaintOpAction = 2
+PaintOpSettings/ignoreSpacing = false
+PaintOpSettings/isAirbrushing = false
+PaintOpSettings/rate = 20
+PaintOpSettings/updateSpacingBetweenDabs = false
+PressureDarken = false
+PressureMirror = false
+PressureMix = false
+PressureRate = false
+PressureRatio = false
+PressureRotation = false
+PressureScatter = false
+PressureSharpness = false
+PressureSize = true
+PressureSoftness = false
+PressureSpacing = false
+PressureTexture/Strength/ = true
+Pressureh = false
+Pressures = false
+Pressurev = false
+RateSensor = <!DOCTYPE params> <params id="pressure"/>
+RateUseCurve = true
+RateUseSameCurve = true
+RateValue = 1
+RatecurveMode = 0
+RatioSensor = <!DOCTYPE params> <params id="pressure"/>
+RatioUseCurve = true
+RatioUseSameCurve = true
+RatioValue = 1
+RatiocurveMode = 0
+RotationSensor = <!DOCTYPE params> <params fanCornersStep="30" angleOffset="0" id="drawingangle" lockedAngleMode="0" fanCornersEnabled="1"> <curve>0,0;1,1;</curve> </params>
+RotationUseCurve = true
+RotationUseSameCurve = false
+RotationValue = 1
+RotationcurveMode = 0
+ScatterSensor = <!DOCTYPE params> <params id="pressure"/>
+ScatterUseCurve = true
+ScatterUseSameCurve = true
+ScatterValue = 5
+ScattercurveMode = 0
+Scattering/AxisX = true
+Scattering/AxisY = true
+Sharpness/threshold = 4
+SharpnessSensor = <!DOCTYPE params> <params id="pressure"/>
+SharpnessUseCurve = true
+SharpnessUseSameCurve = true
+SharpnessValue = 1
+SharpnesscurveMode = 0
+SizeSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.240175;1,1;</curve> </params>
+SizeUseCurve = true
+SizeUseSameCurve = true
+SizeValue = 1
+SizecurveMode = 0
+SoftnessSensor = <!DOCTYPE params> <params id="pressure"/>
+SoftnessUseCurve = true
+SoftnessUseSameCurve = true
+SoftnessValue = 1
+SoftnesscurveMode = 0
+Spacing/Isotropic = false
+SpacingSensor = <!DOCTYPE params> <params id="pressure"/>
+SpacingUseCurve = true
+SpacingUseSameCurve = true
+SpacingValue = 1
+SpacingcurveMode = 0
+Texture/Pattern/Brightness = 0
+Texture/Pattern/Contrast = 1
+Texture/Pattern/CutoffLeft = 0
+Texture/Pattern/CutoffPolicy = 0
+Texture/Pattern/CutoffRight = 255
+Texture/Pattern/Enabled = true
+Texture/Pattern/Invert = false
+Texture/Pattern/MaximumOffsetX = 140
+Texture/Pattern/MaximumOffsetY = 140
+Texture/Pattern/Name = 4-paper-soft-grain_testdark-black15.png
+Texture/Pattern/OffsetX = 0
+Texture/Pattern/OffsetY = 0
+Texture/Pattern/Pattern = <embedded: patterns/4-paper-soft-grain_testdark-black15.png>
+Texture/Pattern/PatternFileName = C:/Users/scott/AppData/Roaming/krita/patterns//4-paper-soft-grain_testdark-black15.png.pat
+Texture/Pattern/PatternMD5 = 
+Texture/Pattern/Scale = 0.9
+Texture/Pattern/Strength = 1
+Texture/Pattern/TexturingMode = 1
+Texture/Pattern/isRandomOffsetX = false
+Texture/Pattern/isRandomOffsetY = false
+Texture/Strength/Sensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+Texture/Strength/StrengthVersion = 2
+Texture/Strength/UseCurve = true
+Texture/Strength/UseSameCurve = true
+Texture/Strength/Value = 1
+Texture/Strength/curveMode = 0
+VerticalMirrorEnabled = false
+brush_definition = <Brush filename="square_eroded.png" angle="0" BrushVersion="2" scale="0.4" useAutoSpacing="0" autoSpacingCoeff="1" spacing="0.04" type="png_brush"/>
+hSensor = <!DOCTYPE params> <params id="pressure"/>
+hUseCurve = true
+hUseSameCurve = true
+hValue = 1
+hcurveMode = 0
+paintop = paintbrush
+requiredBrushFile = square_eroded.png
+requiredBrushFilesList = square_eroded.png
+sSensor = <!DOCTYPE params> <params id="pressure"/>
+sUseCurve = true
+sUseSameCurve = true
+sValue = 1
+scurveMode = 0
+vSensor = <!DOCTYPE params> <params id="pressure"/>
+vUseCurve = true
+vUseSameCurve = true
+vValue = 1
+vcurveMode = 0

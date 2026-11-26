@@ -1,0 +1,100 @@
+engine = paintbrush
+AirbrushOption/isAirbrushing = false
+AirbrushOption/rate = 100
+ColorSource/Type = plain
+CompositeOp = erase
+DarkenSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+DarkenUseCurve = true
+DarkenUseSameCurve = true
+DarkenValue = 1
+FlowSensor = <!DOCTYPE params> <params id="pressure"/>
+FlowUseCurve = false
+FlowUseSameCurve = true
+FlowValue = 1
+HorizontalMirrorEnabled = false
+KisPrecisionOption/AutoPrecisionEnabled = false
+KisPrecisionOption/DeltaValue = 15
+KisPrecisionOption/SizeToStartFrom = 0
+KisPrecisionOption/precisionLevel = 5
+KisPresisionOption/precisionLevel = 5
+Krita/compositeop = normal
+Krita/erase = false
+Krita/mirrorhorizontal = false
+Krita/mirrorvertical = false
+Krita/opacity = 100
+MirrorSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+MirrorUseCurve = true
+MirrorUseSameCurve = true
+MirrorValue = 1
+MixSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+MixUseCurve = true
+MixUseSameCurve = true
+MixValue = 1
+OpacitySensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;0.5,1;</curve> </params>
+OpacityUseCurve = false
+OpacityUseSameCurve = true
+OpacityValue = 1
+OpacityVersion = 2
+PaintOpAction = 2
+PressureDarken = false
+PressureMirror = false
+PressureMix = false
+PressureOpacity = false
+PressureRotation = false
+PressureScatter = false
+PressureSharpness = false
+PressureSize = true
+PressureSoftness = false
+PressureSpacing = false
+PressureTexture/Strength/ = false
+Pressureh = false
+Pressures = false
+Pressurev = false
+RotationSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+RotationUseCurve = true
+RotationUseSameCurve = true
+RotationValue = 1
+ScatterSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+ScatterUseCurve = true
+ScatterUseSameCurve = true
+ScatterValue = 1
+Scattering/AxisX = true
+Scattering/AxisY = true
+Sharpness/threshold = 4
+SharpnessSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+SharpnessUseCurve = true
+SharpnessUseSameCurve = true
+SharpnessValue = 1
+SizeSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;0.413655,0.333333;0.674699,0.772125;1,1;</curve> </params>
+SizeUseCurve = true
+SizeUseSameCurve = true
+SizeValue = 1
+SoftnessSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+SoftnessUseCurve = true
+SoftnessUseSameCurve = true
+SoftnessValue = 1
+Spacing/Isotropic = false
+SpacingSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+SpacingUseCurve = true
+SpacingUseSameCurve = true
+SpacingValue = 1
+Texture/Pattern/Enabled = false
+VerticalMirrorEnabled = false
+brush_definition = <Brush type="auto_brush" useAutoSpacing="1" randomness="0" density="1" autoSpacingCoeff="1.2" BrushVersion="2" spacing="0.1" angle="0"> <MaskGenerator ratio="1" type="circle" vfade="0.87" id="default" spikes="2" antialiasEdges="1" hfade="0.87" diameter="50"/> </Brush>
+hSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+hUseCurve = true
+hUseSameCurve = true
+hValue = 1
+paintop = paintbrush
+requiredBrushFile = 
+runtimeCanvasMirroredX = false
+runtimeCanvasMirroredY = false
+runtimeCanvasRotation = 0
+sSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+sUseCurve = true
+sUseSameCurve = true
+sValue = 1
+vSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+vUseCurve = true
+vUseSameCurve = true
+vValue = 1

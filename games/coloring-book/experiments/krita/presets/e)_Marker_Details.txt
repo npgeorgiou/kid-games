@@ -1,0 +1,124 @@
+engine = paintbrush
+AirbrushOption/isAirbrushing = true
+AirbrushOption/rate = 100
+ColorSource/Type = plain
+CompositeOp = normal
+CurveDarken = 0,0;1,1;
+CurveMirror = 0,0;1,1;
+CurveMix = 0,0;1,1;
+CurveOpacity = 0,0;1,1;
+CurveRotation = 0,0;1,1;
+CurveScatter = 0,0;1,1;
+CurveSharpness = 0,0;1,1;
+CurveSize = 0,0;1,1;
+CurveSoftness = 0,0;1,1;
+Curveh = 0,0;1,1;
+Curves = 0,0;1,1;
+Curvev = 0,0;1,1;
+CustomDarken = true
+CustomMirror = true
+CustomMix = true
+CustomOpacity = true
+CustomRotation = true
+CustomScatter = true
+CustomSharpness = true
+CustomSize = true
+CustomSoftness = true
+Customh = true
+Customs = true
+Customv = true
+DarkenSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+DarkenUseCurve = true
+DarkenUseSameCurve = true
+DarkenValue = 1
+EraserMode = false
+FlowSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;0.759036,1;</curve> </params>
+FlowUseCurve = true
+FlowUseSameCurve = true
+FlowValue = 1
+HorizontalMirrorEnabled = false
+KisPrecisionOption/AutoPrecisionEnabled = false
+KisPrecisionOption/DeltaValue = 15
+KisPrecisionOption/SizeToStartFrom = 0
+KisPrecisionOption/precisionLevel = 5
+KisPresisionOption/precisionLevel = 5
+MirrorSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+MirrorUseCurve = true
+MirrorUseSameCurve = true
+MirrorValue = 1
+MixSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+MixUseCurve = true
+MixUseSameCurve = true
+MixValue = 1
+OpacitySensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;0.347458,0.401747;0.496346,0.74141;0.745614,1;</curve> </params>
+OpacityUseCurve = true
+OpacityUseSameCurve = true
+OpacityValue = 1
+PaintOpAction = 2
+PressureDarken = false
+PressureMirror = false
+PressureMix = false
+PressureOpacity = true
+PressureRatio = false
+PressureRotation = false
+PressureScatter = false
+PressureSharpness = false
+PressureSize = true
+PressureSoftness = false
+PressureSpacing = false
+PressureTexture/Strength/ = true
+Pressureh = false
+Pressures = false
+Pressurev = false
+RatioSensor = <!DOCTYPE params> <params id="pressure"/>
+RatioUseCurve = true
+RatioUseSameCurve = true
+RatioValue = 1
+RotationSensor = <!DOCTYPE params> <params fanCornersEnabled="1" angleOffset="0" id="drawingangle" lockedAngleMode="0" fanCornersStep="90"> <curve>0,0;1,1;</curve> </params>
+RotationUseCurve = false
+RotationUseSameCurve = true
+RotationValue = 1
+ScatterSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,1;0.75502,0.113537;</curve> </params>
+ScatterUseCurve = true
+ScatterUseSameCurve = true
+ScatterValue = 0.089999999999999997
+Scattering/Amount = 1
+Scattering/AxisX = true
+Scattering/AxisY = true
+Sharpness/factor = 1
+Sharpness/threshold = 40
+SharpnessSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+SharpnessUseCurve = true
+SharpnessUseSameCurve = true
+SharpnessValue = 1
+SizeSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.346206;0.35743,0.524017;0.759036,1;</curve> </params>
+SizeUseCurve = true
+SizeUseSameCurve = true
+SizeValue = 1
+SoftnessSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+SoftnessUseCurve = true
+SoftnessUseSameCurve = true
+SoftnessValue = 1
+Spacing/Isotropic = false
+SpacingSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;0.696682,0.370166;1,0.994475;</curve> </params>
+SpacingUseCurve = true
+SpacingUseSameCurve = true
+SpacingValue = 1
+Texture/Pattern/Enabled = false
+VerticalMirrorEnabled = false
+brush_definition = <Brush BrushVersion="2" randomness="0" type="auto_brush" angle="0" density="1" useAutoSpacing="0" spacing="0.2" autoSpacingCoeff="1"> <MaskGenerator vfade="0.66" diameter="20" id="gauss" type="circle" hfade="0.66" ratio="1" spikes="2" antialiasEdges="0"/> </Brush>
+hSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+hUseCurve = true
+hUseSameCurve = true
+hValue = 1
+paintop = paintbrush
+requiredBrushFile = 
+requiredBrushFilesList = 
+sSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+sUseCurve = true
+sUseSameCurve = true
+sValue = 1
+vSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+vUseCurve = true
+vUseSameCurve = true
+vValue = 1

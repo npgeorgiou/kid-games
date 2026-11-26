@@ -1,0 +1,171 @@
+engine = paintbrush
+ColorSource/Type = plain
+CompositeOp = normal
+DarkenSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+DarkenUseCurve = true
+DarkenUseSameCurve = true
+DarkenValue = 1
+DarkencurveMode = 0
+EraserMode = false
+FlowSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;0.0678731,0.994975;1,1;</curve> </params>
+FlowUseCurve = true
+FlowUseSameCurve = true
+FlowValue = 1
+FlowcurveMode = 0
+HorizontalMirrorEnabled = false
+KisPrecisionOption/AutoPrecisionEnabled = true
+KisPrecisionOption/DeltaValue = 15
+KisPrecisionOption/SizeToStartFrom = 10
+KisPrecisionOption/precisionLevel = 5
+MaskingBrush/Enabled = true
+MaskingBrush/MaskingCompositeOp = subtract
+MaskingBrush/MasterSizeCoeff = 0.7718
+MaskingBrush/Preset/FlowSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/FlowUseCurve = true
+MaskingBrush/Preset/FlowUseSameCurve = true
+MaskingBrush/Preset/FlowValue = 0.85
+MaskingBrush/Preset/FlowcurveMode = 0
+MaskingBrush/Preset/HorizontalMirrorEnabled = false
+MaskingBrush/Preset/MirrorSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/MirrorUseCurve = true
+MaskingBrush/Preset/MirrorUseSameCurve = true
+MaskingBrush/Preset/MirrorValue = 1
+MaskingBrush/Preset/MirrorcurveMode = 0
+MaskingBrush/Preset/OpacitySensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/OpacityUseCurve = false
+MaskingBrush/Preset/OpacityUseSameCurve = true
+MaskingBrush/Preset/OpacityValue = 0.47
+MaskingBrush/Preset/OpacitycurveMode = 0
+MaskingBrush/Preset/PressureMirror = false
+MaskingBrush/Preset/PressureRatio = false
+MaskingBrush/Preset/PressureRotation = true
+MaskingBrush/Preset/PressureScatter = true
+MaskingBrush/Preset/PressureSize = true
+MaskingBrush/Preset/RatioSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/RatioUseCurve = true
+MaskingBrush/Preset/RatioUseSameCurve = true
+MaskingBrush/Preset/RatioValue = 1
+MaskingBrush/Preset/RatiocurveMode = 0
+MaskingBrush/Preset/RotationSensor = <!DOCTYPE params> <params id="fuzzy"/>
+MaskingBrush/Preset/RotationUseCurve = true
+MaskingBrush/Preset/RotationUseSameCurve = true
+MaskingBrush/Preset/RotationValue = 1
+MaskingBrush/Preset/RotationcurveMode = 0
+MaskingBrush/Preset/ScatterSensor = <!DOCTYPE params> <params id="pressure"/>
+MaskingBrush/Preset/ScatterUseCurve = true
+MaskingBrush/Preset/ScatterUseSameCurve = true
+MaskingBrush/Preset/ScatterValue = 0.26
+MaskingBrush/Preset/ScattercurveMode = 0
+MaskingBrush/Preset/Scattering/AxisX = true
+MaskingBrush/Preset/Scattering/AxisY = true
+MaskingBrush/Preset/SizeSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.241206;1,1;</curve> </params>
+MaskingBrush/Preset/SizeUseCurve = true
+MaskingBrush/Preset/SizeUseSameCurve = true
+MaskingBrush/Preset/SizeValue = 1
+MaskingBrush/Preset/SizecurveMode = 0
+MaskingBrush/Preset/VerticalMirrorEnabled = false
+MaskingBrush/Preset/brush_definition = <Brush scale="0.17" type="png_brush" useAutoSpacing="0" autoSpacingCoeff="1" angle="0" spacing="0.25" BrushVersion="2" filename="square_rough.png"/>
+MaskingBrush/Preset/requiredBrushFile = square_rough.png
+MaskingBrush/Preset/requiredBrushFilesList = square_rough.png
+MaskingBrush/UseMasterSize = true
+MirrorSensor = <!DOCTYPE params> <params id="pressure"/>
+MirrorUseCurve = true
+MirrorUseSameCurve = true
+MirrorValue = 1
+MirrorcurveMode = 0
+MixSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+MixUseCurve = true
+MixUseSameCurve = true
+MixValue = 1
+MixcurveMode = 0
+OpacitySensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.422111;1,1;</curve> </params>
+OpacityUseCurve = true
+OpacityUseSameCurve = true
+OpacityValue = 1
+OpacitycurveMode = 0
+PaintOpAction = 2
+PaintOpSettings/ignoreSpacing = false
+PaintOpSettings/isAirbrushing = false
+PaintOpSettings/rate = 20
+PaintOpSettings/updateSpacingBetweenDabs = false
+PressureDarken = false
+PressureMirror = false
+PressureMix = false
+PressureRate = false
+PressureRatio = false
+PressureRotation = false
+PressureScatter = true
+PressureSharpness = false
+PressureSize = true
+PressureSoftness = true
+PressureSpacing = false
+PressureTexture/Strength/ = true
+Pressureh = false
+Pressures = false
+Pressurev = false
+RateSensor = <!DOCTYPE params> <params id="pressure"/>
+RateUseCurve = true
+RateUseSameCurve = true
+RateValue = 1
+RatecurveMode = 0
+RatioSensor = <!DOCTYPE params> <params id="pressure"/>
+RatioUseCurve = true
+RatioUseSameCurve = true
+RatioValue = 1
+RatiocurveMode = 0
+RotationSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+RotationUseCurve = true
+RotationUseSameCurve = true
+RotationValue = 1
+RotationcurveMode = 0
+ScatterSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.482412;1,1;</curve> </params>
+ScatterUseCurve = true
+ScatterUseSameCurve = true
+ScatterValue = 0.04
+ScattercurveMode = 0
+Scattering/AxisX = true
+Scattering/AxisY = true
+Sharpness/threshold = 11
+SharpnessSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+SharpnessUseCurve = true
+SharpnessUseSameCurve = true
+SharpnessValue = 0.04
+SharpnesscurveMode = 0
+SizeSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+SizeUseCurve = true
+SizeUseSameCurve = true
+SizeValue = 1
+SizecurveMode = 0
+SoftnessSensor = <!DOCTYPE params> <params periodic="1" duration="1470" id="time"/>
+SoftnessUseCurve = true
+SoftnessUseSameCurve = true
+SoftnessValue = 1
+SoftnesscurveMode = 0
+Spacing/Isotropic = false
+SpacingSensor = <!DOCTYPE params> <params id="pressure"/>
+SpacingUseCurve = true
+SpacingUseSameCurve = true
+SpacingValue = 1
+SpacingcurveMode = 0
+Texture/Pattern/Enabled = false
+VerticalMirrorEnabled = false
+brush_definition = <Brush scale="0.390625" type="gbr_brush" useAutoSpacing="0" autoSpacingCoeff="1" ColorAsMask="0" angle="0" spacing="0.2" BrushVersion="2" filename="circle_hard_eroded.gih"/>
+hSensor = <!DOCTYPE params> <params id="pressure"/>
+hUseCurve = true
+hUseSameCurve = true
+hValue = 1
+hcurveMode = 0
+lodUserAllowed = false
+paintop = paintbrush
+requiredBrushFile = circle_hard_eroded.gih
+requiredBrushFilesList = circle_hard_eroded.gih;square_rough.png
+sSensor = <!DOCTYPE params> <params id="pressure"/>
+sUseCurve = true
+sUseSameCurve = true
+sValue = 1
+scurveMode = 0
+vSensor = <!DOCTYPE params> <params id="pressure"/>
+vUseCurve = true
+vUseSameCurve = true
+vValue = 1
+vcurveMode = 0

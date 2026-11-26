@@ -1,0 +1,81 @@
+engine = colorsmudge
+ColorRateSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+ColorRateUseCurve = true
+ColorRateUseSameCurve = true
+ColorRateValue = 0.5
+ColorRatecurveMode = 0
+CompositeOp = normal
+EraserMode = false
+GradientSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+GradientUseCurve = true
+GradientUseSameCurve = true
+GradientValue = 1
+GradientcurveMode = 0
+HorizontalMirrorEnabled = false
+KisPrecisionOption/AutoPrecisionEnabled = false
+KisPrecisionOption/DeltaValue = 15
+KisPrecisionOption/SizeToStartFrom = 0
+KisPrecisionOption/precisionLevel = 5
+MergedPaint = false
+MirrorSensor = <!DOCTYPE params> <params id="pressure"/>
+MirrorUseCurve = true
+MirrorUseSameCurve = true
+MirrorValue = 1
+MirrorcurveMode = 0
+OpacitySensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+OpacityUseCurve = false
+OpacityUseSameCurve = true
+OpacityValue = 1
+OpacityVersion = 2
+OpacitycurveMode = 0
+PaintOpSettings/updateSpacingBetweenDabs = false
+PressureColorRate = true
+PressureGradient = false
+PressureMirror = false
+PressureRotation = true
+PressureScatter = false
+PressureSize = false
+PressureSmudgeRadius = false
+PressureSmudgeRate = true
+PressureSpacing = false
+PressureTexture/Strength/ = true
+RotationSensor = <!DOCTYPE params> <params id="fuzzy"/>
+RotationUseCurve = true
+RotationUseSameCurve = true
+RotationValue = 1
+RotationcurveMode = 0
+ScatterSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;0.674699,0.344444;1,1;</curve> </params>
+ScatterUseCurve = false
+ScatterUseSameCurve = true
+ScatterValue = 1
+ScattercurveMode = 0
+Scattering/AxisX = true
+Scattering/AxisY = true
+SizeSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;0.598394,0.427884;1,1;</curve> </params>
+SizeUseCurve = true
+SizeUseSameCurve = true
+SizeValue = 1
+SizecurveMode = 0
+SmudgeRadiusSensor = <!DOCTYPE params> <params id="pressure"/>
+SmudgeRadiusUseCurve = true
+SmudgeRadiusUseSameCurve = true
+SmudgeRadiusValue = 0.41
+SmudgeRadiuscurveMode = 0
+SmudgeRateMode = 1
+SmudgeRateSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.0562249;0.552302,0.536662;1,1;</curve> </params>
+SmudgeRateUseCurve = true
+SmudgeRateUseSameCurve = true
+SmudgeRateValue = 1
+SmudgeRatecurveMode = 0
+Spacing/Isotropic = false
+SpacingSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.746193;1,1;</curve> </params>
+SpacingUseCurve = true
+SpacingUseSameCurve = true
+SpacingValue = 1
+SpacingcurveMode = 0
+Texture/Pattern/Enabled = false
+VerticalMirrorEnabled = false
+brush_definition = <Brush angle="0" BrushVersion="2" density="1" useAutoSpacing="0" randomness="0" autoSpacingCoeff="1" spacing="0.09" type="auto_brush"> <MaskGenerator hfade="1" vfade="1" id="default" antialiasEdges="1" ratio="0.17" diameter="60" spikes="2" type="circle"/> </Brush>
+paintop = colorsmudge
+requiredBrushFile = 
+requiredBrushFilesList = 

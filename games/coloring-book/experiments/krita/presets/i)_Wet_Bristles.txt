@@ -1,0 +1,100 @@
+engine = colorsmudge
+ColorRateSensor = <!DOCTYPE params> <params id="pressure"> <curve>0.506329,0;0.632911,0.19214;0.759493,1;</curve> </params>
+ColorRateUseCurve = true
+ColorRateUseSameCurve = false
+ColorRateValue = 1
+ColorRatecurveMode = 0
+CompositeOp = normal
+EraserMode = false
+GradientSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0;1,1;</curve> </params>
+GradientUseCurve = true
+GradientUseSameCurve = true
+GradientValue = 1
+GradientcurveMode = 0
+HorizontalMirrorEnabled = true
+KisPrecisionOption/AutoPrecisionEnabled = false
+KisPrecisionOption/DeltaValue = 25
+KisPrecisionOption/SizeToStartFrom = 50
+KisPrecisionOption/precisionLevel = 1
+MergedPaint = false
+MirrorSensor = <!DOCTYPE params> <params id="fuzzy"/>
+MirrorUseCurve = true
+MirrorUseSameCurve = true
+MirrorValue = 1
+MirrorcurveMode = 0
+OpacitySensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.201005;0.427136,1;</curve> </params>
+OpacityUseCurve = true
+OpacityUseSameCurve = false
+OpacityValue = 1
+OpacityVersion = 2
+OpacitycurveMode = 0
+PaintOpSettings/updateSpacingBetweenDabs = false
+PressureColorRate = true
+PressureGradient = false
+PressureMirror = false
+PressureRotation = true
+PressureScatter = true
+PressureSize = false
+PressureSmudgeRadius = false
+PressureSmudgeRate = true
+PressureSpacing = true
+PressureTexture/Strength/ = true
+Pressureh = false
+Pressures = false
+Pressurev = false
+RotationSensor = <!DOCTYPE params> <params id="ascension"/>
+RotationUseCurve = true
+RotationUseSameCurve = true
+RotationValue = 1
+RotationcurveMode = 0
+ScatterSensor = <!DOCTYPE params> <params id="pressure"> <curve>0.126483,1;0.340245,0.492462;</curve> </params>
+ScatterUseCurve = true
+ScatterUseSameCurve = true
+ScatterValue = 0.08
+ScattercurveMode = 0
+Scattering/AxisX = true
+Scattering/AxisY = false
+SizeSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.139738;0.258197,0.41048;0.733606,1;</curve> </params>
+SizeUseCurve = true
+SizeUseSameCurve = true
+SizeValue = 1
+SizecurveMode = 0
+SmudgeRadiusSensor = <!DOCTYPE params> <params id="pressure"/>
+SmudgeRadiusUseCurve = false
+SmudgeRadiusUseSameCurve = true
+SmudgeRadiusValue = 1
+SmudgeRadiuscurveMode = 0
+SmudgeRateMode = 0
+SmudgeRateSensor = <!DOCTYPE params> <params id="pressure"> <curve>0,0.301508;0.169362,1;</curve> </params>
+SmudgeRateUseCurve = true
+SmudgeRateUseSameCurve = false
+SmudgeRateValue = 1
+SmudgeRatecurveMode = 0
+Spacing/Isotropic = false
+SpacingSensor = <!DOCTYPE params> <params id="pressure"> <curve>0.0708261,0.36214;0.196204,1;</curve> </params>
+SpacingUseCurve = true
+SpacingUseSameCurve = true
+SpacingValue = 1
+SpacingcurveMode = 0
+Texture/Pattern/Enabled = false
+VerticalMirrorEnabled = true
+brush_definition = <Brush type="gbr_brush" useAutoSpacing="0" ColorAsMask="0" spacing="0.03" filename="chisel_knife.gbr" angle="0" autoSpacingCoeff="1" BrushVersion="2" scale="0.3"/>
+hSensor = <!DOCTYPE params> <params id="pressure"/>
+hUseCurve = true
+hUseSameCurve = true
+hValue = 1
+hcurveMode = 0
+lodUserAllowed = false
+paintop = colorsmudge
+requiredBrushFile = chisel_knife.gbr
+requiredBrushFilesList = chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr;chisel_knife.gbr
+sSensor = <!DOCTYPE params> <params id="pressure"/>
+sUseCurve = true
+sUseSameCurve = true
+sValue = 1
+scurveMode = 0
+vSensor = <!DOCTYPE params> <params id="pressure"/>
+vUseCurve = true
+vUseSameCurve = true
+vValue = 1
+vcurveMode = 0
