@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build src/brushes.html into one self-contained brushes.html (the tuning page): inlines src/brush-core.js,
+"""Build src/brushes.html into one self-contained brushes.html (the brushes page): inlines src/brush-core.js,
 each family's Krita presets (krita/presets/) and its Krita reference picture (references/krita/)."""
 import base64, gzip, json, pathlib, re, struct
 here = pathlib.Path(__file__).resolve().parent
