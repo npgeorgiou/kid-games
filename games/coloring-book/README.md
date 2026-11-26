@@ -47,7 +47,7 @@ Flat brushes are held at one fixed angle, unless the turn switch in the brush po
 | `tools/flows.py` | Play-through tests (`SECTION:` markers): the real page, real clicks, keys, drags and touches, at a finger's speed. The whole-game run (`whole_game`, section WHOLE GAME) plus separate short tests of each tool. |
 | `tools/backdoors.txt` | What a shortcut through the game's insides looks like; a test containing one is refused. |
 | `tools/previews.py` | Paints the brush previews straight through the game's stroke code (under 2 minutes). |
-| `experiments/` | New brushes copied from Krita's presets, built and tuned here before they go into the game: the presets' settings, tips and textures, Krita's reference pictures, Spectral.js, tools, the shared brush core and its tuning page `experiments/brushes.html`; its own `README.md`. |
+| `experiments/` | New brushes copied from Krita's presets, built here before they go into the game: the presets' settings, tips and textures, Krita's reference pictures, Spectral.js, tools, the shared brush core and its page `experiments/brushes.html`; its own `README.md`. |
 | `tools/looks.py`, `tools/looks/` | Saves every brush's normal stroke as a picture; the `brush_looks` test fails when a brush no longer looks like its picture. |
 
 Shared with other games, at the repo root: `.githooks/` (the commit gate), `docs/design-rules.md` (rules for every game).
@@ -79,16 +79,11 @@ Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Word
 ## Open
 
 Do next, in this order (his words are in the Task list):
-- Brushes copied from Krita's presets (his choice, 26 Nov), in `experiments/` (core `src/brush-core.js`, page `brushes.html`): all nine families run on ported code, but the port is incomplete and unchecked; the Krita brushes todo below is next. Tests are off by his choice (26 Nov) until he turns them on.
+- Brushes copied from Krita's presets (his choice, 26 Nov), in `experiments/` (core `src/brush-core.js`, page `brushes.html`): all nine families on code ported from Krita, wet brushes mixing like pigment (Mixbox), everyday settings and a strength each preset opens at (its picture's, by eye); waiting for his look. Tests: the `kb_` flows.
 - Watercolour brush library and look (his 25 Nov pages), then 17-21; crayon (22); marker (23); spray other shapes; slow separate tests; drying times; outline pictures later.
 
 ## Task list
 
-- Krita brushes (26 Nov): every brush must look like its Krita picture; he does nothing, no tuning by him.
-  - Port exactly from Krita's code (`experiments/tools/get_krita.sh`) every part now left out or approximated: antialias fade makers (gauss, circle, soft), softness on soft tips, erf, curve transfer as Krita samples it, sub-pixel dab placement, picture-tip scaling as Krita does it, alpha darken average opacity, drawing-angle fan corners and first dab, texture (soft texturing, sampling, offsets, auto invert), colour smudge details (overlay, colour rate op), spray distributions, airbrush dabs while moving, Krita's freehand stroke smoothing; then find and fix bugs (Bristles-3 Large Smooth shows stacked outlines).
-  - No pen: pressure and tilt sensors are left out (his rule); a brush whose picture depends on pressure is matched at one strength, and he is told which.
-  - Check each preset against its picture by drawing the same kind of stroke on the same kind of background, before sending anything.
-  - Take the sliders and numbers box off the page: families, presets, palette, paper only.
 
 Numbers are his points of 23 Nov; pictures in `owner-shots/2026-11-23-*`. Acrylic and impasto references of 25 Nov: `owner-shots/2026-11-25-acrylic-*`, `owner-shots/2026-11-25-impasto-*`.
 

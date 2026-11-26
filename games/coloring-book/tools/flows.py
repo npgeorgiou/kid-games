@@ -1133,7 +1133,7 @@ def f_ink_splash_less(q):  # owner 24 Nov 08:50, point 6: ink splashes far too m
 FLOWS['ink_splash_less'] = f_ink_splash_less
 PAPER['ink_splash_less'] = ('600x450', (0, 0))
 
-# SECTION: KRITA BRUSHES -- the tuning page of experiments/ (owner 26 Nov): Krita's presets on one shared brush core, every number a slider, Krita's picture beside
+# SECTION: KRITA BRUSHES -- the tuning page of experiments/ (owner 26 Nov): Krita's presets on one shared brush core, Krita's picture beside
 KB = pathlib.Path(__file__).resolve().parent.parent / 'experiments' / 'brushes.html'
 KB_PRESETS = KB.parent / 'krita' / 'presets'
 
@@ -1142,12 +1142,17 @@ def kb_page(b):
     q.goto(KB.as_uri()); q.wait_for_function("()=>window.__kb&&__kb.ready"); return q
 
 def kb_tap(q, eid): p = q.evaluate("(id)=>__kb.btn(id)", eid); q.mouse.click(*p); time.sleep(0.05)
-def kb_type(q, name, v): q.fill('#n-' + name, str(v)); q.press('#n-' + name, 'Enter'); time.sleep(0.05)
 def kb_drag(q, a, c):  # a stroke on the test paper from paper point a to c at a finger's speed (9 px per 16 ms)
     s, e = q.evaluate("(p)=>__kb.screenOf(...p)", list(a)), q.evaluate("(p)=>__kb.screenOf(...p)", list(c))
     n = max(1, int(math.dist(a, c) / 9)); q.mouse.move(*s); q.mouse.down()
     for i in range(1, n + 1): q.mouse.move(s[0] + (e[0] - s[0]) * i / n, s[1] + (e[1] - s[1]) * i / n); time.sleep(0.016)
     q.mouse.up(); time.sleep(0.1)
+def kb_slide(q, sid, frac):  # drags a setting's slider knob to frac of the way along it; returns the number it then shows
+    x, y, w, h = q.evaluate("(id)=>__kb.box(id)", 's-' + sid); lo, hi, v = q.evaluate("(id)=>{const r=document.getElementById(id);return [+r.min,+r.max,+r.value]}", 's-' + sid)
+    at = lambda f: x + 8 + (w - 16) * f
+    q.mouse.move(at((v - lo) / (hi - lo)), y + h / 2); q.mouse.down(); q.mouse.move(at(frac), y + h / 2, steps=5); q.mouse.up(); time.sleep(0.05)
+    return float(q.evaluate("(id)=>document.getElementById(id).value", 's-' + sid))
+def kb_strength(name): return float(dict(l.split(' = ') for l in (KB.parent / 'krita' / 'picture-strength.txt').read_text().splitlines() if ' = ' in l and not l.startswith('#'))[name])
 def kb_line(q, x0, y0, dx, dy, n): return q.evaluate("([x,y,dx,dy,n])=>{const o=[];for(let i=0;i<n;i++)o.push(__kb.alpha(x+dx*i,y+dy*i));return o}", [x0, y0, dx, dy, n])
 def kb_cut(q, x, y, half=60, vertical=True):  # the paper's alpha across a stroke, one value per pixel, centred on (x, y)
     return kb_line(q, x, y - half, 0, 1, 2 * half + 1) if vertical else kb_line(q, x - half, y, 1, 0, 2 * half + 1)
@@ -1159,7 +1164,7 @@ def kb_curve(f, opt): return [[float(v) for v in p.split(',')] for p in re.finda
 
 ERASERS = {'Eraser_Circle': 'a)_Eraser_Circle', 'Eraser_Small': 'a)_Eraser_Small', 'Eraser_Soft': 'a)_Eraser_Soft'}
 
-def f_kb_eraser_presets(q):  # owner 26 Nov: each brush starts from its preset's own numbers; every number is a slider beside Krita's picture
+def f_kb_eraser_presets(q):  # owner 26 Nov: each brush starts from its preset's own numbers, beside Krita's picture (the sliders came off, owner 26 Nov)
     for pid, fn in ERASERS.items():
         kb_tap(q, 'p-' + pid); f, t = kb_file(fn), kb_tip(kb_file(fn))
         want = {'diameter': t['diameter'], 'ratio': t['ratio'], 'hfade': t['hfade'], 'vfade': t['vfade'], 'spacing': t['spacing'],
@@ -1177,20 +1182,67 @@ def f_kb_eraser_strokes(q):  # owner 26 Nov: Krita's erasers: Circle erases its 
     report(min(circle) < 0.05 and min(far) > 0.99 and 0.5 * d < kb_width(circle) < 1.05 * d, 'kb_eraser_strokes circle', 'centre %.2f, width %d of %g, far %.2f' % (min(circle), kb_width(circle), d, min(far)))
     kb_tap(q, 'p-Eraser_Soft'); kb_drag(q, (100, 220), (400, 220)); soft = kb_cut(q, 250, 220)
     report(min(soft) < 0.05 and kb_soft(soft) > 2 * kb_soft(circle), 'kb_eraser_strokes soft rim', 'rim %d px vs circle %d px' % (kb_soft(soft), kb_soft(circle)))
-    kb_tap(q, 'p-Eraser_Small'); kb_drag(q, (500, 60), (800, 60)); kb_drag(q, (650, 120), (650, 280))
+    kb_tap(q, 'p-Eraser_Small'); kb_slide(q, 'strength', 1); kb_drag(q, (500, 60), (800, 60)); kb_drag(q, (650, 120), (650, 280))  # at full strength, the preset's own size
     d, r = q.evaluate("()=>__kb.value('diameter')"), q.evaluate("()=>__kb.value('ratio')")
     across, along = kb_width(kb_cut(q, 650, 60, 40)), kb_width(kb_cut(q, 650, 200, 40, vertical=False))
     report(abs(across - d * r) <= 3 and abs(along - d) <= 3, 'kb_eraser_strokes small rectangle', 'across a sideways stroke %d (%g), across a downward one %d (%g)' % (across, d * r, along, d))
 FLOWS['kb_eraser_strokes'] = f_kb_eraser_strokes
 
-def f_kb_slider(q):  # owner 26 Nov: he tunes with the sliders; a number changed changes the next stroke
-    kb_tap(q, 'p-Eraser_Circle'); d = q.evaluate("()=>__kb.value('diameter')")
-    kb_drag(q, (100, 80), (400, 80)); w0 = kb_width(kb_cut(q, 250, 80))
-    kb_type(q, 'diameter', d / 2); kb_drag(q, (100, 220), (400, 220)); w1 = kb_width(kb_cut(q, 250, 220))
-    nums = q.evaluate("()=>document.getElementById('numbers').value")
-    report(0.35 < w1 / max(1, w0) < 0.65 and 'diameter="%g"' % (d / 2) in nums, 'kb_slider diameter', 'width %d then %d; numbers show it: %s' % (w0, w1, 'diameter="%g"' % (d / 2) in nums))
-FLOWS['kb_slider'] = f_kb_slider
-KB_FLOWS = {'kb_eraser_presets', 'kb_eraser_strokes', 'kb_slider'}
+def kb_presets(q): return q.evaluate("()=>FAMILIES.map(f=>['f-'+f.name.replace(/\\W+/g,'_'), f.presets.map(p=>'p-'+p.id)])")
+def kb_stroke(q, pts, dt=0.008):  # a stroke with the times his screen gives each move (dt seconds apart, a pair given as (x, y, dt) keeps its own gap); returns the slowest move in ms
+    cdp = q.context.new_cdp_session(q); ox, oy = q.evaluate("()=>__kb.screenOf(0,0)"); t, worst = time.time(), 0
+    for k, pt in enumerate(pts):
+        t += pt[2] if len(pt) > 2 else dt; a = time.time()
+        cdp.send('Input.dispatchMouseEvent', {'type': 'mousePressed' if k == 0 else 'mouseMoved', 'x': ox + pt[0], 'y': oy + pt[1], 'button': 'left', 'buttons': 1, 'clickCount': 1, 'timestamp': t})
+        worst = max(worst, time.time() - a)
+    cdp.send('Input.dispatchMouseEvent', {'type': 'mouseReleased', 'x': ox + pts[-1][0], 'y': oy + pts[-1][1], 'button': 'left', 'buttons': 0, 'clickCount': 1, 'timestamp': t + dt})
+    q.evaluate("()=>new Promise(r=>requestAnimationFrame(()=>r()))"); cdp.detach(); return worst * 1000
+def kb_heap(q):  # the page's memory in MB (objects and the pixel arrays they hold), after the browser has thrown away what nothing holds
+    cdp = q.context.new_cdp_session(q); cdp.send('HeapProfiler.collectGarbage'); h = cdp.send('Runtime.getHeapUsage'); cdp.detach()
+    return (h['usedSize'] + h['backingStorageSize']) / 1e6
+
+def f_kb_long_strokes(q):  # owner 26 Nov: "the page crashes the browser tab": every brush survives a long scribble and a quick flick across the paper, and the page's memory does not grow with each brush tried
+    scribble = [(100 + (s % 600 if (s // 600) % 2 == 0 else 600 - s % 600), 150 + 90 * math.sin(k / 12)) for k in range(60) for s in [k * 12]]  # a quick back-and-forth
+    fling = scribble[:20] + [(120 + 64 * k, 60, 0.016) for k in range(1, 12)] + [(824 - 8 * k, 60 + 3 * k) for k in range(1, 20)]  # a flick 700 px across at 4000 px a second (64 px a frame), then on
+    slow, heaps = {}, []
+    for fam, presets in kb_presets(q):
+        kb_tap(q, fam)
+        for pid in presets:
+            kb_tap(q, pid); kb_tap(q, 'clear'); worst = max(kb_stroke(q, scribble), kb_stroke(q, fling))
+            if worst > 1000: slow[pid[2:]] = round(worst)
+        heaps.append(kb_heap(q))
+    report(not slow, 'kb_long_strokes every brush paints a long scribble and a flick, no move over 1 s', 'slowest moves (ms): %s' % (slow or 'none'))
+    report(heaps[-1] - heaps[0] < 100, 'kb_long_strokes memory does not grow brush after brush', 'MB after each family: %s' % [round(h) for h in heaps])
+FLOWS['kb_long_strokes'] = f_kb_long_strokes
+
+def f_kb_settings(q):  # owner 26 Nov: "bring back the everyday settings (size, softness, opacity, flow)" and "a setting that puts each brush in the state its picture shows"
+    kb_tap(q, 'f-Eraser'); kb_tap(q, 'p-Eraser_Circle'); f = kb_file('a)_Eraser_Circle'); d0 = float(kb_tip(f)['diameter'])
+    opened = q.evaluate("()=>[__kb.value('strength'), __kb.value('diameter'), __kb.value('opacity'), __kb.value('flow')]")
+    report(abs(opened[0] - kb_strength('a)_Eraser_Circle')) < 1e-6 and abs(opened[1] - d0) < 1e-6, 'kb_settings a brush opens at its own numbers and its picture\'s strength', 'strength, size, opacity, flow: %s' % opened)
+    size = kb_slide(q, 'size', 0.1); kb_tap(q, 'clear'); kb_drag(q, (100, 80), (400, 80)); w = kb_width(kb_cut(q, 250, 80))
+    report(abs(q.evaluate("()=>__kb.value('diameter')") - size) < 1e-6 and size < d0 and 0.5 * size < w < 1.05 * size + 2, 'kb_settings size changes how wide the brush paints', 'size %g, erased %d px' % (size, w))
+    soft = kb_slide(q, 'softness', 0.9); op = kb_slide(q, 'opacity', 0.3); fl = kb_slide(q, 'flow', 0.3); st = kb_slide(q, 'strength', 0.3)
+    got = q.evaluate("()=>[__kb.value('hfade'), __kb.value('opacity'), __kb.value('flow'), __kb.value('strength')]")
+    report(abs(got[0] - (1 - soft / 100)) < 1e-6 and abs(got[1] - op / 100) < 1e-6 and abs(got[2] - fl / 100) < 1e-6 and abs(got[3] - st / 100) < 1e-6,
+           'kb_settings softness, opacity, flow and strength change the brush', 'set %s, brush has fade, opacity, flow, strength %s' % ([soft, op, fl, st], got))
+    kb_tap(q, 'like'); back = q.evaluate("()=>[__kb.value('strength'), __kb.value('diameter'), __kb.value('opacity'), __kb.value('flow'), __kb.value('hfade')]")
+    report(back[:4] == opened and abs(back[4] - float(kb_tip(f)['hfade'])) < 1e-6, 'kb_settings "Like the picture" puts the brush back as its picture shows', 'now %s, opened %s' % (back, opened))
+    kb_tap(q, 'f-Stamps'); kb_tap(q, 'p-Stamp_Grass')
+    report(q.evaluate("()=>document.getElementById('s-softness').disabled") and abs(q.evaluate("()=>__kb.value('strength')") - kb_strength('z)_Stamp_Grass')) < 1e-6,
+           'kb_settings a picture tip has no softness; each preset has its own strength', 'softness off: %s' % q.evaluate("()=>document.getElementById('s-softness').disabled"))
+FLOWS['kb_settings'] = f_kb_settings
+
+def f_kb_wet_mixing(q):  # owner 26 Nov: "wet painting brushes do not mix colours: they must mix with the paint under them": yellow pulled through blue makes green, as pigments do
+    kb_tap(q, 'f-Wet_painting'); greens = {}                                  # (mixed as light, blue and yellow only make a grey green: its green is never 35 over its red and blue)
+    for pid in kb_presets(q)[[f for f, _ in kb_presets(q)].index('f-Wet_painting')][1]:
+        kb_tap(q, pid); kb_tap(q, 'clear'); kb_tap(q, 'c-1e88e5')
+        for y in (120, 140, 160, 180): kb_stroke(q, [(100 + 6 * i, y) for i in range(100)])
+        kb_tap(q, 'c-fdd835'); kb_stroke(q, [(300 + 30 * math.sin(i / 8), 40 + 4 * i) for i in range(60)])
+        greens[pid[2:]] = q.evaluate("()=>{let n=0;for(let y=100;y<240;y++)for(let x=240;x<360;x++){const c=__kb.color(x,y);if(c[1]-Math.max(c[0],c[2])>50)n++}return n}")
+    report(all(n >= 30 for n in greens.values()), 'kb_wet_mixing every wet brush mixes yellow into blue as green', 'green pixels where yellow crossed blue: %s' % greens)
+FLOWS['kb_wet_mixing'] = f_kb_wet_mixing
+
+KB_FLOWS = {'kb_eraser_presets', 'kb_eraser_strokes', 'kb_long_strokes', 'kb_settings', 'kb_wet_mixing'}
 
 # SECTION: WHOLE GAME -- one run in the order the child meets the game: painting, drawing tools, brush popup, buckets, palettes, picker, undo, stickers, guide, canvas, gallery, delete
 # Every other flow is a short separate test of how a tool looks or behaves, each on its own fresh paper, run at the same time as this one (owner 25 Nov).

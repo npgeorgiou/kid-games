@@ -53,3 +53,4 @@
 - A brush that picks up wet paint must not pick up its own fresh paint, and can hold only so much: otherwise its paint grows without end.
 - A brush is an axis, not an arrow: going back the same way must not flip which bristle is on which side, or back-and-forth strokes bend the paint.
 - A bristle's emptying goes per pixel of travel, not per pixel touched: rim bristles touch fewer pixels per dab, kept their paint and left outlines.
+- The Krita brushes page: he cannot test it, so every change is checked here for what he would see: wet brushes mixing two colours, long strokes with every brush without the tab crashing (time and memory per stroke), and each preset beside its Krita picture at the strength its picture shows (flows kb_wet_mixing, kb_long_strokes; the look by eye).
