@@ -45,11 +45,32 @@ def wall(rng, side, land):  # one front wall: side 0 the left (lit), 1 the right
     at = lambda s, t: (a[0] + (b[0] - a[0]) * s, a[1] + (b[1] - a[1]) * s + t * WALL)
     quad = lambda t0, t1: pts([at(0, t0), at(1, t0), at(1, t1), at(0, t1)])
     o = ['<polygon points="%s" fill="%s"/>' % (quad(0, 1), dark(land['soil'], shade))]
-    o.append('<polygon points="%s" fill="%s"/>' % (quad(0.55, 1), dark(land['soil'], shade + 0.12)))  # the lower earth, a little darker
-    o.append('<polygon points="%s" fill="%s"/>' % (quad(0, 0.22), dark(land['lip'], shade)))  # the top layer's edge
+    o.append('<polygon points="%s" fill="%s"/>' % (quad(0.72, 1), dark(land['soil'], shade + 0.12)))  # the lower earth, a little darker
+    o += under(rng, land, at, shade)  # each land's own under-ground (owner 25 Nov: plainly different)
+    o.append('<polygon points="%s" fill="%s"/>' % (quad(0, LIP), dark(land['lip'], shade)))  # the top layer's edge (owner 25 Nov: twice as thick, taken from the earth under it)
     o.append('<polygon points="%s" fill="%s"/>' % (quad(0.92, 1), dark(land['soil'], shade + 0.35)))  # the foot
-    for _ in range(5):  # a few pebbles
-        x, y = at(rng.uniform(0.08, 0.92), rng.uniform(0.4, 0.8)); o.append('<ellipse cx="%s" cy="%s" rx="2.6" ry="1.8" fill="%s"/>' % (f(x), f(y), dark(land['soil'], shade + 0.22)))
+    return o
+
+
+LIP = 0.44  # the top layer's share of the wall: all of it stays above the water (the game's WATER_SHOW is the same)
+def under(rng, land, at, shade):  # what shows in the earth under the top layer, by land: 'pebbles', 'layers' (sand bands), 'roots', 'rock' (cracked stone), 'blocks' (cut limestone)
+    kind, col, o = land['under'], land['soil'], []
+    line = lambda pts_, w, c: o.append('<polyline points="%s" fill="none" stroke="%s" stroke-width="%s" stroke-linecap="round"/>' % (pts(pts_), c, w))
+    if kind == 'pebbles':
+        for _ in range(9): x, y = at(rng.uniform(0.06, 0.94), rng.uniform(LIP + 0.08, 0.86)); o.append('<ellipse cx="%s" cy="%s" rx="3.2" ry="2.2" fill="%s"/>' % (f(x), f(y), dark(col, shade + 0.28)))
+    elif kind == 'layers':
+        for t in (0.56, 0.66, 0.78): line([at(k / 8, t + 0.025 * math.sin(k * 1.3 + t * 9)) for k in range(9)], 3, dark(col, shade + 0.2))
+    elif kind == 'roots':
+        for _ in range(4):
+            s0 = rng.uniform(0.1, 0.9); line([at(s0, LIP), at(s0 + rng.uniform(-0.05, 0.05), LIP + 0.16), at(s0 + rng.uniform(-0.08, 0.08), LIP + 0.3)], 2, dark(col, shade + 0.3))
+    elif kind == 'rock':
+        for t in (0.6, 0.78): line([at(0, t), at(0.3, t + 0.03), at(0.55, t - 0.02), at(1, t + 0.02)], 2.5, dark(col, shade + 0.25))
+        for s0 in (0.2, 0.5, 0.8): line([at(s0, 0.6), at(s0 + 0.03, 0.78)], 2, dark(col, shade + 0.25))
+    elif kind == 'blocks':
+        for r_, t in enumerate((0.44, 0.6, 0.76, 0.92)):
+            line([at(0, t), at(1, t)], 1.5, dark(col, shade + 0.22))
+            if t < 0.92:
+                for k in range(5): s0 = (k + (0.5 if r_ % 2 else 0)) / 5; line([at(s0, t), at(s0, t + 0.16)], 1.5, dark(col, shade + 0.22))
     return o
 
 
@@ -103,7 +124,7 @@ def wheat_things(d, rng):
                      '<path d="M0 -7 0 -12" stroke="%s" stroke-width="0.8"/></g>' % (f(tx), f(ty), f(math.degrees(a)), col, dark(col, 0.18), light(col, 0.3)))
         g.append('</g>'); o += g
     o.append('</defs>')
-    for u, v in staggered(12):  # packed heads, staggered so they hide the ground
+    for u, v in sorted(((u + rng.uniform(-0.025, 0.025), v + rng.uniform(-0.025, 0.025)) for u, v in staggered(12)), key=lambda p: p[0] + p[1]):  # packed heads, each a little off the pattern (owner 25 Nov: not lined up)
         if True:
             x, y = d(u, v); o.append('<use href="#b%d" x="%s" y="%s"/>' % (rng.randrange(4), f(x), f(y)))
             if False:  # no poppies: the field stays even
@@ -326,6 +347,15 @@ def staggered(n):  # about n x n points over the whole square, in rows across th
     return sorted(out, key=lambda p: p[0] + p[1])
 
 
+def sheep(d, u, v, k=1.2):  # a sheep lying on the square, facing left: a woolly body of puffs, a dark head (owner 25 Nov: no legs, smaller); k: its size
+    x, y = d(u, v); o = [shadow(d, u, v, 13 * k, 0.2)]
+    y += 6 * k  # no legs: it sits on the grass
+    for px, py, r in ((-6, -12, 6.5), (0, -14, 7), (6, -12, 6.5), (-3, -8, 6), (4, -8, 6), (0, -17, 5)): o.append('<circle cx="%s" cy="%s" r="%s" fill="#f6f2e8" stroke="#cfc6b4" stroke-width="0.8"/>' % (f(x + px * k), f(y + py * k), f(r * k)))
+    o.append('<ellipse cx="%s" cy="%s" rx="%s" ry="%s" fill="#3a3430"/>' % (f(x - 13 * k), f(y - 13 * k), f(4.2 * k), f(5 * k)))
+    o.append('<ellipse cx="%s" cy="%s" rx="%s" ry="%s" fill="#3a3430"/>' % (f(x - 10 * k), f(y - 17 * k), f(2.5 * k), f(1.4 * k)))
+    return o
+def pasture(d, rng):  # owner 25 Nov: plains of grass tufts with a couple of sheep
+    return tufts(d, rng) + sheep(d, 0.3, 0.45) + sheep(d, 0.62, 0.72)
 def tufts(d, rng):  # tiny grass tufts in an even pattern
     o = []
     for u, v in grid(9):
@@ -334,33 +364,33 @@ def tufts(d, rng):  # tiny grass tufts in an even pattern
     return o
 
 
-def vines(d, rng):  # 4 rows of big vines with purple bunches, on red earth, to the square's edges
-    o = []
-    for k in range(4):
-        v = (k + 0.5) / 4
-        for j in range(6):
-            u = (j + 0.5) / 6; x, y = d(u, v); y -= 16
-            o.append('<path d="M%s %sl0 12" stroke="#6a4a2a" stroke-width="2"/>' % (f(x), f(y)))
+def vines(d, rng):  # owner 25 Nov: 3 rows of big vines with purple bunches, the red-brown earth showing between the rows, to the square's edges
+    o, k = [], 1.5  # k: the vines' size
+    for r in range(3):
+        v = (r + 0.5) / 3
+        for j in range(4):
+            u = (j + 0.5) / 4; x, y = d(u, v); y -= 16 * k
+            o.append('<path d="M%s %sl0 %s" stroke="#6a4a2a" stroke-width="%s"/>' % (f(x), f(y), f(12 * k), f(2 * k)))
             for dx, dy, rr, c in ((-3, 4, 8, '#3f6e22'), (3, 2, 7.5, '#4f8a2a'), (0, -3, 6, '#6aa63a'), (-2, -6, 2.8, '#9ccc5a')):
-                o.append('<circle cx="%s" cy="%s" r="%s" fill="%s"/>' % (f(x + dx), f(y + dy), rr, c))
-            gx, gy = x + (4 if j % 2 else -4), y + 9
+                o.append('<circle cx="%s" cy="%s" r="%s" fill="%s"/>' % (f(x + dx * k), f(y + dy * k), f(rr * k), c))
+            gx, gy = x + (4 if j % 2 else -4) * k, y + 9 * k
             for a, b in ((0, 0), (-3.6, -1.8), (3.6, -1.8), (-1.8, 2.6), (1.8, 2.6), (0, 5.2), (-1.8, -3.6), (1.8, -3.6)):
-                o.append('<circle cx="%s" cy="%s" r="3" fill="#5a2378"/>' % (f(gx + a), f(gy + b)))
-            o.append('<circle cx="%s" cy="%s" r="1" fill="#c79ae0"/>' % (f(gx - 1.2), f(gy - 1.2)))
+                o.append('<circle cx="%s" cy="%s" r="%s" fill="#5a2378"/>' % (f(gx + a * k), f(gy + b * k), f(3 * k)))
+            o.append('<circle cx="%s" cy="%s" r="%s" fill="#c79ae0"/>' % (f(gx - 1.2 * k), f(gy - 1.2 * k), f(k)))
     return o
 
 
-def woods(d, rng):  # a dense, even forest of pines, to the square's edges
+def woods(d, rng):  # a dense forest of pines, to the square's edges; each pine a little off the pattern and of its own height (owner 25 Nov: not lined up)
     o = []
-    for u, v in staggered(5):
-        x, y = d(u, v); o.append(shadow(d, u, v, 10, 0.25))
+    for u, v in sorted(((u + rng.uniform(-0.05, 0.05), v + rng.uniform(-0.05, 0.05)) for u, v in staggered(5)), key=lambda p: p[0] + p[1]):
+        x, y = d(u, v); o.append(shadow(d, u, v, 10, 0.25)); h = rng.uniform(0.8, 1.12)
         for k in range(4):
-            t = y - 3 - k * 11; w = 16 - k * 3.2; top = t - 19
+            t = y - 3 - k * 11 * h; w = (16 - k * 3.2) * rng.uniform(0.92, 1.06); top = t - 19 * h
             o.append('<polygon points="%s" fill="#2e7a34"/><polygon points="%s" fill="#1e5a28"/>' % (pts([(x - w, t), (x, top), (x, t + 2)]), pts([(x + w, t), (x, top), (x, t + 2)])))
     return o
 
 
-def boulder(d, rng):  # the mountain: 3 boulders grown together, each many-faced and rounded, its walls leaning in, a flat top at its own height (owner 25 Nov)
+def boulder(d, rng):  # the mountain: 3 boulders grown together, each many-faced and rounded, its walls leaning in, a flat top at its own height (owner 25 Nov; lower, 25 Nov)
     o, col = [], '#8e8a84'  # grey (owner 25 Nov)
     def rock(base, h):
         n = len(base); cu, cv = sum(u for u, v in base) / n, sum(v for u, v in base) / n
@@ -381,7 +411,7 @@ def boulder(d, rng):  # the mountain: 3 boulders grown together, each many-faced
     def block(u0, v0, u1, v1, h):  # a squared boulder on a rectangle of the square, its corners cut a little and jittered
         cut = 0.06; j = lambda: rng.uniform(-0.015, 0.015)
         return [(u0 + cut, v0 + j()), (u1 - cut, v0 + j()), (u1 + j(), v0 + cut), (u1 + j(), v1 - cut), (u1 - cut, v1), (u0 + cut, v1), (u0, v1 - cut), (u0, v0 + cut)]
-    for poly, h in sorted([(block(0, 0, 0.56, 0.58, 0), 72), (block(0.56, 0, 1, 0.58, 0), 48), (block(0, 0.58, 1, 1, 0), 32)], key=lambda b: sum(u + v for u, v in b[0]) / 8):
+    for poly, h in sorted([(block(0, 0, 0.56, 0.58, 0), 50), (block(0.56, 0, 1, 0.58, 0), 34), (block(0, 0.58, 1, 1, 0), 22)], key=lambda b: sum(u + v for u, v in b[0]) / 8):
         o += rock(poly, h)
     return o
 
@@ -393,25 +423,26 @@ def cube(d, u, v, du, dv, z, h):  # a whitewashed box: lit front, shaded side, f
             '<polygon points="%s" fill="#eef0f2"/>' % pts([p(0, 0, h), p(du, 0, h), p(du, dv, h), p(0, dv, h)])]
 
 
-def aegean(d, rng):  # owner 25 Nov: 3 square Aegean houses, one in each of 3 quarters (1, 2 and 3 floors), one quarter an empty yard; simple lines
-    F = 22; o = []
-    for u, v, floors in sorted([(0.0, 0.0, 3), (0.5, 0.0, 2), (0.0, 0.5, 1)], key=lambda b: b[0] + b[1]):
-        o += cube(d, u + 0.02, v + 0.02, 0.46, 0.46, 0, F * floors)
-        x0, y0 = d(u + 0.2, v + 0.48); o.append('<polygon points="%s" fill="#2f6fb5"/>' % pts([d(u + 0.2, v + 0.48), d(u + 0.28, v + 0.48), d(u + 0.28, v + 0.48, 14), d(u + 0.2, v + 0.48, 14)]))  # a blue door
+def aegean(d, rng):  # owner 25 Nov: small square Aegean houses on a 3 x 3 plan (1 or 2 floors, low, so none hides another), two places left as yards; simple lines
+    F, q, w = 13, 1 / 3, 0.29; o = []  # F: a floor's height; q: a place's size; w: a house's size
+    plan = [(0, 0, 2), (1, 0, 1), (2, 0, 2), (0, 1, 1), (2, 1, 1), (0, 2, 2), (1, 2, 1)]  # (place along u, along v, floors); (1, 1) and (2, 2) are yards
+    for a, b, floors in sorted(plan, key=lambda p: p[0] + p[1]):
+        u, v = a * q + (q - w) / 2, b * q + (q - w) / 2
+        o += cube(d, u, v, w, w, 0, F * floors)
+        o.append('<polygon points="%s" fill="#2f6fb5"/>' % pts([d(u + w * 0.35, v + w), d(u + w * 0.55, v + w), d(u + w * 0.55, v + w, 8), d(u + w * 0.35, v + w, 8)]))  # a blue door
         for fl in range(1, floors):  # a blue window on each upper floor
-            o.append('<polygon points="%s" fill="#2f6fb5"/>' % pts([d(u + 0.3, v + 0.48, F * fl + 6), d(u + 0.37, v + 0.48, F * fl + 6), d(u + 0.37, v + 0.48, F * fl + 14), d(u + 0.3, v + 0.48, F * fl + 14)]))
-        if floors < 3:  # its roof is a terrace: a low white wall along its open edges
-            z = F * floors; o.append('<polyline points="%s" fill="none" stroke="#ffffff" stroke-width="3"/>' % pts([d(u + 0.02, v + 0.48, z + 3), d(u + 0.48, v + 0.48, z + 3), d(u + 0.48, v + 0.02, z + 3)]))
+            o.append('<polygon points="%s" fill="#2f6fb5"/>' % pts([d(u + w * 0.6, v + w, F * fl + 3), d(u + w * 0.78, v + w, F * fl + 3), d(u + w * 0.78, v + w, F * fl + 9), d(u + w * 0.6, v + w, F * fl + 9)]))
+        z = F * floors; o.append('<polyline points="%s" fill="none" stroke="#ffffff" stroke-width="2"/>' % pts([d(u, v + w, z + 2), d(u + w, v + w, z + 2), d(u + w, v, z + 2)]))  # its roof is a terrace: a low white wall along its open edges
     return o
 
 
 LANDS = {
-    'wheat': dict(top='#e4b84c', lip='#d4a63c', soil='#8a5a32', stone='#6a5040', patches=[], top_detail=furrows('#c09034'), things=wheat_things),
-    'pomegranate': dict(top='#8fcd55', lip='#72b23e', soil='#8a5a32', stone='#6a5040', patches=[], top_detail=lambda d, r: [], things=tufts),  # sheep pasture (owner 25 Nov); sheep later
-    'vineyard': dict(top='#a5543a', lip='#8e4630', soil='#7a4428', stone='#5a3020', patches=[], top_detail=lambda d, r: [], things=vines),
-    'forest': dict(top='#3f8a3a', lip='#2f7430', soil='#7a4e2c', stone='#5a3a22', patches=[], top_detail=lambda d, r: [], things=woods),
-    'mountain': dict(top='#a6a199', lip='#8e8a84', soil='#7a6a5a', stone='#6a4030', patches=[], top_detail=lambda d, r: [], things=boulder),
-    'town': dict(top='#f4f2ec', lip='#e2ded4', soil='#8a6a4a', stone='#6a5040', patches=[], top_detail=lambda d, r: [], things=aegean),
+    'wheat': dict(top='#e4b84c', lip='#d4a63c', soil='#b08850', under='layers', stone='#6a5040', patches=[], top_detail=furrows('#c09034'), things=wheat_things),
+    'plains': dict(top='#8fcd55', lip='#72b23e', soil='#6b4a2e', under='pebbles', stone='#6a5040', patches=[], top_detail=lambda d, r: [], things=pasture),  # sheep pasture (owner 25 Nov)
+    'vineyard': dict(top='#a5543a', lip='#8e4630', soil='#8a3e26', under='pebbles', stone='#5a3020', patches=[], top_detail=lambda d, r: [], things=vines),
+    'forest': dict(top='#3f8a3a', lip='#2f7430', soil='#4e3420', under='roots', stone='#5a3a22', patches=[], top_detail=lambda d, r: [], things=woods),
+    'mountain': dict(top='#a6a199', lip='#8e8a84', soil='#7d7870', under='rock', stone='#6a4030', patches=[], top_detail=lambda d, r: [], things=boulder),
+    'town': dict(top='#e2cc94', lip='#cfb57a', soil='#d8cdb4', under='blocks', stone='#6a5040', patches=[], top_detail=lambda d, r: [], things=aegean),  # owner 25 Nov: the open ground a beige-yellow dirt
 }
 
 if __name__ == '__main__':
