@@ -16,6 +16,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 
 - `design.md`: the full design (draft): rules, jars, slot machine, points, tensions, sheet rows, everything open.
 - `WARNINGS.md`: traps found in this game.
+- `areas-sketch.png`: the areas sketch (each player's side split into areas, the board's border), to build from.
 - `SOUNDS.md`: every sound's name and when it plays; the owner's own sound files go in `art/sounds/<name>.mp3` (or wav, ogg) and replace the built-in one.
 - `src/index.html`: the game source; `build.py` makes `oi-apoikoi.html` from it, with the hand, land, material and sea pictures put in.
 - `art/sea/`: the owner's water pack (sea and shore pictures, 6 colours); the game uses `water-c` (chosen in `build.py`), its open-water diamond only; the ripples, foam and glints moving over it are drawn by the game.
@@ -41,7 +42,7 @@ A playable game against the PC on one shared board in the new look (sea board of
 - The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` section 6.
 - Design phase (25-26 Nov): look, motion and layout changes are on pull request #47 (branch `oi-apoikoi-motion-fixes`), pushed with the commit check off for the owner to merge by hand; 27 flow steps fail, the same as on main, because the flow tests are not updated yet.
-- Areas: a sketch (drawn over the game, not built) splits each player's side into deck/buttons, market, face + extra tile, a free triangle, materials and coins, with a board border of one width all round; approved by the owner (26 Nov), not built yet.
+- Areas: a sketch (`areas-sketch.png`, not built) splits each player's side into deck/buttons, market, face + extra tile, a free triangle, materials and coins, with a board border of one width all round; awaiting the owner's yes.
 
 ## Task list
 
