@@ -61,7 +61,7 @@ function numberList(b) {  // [label, get, set, min, max, step]
   if (b.texture) for (const [k, a, z, s] of [['scale', 0.1, 3, 0.01], ['brightness', -1, 1, 0.01], ['contrast', 0, 2, 0.01]]) put('texture ' + k, b.texture, k, a, z, s);
   return L;
 }
-function options(b) { return [b.size, b.opacity, b.flow, b.rotation, b.ratioOption, b.scatter, b.mirror, b.softness, b.spacingOption, b.texture?.strength].filter(o => o && o.on); }
+function options(b) { return [b.size, b.opacity, b.flow, b.rotation, b.ratioOption, b.scatter, b.mirror, b.softness, b.spacingOption, b.texture?.strength, b.smudge?.rate, b.smudge?.colorRate, b.smudge?.radius].filter(o => o && o.on); }
 function slider(box, label, get, set, min, max, step) {
   const r = document.createElement('div'); r.className = 'row';
   r.innerHTML = `<label>${label}</label><input type=range min=${min} max=${max} step=${step}><input type=number min=${min} max=${max} step=${step} id="n-${label.replace(/ /g, '-')}">`;
@@ -72,7 +72,7 @@ function slider(box, label, get, set, min, max, step) {
 }
 function panel() {
   const b = brush, box = document.getElementById('right');
-  box.innerHTML = `<h3>${chosen.id.replace(/_/g, ' ')}: ${b.tipType === 'auto_brush' ? b.shape + ' ' + b.fade : b.file}, ${b.wash ? 'wash' : 'build-up'}, ${b.compositeOp}</h3>`;
+  box.innerHTML = `<h3>${chosen.id.replace(/_/g, ' ')}: ${b.tipType === 'auto_brush' ? b.shape + ' ' + b.fade : b.file}, ${b.smudge ? 'colour smudge, ' + ['smearing', 'dulling'][b.smudge.mode] : b.wash ? 'wash' : 'build-up'}, ${b.compositeOp}</h3>`;
   for (const k of ['pressure', 'tiltX', 'tiltY']) slider(box, k, () => pen[k], v => pen[k] = v, k === 'pressure' ? 0 : -60, k === 'pressure' ? 1 : 60, 0.01);
   for (const n of numberList(b)) slider(box, ...n);
   for (const o of options(b)) {
