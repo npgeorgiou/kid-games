@@ -39,11 +39,11 @@ A playable game against the PC on one shared board in the new look (sea board of
 ## Open
 
 - The owner's own sound files, when they come, replace the built-in sounds.
-- See also `design.md` sections 6 and 7.
+- See also `design.md` section 6.
 - Design phase (25-26 Nov): look, motion and layout changes are on pull request #47 (branch `oi-apoikoi-motion-fixes`), pushed with the commit check off for the owner to merge by hand; 27 flow steps fail, the same as on main, because the flow tests are not updated yet.
 - Areas: a sketch (drawn over the game, not built) splits each player's side into deck/buttons, market, face + extra tile, a free triangle, materials and coins, with a board border of one width all round; approved by the owner (26 Nov), not built yet.
 
 ## Task list
 
 - Update the flow tests to the design phase so the commit check passes again.
-- Build the areas as plain colours and lines, draw the board border, and move the extra tile to its marked place (below the market's inner tile, in the face area, turned the same way).
+- Build the areas as plain colours and lines, draw the board border, and move the extra tile to its marked place (below the market's inner tile, in the face area, turned the same way); the draw slots sit as far from the board as the extra tile slot.

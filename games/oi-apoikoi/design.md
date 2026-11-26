@@ -1,6 +1,6 @@
 # Οι Άποικοι: design
 
-Status: draft, not approved. Base: the board game Dragomino (owner's choice); jars take the place of Dragomino's eggs. Everything in sections 1 and 2 is the owner's rule unless marked "Built for now" or "Open".
+Status: draft, not approved. Base: the board game Dragomino (owner's choice); jars take the place of Dragomino's eggs. Everything in sections 1 and 2 is the owner's rule unless marked "Open".
 
 ## 1. The game in short (draft)
 
@@ -13,7 +13,6 @@ Two players each build their own land from tiles with two terrain halves, on one
 - the PC always does what is mathematically optimal, in every choice (pick, place, jars, slot machine). For now: the best expected result for this turn, not planning whole rounds ahead. To improve later.
 - every PC (or second player) action is fully visible, done slowly by a moving hand, as if a person were doing it.
 - whose turn it is is obvious: that player's area is lit and the other's dimmed, with a sound when the turn passes.
-- Open: more than 2 players (the owner doesn't know if the screen is big enough).
 
 ### Tiles and land
 - each tile has two halves, and each half is one terrain.
@@ -43,7 +42,7 @@ Two players each build their own land from tiles with two terrain halves, on one
    - 5 materials of one colour become a jar at once; the jar drops while the 5th material flies; each material is used once.
    - The stockpile is a tray in the player's area: one row of 5 places per colour.
 5. **End of round.**
-   - the round's end is its own moment, seen and heard, before anything else in it (Built for now: leftover market tiles fly back to the pile, then evening falls from the top, a moon and stars over the market, a falling chime; a round starts with morning light sweeping over).
+   - the round's end is its own moment, seen and heard, before anything else in it (leftover market tiles fly back to the pile, then evening falls from the top, a moon and stars over the market, a falling chime; a round starts with morning light sweeping over).
    - materials left in the stockpile carry over to the next round.
 
 ### Jars
@@ -67,11 +66,12 @@ Two players each build their own land from tiles with two terrain halves, on one
 - coins come from jars and from the slot machine, and a slot spin costs 1 coin.
 - the game ends when no tile left can be placed by either player (so also when the tiles run out). Most coins wins.
 - the end is a smaller box over the board; each player's coins fly into his pile (face up, in columns of 10, the same coin size for both); a star stands over the taller pile; a green play button starts again.
+- Coins past 80 stack again from the first place.
 - Anything earned per tile or per round must stay a real choice over a whole game (28 tiles: at most 14 each).
 
-## 3. The new look (decided, built 25 Nov)
+## 3. The look
 
-Replaces the colours-only look. Where it differs from section 2 (the board's size, colours), this section wins.
+Where it differs from section 2 (the board's size, colours), this section wins.
 
 - Setting: Greek colonies, about 750-550 BC (proposal, owner did not object).
 - Lands and their materials: wheat field: grain; pomegranate orchard: pomegranates; vineyard: grapes; forest: timber; mountain: rubies; town: little statues.
@@ -79,7 +79,7 @@ Replaces the colours-only look. Where it differs from section 2 (the board's siz
 - Sea pictures: the owner's water pack (MaelleMarylloup, "water sea shore material tileset", `art/sea/`): 6 water colours, each a 4 x 4 sheet of 256 x 128 diamonds (open water and shore pieces for every edge and corner). Drawn 2 to 1, squeezed to true isometric. Its terms of use are not checked yet.
 - Land pictures: flat 2D pictures in the same isometric view, in the sea pack's hand-drawn style, made for the game; things stand upright, so turning a tile changes only which squares its halves cover. Touching squares of one land join into one area.
 - Market: a band across the top: the pile, then the 4 tiles.
-- Player areas: the two triangles beside the board on each side, joined by a narrow strip at the board's side corner (green left, red right). The face sits in the thin top corner beside the market. Materials and coins are 1.5 times their old size. Materials: a column of 5 per colour, from the top, beside the screen edge. Coins fill the bottom triangle in rows from the bottom up, each as long as the triangle is wide there, at most 8 a row.
+- Player areas: the two triangles beside the board on each side, joined by a narrow strip at the board's side corner (green left, red right). The face sits in the thin top corner beside the market. Materials: a column of 5 per colour, from the top, beside the screen edge. Coins fill the bottom triangle in rows from the bottom up, each as long as the triangle is wide there, at most 8 a row.
 
 ## 4. Tensions (from the rules so far)
 
@@ -107,26 +107,11 @@ Replaces the colours-only look. Where it differs from section 2 (the board's siz
 | What would kill the fun | Rewards that pile up over about 20 tiles; ties with nothing to break them; a resource with no job, or two scoring systems with no clear job each; slot machine wins costing more than they give; bidding with nothing to lose. |
 | Prototype must answer | Open |
 
-## 6. Built for now (not decided by the owner; to check)
+## 6. Still open
 
-- The PC's best for this turn: the pick and place that make the most jars now (one per connection, one per 5 materials, counting the land it lights onto what it has); between equal moves, the one lighting more squares. Jar contents are luck, so any jar is opened first; the slot machine is played for the most expected coins.
-- Tiles nobody could place in a round go back under the pile.
-- Sounds (simple built-in sounds until the owner's own files come; no blips, a jar breaks when opened): one soft family: wood knocks for dealing, picking, snapping and a wheel stopping; a clay break for opening a jar; a clink for coins; soft chimes for passes, lit squares, jars made from materials and slot wins; a whoosh for the slot spinning.
-- The PC's hand: Fluent Emoji pictures; it points to tap and to carry a tile, opens to let go, is raised when the PC passes.
-- The pile's 28 layers are 1.5 px apart (the band is made tall enough for them).
-- Which land is which of the six: in the order section 3 lists them, most common first (wheat field and pomegranate orchard are the start tile's).
-- The start tiles on the 16 x 16 board face each other (owner 25 Nov): the kid's at squares (4, 10)-(5, 10), the PC's the kid's turned half a turn around the board's centre, (11, 5)-(10, 5).
-- The water colour: `water-c` of the pack.
-- Coins past 80 (8 stacks of 10) stack on from the first place.
-- The face's corner: the lit face and a gap fit into the corner between the band and the board's edge; the first-player star beside it, away from the board.
+- More than 2 players (the owner doesn't know if the screen is big enough).
+- A settings button.
 
-## 7. Still open (all in one place)
+## 7. Ideas (not in the game)
 
-- The slot machine: pictures with amounts, later; or 3 faces of 1 each (1 coin, 1 jar, 1 of each material), no blank.
-- More than 2 players.
-- The region of the colony.
-- The design sheet rows marked "Open".
-
-## 8. Ideas (not in the game)
-
-- A wild tile: a tile with no lands of its own, its top in 6 stripes (one per land, 3 on each half), that takes the lands of the place it is put; it was the look of the gift tile before its lands were shown.
+- A wild tile: a tile with no lands of its own, its top in 6 stripes (one per land, 3 on each half), that takes the lands of the place it is put.
