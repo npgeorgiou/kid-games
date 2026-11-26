@@ -36,9 +36,9 @@ const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half 
 const params = new URLSearchParams(location.search);
 let fast = params.has('fast'), stillWater = fast;  // tests: the PC moves without waiting, and nothing travels: it is where it goes at once
 const HAND_SPEED = 700;  // owner 25 Nov: the PC moves faster  // px per second: slow enough to follow
-const EDGE_JAR_MS = 3000, EDGE_JAR_GAP = 500;  // owner 26 Nov: a connection's jar grows slowly out of its edge, one after another
+const EDGE_JAR_MS = 3000;  // owner 26 Nov: a connection's jars grow slowly out of their edges, all at once, as the land's harvest starts
 const STAGGER = 120, GOOD_FLY = 675, COIN_FLY = 825;  // things that go one after another leave STAGGER apart; a good flies GOOD_FLY, a coin COIN_FLY (owner 26 Nov: goods and coins a third slower)
-const RISE_MS = 500, SHOW_MS = 1000, GLIDE_MS = 300, REWARD_MS = 550;  // a jar opened: what it held rises out of it, shows, and its reward flies to its place; the other jars close up
+const RISE_MS = 500, SHOW_MS = 900,  /* owner 26 Nov: 10% shorter */ GLIDE_MS = 300, REWARD_MS = 550;  // a jar opened: what it held rises out of it, shows, and its reward flies to its place; the other jars close up
 const DEAL_MS = 260, DROP_MS = 600, INTO_MS = 900, SPECK_MS = 700;  // a market tile dealt from the pile; a jar dropping from the top; each good flying into it; a broken jar's specks fading
 const DUSK_MS = 1600, DAWN_MS = 900;  // evening falling at a round's end; morning light sweeping over at a round's start
 const GLOW_MS = 1800, RIPPLE_STEP = 300, POP_MS = 420, SHINE_MS = 500;  // a connection's edge glows GLOW_MS; its lit land ripples out a square each RIPPLE_STEP, each square lighting and jumping POP_MS (owner 25 Nov)
@@ -378,7 +378,7 @@ async function place(i, cs, pos, home, lies = 0) {  // lies: how it is turned to
   // owner 26 Nov: every jar this placing gives gets its place first (its connections' jars and the jars its full columns make), so the lines never re-centre while they fly
   const lit = litLand(edges), P = G.players[i], fills = COLOUR_IDS.reduce((n, c) => n + Math.floor((P.goods[c] + P.coming[c] + lit.filter(l => l[0] === c).length) / JAR_GOODS), 0), keep = () => { const k = freeSlot(P); P.reserved.add(k); return k; };
   const edgeSlots = edges.map(keep); P.planned.push(...Array.from({ length: fills }, keep));
-  await Promise.all([gain(i, lit, RIPPLE_STEP), ...edges.map((e, k) => pause(k * EDGE_JAR_GAP).then(() => G === my && edgeJar(i, edgePoint(e.x, e.y, e.d), edgeSlots[k])))]); P.planned.splice(0).forEach(k => P.reserved.delete(k));  // a place kept for a jar that never came is free again if (G !== my) return false;  // a jar for each connection drops in while its land's materials fly
+  await Promise.all([gain(i, lit, RIPPLE_STEP), ...edges.map((e, k) => edgeJar(i, edgePoint(e.x, e.y, e.d), edgeSlots[k]))]); P.planned.splice(0).forEach(k => P.reserved.delete(k));  // a place kept for a jar that never came is free again if (G !== my) return false;  // a jar for each connection drops in while its land's materials fly
   if (G.parked) { await parkJars(i, false); if (G !== my) return false; }
   await openJars(i); return true;
 }
@@ -680,12 +680,17 @@ function rrect(x, y, w, h, r, fill, stroke, lw) {
   if (stroke) { cx.strokeStyle = stroke; cx.lineWidth = lw || 2; cx.stroke(); }
 }
 function dot(x, y, r, fill) { cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.fillStyle = fill; cx.fill(); }
+const COIN_SLICES = 32;  // upright slices of a coin's side
 function flatCoin(x, y, r, th) {  // a coin lying flat, seen from the board's angle: its edge in the coin picture's own dark gold, then his coin picture squashed to lie flat (owner 25 Nov)
   const e = (yy, col) => { cx.beginPath(); cx.ellipse(x, yy, r, r * 0.5, 0, 0, 7); cx.fillStyle = col; cx.fill(); };
   // owner 26 Nov: the side as wide as the face, all round, showing the grooves of his coin's edge picture
   cx.save(); cx.beginPath(); cx.moveTo(x - r, y - th); cx.lineTo(x + r, y - th); cx.lineTo(x + r, y); cx.ellipse(x, y, r, r * 0.5, 0, 0, Math.PI); cx.closePath(); cx.clip();
-  const side = pics['things/coin-edge']; if (side) cx.drawImage(side, side.width * 0.3, 0, side.width * 0.4, side.height, x - r, y - th - r * 0.1, 2 * r, th + r * 0.62); else { cx.fillStyle = '#a8700e'; cx.fillRect(x - r, y - th, 2 * r, th + r * 0.5); } cx.restore();  // owner 26 Nov: only the side picture's straight middle, so the sides stand straight
-  cx.beginPath(); cx.ellipse(x, y, r, r * 0.5, 0, 0, Math.PI); cx.strokeStyle = '#6e4604'; cx.lineWidth = 1; cx.stroke();  // a dark line under each coin: the coins can be counted
+  // owner 26 Nov: the side is the side picture's grooved band, straight sides, bent along the coin's round front: drawn in thin upright slices, each lowered by the rim's curve there
+  const side = pics['things/coin-edge'];
+  if (side) for (let k = 0, n = COIN_SLICES; k < n; k++) { const sx = x - r + 2 * r * k / n, dy = r * 0.5 * Math.sqrt(Math.max(0, 1 - ((sx + r / n - x) / r) ** 2));
+    cx.drawImage(side, side.width * (0.3 + 0.4 * k / n), side.height * 0.44, side.width * 0.4 / n, side.height * 0.4, sx, y - th + dy - 1, 2 * r / n + 0.6, th + 1 + r * 0.05); }
+  else { cx.fillStyle = '#a8700e'; cx.fillRect(x - r, y - th, 2 * r, th + r * 0.5); }
+  cx.restore();
   if (pics['things/coin']) picture('things/coin', x - r, y - th - r * 0.5, 2 * r, r); else e(y - th, '#f2c53d');
 }
 function coin(x, y, r) { if (pics['things/coin']) picture('things/coin', x - r * 1.1, y - r * 1.1, r * 2.2, r * 2.2); else dot(x, y, r, '#b8860b'); }  // owner 25 Nov: his coin picture
@@ -794,7 +799,7 @@ function rippleSheet(k) {  // ripple layer k already squashed into the board's v
 }
 const waterStep = () => fast || stillWater ? 0 : Math.floor(performance.now() / WATER_STEP);  // the water's picture is made again each WATER_STEP (at test speed, or with still water: never)
 // A tile dropped on the water (owner 26 Nov: a bigger wave, as if dropped on water; the standard ripple rings): 1. rings leave the tile one after another, SPLASH_GAP apart;
-// 2. each grows from the tile's edge outward over SPLASH_MS, gently at first (eased in and out), in the tile's own shape at the water's line, thinning and fading as it goes;
+// 2. each grows from the tile's edge outward over SPLASH_MS, from the moment it lands, slowing as it goes, in the tile's own shape at the water's line, thinning and fading as it goes;
 // 3. its corners round as it grows, from SPLASH_ROUND of a square's side to 5 times that at its full reach (owner 26 Nov).
 const SPLASH_MS = 1500, SPLASH_GAP = 380, SPLASH_RINGS = 2, SPLASH_REACH = 0.5, SPLASH_ROUND = 0.1;  // owner 26 Nov: two rings, half a square out, less sudden
 function splashRings(now) {
@@ -802,10 +807,10 @@ function splashRings(now) {
   const { hw, hh } = L(), v = waterDrop();
   seaClip(() => G.splashes.forEach(q => { for (let k = 0; k < SPLASH_RINGS; k++) {
     const u = (now - q.t0 - k * SPLASH_GAP) / SPLASH_MS; if (u <= 0 || u >= 1) continue;
-    const e = easeInOut(u), d = 0.12 + SPLASH_REACH * e, [x, y] = q.at, [c, sn] = turnDir(q.r), round = SPLASH_ROUND * (1 + 4 * e) * Math.hypot(hw, hh);  // owner 26 Nov: the tile's own shape, d squares out from its sides, at the water's line
+    const e = 1 - (1 - u) * (1 - u), d = 0.12 + SPLASH_REACH * e, [x, y] = q.at, [c, sn] = turnDir(q.r), round = SPLASH_ROUND * (1 + 4 * e) * Math.hypot(hw, hh);  // owner 26 Nov: the tile's own shape, d squares out from its sides, at the water's line
     const pts = [[-1, -0.5], [1, -0.5], [1, 0.5], [-1, 0.5]].map(([a, b]) => { const p = a + Math.sign(a) * d, w = b + Math.sign(b) * d, uu = p * c - w * sn, vv = p * sn + w * c; return [x + (uu - vv) * hw, y + v + (uu + vv) * hh]; });
     cx.beginPath(); cx.moveTo((pts[3][0] + pts[0][0]) / 2, (pts[3][1] + pts[0][1]) / 2); pts.forEach((pt, j) => cx.arcTo(...pt, ...pts[(j + 1) % 4], round)); cx.closePath();  // rounded corners
-    cx.strokeStyle = 'rgba(255,255,255,' + (0.55 * Math.min(1, u * 4) * (1 - u) * (1 - k * 0.25)) + ')'; cx.lineWidth = hh * (0.22 - 0.14 * u); cx.stroke();
+    cx.strokeStyle = 'rgba(255,255,255,' + (0.55 * (1 - u) * (1 - k * 0.25)) + ')'; cx.lineWidth = hh * (0.22 - 0.14 * u); cx.stroke();
     drawn.push({ k: 'splashring', n: k });
   } }));
 }
@@ -934,7 +939,7 @@ function drawDraft() {
     });
   });
   const layers = G.bag.length, [px, top] = pileTop(), bottom = pileLayerY(0), box = { x: px - 1.5 * hw - 2, y: top - 1.5 * hh - 2, w: 3 * hw + 4, h: bottom - top + 3 * hh + 4 };
-  drawLayer(layer('pile', layers, box, () => { for (let k = 0; k < layers; k++) { const y = pileLayerY(k); tilePath(px, y, 1, 0); cx.fillStyle = '#c9ad7f'; cx.fill(); const cut = k % ROUND_TILES === 0 && k; cx.strokeStyle = cut ? '#4a3418' : '#8a6d42'; cx.lineWidth = cut ? 2 : 1; cx.stroke(); }  // one pile; a dark line where each round's tiles begin (owner 25 Nov)
+  drawLayer(layer('pile', layers, box, () => { for (let k = 0; k < layers; k++) { const y = pileLayerY(k); tilePath(px, y, 1, 0); cx.fillStyle = '#c9ad7f'; cx.fill(); const cut = k % ROUND_TILES === 0 && k; cx.strokeStyle = cut ? '#4a3418' : '#8a6d42'; cx.lineWidth = cut ? 1 : 0.5; cx.stroke(); }  // owner 26 Nov: thinner  // one pile; a dark line where each round's tiles begin (owner 25 Nov)
     return [{ k: 'pile', layers, x: px, y: top, step: PILE_STEP, bottom: bottom + 1.5 * hh }]; }));  // the pile: one layer per tile, drawn again only when it changes
 }
 function area(i) {  // player i's area: the two triangles beside the board on his side, joined by the strip at the board's side corner
