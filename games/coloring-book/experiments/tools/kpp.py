@@ -18,12 +18,12 @@ def settings(path):
     return engine, rows
 
 def save_embedded_pattern(rows, folder):
-    """Krita embeds the texture pattern in the preset as base64 PNG: write it under its own name."""
+    """Krita embeds the texture pattern in the preset as base64 of the base64 PNG: write the PNG under its own name."""
     d = dict(rows)
     data, name = d.get('Texture/Pattern/Pattern'), d.get('Texture/Pattern/Name')
     if not data or not name: return None
     os.makedirs(folder, exist_ok=True)
-    with open(os.path.join(folder, name), 'wb') as f: f.write(base64.b64decode(data))
+    with open(os.path.join(folder, name), 'wb') as f: f.write(base64.b64decode(base64.b64decode(data)))
     return name
 
 def named_files(rows):
