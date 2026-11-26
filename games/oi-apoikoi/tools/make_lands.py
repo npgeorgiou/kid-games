@@ -347,15 +347,8 @@ def staggered(n):  # about n x n points over the whole square, in rows across th
     return sorted(out, key=lambda p: p[0] + p[1])
 
 
-def sheep(d, u, v, k=1.2):  # a sheep lying on the square, facing left: a woolly body of puffs, a dark head (owner 25 Nov: no legs, smaller); k: its size
-    x, y = d(u, v); o = [shadow(d, u, v, 13 * k, 0.2)]
-    y += 6 * k  # no legs: it sits on the grass
-    for px, py, r in ((-6, -12, 6.5), (0, -14, 7), (6, -12, 6.5), (-3, -8, 6), (4, -8, 6), (0, -17, 5)): o.append('<circle cx="%s" cy="%s" r="%s" fill="#f6f2e8" stroke="#cfc6b4" stroke-width="0.8"/>' % (f(x + px * k), f(y + py * k), f(r * k)))
-    o.append('<ellipse cx="%s" cy="%s" rx="%s" ry="%s" fill="#3a3430"/>' % (f(x - 13 * k), f(y - 13 * k), f(4.2 * k), f(5 * k)))
-    o.append('<ellipse cx="%s" cy="%s" rx="%s" ry="%s" fill="#3a3430"/>' % (f(x - 10 * k), f(y - 17 * k), f(2.5 * k), f(1.4 * k)))
-    return o
-def pasture(d, rng):  # owner 25 Nov: plains of grass tufts with a couple of sheep
-    return tufts(d, rng) + sheep(d, 0.3, 0.45) + sheep(d, 0.62, 0.72)
+def pasture(d, rng):  # owner 25 Nov: plains of grass tufts with a couple of sheep; owner 26 Nov: the sheep are drawn by the game (they wander on a placed tile)
+    return tufts(d, rng)
 def tufts(d, rng):  # tiny grass tufts in an even pattern
     o = []
     for u, v in grid(9):
@@ -439,7 +432,7 @@ def aegean(d, rng):  # owner 25 Nov: small square Aegean houses on a 3 x 3 plan 
 LANDS = {
     'wheat': dict(top='#e4b84c', lip='#d4a63c', soil='#b08850', under='layers', stone='#6a5040', patches=[], top_detail=furrows('#c09034'), things=wheat_things),
     'plains': dict(top='#8fcd55', lip='#72b23e', soil='#6b4a2e', under='pebbles', stone='#6a5040', patches=[], top_detail=lambda d, r: [], things=pasture),  # sheep pasture (owner 25 Nov)
-    'vineyard': dict(top='#a5543a', lip='#8e4630', soil='#8a3e26', under='pebbles', stone='#5a3020', patches=[], top_detail=lambda d, r: [], things=vines),
+    'vineyard': dict(top='#a5543a', lip='#b0583a', soil='#6e3020', under='pebbles', stone='#4a2418', patches=[], top_detail=lambda d, r: [], things=vines),  # owner 26 Nov: the earth under it a darker shade of its top layer, unlike every other land's
     'forest': dict(top='#3f8a3a', lip='#2f7430', soil='#4e3420', under='roots', stone='#5a3a22', patches=[], top_detail=lambda d, r: [], things=woods),
     'mountain': dict(top='#a6a199', lip='#8e8a84', soil='#7d7870', under='rock', stone='#6a4030', patches=[], top_detail=lambda d, r: [], things=boulder),
     'town': dict(top='#e2cc94', lip='#cfb57a', soil='#d8cdb4', under='blocks', stone='#6a5040', patches=[], top_detail=lambda d, r: [], things=aegean),  # owner 25 Nov: the open ground a beige-yellow dirt
