@@ -36,7 +36,7 @@ const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half 
 const params = new URLSearchParams(location.search);
 let fast = params.has('fast'), stillWater = fast;  // tests: the PC moves without waiting, and nothing travels: it is where it goes at once
 const HAND_SPEED = 700;  // owner 25 Nov: the PC moves faster  // px per second: slow enough to follow
-const EDGE_JAR_MS = 3000;  // owner 26 Nov: a connection's jars grow slowly out of their edges, all at once, as the land's harvest starts
+const EDGE_GROW_MS = 1755, EDGE_GO_MS = 1080, EDGE_GLIDE_MS = 1440, EDGE_JAR_MS = EDGE_GO_MS + EDGE_GLIDE_MS;  // owner 26 Nov: growing 10% and gliding 20% faster than before; owner 26 Nov: a connection's jars grow slowly out of their edges, all at once, as the land's harvest starts
 const STAGGER = 120, GOOD_FLY = 675, COIN_FLY = 825;  // things that go one after another leave STAGGER apart; a good flies GOOD_FLY, a coin COIN_FLY (owner 26 Nov: goods and coins a third slower)
 const RISE_MS = 500, SHOW_MS = 900,  /* owner 26 Nov: 10% shorter */ GLIDE_MS = 300, REWARD_MS = 550;  // a jar opened: what it held rises out of it, shows, and its reward flies to its place; the other jars close up
 const DEAL_MS = 260, DROP_MS = 600, INTO_MS = 900, SPECK_MS = 700;  // a market tile dealt from the pile; a jar dropping from the top; each good flying into it; a broken jar's specks fading
@@ -276,11 +276,10 @@ async function dropJar(i, from, slot = G.players[i].planned.shift() ?? freeSlot(
   p.reserved.delete(slot); p.jarList.push({ slot, fresh: true }); sound('jarland'); return jarSpot(slot, places(p));
 }
 // A connection's jar (owner 26 Nov; the source shows itself, then the thing comes out of it), one motion: 1. the edge glows; 2. the jar grows out of the edge, its foot on it,
-// slowly, over EDGE_GROW of the flight (eased out); 3. from EDGE_GO on, while it still grows, it glides over to its place on an arc (eased in and out).
-const EDGE_GROW = 0.65, EDGE_GO = 0.4;  // parts of EDGE_JAR_MS
+// slowly, over EDGE_GROW_MS (eased out); 3. from EDGE_GO_MS on, while it still grows, it glides over EDGE_GLIDE_MS to its place on an arc (eased in and out).
 async function edgeJar(i, at, slot) {
   const my = G, p = G.players[i]; G.jarWho = i; p.reserved.add(slot); const target = () => jarSpot(slot, places(p));
-  const path = u => { const z = 0.1 + 0.9 * easeOut(Math.min(1, u / EDGE_GROW)), foot = [at[0], at[1] - JAR_SIZE() * JAR_TALL / 2 * z], v = Math.max(0, (u - EDGE_GO) / (1 - EDGE_GO)), e = easeInOut(v), t = target();
+  const path = u => { const z = 0.1 + 0.9 * easeOut(Math.min(1, u * EDGE_JAR_MS / EDGE_GROW_MS)), foot = [at[0], at[1] - JAR_SIZE() * JAR_TALL / 2 * z], v = Math.max(0, (u * EDGE_JAR_MS - EDGE_GO_MS) / EDGE_GLIDE_MS), e = easeInOut(v), t = target();
     return [foot[0] + (t[0] - foot[0]) * e, foot[1] + (t[1] - foot[1]) * e - Math.sin(Math.PI * v) * JAR_SIZE() * 0.5, z]; };
   await fly({ k: 'jar' }, at, target(), EDGE_JAR_MS, { path, target }); if (G !== my) return;
   p.reserved.delete(slot); p.jarList.push({ slot, fresh: true }); sound('jarland');
@@ -690,7 +689,7 @@ function flatCoin(x, y, r, th) {  // a coin lying flat, seen from the board's an
   if (side) for (let k = 0, n = COIN_SLICES; k < n; k++) { const sx = x - r + 2 * r * k / n, dy = r * 0.5 * Math.sqrt(Math.max(0, 1 - ((sx + r / n - x) / r) ** 2));
     cx.drawImage(side, side.width * (0.3 + 0.4 * k / n), side.height * 0.44, side.width * 0.4 / n, side.height * 0.4, sx, y - th + dy - 1, 2 * r / n + 0.6, th + 1 + r * 0.05); }
   else { cx.fillStyle = '#a8700e'; cx.fillRect(x - r, y - th, 2 * r, th + r * 0.5); }
-  cx.restore();
+  cx.restore(); cx.beginPath(); cx.ellipse(x, y, r, r * 0.5, 0, 0, Math.PI); cx.strokeStyle = '#8a5a08'; cx.lineWidth = 1; cx.stroke();  // owner 26 Nov: a line under each coin: the coins in a stack can be counted
   if (pics['things/coin']) picture('things/coin', x - r, y - th - r * 0.5, 2 * r, r); else e(y - th, '#f2c53d');
 }
 function coin(x, y, r) { if (pics['things/coin']) picture('things/coin', x - r * 1.1, y - r * 1.1, r * 2.2, r * 2.2); else dot(x, y, r, '#b8860b'); }  // owner 25 Nov: his coin picture
@@ -939,7 +938,7 @@ function drawDraft() {
     });
   });
   const layers = G.bag.length, [px, top] = pileTop(), bottom = pileLayerY(0), box = { x: px - 1.5 * hw - 2, y: top - 1.5 * hh - 2, w: 3 * hw + 4, h: bottom - top + 3 * hh + 4 };
-  drawLayer(layer('pile', layers, box, () => { for (let k = 0; k < layers; k++) { const y = pileLayerY(k); tilePath(px, y, 1, 0); cx.fillStyle = '#c9ad7f'; cx.fill(); const cut = k % ROUND_TILES === 0 && k; cx.strokeStyle = cut ? '#4a3418' : '#8a6d42'; cx.lineWidth = cut ? 1 : 0.5; cx.stroke(); }  // owner 26 Nov: thinner  // one pile; a dark line where each round's tiles begin (owner 25 Nov)
+  drawLayer(layer('pile', layers, box, () => { for (let k = 0; k < layers; k++) { const y = pileLayerY(k); tilePath(px, y, 1, 0); cx.fillStyle = '#c9ad7f'; cx.fill(); const cut = k % ROUND_TILES === 0 && k; cx.strokeStyle = cut ? '#4a3418' : '#8a6d42'; cx.save(); cx.clip(); cx.lineWidth = cut ? 2 : 1; cx.stroke(); cx.restore(); }  // owner 26 Nov: thinner, and only inside the layer: nothing sticks out of the pile  // one pile; a dark line where each round's tiles begin (owner 25 Nov)
     return [{ k: 'pile', layers, x: px, y: top, step: PILE_STEP, bottom: bottom + 1.5 * hh }]; }));  // the pile: one layer per tile, drawn again only when it changes
 }
 function area(i) {  // player i's area: the two triangles beside the board on his side, joined by the strip at the board's side corner
