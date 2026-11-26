@@ -66,7 +66,7 @@ Two players each build their own land from tiles with two terrain halves, on one
 - points are gold coins drawn one by one, with no numbers. They stand in the 5 material columns, in a tray under the materials, rows of 5 from the top.
 - coins come from jars and from the slot machine, and a slot spin costs 1 coin.
 - the game ends when no tile left can be placed by either player (so also when the tiles run out). Most coins wins.
-- the end is a smaller box over the board; each player's coins fly into his pile (rows of 10, the same coin size for both); a star stands over the taller pile; a green play button starts again.
+- the end is a smaller box over the board; each player's coins fly into his pile (face up, in columns of 10, the same coin size for both); a star stands over the taller pile; a green play button starts again.
 - Anything earned per tile or per round must stay a real choice over a whole game (28 tiles: at most 14 each).
 
 ## 3. The new look (decided, built 25 Nov)
@@ -117,7 +117,7 @@ Replaces the colours-only look. Where it differs from section 2 (the board's siz
 - Which land is which of the six: in the order section 3 lists them, most common first (wheat field and pomegranate orchard are the start tile's).
 - The start tiles on the 16 x 16 board face each other (owner 25 Nov): the kid's at squares (4, 10)-(5, 10), the PC's the kid's turned half a turn around the board's centre, (11, 5)-(10, 5).
 - The water colour: `water-c` of the pack.
-- Coins past what the bottom triangle holds at full size (about 44 on a 1280 x 800 screen) all get smaller together, always apart.
+- Coins past 80 (8 stacks of 10) stack on from the first place.
 - The face's corner: the lit face and a gap fit into the corner between the band and the board's edge; the first-player star beside it, away from the board.
 
 ## 7. Still open (all in one place)
@@ -126,3 +126,7 @@ Replaces the colours-only look. Where it differs from section 2 (the board's siz
 - More than 2 players.
 - The region of the colony.
 - The design sheet rows marked "Open".
+
+## 8. Ideas (not in the game)
+
+- A wild tile: a tile with no lands of its own, its top in 6 stripes (one per land, 3 on each half), that takes the lands of the place it is put; it was the look of the gift tile before its lands were shown.
