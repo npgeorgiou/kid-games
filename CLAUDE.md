@@ -89,6 +89,7 @@ Rules a machine can check are checked by the commit check (`.githooks/commit-msg
 
 ## Working
 
+- **His time first (owner 26 Nov).** Test with his real input before anything else: touch moves as his screen sends them (many, close together, a little shaky), long and fast strokes; tidy mouse moves prove nothing. A likely cause of something he can hit is fixed, never dropped as unlikely. When a fix works, send him the page to try at once and finish the checks after, saying so in one line. A check not reliable within 20 minutes: tell him in one line, send the fix, go on.
 - Be mindful of tokens: read only the sections a task needs. Each `src/index.html` and every other file over 500 lines has `SECTION: NAME -- what's here` markers; `grep -n "SECTION:"`, then read around the exact function. A file that grows past 500 lines gets them; a marker is updated in the same change as the code it names.
 - Commands print only what is needed: counts, PASS/FAIL lines, the few lines asked for. Never print whole files, data or long logs (filter with `grep`, `grep -c`, `cut`). Never cut test results with `head` or `tail`: count every FAIL and read them all.
 - Do what was asked, all of it, nothing more. No unasked refactors, features or suggestions.
