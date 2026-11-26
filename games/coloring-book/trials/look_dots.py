@@ -1,5 +1,5 @@
 # His dot-and-line and spiral cases (25 Nov evening), painted through the trial's own stroke code at size L; pictures to the system temp folder.
-# dots.png: each brush pressed once (a dot) and one straight line. loads.png: each brush's line (rows) with a third, two thirds and a full bucket (left to right). spiral.png: one long square spiral with the flat brush until it is empty.
+# dots.png: each brush pressed once (a dot) and one straight line. loads.png: each brush's line (rows) with a third, two thirds and a full bucket (left to right). press.png: the same with a slow, a usual and a fast hand. spiral.png: one long square spiral with the flat brush until it is empty.
 import pathlib, tempfile
 from PIL import Image
 from playwright.sync_api import sync_playwright
@@ -23,6 +23,8 @@ def sheet(name, strokes):
 BR = ['round', 'flat', 'filbert', 'fan', 'rigger']
 sheet('dots.png', [x for k, br in enumerate(BR) for x in ((br, [(110 + k * 190, 130)]), (br, poly([(110 + k * 190, 260), (110 + k * 190, 660)])))])
 sheet('loads.png', [(br, poly([(50 + j * 330, 80 + k * 145), (310 + j * 330, 80 + k * 145)]), j + 1) for k, br in enumerate(BR) for j in range(3)])
+def timed(pts, v): return [(x, y, k * 4 / v * 1000) for k, (x, y) in enumerate(pts)]  # points 4 px apart, a hand at v px a second
+sheet('press.png', [(br, timed(poly([(50 + j * 330, 80 + k * 145), (310 + j * 330, 80 + k * 145)]), v)) for k, br in enumerate(BR) for j, v in enumerate([150, 550, 2500])])
 sq = []; m = 60
 while m < 330: sq += [(m, m), (1000 - m, m), (1000 - m, 760 - m), (m + 70, 760 - m)]; m += 100
 sheet('spiral.png', [('flat', poly(sq))])
