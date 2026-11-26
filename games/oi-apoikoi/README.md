@@ -42,6 +42,9 @@ A playable game against the PC on one shared board in the new look (sea board of
 - The owner's own sound files, when they come, replace the built-in sounds.
 - The sea pack's terms of use are not checked.
 - See also `design.md` sections 6 and 7.
+- Design phase (25-26 Nov): many look and layout changes are built but not pushed and the flow tests are not updated (renamed lands and materials: plains/meat, stone; 4 stacked canvases; coins in 10 places; moved-aside jars beside the lower board edge; tile swap and drop on any empty market place). Update the tests, then push.
+- City: open ground made beige dirt; owner to reconsider, with the 3 suggestions A (terracotta roofs), B (chapel), C (coloured doors, flowers, olive trees) still open.
+- Owner to confirm on his own screen that flying things now move smoothly.
 
 ## Task list
 

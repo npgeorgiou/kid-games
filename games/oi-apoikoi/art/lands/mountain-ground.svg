@@ -6,24 +6,24 @@
 <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0.55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#0b2030" stop-opacity="0.35"/></linearGradient>
 <linearGradient id="sun" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.18"/><stop offset="0.6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.08"/></linearGradient>
 </defs>
-<polygon points="0,64 128,128 128,180 0,116" fill="#7a6a5a"/>
-<polygon points="0,92.6 128,156.6 128,180 0,116" fill="#6e5f50"/>
-<polygon points="0,64 128,128 128,139.4 0,75.4" fill="#8e8a84"/>
-<polygon points="0,111.8 128,175.8 128,180 0,116" fill="#584b3d"/>
-<ellipse cx="18.7" cy="108.9" rx="2.6" ry="1.8" fill="#655748"/>
-<ellipse cx="94.8" cy="147.3" rx="2.6" ry="1.8" fill="#655748"/>
-<ellipse cx="12.1" cy="106.4" rx="2.6" ry="1.8" fill="#655748"/>
-<ellipse cx="19.8" cy="100.9" rx="2.6" ry="1.8" fill="#655748"/>
-<ellipse cx="111.1" cy="154.3" rx="2.6" ry="1.8" fill="#655748"/>
-<polygon points="128,128 256,64 256,116 128,180" fill="#625446"/>
-<polygon points="128,156.6 256,92.6 256,116 128,180" fill="#56493c"/>
-<polygon points="128,128 256,64 256,75.4 128,139.4" fill="#716c65"/>
-<polygon points="128,175.8 256,111.8 256,116 128,180" fill="#403529"/>
-<ellipse cx="206.3" cy="111.1" rx="2.6" ry="1.8" fill="#4d4133"/>
-<ellipse cx="184" cy="133.7" rx="2.6" ry="1.8" fill="#4d4133"/>
-<ellipse cx="158.6" cy="142.1" rx="2.6" ry="1.8" fill="#4d4133"/>
-<ellipse cx="170.5" cy="138.7" rx="2.6" ry="1.8" fill="#4d4133"/>
-<ellipse cx="186.2" cy="139.2" rx="2.6" ry="1.8" fill="#4d4133"/>
+<polygon points="0,64 128,128 128,180 0,116" fill="#7d7870"/>
+<polygon points="0,101.4 128,165.4 128,180 0,116" fill="#716c64"/>
+<polyline points="0,95.2 38.4,116 70.4,129.4 128,160.2" fill="none" stroke="#645e56" stroke-width="2.5" stroke-linecap="round"/>
+<polyline points="0,104.6 38.4,125.3 70.4,138.7 128,169.6" fill="none" stroke="#645e56" stroke-width="2.5" stroke-linecap="round"/>
+<polyline points="25.6,108 29.4,119.3" fill="none" stroke="#645e56" stroke-width="2" stroke-linecap="round"/>
+<polyline points="64,127.2 67.8,138.5" fill="none" stroke="#645e56" stroke-width="2" stroke-linecap="round"/>
+<polyline points="102.4,146.4 106.2,157.7" fill="none" stroke="#645e56" stroke-width="2" stroke-linecap="round"/>
+<polygon points="0,64 128,128 128,150.9 0,86.9" fill="#8e8a84"/>
+<polygon points="0,111.8 128,175.8 128,180 0,116" fill="#5a544c"/>
+<polygon points="128,128 256,64 256,116 128,180" fill="#645e56"/>
+<polygon points="128,165.4 256,101.4 256,116 128,180" fill="#58524a"/>
+<polyline points="128,159.2 166.4,141.6 198.4,123 256,96.2" fill="none" stroke="#4c453c" stroke-width="2.5" stroke-linecap="round"/>
+<polyline points="128,168.6 166.4,150.9 198.4,132.3 256,105.6" fill="none" stroke="#4c453c" stroke-width="2.5" stroke-linecap="round"/>
+<polyline points="153.6,146.4 157.4,153.8" fill="none" stroke="#4c453c" stroke-width="2" stroke-linecap="round"/>
+<polyline points="192,127.2 195.8,134.6" fill="none" stroke="#4c453c" stroke-width="2" stroke-linecap="round"/>
+<polyline points="230.4,108 234.2,115.4" fill="none" stroke="#4c453c" stroke-width="2" stroke-linecap="round"/>
+<polygon points="128,128 256,64 256,86.9 128,150.9" fill="#716c65"/>
+<polygon points="128,175.8 256,111.8 256,116 128,180" fill="#423b32"/>
 <polygon points="128,0 256,64 128,128 0,64" fill="#a6a199"/>
 <g clip-path="url(#d)">
 </g>
