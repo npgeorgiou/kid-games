@@ -20,10 +20,10 @@ button.on{outline:4px solid #000}
   <div class="row"><button id="clear">New paper</button></div>
 </div>
 <script>
-// Acrylic paint on paper, the standard two-way brush of painting programs (ArtRage, Rebelle, Baxter's dAb): the brush gives paint and picks up wet paint wherever it touches.
+// Acrylic paint on paper, the standard two-way brush of painting programs (ArtRage, Rebelle, Krita's colour smudge): the brush gives paint and picks up wet paint wherever it touches, a little at every step.
 // 1. The paper has a tooth (a height texture). A loaded bristle covers it all; as a bristle runs dry it touches only what sticks up: scratchy, broken marks along the bristles.
-// 2. The tip is a row of bristles across the stroke; each holds its own paint and colour and empties as it travels, plus the little wet paint it picked up, which it lays down again and runs out of. Rim bristles hold less: broken edges.
-// 3. Each pixel holds a pigment mix (Mixbox), a top coat, the dried paint under it, and when it was laid. The brush meets only the top of wet paint: they mix by amount there, and the bristle picks a little up; dry paint is covered.
+// 2. The tip is a row of bristles across the stroke; each holds its own paint, which it lays as it travels and runs out of, and at its tip the wet paint it picked up, which it lays down again further on and runs out of: wet paint is pushed and carried along. Rim bristles hold less: broken edges. A tap touches only with the bristle tips.
+// 3. Each pixel holds a wet top coat (a Mixbox pigment mix, its thickness, when it was laid) over the dried paint under it. At every step each bristle exchanges with the pixels under it in proportion to the distance travelled: it picks up some wet paint (never its own fresh paint) and lays paint; they mix by amount. Dry paint is covered.
 const cv = document.getElementById('paper'), g = cv.getContext('2d'), W = cv.width, H = cv.height;
 function rng(s) { return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 // paper tooth: a few octaves of value noise
@@ -46,9 +46,9 @@ function toLatent(rgb) { const r = Math.min(1, Math.max(0, rgb[0] / 255)), g = M
   const c = [0, 1, 2].map((ch) => { const s0 = lutAt((iz % 8) * 64 + x, Math.floor(iz / 8) * 64 + y, ch), s1 = lutAt(((iz + 1) % 8) * 64 + x, Math.floor((iz + 1) / 8) * 64 + y, ch); return (s0 + (s1 - s0) * f) / 255; });
   const p = [0, 0, 0]; poly(c[0], c[1], c[2], p); return [c[0], c[1], c[2], r - p[0], g - p[1], b - p[2]]; }
 function rgbOf(l, o) { poly(l[0], l[1], l[2], o); for (let ch = 0; ch < 3; ch++) o[ch] = Math.min(1, Math.max(0, o[ch] + l[3 + ch])); return o; }
-// per pixel: pigment mix, its colour, top coat, dried paint under it, when the top coat was last laid, the bristle grooves in it
-const lat = new Float32Array(W * H * 6), rgb = new Float32Array(W * H * 3), vol = new Float32Array(W * H), base = new Float32Array(W * H), laid = new Float32Array(W * H), groove = new Float32Array(W * H);
-const by = new Int32Array(W * H), byK = new Int32Array(W * H); // which stroke last touched a pixel, and at which dab: one pass of the brush acts once on a pixel (no scales where dabs overlap)
+// per pixel: the top coat's pigment mix and thickness, the dried paint under it (pigment mix, thickness), when the top coat was last laid, the bristle grooves in it, which stroke laid it
+const lat = new Float32Array(W * H * 6), vol = new Float32Array(W * H), blat = new Float32Array(W * H * 6), base = new Float32Array(W * H), laid = new Float32Array(W * H), groove = new Float32Array(W * H);
+const by = new Int32Array(W * H), mine = new Float32Array(W * H); // which stroke last laid paint on a pixel, and how much of its top coat that stroke laid
 const DRY = 25; // acrylic is wet for about this many seconds, then dry
 let clockShift = 0; const clock = () => performance.now() / 1000 + clockShift; // seconds; the trial pictures can let time pass
 // the five brushes
@@ -64,15 +64,16 @@ const BRUSHES = {
 // the paint: coat: how thick a coat is; run: how far a full brush paints, in brush sizes plus 40 px (a small brush holds less, but not in proportion);
 // smear: how much the wet paint under the brush mixes into what it lays; pick: how much wet paint a bristle picks up; shed: how fast it lays that paint down again;
 // drag: how much wet paint an empty bristle smears along; lump: how unevenly thick the coat is along the stroke; land: the extra paint left where the loaded brush lands, spread over about one brush size; rim: paint pushed up at the stroke's sides
-const P = { coat: 1.5, run: 20, smear: 0.1, pick: 0.08, shed: 0.03, lump: 0.6, drag: 0.35, land: 0.8, rim: 0.5 };
+// pick: share of the wet paint under it a bristle picks up in one pass; carry: how far, in brush sizes, picked-up paint is carried before most of it is laid again; hold: how much picked-up paint a tip holds, in coats per brush size; full: the thickest a coat gets
+const P = { coat: 1.5, run: 20, pick: 4, carry: 1.5, hold: 3, full: 3.5, lump: 0.6, land: 0.8, rim: 0.5 };
 const img = g.createImageData(W, H);
 let box = null; // the part of the paper that changed, drawn once per frame
 function dirty(x0, y0, x1, y1) { box = box ? [Math.min(box[0], x0), Math.min(box[1], y0), Math.max(box[2], x1), Math.max(box[3], y1)] : [x0, y0, x1, y1]; }
-function newPaper() { lat.fill(0); rgb.fill(0); vol.fill(0); base.fill(0); laid.fill(-1e9); groove.fill(0.5); by.fill(0); dirty(0, 0, W, H); }
+function newPaper() { lat.fill(0); blat.fill(0); vol.fill(0); base.fill(0); laid.fill(-1e9); groove.fill(0.5); by.fill(0); dirty(0, 0, W, H); }
 (function frame() { if (box) { show(...box); box = null; }
   requestAnimationFrame(frame); })();
 const LX = -0.45, LY = -0.55, LZ = 0.7; // light from the top left
-const SM = 2, smH = new Float32Array(W * H), smT = new Float32Array(W * H); // paint flows level a little: its surface is the height smoothed over a few pixels, not pixel steps
+const cb = [0, 0, 0], ct = [0, 0, 0], SM = 2, smH = new Float32Array(W * H), smT = new Float32Array(W * H); // paint flows level a little: its surface is the height smoothed over a few pixels, not pixel steps
 function height(i) { return base[i] + vol[i] * (1 + 0.35 * (groove[i] - 0.5)); } // the bristles comb the paint: the thicker the paint, the deeper its grooves (paste does not level)
 function show(x0, y0, x1, y1) { x0 = Math.max(0, x0 - SM - 1 | 0); y0 = Math.max(0, y0 - SM - 1 | 0); x1 = Math.min(W, Math.ceil(x1) + SM + 1); y1 = Math.min(H, Math.ceil(y1) + SM + 1); if (x1 <= x0 || y1 <= y0) return; const now = clock(), d = img.data;
   const ax = Math.max(0, x0 - 2 * SM - 1), ay = Math.max(0, y0 - 2 * SM - 1), bx = Math.min(W, x1 + 2 * SM + 1), by2 = Math.min(H, y1 + 2 * SM + 1);
@@ -80,11 +81,12 @@ function show(x0, y0, x1, y1) { x0 = Math.max(0, x0 - SM - 1 | 0); y0 = Math.max
   for (let y = ay; y < by2; y++) for (let x = ax; x < bx; x++) { let s = 0, c = 0; for (let j = Math.max(ay, y - SM); j <= Math.min(by2 - 1, y + SM); j++) { s += smT[j * W + x]; c++; } smH[y * W + x] = s / c; }
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = y * W + x, o = i * 4, pg = 1 - 0.05 * (1 - tooth[i]), tot = vol[i] + base[i];
     if (tot <= 0) { d[o] = PAPER[0] * pg; d[o + 1] = PAPER[1] * pg; d[o + 2] = PAPER[2] * pg; d[o + 3] = 255; continue; }
-    const hide = Math.min(1, tot * 1.6), k = 1.4;
+    const hb = Math.min(1, base[i] * 1.6), ht = Math.min(1, vol[i] * 1.6), k = 1.4; // opaque paint: a coat hides what is under it
+    if (hb > 0) rgbOf(blat.subarray(i * 6, i * 6 + 6), cb); if (ht > 0) rgbOf(lat.subarray(i * 6, i * 6 + 6), ct);
     const hx = (x > 0 && x < W - 1) ? smH[i + 1] - smH[i - 1] : 0, hy = (y > 0 && y < H - 1) ? smH[i + W] - smH[i - W] : 0; // the paint's surface: its slope from the heights around it
     let nx = -hx * k, ny = -hy * k, nz = 1; const nl = Math.hypot(nx, ny, nz); nx /= nl; ny /= nl; nz /= nl;
     const lit = 1 + 0.9 * (nx * LX + ny * LY + nz * LZ - LZ); // light from the top left on the paint's own surface
-    for (let ch = 0; ch < 3; ch++) d[o + ch] = (255 * Math.min(1, rgb[i * 3 + ch] * lit)) * hide + PAPER[ch] * pg * (1 - hide);
+    for (let ch = 0; ch < 3; ch++) { const under = PAPER[ch] * pg / 255 * (1 - hb) + cb[ch] * hb, c = under * (1 - ht) + ct[ch] * ht; d[o + ch] = 255 * Math.min(1, c * lit); }
     d[o + 3] = 255; }
   g.putImageData(img, 0, 0, x0, y0, x1 - x0, y1 - y0); }
 const COLORS = [[12, 36, 96], [8, 85, 170], [40, 140, 205], [248, 250, 250], [200, 30, 30], [245, 190, 20], [30, 120, 60], [20, 20, 25]];
@@ -112,51 +114,58 @@ function start(x, y) {
     shape[i] = (1 - B.oval) + B.oval * Math.sqrt(Math.max(0, 1 - ac * ac)); ext[i] = B.len * shape[i] + 0.06 * mid[i]; // the footprint along the stroke: straight across for a flat brush, rounded for a round one
     rag[i] = 0.06 * small[i]; } // bristles of nearly even length: a clean start where the loaded brush lands
   const step = Math.max(0.7, size * 0.05);
-  const wide = norm(smooth(rand(), Math.max(1, Math.round(n / 14)))), churn = wide.map((v) => 0.05 + 3 * v ** 3); // some bristles churn the wet paint deeper and carry it on: streaks of each colour and of the mix
-  strokes++; st = { id: strokes, B, R, n, hold, churn, wide, fine: smooth(fine, 1), amt, bc, dirt: new Float32Array(n), cd: bc.map((v) => v.slice()), ext, shape, mid, small, rag, an, lumpT, M, press, x, y, tx: x, ty: y, lx: x, ly: y, lt: null, spd: 0, ang: null, dist: 0, k: 0, step, win: Math.ceil(((2 * Math.max(...ext) + Math.max(...rag)) * R) / step) + 3, used: 1 / (P.run * B.run * (size + 40)), last: big.map((v) => 0.9 + 0.2 * v) }; // win: one pass is the whole footprint, ragged bristles included, going over a pixel
+  const wide = norm(smooth(rand(), Math.max(1, Math.round(n / 14)))), churn = wide.map((v) => 0.7 + 0.8 * v ** 2); // some bristles churn the wet paint harder and carry more of it on: streaks of each colour and of the mix
+  strokes++; st = { id: strokes, B, R, n, hold, churn, fine: smooth(fine, 1), amt, bc, dirt: new Float32Array(n), cd: bc.map((v) => v.slice()), ext, shape, mid, small, rag, an, lumpT, M, press, x, y, tx: x, ty: y, lx: x, ly: y, lt: null, spd: 0, ang: null, dist: 0, step, used: 1 / (P.run * B.run * (size + 40)), last: big.map((v) => 0.9 + 0.2 * v) };
 }
-const tmp = [0, 0, 0], mixOut = new Float32Array(6);
-function dab(cx, cy, dx, dy, dot) { // dot: the brush pressed straight down, not moving
-  const s = st, R = s.R, n = s.n, reach = R * Math.max(1, s.B.len * 1.3, s.B.dot) + 2, now = clock(), give = 0.6 * P.coat;
+const mixOut = new Float32Array(6);
+function settle(i) { // a dried top coat becomes part of the dried paint under it
+  const k = i * 6, h = base[i] > 0 ? Math.min(1, vol[i] * 1.6) : 1; for (let j = 0; j < 6; j++) blat[k + j] += (lat[k + j] - blat[k + j]) * h; base[i] += vol[i]; vol[i] = 0; }
+function lay(s, b, i, f, contact, now, extra) { // part 3: bristle b meets pixel i for the share f of one pass; contact: how much of its own paint reaches the pixel
+  const k = i * 6, wet = vol[i] > 0 ? Math.max(0, 1 - (now - laid[i]) / DRY) : 0;
+  const t = Math.max(contact, s.hold[b] > 0 ? wet : 0); if (t <= 0) return false; // wet paint is soft: every bristle reaches it, empty or not
+  if (vol[i] > 0 && wet <= 0) settle(i);
+  const cd = s.cd[b], tipCap = P.hold * P.coat * s.R; let dirt = s.dirt[b];
+  if (by[i] !== s.id) { by[i] = s.id; mine[i] = 0; }
+  if (wet > 0 && vol[i] > mine[i]) { const p = (vol[i] - mine[i]) * (1 - Math.exp(-P.pick * s.churn[b] * wet * t * f)) * Math.max(0, 1 - dirt / tipCap); // picked up into the tip
+    if (p > 0) { const a = p / (dirt + p); for (let j = 0; j < 6; j++) cd[j] += (lat[k + j] - cd[j]) * a; dirt += p; vol[i] -= p; } }
+  const own = Math.min(1, s.amt[b] * 2.5), gb = P.coat * f * contact * extra * (0.7 + 0.3 * own) * Math.max(0, 1 - vol[i] / P.full), gt = dirt * (1 - Math.exp(-f / (P.carry * s.churn[b] ** 2 * s.R))) * t; // its own paint, and the picked-up paint laid down again
+  const gv = gb + gt; s.dirt[b] = dirt - gt; if (gv <= 1e-6) return true;
+  const c = s.bc[b], m = gv / (vol[i] + gv); for (let j = 0; j < 6; j++) { const o = (c[j] * gb + cd[j] * gt) / gv; lat[k + j] += (o - lat[k + j]) * m; }
+  vol[i] += gv; mine[i] += gv; laid[i] = now; return true;
+}
+function dab(cx, cy, dx, dy, at) { // at: 'land' where the brush lands, 'lift' where it lifts off, 'dot' pressed straight down without moving
+  const s = st, R = s.R, n = s.n, reach = R * Math.max(1, s.B.len * 1.3, s.B.dot) + 2, now = clock(), dot = at === 'dot';
   const x0 = Math.max(0, Math.floor(cx - reach)), x1 = Math.min(W - 1, Math.ceil(cx + reach)), y0 = Math.max(0, Math.floor(cy - reach)), y1 = Math.min(H - 1, Math.ceil(cy + reach));
-  const f = s.dist / (size * 2), m0 = Math.min(s.M - 2, f | 0), t = Math.min(1, f - m0), minExt = 1.5 * s.step / R; s.k++;
+  const f = s.dist / (size * 2), m0 = Math.min(s.M - 2, f | 0), t = Math.min(1, f - m0), minExt = 1.5 * s.step / R;
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     const px = x - cx, py = y - cy, al = (px * dx + py * dy) / R, ac = (-px * dy + py * dx) / R; // along, across, in brush sizes
     if (ac <= -1 || ac >= 1) continue;
     const bi = Math.min(n - 1, ((ac + 1) * 0.5 * n) | 0), e = dot ? s.B.dot * s.shape[bi] * (0.85 + 0.15 * s.mid[bi] + 0.1 * s.small[bi]) : Math.max(minExt, s.ext[bi]);
     if (al > e || al < -e - (dot ? 0 : s.rag[bi])) continue;
-    const i = y * W + x; if (by[i] === s.id && s.k - byK[i] < s.win) continue; by[i] = s.id; byK[i] = s.k; // this pass already acted here
-    // 1. contact: this bristle's paint against what sticks up (the paper's tooth, dried paint's grooves; wet paint is soft and level)
+    const i = y * W + x;
+    // the share of one pass this step is: each pixel is under a bristle for 2e of travel; where the brush lands the part behind it, and where it lifts the part ahead of it, get the rest of their pass at once
+    const sh = dot ? 1 : at === 'land' ? Math.min(1, Math.max(s.step / (2 * e * R), (e - al) / (2 * e))) : at === 'lift' ? Math.min(1, Math.max(0, (e + al) / (2 * e))) : s.step / (2 * e * R);
+    if (sh <= 0) continue;
+    // contact: this bristle's paint against what sticks up (the paper's tooth, dried paint's grooves; wet paint is soft and level)
     const wet = vol[i] > 0 ? Math.max(0, 1 - (now - laid[i]) / DRY) : 0, high = vol[i] + base[i] > 0 ? 0.5 + (tooth[i] - 0.5) * 0.5 * (1 - wet) + (groove[i] - 0.5) * 0.6 * (1 - wet) : tooth[i];
     const along = s.an[bi * s.M + m0] * (1 - t) + s.an[bi * s.M + m0 + 1] * t, lumpAt = s.lumpT[bi * s.M + m0] * (1 - t) + s.lumpT[bi * s.M + m0 + 1] * t, a = s.amt[bi];
-    const load = Math.min(1, Math.sqrt(a / 0.45) * s.hold[bi] * (0.85 + 0.3 * along)) * Math.pow(1 / (1 + (s.spd / 1.6) ** 2), 0.7) * (0.9 + 0.15 * (s.press[m0] * (1 - t) + s.press[m0 + 1] * t)); // a loaded brush covers fully, rim and all; as it dries the rim and the weaker bristles fail first: full above about half its paint, then drier and drier
-    const touch = Math.max(Math.min(1, Math.max(0, (load + 0.5 * (high - 0.5) - 0.62) / 0.04)), s.hold[bi] > 0 ? wet : 0); if (touch <= 0) continue; // wet paint is soft: every bristle reaches it, empty or not
-    // 2. the bristle gives paint (it empties as it travels, in move)
-    const g0 = give * touch * (0.7 + 0.3 * Math.min(1, a * 2.5)) * (1 + P.land * Math.exp(-s.dist / size)) * (1 + P.lump * (lumpAt - 0.5) + P.rim * Math.abs(ac) ** 6), c = s.bc[bi], k = i * 6;
-    // 3. into wet paint the two mix by amount and the bristle picks some up (an empty bristle still drags the wet paint it carries along); on dry paint or paper the new coat covers
-    const own = Math.min(1, a * 2.5), dirt = s.dirt[bi], cd = s.cd[bi], fd = dirt / (dirt + own + 1e-3); // what this bristle lays: its own paint, with the wet paint it picked up on the way
-    for (let j = 0; j < 6; j++) mixOut[j] = c[j] + (cd[j] - c[j]) * fd;
-    if (wet > 0) { const reach = Math.min(vol[i], give), ws = reach * wet * P.smear * s.churn[bi], m = Math.max(g0 / (g0 + ws + 1e-9), P.drag * touch * (1 - own) * fd); // the brush meets only the top of the wet paint
-      const pv = P.pick * wet * touch * s.churn[bi] * reach / give; // picked up: a little wet paint goes into this bristle only
-      for (let j = 0; j < 6; j++) { const old = lat[k + j]; lat[k + j] = old + (mixOut[j] - old) * m; cd[j] += (old - cd[j]) * pv / (dirt + pv + 1e-9); }
-      s.dirt[bi] = (dirt + pv) * (1 - P.shed * touch); vol[i] = Math.max(vol[i] + (g0 + 0.15 * Math.min(vol[i], g0) - vol[i]) * touch * own, Math.min(vol[i], give)); groove[i] += (lumpAt * 0.7 + s.fine[bi] * 0.3 - groove[i]) * touch; // a loaded brush shapes the wet paint it goes over to its own coat, piled up a little; paint is pushed, never thinned below a coat
-    } else { if (g0 <= 0) continue; const top = vol[i] + base[i] > 0;
-      for (let j = 0; j < 6; j++) lat[k + j] = top ? lat[k + j] + (mixOut[j] - lat[k + j]) * touch : mixOut[j];
-      s.dirt[bi] = dirt * (1 - P.shed * touch); base[i] += vol[i]; vol[i] = g0; groove[i] = lumpAt * 0.7 + s.fine[bi] * 0.3; } // the picked-up paint is laid down again and runs out
-    laid[i] = now; rgbOf(lat.subarray(k, k + 6), tmp); rgb[i * 3] = tmp[0]; rgb[i * 3 + 1] = tmp[1]; rgb[i * 3 + 2] = tmp[2];
+    const load = Math.min(1, Math.sqrt(a / 0.45) * s.hold[bi] * (0.85 + 0.3 * along)) * Math.pow(1 / (1 + (s.spd / 1.6) ** 2), 0.7) * (0.9 + 0.15 * (s.press[m0] * (1 - t) + s.press[m0 + 1] * t)); // a loaded brush covers fully, rim and all; as it dries the rim and the weaker bristles fail first
+    const contact = Math.min(1, Math.max(0, (load + 0.5 * (high - 0.5) - 0.62) / 0.04));
+    const extra = (1 + P.land * Math.exp(-s.dist / size)) * (1 + P.lump * (lumpAt - 0.5) + P.rim * Math.abs(ac) ** 6); // more paint where the loaded brush lands, lumps along the stroke, paint pushed up at its sides
+    if (lay(s, bi, i, sh, contact, now, extra)) groove[i] += (lumpAt * 0.7 + s.fine[bi] * 0.3 - groove[i]) * (1 - Math.exp(-3 * sh)); // the bristles comb the paint they go over
   }
   dirty(x0, y0, x1 + 1, y1 + 1);
 }
 function travel(s, step) { // as the brush travels each bristle empties; picked-up paint seeps a little into the next bristles, so its streaks have soft sides
   for (let b = 0; b < s.n; b++) s.amt[b] = Math.max(0, s.amt[b] - step * s.used / s.last[b]);
-  const k = Math.min(0.3, 0.1 * step);
+  const k = Math.min(0.4, 0.2 * step);
   for (let b = 1; b < s.n; b++) { const d0 = s.dirt[b - 1], d1 = s.dirt[b], flow = (d1 - d0) * k; if (Math.abs(flow) < 1e-6) continue; const from = flow > 0 ? s.cd[b] : s.cd[b - 1], to = flow > 0 ? s.cd[b - 1] : s.cd[b], dt = flow > 0 ? d0 : d1, a = Math.abs(flow) / (dt + Math.abs(flow));
     for (let j = 0; j < 6; j++) to[j] += (from[j] - to[j]) * a; s.dirt[b - 1] += flow; s.dirt[b] -= flow; }
 }
 function move(px, py, ms) {
   const s = st; if (ms != null && s.lt != null && ms > s.lt) { const v = Math.hypot(px - s.lx, py - s.ly) / (ms - s.lt); s.spd = s.spd * 0.7 + v * 0.3; } s.lx = px; s.ly = py; s.lt = ms; // how fast the hand moves (px per ms): a fast hand presses lightly, as when flicking the brush off the paper
   const L = size * 0.3, dl = Math.hypot(px - s.tx, py - s.ty); if (dl <= L) return; s.tx = px - (px - s.tx) / dl * L; s.ty = py - (py - s.ty) / dl * L; // the brush follows the hand on a short string (the usual stroke steadier of painting programs): the hand's small shakes do not reach the bristles
-  const x = s.tx, y = s.ty; if (s.ang == null) { const d0 = Math.hypot(x - s.x, y - s.y); if (d0 < Math.max(3, size * 0.3)) return; s.ang = Math.atan2(y - s.y, x - s.x); dab(s.x, s.y, Math.cos(s.ang), Math.sin(s.ang)); } // the first touch is laid once the way the brush moves is known
+  const x = s.tx, y = s.ty; if (s.ang == null) { const d0 = Math.hypot(x - s.x, y - s.y); if (d0 < Math.max(3, size * 0.3)) return; s.ang = Math.atan2(y - s.y, x - s.x); dab(s.x, s.y, Math.cos(s.ang), Math.sin(s.ang), 'land'); } // the first touch is laid once the way the brush moves is known
   const ddx = x - s.x, ddy = y - s.y, d = Math.hypot(ddx, ddy); if (d < 0.5) return;
   const ux = ddx / d, uy = ddy / d, step = s.step;
   let turn = Math.atan2(uy, ux) - s.ang; turn -= Math.PI * Math.round(turn / Math.PI); // the brush is a row of bristles: going back the same way does not turn it round
@@ -171,7 +180,7 @@ let pid = null;
 cv.addEventListener('pointerdown', (e) => { if (pid !== null) return; pid = e.pointerId; cv.setPointerCapture(pid); start(...pos(e)); });
 cv.addEventListener('pointermove', (e) => { if (e.pointerId !== pid || !st) return; for (const ev of (e.getCoalescedEvents ? e.getCoalescedEvents() : [e])) move(...pos(ev), ev.timeStamp); });
 const end = (e) => { if (e.pointerId === pid) { pid = null; lift(); } };
-function lift() { if (st && st.ang == null) dab(st.x, st.y, 0, 1, true); st = null; } // a single press: the brush pressed straight down
+function lift() { if (st) { if (st.ang == null) dab(st.x, st.y, 0, 1, 'dot'); else dab(st.x, st.y, Math.cos(st.ang), Math.sin(st.ang), 'lift'); } st = null; } // a single press: the brush pressed straight down
 cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
 newPaper(); window.__ready = true;
 // for the trial pictures: one whole stroke at a time, and time passing
