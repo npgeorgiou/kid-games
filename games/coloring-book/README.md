@@ -79,10 +79,17 @@ Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Word
 ## Open
 
 Do next, in this order (his words are in the Task list):
-- Brushes copied from Krita's presets (his choice, 26 Nov), in `experiments/` (core `src/brush-core.js`, page `brushes.html`): all nine families run on code ported from Krita, each checked beside its Krita picture; presets whose pictures were painted with a pen (pressure) look fuller here. Tests are off by his choice (26 Nov) until he turns them on.
+- Brushes copied from Krita's presets (his choice, 26 Nov), in `experiments/` (core `src/brush-core.js`, page `brushes.html`): all nine families run on code ported from Krita; he rejected the result (no mixing, tab crash, no settings, unlike the pictures): his review todos below come first. Tests are off by his choice (26 Nov) until he turns them on.
 - Watercolour brush library and look (his 25 Nov pages), then 17-21; crayon (22); marker (23); spray other shapes; slow separate tests; drying times; outline pictures later.
 
 ## Task list
+
+- Krita brushes, his review (26 Nov evening); the port is on branch `krita-brushes-port` (pull request 48, not merged: GitHub runs no checks):
+  - Wet painting brushes do not mix colours: they must mix with the paint under them.
+  - The page crashes the browser tab: find and fix.
+  - Tests he cannot run himself: wet brushes mix, the page survives long strokes with every brush, every preset beside its picture; written into WARNINGS.
+  - Full strength makes strokes unlike the pictures: lower it where needed, and give him a setting button that puts each brush in the state its picture shows.
+  - Bring back the everyday settings on the page (size, softness, opacity, flow), not the full number list.
 
 Numbers are his points of 23 Nov; pictures in `owner-shots/2026-11-23-*`. Acrylic and impasto references of 25 Nov: `owner-shots/2026-11-25-acrylic-*`, `owner-shots/2026-11-25-impasto-*`.
 
