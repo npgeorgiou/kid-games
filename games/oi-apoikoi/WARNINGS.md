@@ -20,3 +20,4 @@
 - Start every picture with clearRect over the whole screen, never a full-screen fill: in-page test loops never let the browser draw, and only a clear lets it drop the frames not drawn yet (a fill made random play 3 times slower).
 - The moving water makes a new picture of the whole scene every WATER_STEP: a test page keeps it still (`stillWater`), or the run grows by a third; only the water's own flow moves it.
 - Never give a parameter the name of a function the body calls: `bonus(…, place)` hid `place()` and every gift tile vanished after its flight.
+- Two functions must never share a name: a second `function puff` silently replaced the dust puff (JS keeps the last one).

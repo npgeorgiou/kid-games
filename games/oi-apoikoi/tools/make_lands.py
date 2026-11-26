@@ -432,7 +432,7 @@ def aegean(d, rng):  # owner 25 Nov: small square Aegean houses on a 3 x 3 plan 
 LANDS = {
     'wheat': dict(top='#e4b84c', lip='#d4a63c', soil='#b08850', under='layers', stone='#6a5040', patches=[], top_detail=furrows('#c09034'), things=wheat_things),
     'plains': dict(top='#8fcd55', lip='#72b23e', soil='#6b4a2e', under='pebbles', stone='#6a5040', patches=[], top_detail=lambda d, r: [], things=pasture),  # sheep pasture (owner 25 Nov)
-    'vineyard': dict(top='#a5543a', lip='#b0583a', soil='#6e3020', under='pebbles', stone='#4a2418', patches=[], top_detail=lambda d, r: [], things=vines),  # owner 26 Nov: the earth under it a darker shade of its top layer, unlike every other land's
+    'vineyard': dict(top='#a5543a', lip='#b0583a', soil='#8c3322', under='pebbles', stone='#4a1a10', patches=[], top_detail=lambda d, r: [], things=vines),  # owner 26 Nov: the earth under it a darker shade of its top layer, red, unlike every other land's (the plains' is brown)
     'forest': dict(top='#3f8a3a', lip='#2f7430', soil='#4e3420', under='roots', stone='#5a3a22', patches=[], top_detail=lambda d, r: [], things=woods),
     'mountain': dict(top='#a6a199', lip='#8e8a84', soil='#7d7870', under='rock', stone='#6a4030', patches=[], top_detail=lambda d, r: [], things=boulder),
     'town': dict(top='#e2cc94', lip='#cfb57a', soil='#d8cdb4', under='blocks', stone='#6a5040', patches=[], top_detail=lambda d, r: [], things=aegean),  # owner 25 Nov: the open ground a beige-yellow dirt

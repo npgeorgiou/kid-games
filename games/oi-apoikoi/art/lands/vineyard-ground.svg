@@ -6,32 +6,32 @@
 <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0.55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#0b2030" stop-opacity="0.35"/></linearGradient>
 <linearGradient id="sun" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.18"/><stop offset="0.6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.08"/></linearGradient>
 </defs>
-<polygon points="0,64 128,128 128,180 0,116" fill="#6e3020"/>
-<polygon points="0,101.4 128,165.4 128,180 0,116" fill="#642c1d"/>
-<ellipse cx="115.8" cy="163" rx="3.2" ry="2.2" fill="#562819"/>
-<ellipse cx="114" cy="151.3" rx="3.2" ry="2.2" fill="#562819"/>
-<ellipse cx="101.9" cy="158.4" rx="3.2" ry="2.2" fill="#562819"/>
-<ellipse cx="96.1" cy="150.8" rx="3.2" ry="2.2" fill="#562819"/>
-<ellipse cx="59.4" cy="133.4" rx="3.2" ry="2.2" fill="#562819"/>
-<ellipse cx="59.9" cy="127.8" rx="3.2" ry="2.2" fill="#562819"/>
-<ellipse cx="76.4" cy="144.4" rx="3.2" ry="2.2" fill="#562819"/>
-<ellipse cx="93.7" cy="140" rx="3.2" ry="2.2" fill="#562819"/>
-<ellipse cx="116.8" cy="164" rx="3.2" ry="2.2" fill="#562819"/>
+<polygon points="0,64 128,128 128,180 0,116" fill="#8c3322"/>
+<polygon points="0,101.4 128,165.4 128,180 0,116" fill="#7e2f1f"/>
+<ellipse cx="115.8" cy="163" rx="3.2" ry="2.2" fill="#6c2a1b"/>
+<ellipse cx="114" cy="151.3" rx="3.2" ry="2.2" fill="#6c2a1b"/>
+<ellipse cx="101.9" cy="158.4" rx="3.2" ry="2.2" fill="#6c2a1b"/>
+<ellipse cx="96.1" cy="150.8" rx="3.2" ry="2.2" fill="#6c2a1b"/>
+<ellipse cx="59.4" cy="133.4" rx="3.2" ry="2.2" fill="#6c2a1b"/>
+<ellipse cx="59.9" cy="127.8" rx="3.2" ry="2.2" fill="#6c2a1b"/>
+<ellipse cx="76.4" cy="144.4" rx="3.2" ry="2.2" fill="#6c2a1b"/>
+<ellipse cx="93.7" cy="140" rx="3.2" ry="2.2" fill="#6c2a1b"/>
+<ellipse cx="116.8" cy="164" rx="3.2" ry="2.2" fill="#6c2a1b"/>
 <polygon points="0,64 128,128 128,150.9 0,86.9" fill="#b0583a"/>
-<polygon points="0,111.8 128,175.8 128,180 0,116" fill="#512618"/>
-<polygon points="128,128 256,64 256,116 128,180" fill="#59281a"/>
-<polygon points="128,165.4 256,101.4 256,116 128,180" fill="#4f2517"/>
-<ellipse cx="155.1" cy="155.3" rx="3.2" ry="2.2" fill="#412013"/>
-<ellipse cx="207.6" cy="130.9" rx="3.2" ry="2.2" fill="#412013"/>
-<ellipse cx="162.8" cy="147.3" rx="3.2" ry="2.2" fill="#412013"/>
-<ellipse cx="190.1" cy="132.1" rx="3.2" ry="2.2" fill="#412013"/>
-<ellipse cx="233.8" cy="115.5" rx="3.2" ry="2.2" fill="#412013"/>
-<ellipse cx="229.1" cy="119.7" rx="3.2" ry="2.2" fill="#412013"/>
-<ellipse cx="156.3" cy="154.2" rx="3.2" ry="2.2" fill="#412013"/>
-<ellipse cx="166.6" cy="150.5" rx="3.2" ry="2.2" fill="#412013"/>
-<ellipse cx="243.4" cy="106.2" rx="3.2" ry="2.2" fill="#412013"/>
+<polygon points="0,111.8 128,175.8 128,180 0,116" fill="#642719"/>
+<polygon points="128,128 256,64 256,116 128,180" fill="#702b1c"/>
+<polygon points="128,165.4 256,101.4 256,116 128,180" fill="#622718"/>
+<ellipse cx="155.1" cy="155.3" rx="3.2" ry="2.2" fill="#502214"/>
+<ellipse cx="207.6" cy="130.9" rx="3.2" ry="2.2" fill="#502214"/>
+<ellipse cx="162.8" cy="147.3" rx="3.2" ry="2.2" fill="#502214"/>
+<ellipse cx="190.1" cy="132.1" rx="3.2" ry="2.2" fill="#502214"/>
+<ellipse cx="233.8" cy="115.5" rx="3.2" ry="2.2" fill="#502214"/>
+<ellipse cx="229.1" cy="119.7" rx="3.2" ry="2.2" fill="#502214"/>
+<ellipse cx="156.3" cy="154.2" rx="3.2" ry="2.2" fill="#502214"/>
+<ellipse cx="166.6" cy="150.5" rx="3.2" ry="2.2" fill="#502214"/>
+<ellipse cx="243.4" cy="106.2" rx="3.2" ry="2.2" fill="#502214"/>
 <polygon points="128,128 256,64 256,86.9 128,150.9" fill="#8a462e"/>
-<polygon points="128,175.8 256,111.8 256,116 128,180" fill="#3c1e12"/>
+<polygon points="128,175.8 256,111.8 256,116 128,180" fill="#481f12"/>
 <polygon points="128,0 256,64 128,128 0,64" fill="#a5543a"/>
 <g clip-path="url(#d)">
 </g>
