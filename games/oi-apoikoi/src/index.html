@@ -30,7 +30,7 @@ const HALVES = [10, 10, 9, 9, 9, 9];  // the 56 halves of the 28 tiles, per colo
 const BORDER = ['#22a33a', '#d42a2a'], TINT = ['#eef8e6', '#fbebe8'];  // the kid's land green, the PC's red; their areas' light tints
 const JAR_MIX = { empty: 10, coins: 45, coins2: 10, tile: 4, slot: 5, first: 8, jar: 8, set: 10 };  // what jars hold, per 100 jars (owner 25 Nov)
 const JAR_GOODS = 5;  // this many goods of one colour make a jar at once (owner 24 Nov)
-const COIN_SLOTS = 8, COIN_STACK = 10, GOODS_SHARE = 0.18;  // owner 26 Nov: coins in 8 places of 10, filled one place at a time; the materials' area reaches GOODS_SHARE of the screen's width (his mark)  // coin places in his line (owner 25 Nov);  // coins in a row at most; a material's and a coin's radius, in half square heights: 1.5 times their old size (owner 25 Nov, design 3)
+const COIN_SLOTS = 8, COIN_STACK = 10, GOODS_SHARE = 0.2175;  /* owner 26 Nov: coins 1/8 smaller; the coin stack's room this saves goes to the materials' area (was 0.18) */  // owner 26 Nov: coins in 8 places of 10, filled one place at a time; the materials' area reaches GOODS_SHARE of the screen's width (his mark)  // coin places in his line (owner 25 Nov);  // coins in a row at most; a material's and a coin's radius, in half square heights: 1.5 times their old size (owner 25 Nov, design 3)
 const COLS = 16, ROWS = 16, STARTS = [[4, 10, 0], [11, 5, 2]];  // a square board of sea (owner 25 Nov, design 3); each start tile at the centre of its half of the diamond; they face each other: the PC's is the kid's turned half a turn around the board's centre (owner 25 Nov)
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half is, by turn
 const params = new URLSearchParams(location.search);
@@ -525,9 +525,10 @@ const WATER_DPR = () => Math.min(1, devicePixelRatio || 1);
 function resize() { const d = devicePixelRatio || 1; W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; cx.setTransform(d, 0, 0, d, 0, 0);
   for (const [k, c] of Object.entries(planes)) { const e = k === 'water' ? WATER_DPR() : d; c.width = W * e; c.height = H * e; planeMark[k] = null; } }
 addEventListener('resize', resize); resize();
-const GROUND_TALL = 180 / 128, WALL_HH = 2 * (GROUND_TALL - 1);  // the ground picture: the square's diamond (128 high) and its walls under it (52; see tools/make_lands.py; owner 25 Nov: land with thickness); the walls in half-square heights
 // owner 26 Nov: the board's width to height, the one that leaves the largest board on the worst of the common PC screens (4:3 to 16:9, full screen and in a browser window)
 const BOARD_RATIO = 1.76;
+const LAND_PIC = 256, LAND_WALL = 52;  // the land pictures (tools/make_lands.py): a square's diamond LAND_PIC wide, its walls LAND_WALL high, and LAND_PIC / 2 of room above it for what stands on it
+const GROUND_TALL = 1 + LAND_WALL * BOARD_RATIO / LAND_PIC, WALL_HH = 2 * (GROUND_TALL - 1);  // the ground picture: the square's diamond and its walls under it ( see tools/make_lands.py; owner 25 Nov: land with thickness); the walls in half-square heights
 const BOARD_BORDER = 1;  // owner 26 Nov: the board's border, the same width all round: at the board's corners, in half-square heights (top, bottom) and widths (sides); its walls (WALL_HH) stand inside it
 const PAD = 12, LOW = 8, PILE_STEP = 1.5;  // the band's margin; the stockpile's gap above the screen's bottom edge; px between the pile's layers
 function L() {  // hw, hh: half a square's width and height on screen; T: the board's top corner; s: from one square's centre to the next
@@ -613,7 +614,7 @@ function groundAt(c, x, y, z = 1, grey, wet) {  // (x, y): the square's centre; 
 function thingsAt(c, x, y, z = 1, grey, life) {  // twice as high as the diamond, standing on it; life: the square is on the board (its sheep wander, the wind bends it): its cell
   const { hw, hh } = L(), bend = life ? WIND_BEND[LANDS[c]] * gust(x, life.now) : 0;
   if (bend) { cx.save(); cx.transform(1, 0, -bend, 1, bend * y, 0); }  // bent at its foot (a skew: the higher, the further over)
-  atSize(z, thingsPic(c), x - hw * z, y - 3 * hh * z, 2 * hw * z, 4 * hh * z, grey); if (bend) cx.restore();
+  atSize(z, thingsPic(c), x - hw * z, y - (hh + hw) * z, 2 * hw * z, (2 * hh + hw) * z, grey);  // the things picture: the room above the diamond is half its width if (bend) cx.restore();
   if (LANDS[c] === 'plains') flock(x, y, z, grey, life);
 }
 // The wind (owner 26 Nov): every WIND_EVERY a gust crosses the board from left to right in GUST_MS; where it passes, the wheat bends over and back up, the forest less
