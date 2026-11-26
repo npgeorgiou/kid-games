@@ -42,9 +42,8 @@ A playable game against the PC on one shared board in the new look (sea board of
 - The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` section 6.
 - Design phase (25-26 Nov): look, motion and layout changes are on pull request #47 (branch `oi-apoikoi-motion-fixes`), pushed with the commit check off for the owner to merge by hand; 27 flow steps fail, the same as on main, because the flow tests are not updated yet.
-- Areas: a sketch (`areas-sketch.png`, not built) splits each player's side into deck/buttons, market, face + extra tile (one triangle), materials, coins and dead space, with a board border of one width all round; approved by the owner, not built yet.
+- Areas built from `areas-sketch.png` (deck/buttons, market, face triangle with the extra tile, dead space, materials, coins with 8 full stacks fitted, dead space); the board with its border keeps its shape and takes the most room on every screen, the areas fit around it.
 
 ## Task list
 
 - Update the flow tests to the design phase so the commit check passes again.
-- Build the areas as plain colours and lines, draw the board border, and move the extra tile to its marked place (below the market's inner tile, in the face area, turned the same way); the draw slots sit as far from the board as the extra tile slot.
