@@ -956,9 +956,9 @@ function area(i) {  // player i's area: the two triangles beside the board on hi
   return [[e, 0], [X, 0], [X, T], [X + (i ? a : -a), Y], [X, Y + c], [X, H], [e, H]];
 }
 const goodsEdge = () => GOODS_SHARE * W;  // how far his materials' area reaches from the screen's edge
-function goodRoom() {  // a material's radius and the step between places: as big as his materials' area allows, clear of the board's border (owner 26 Nov)
-  const { hh } = L(), { cx: X, cy: Y, a, c } = borderDiamond(), h = Math.hypot(a, c);  // the inner column's icon, above its top place, is nearest the border's lower edge
-  const fit = ((H - LOW - Y) * a - (8 - X + a) * c + h) / ((JAR_GOODS + 0.5) * a + (LANDS.length - 0.5) * c + h / 2);  // that icon's circle 2 px clear of the edge (r = (rp - 6) / 2)
+function goodRoom() {  // a material's radius and the step between places: as big as his materials' area allows; the area's box (its places and their icons above) stays clear of the board's border (owner 26 Nov)
+  const { cx: X, cy: Y, a, c } = borderDiamond(), g = 4;  // the box's inner top corner, (8 + LANDS.length * rp, H - LOW - (JAR_GOODS + 1) * rp), lies g px outside the border's lower edge
+  const fit = ((X - 8 - g) / a + (H - LOW - Y - g) / c - 1) / (LANDS.length / a + (JAR_GOODS + 1) / c);
   const rp = Math.min(fit, (goodsEdge() - 8) / LANDS.length); return { r: (rp - 6) / 2, rp };  // and inside his area's width
 }
 const EDGE_CLEAR = 0.5;  // owner 25 Nov: the market's tiles stay this many half-square heights clear of the board's upper edges, so what stands on the land there is never hidden; owner 26 Nov: closer to the board
