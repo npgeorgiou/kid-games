@@ -181,7 +181,7 @@ const KritaBrush = (() => {
   function readGih(bytes) {  // GIMP image pipe: a name line, a parameters line (ncells, sel0), then each cell as a gbr
     let i = 0; const line = () => { const s = i; while (bytes[i] !== 10) i++; return new TextDecoder().decode(bytes.subarray(s, i++)); };
     line(); const params = line(), n = +params.split(' ')[0], cells = [];
-    for (let k = 0; k < n; k++) { const c = readGbr(bytes, i); cells.push(c); i = c.end; }
+    for (let k = 0; k < n && i + 28 < bytes.length; k++) { const c = readGbr(bytes, i); if (c.end > bytes.length) break; cells.push(c); i = c.end; }  // a file may hold fewer cells than it says (fairy-dust)
     return { cells, selection: (/sel0:(\w+)/.exec(params) || [])[1] || 'random' };
   }
   function pictureTip(s, asset) {  // the tip's cells, as KisPredefinedBrushFactory chooses alpha mask or image stamp
