@@ -6,6 +6,7 @@
 // 2. Along the stroke a dab is placed each time the distance since the last one reaches the spacing ellipse of that dab's size.
 // 3. Each dab is the tip's mask at that size and angle, times the paper texture, laid by Krita's painting mode: build-up straight on the layer,
 //    or wash into a stroke layer (alpha darken: opacity caps it, flow builds it) that goes on the layer by the preset's composite op.
+// 4. The colour smudge engine (wet painting) takes the paint under the last dab, or its average colour, mixes the paint colour in, and lays that.
 // Not ported (no preset of the families uses them): spikes, Krita's 1-px rim ramp of the gauss tip, fan corners and locked drawing angle,
 // lightness and gradient tip modes, the average-opacity part of alpha darken.
 const KritaBrush = (() => {
@@ -24,7 +25,7 @@ const KritaBrush = (() => {
     if (/id="sensorslist"/.test(xml)) return [...xml.matchAll(/<ChildSensor([^>]*?)(?:\/>|>(.*?)<\/ChildSensor>)/g)].map(m => one(m[1], m[2]));
     const m = /<params([^>]*?)(?:\/>|>(.*?)<\/params>)/.exec(xml); return [one(m[1], m[2])];
   }
-  const RANGE = { Scatter: [0, 5], Softness: [0.1, 1] };  // Krita's option ranges; every other option is 0..1
+  const RANGE = { Scatter: [0, 5], Softness: [0.1, 1], SmudgeRadius: [0, 3] };  // Krita's option ranges; every other option is 0..1
   function option(f, prefix, name, checkable) {  // Krita's curve option: on when not checkable or checked; sensors only with UseCurve
     const k = s => f[prefix + s] ?? f[prefix + name + s];
     return { name, on: !checkable || f['Pressure' + name] === 'true',
@@ -35,7 +36,7 @@ const KritaBrush = (() => {
     const P = 'Texture/Pattern/';
     return {
       tipType: t.type, file: t.filename, scale: +(t.scale ?? 1), angle: +(t.angle ?? 0), colorAsMask: (t.ColorAsMask ?? '1') === '1',
-      shape: g.type, fade: g.id, diameter: +(g.diameter ?? 0), ratio: +(g.ratio ?? 1), hfade: +(g.hfade ?? 0), vfade: +(g.vfade ?? 0), antialias: g.antialiasEdges === '1',
+      shape: g.type, fade: g.id, softCurve: g.softness_curve ? g.softness_curve.split(';').filter(Boolean).map(p => p.split(',').map(Number)) : null, diameter: +(g.diameter ?? 0), ratio: +(g.ratio ?? 1), hfade: +(g.hfade ?? 0), vfade: +(g.vfade ?? 0), antialias: g.antialiasEdges === '1',
       randomness: +(t.randomness ?? 0), density: +(t.density ?? 1),
       spacing: +t.spacing, useAutoSpacing: t.useAutoSpacing === '1', autoSpacingCoeff: +t.autoSpacingCoeff, isotropic: f['Spacing/Isotropic'] === 'true',
       size: option(f, '', 'Size', true), opacity: option(f, '', 'Opacity', false), flow: option(f, '', 'Flow', false),
@@ -43,7 +44,11 @@ const KritaBrush = (() => {
       mirror: option(f, '', 'Mirror', true), softness: option(f, '', 'Softness', true), spacingOption: option(f, '', 'Spacing', true),
       scatterX: f['Scattering/AxisX'] !== 'false', scatterY: f['Scattering/AxisY'] !== 'false',
       mirrorH: f.HorizontalMirrorEnabled === 'true', mirrorV: f.VerticalMirrorEnabled === 'true',
-      wash: (f.PaintOpAction ?? '2') !== '1', compositeOp: f.CompositeOp || 'normal',
+      wash: f.paintop !== 'colorsmudge' && (f.PaintOpAction ?? '2') !== '1', compositeOp: f.CompositeOp || 'normal',
+      smudge: f.paintop !== 'colorsmudge' ? null : {  // Krita's colour smudge (legacy engine): smear or dull, then the paint colour by its rate
+        mode: +(f.SmudgeRateMode ?? 0), smearAlpha: f.SmudgeRateSmearAlpha !== 'false', rate: option(f, '', 'SmudgeRate', true), colorRate: option(f, '', 'ColorRate', true),
+        radius: (o => { if (+(f.SmudgeRadiusVersion ?? 1) < 2) o.value /= 100; return o; })(option(f, '', 'SmudgeRadius', true)),
+      },
       texture: f[P + 'Enabled'] !== 'true' ? null : {
         pattern: f[P + 'Name'], scale: +(f[P + 'Scale'] ?? 1), brightness: +(f[P + 'Brightness'] ?? 0), contrast: +(f[P + 'Contrast'] ?? 1),
         neutralPoint: +(f[P + 'NeutralPoint'] ?? 0.5), invert: f[P + 'Invert'] === 'true', cutoffPolicy: +(f[P + 'CutoffPolicy'] ?? 0),
@@ -141,6 +146,10 @@ const KritaBrush = (() => {
       return (x, y) => { const dist = Math.hypot(x, y * yc); if (dist > r) return 0; return Math.min(255, Math.floor(alphaf * (erf(dist * distf + center) - erf(dist * distf - center)))) / 255; };
     }
     const xc = 2 / w, yc = 2 / h, aa = s.antialias ? 1 : 0;
+    if (s.fade === 'soft') {  // KisCurveCircleMaskGenerator: the soft curve over the squared distance (softness option not ported)
+      const fn = s.softFn ||= spline(s.softCurve || [[0, 0], [1, 1]]);
+      return (x, y) => { const n = (x * xc) ** 2 + (y * yc) ** 2; return n > 1 ? 0 : fn(n); };
+    }
     const fx = (s.hfade === 0 ? 1 : 2 / (s.hfade * w)) * fadeSoft, fy = (s.vfade === 0 ? 1 : 2 / (s.vfade * h)) * fadeSoft;
     if (s.shape === 'rect') return (x, y) => {  // KisRectangleMaskGenerator
       x = Math.abs(x); y = Math.abs(y);
@@ -155,6 +164,7 @@ const KritaBrush = (() => {
       return 1 - Math.floor(255 * n * (nf - 1) / (nf - n)) / 255;
     };
   }
+  function halton(i, base) { let f = 1, r = 0; while (i > 0) { f /= base; r += f * (i % base); i = Math.floor(i / base); } return r; }
   function erf(x) {  // Abramowitz-Stegun 7.1.26 (Krita uses the C library's erf)
     const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x);
     return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x));
@@ -275,14 +285,18 @@ const KritaBrush = (() => {
         };
       }
       const R = Math.ceil(Math.hypot(d.w, d.h) / 2) + 1, x0 = Math.max(0, Math.floor(x - R)), x1 = Math.min(W - 1, Math.ceil(x + R)), y0 = Math.max(0, Math.floor(y - R)), y1 = Math.min(H - 1, Math.ceil(y + R));
-      for (let py = y0; py <= y1; py++) for (let px = x0; px <= x1; px++) {
-        let [m, rgb] = tipAt(px + 0.5 - x, py + 0.5 - y);
-        if (m <= 0) continue;
-        if (tex) {  // multiply or subtract by the pattern, with the texture's strength (soft texturing off)
+      const maskAt = (px, py) => {  // the tip, then the paper pattern by multiply or subtract with the texture's strength (soft texturing off)
+        const r = tipAt(px + 0.5 - x, py + 0.5 - y);
+        if (tex && r[0] > 0) {
           const tv = tex.m[wrap(py - texOff[1], 0, tex.h) * tex.w + wrap(px - texOff[0], 0, tex.w)];
-          m = s.texture.mode === 1 ? Math.max(0, m - (tv + 1 - strength)) : tv * m * strength;
-          if (m <= 0) continue;
+          r[0] = s.texture.mode === 1 ? Math.max(0, r[0] - (tv + 1 - strength)) : tv * r[0] * strength;
         }
+        return r;
+      };
+      if (s.smudge) smudgeDab(x0, y0, x1, y1, maskAt);
+      else for (let py = y0; py <= y1; py++) for (let px = x0; px <= x1; px++) {
+        const [m, rgb] = maskAt(px, py);
+        if (m <= 0) continue;
         const c = rgb || color, i = py * W + px;
         if (wash) {  // alpha darken, creamy (KoCompositeOpAlphaDarken): the stroke layer strives to opacity, by flow
           const dA = wash.a[i], src = m * opacity, full = opacity > dA ? dA + (opacity - dA) * m : dA;
@@ -292,6 +306,39 @@ const KritaBrush = (() => {
       }
       dirty[0] = Math.min(dirty[0], x0); dirty[1] = Math.min(dirty[1], y0); dirty[2] = Math.max(dirty[2], x1); dirty[3] = Math.max(dirty[3], y1);
       return d;
+    }
+    // KisColorSmudgeOp::paintAt with KisColorSmudgeStrategyMaskLegacy: the paint under the last dab (smearing) or its average colour (dulling),
+    // the paint colour laid over it by the colour rate, then put down through the dab's mask at smudge rate times opacity.
+    let smudgeLast = null;
+    function smudgeDab(x0, y0, x1, y1, maskAt) {
+      const sm = s.smudge, cx = (x0 + x1 + 1) / 2, cy = (y0 + y1 + 1) / 2, w = x1 - x0 + 1, h = y1 - y0 + 1;
+      if (!smudgeLast) { smudgeLast = [cx, cy]; return; }
+      const dx = Math.round(smudgeLast[0] - cx), dy = Math.round(smudgeLast[1] - cy); smudgeLast = [cx, cy];
+      const opacity = sizeLike(s.opacity, ctx), rate = sm.rate.on ? sizeLike(sm.rate, ctx) : 1, colorRate = sm.colorRate.on ? sizeLike(sm.colorRate, ctx) : 0;
+      const crOp = Math.min(1, Math.max(0, Math.max(1 - sm.rate.value, 0.2) * colorRate * opacity)), fin = Math.min(1, Math.max(0, rate * opacity));
+      const px = (X, Y) => (X < 0 || Y < 0 || X >= W || Y >= H) ? [0, 0, 0, 0] : [...L.subarray((Y * W + X) * 4, (Y * W + X) * 4 + 4)];
+      let dull = null;
+      if (sm.mode === 1) {  // dulling: the average colour of the last dab's box, grown or shrunk by the smudge radius (Halton samples)
+        const r = sm.radius.on ? sizeLike(sm.radius, ctx) : 0, sx0 = x0 + dx, sy0 = y0 + dy, gx = Math.trunc(w * 0.5 * (r - 1)), gy = Math.trunc(h * 0.5 * (r - 1));
+        let rx0 = Math.floor(sx0 + w / 2), ry0 = Math.floor(sy0 + h / 2), rx1 = rx0, ry1 = ry0;
+        if (r > 0) { rx0 = Math.min(rx0, sx0 - gx); ry0 = Math.min(ry0, sy0 - gy); rx1 = Math.max(rx1, sx0 + w - 1 + gx); ry1 = Math.max(ry1, sy0 + h - 1 + gy); }
+        const n = (rx1 - rx0 + 1) * (ry1 - ry0 + 1), k = Math.min(n, Math.max(64, Math.round(0.02 * n))), sum = [0, 0, 0, 0];
+        for (let i = 0; i < k; i++) { const c = px(rx0 + Math.floor(halton(i + 1, 2) * (rx1 - rx0)), ry0 + Math.floor(halton(i + 1, 3) * (ry1 - ry0))); for (let j = 0; j < 3; j++) sum[j] += c[j] * c[3]; sum[3] += c[3]; }
+        dull = sum[3] ? [sum[0] / sum[3], sum[1] / sum[3], sum[2] / sum[3], sum[3] / k] : [0, 0, 0, 0];
+      }
+      const blend = new Float32Array(w * h * 4);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const b = dull || px(x0 + x + dx, y0 + y + dy), i = (y * w + x) * 4, ba = b[3] / 255;
+        const oa = crOp + ba * (1 - crOp);  // the paint colour over it (source over) at the colour rate's opacity
+        for (let c = 0; c < 3; c++) blend[i + c] = oa ? (color[c] * crOp + b[c] * ba * (1 - crOp)) / oa : 0;
+        blend[i + 3] = oa * 255;
+      }
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const a = maskAt(x0 + x, y0 + y)[0] * fin; if (a <= 0) continue;
+        const i = ((y0 + y) * W + x0 + x) * 4, j = (y * w + x) * 4;
+        if (sm.smearAlpha) for (let c = 0; c < 4; c++) L[i + c] = Math.round(L[i + c] + (blend[j + c] - L[i + c]) * a);  // copy, by the mask
+        else lay(L, i, a * blend[j + 3] / 255, [blend[j], blend[j + 1], blend[j + 2]]);
+      }
     }
     function place(x, y) { sp = spacingOf(dab(x, y)); acc = [0, 0]; }
     const washRGB = i => [wash.rgb[i * 3], wash.rgb[i * 3 + 1], wash.rgb[i * 3 + 2]];
