@@ -526,10 +526,11 @@ function resize() { const d = devicePixelRatio || 1; W = innerWidth; H = innerHe
   for (const [k, c] of Object.entries(planes)) { const e = k === 'water' ? WATER_DPR() : d; c.width = W * e; c.height = H * e; planeMark[k] = null; } }
 addEventListener('resize', resize); resize();
 const GROUND_TALL = 180 / 128, WALL_HH = 2 * (GROUND_TALL - 1);  // the ground picture: the square's diamond (128 high) and its walls under it (52; see tools/make_lands.py; owner 25 Nov: land with thickness); the walls in half-square heights
-const BOARD_ROOM = 1.2, TOP_ROOM = 0.5;  // owner 25 Nov: room kept beside the board, in half-square heights: TOP_ROOM of it above its top corner (so what stands on its top square shows), the rest below it (more room for the stockpile)  // owner 25 Nov: room above the board's top corner, in half-square heights, so what stands on its top square is not cut off
+const EDGE_ROOM = Math.max(0.5, WALL_HH);  // room kept above and below the board, in half-square heights: what stands on its top square, and its walls under its bottom corner
 const TOP = 8, PAD = 12, LOW = 8, PILE_STEP = 1.5, SIDE_MIN = 48;  // the band's margin; the board's gap above the screen's bottom edge; px between the pile's layers; the narrowest strip beside the board
-function L() {  // hw, hh: half a square's width and height on screen; T: the band's height; s: from one square's centre to the next
-  const hh0 = (H - LOW - TOP) / (ROWS + COLS + WALL_HH + BOARD_ROOM), T = TOP + TOP_ROOM * hh0, hh = hh0, hw = Math.min(2 * hh, (W - 2 * SIDE_MIN) / (COLS + ROWS));  // the board from the screen's top to its bottom, as wide as fits (at most 2 to 1, the pictures' own shape)
+function L() {  // hw, hh: half a square's width and height on screen; T: the board's top corner; s: from one square's centre to the next
+  // owner 26 Nov: a square has one shape (2 to 1, the pictures' own) at every screen size, only its size changes: as big as fits both ways; the board's centre is the screen's centre
+  const hh = Math.min((H - LOW - TOP) / (ROWS + COLS + 2 * EDGE_ROOM), (W - 2 * SIDE_MIN) / (COLS + ROWS) / 2), hw = 2 * hh, T = H / 2 - ROWS * hh;  // T: the board's top corner
   return { hw, hh, T, s: 2 * hh, ds: 2 * hh, bx: W / 2 };
 }
 function squareUnder(x, y) { const { hw, hh, T } = L(), a = (x - W / 2) / hw, b = (y - T) / hh; return [Math.floor((a + b) / 2), Math.floor((b - a) / 2)]; }  // the square a screen point lies on (iso turned back)
