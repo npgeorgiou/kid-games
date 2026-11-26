@@ -33,6 +33,10 @@ Order: Eraser, Markers, Pencils, Chalk/Pastel, Dry Painting, Dry Textured, Stamp
 
 | Path | What it is |
 |---|---|
+| `brushes.html` | **The tuning page.** Built by `build.py`; never edit it by hand. Pick a preset: Krita's picture of it, a paper to paint on, a slider for each of its numbers, and the numbers to send back. Built so far: Eraser. |
+| `build.py` | Inlines the core, each family's presets and its Krita picture into `brushes.html` (its `FAMILIES` list: the families built so far). The game's `build.py` runs it. |
+| `src/brush-core.js` | The shared core: Krita's pixel brush (tips, pressure curves, spacing, opacity and flow, normal and erase), ported from Krita's code. |
+| `src/brushes.html` | The tuning page's source. |
 | `krita/presets/` | Every preset of the families above, read from Krita's bundle: one setting per line (`name = value`; pressure curves on one line as `x,y;` points). |
 | `krita/tips/` | The brush tips the presets name (Krita `.gbr`, `.gih` animated tips, `.png`, `.svg`). |
 | `krita/patterns/` | The paper textures the presets name (taken out of the presets, where Krita keeps them). |
@@ -40,6 +44,8 @@ Order: Eraser, Markers, Pencils, Chalk/Pastel, Dry Painting, Dry Textured, Stamp
 | `vendor/spectral/` | Spectral.js and its shader (`LICENSE`: MIT). |
 | `tools/kpp.py` | Reads Krita presets (`.kpp`) into `krita/presets/`, `krita/tips/`, `krita/patterns/`. |
 | `tools/get_krita.sh` | Fetches Krita's source (GPL) for the brush engines and the preset bundle, at the commit these presets come from, into the temp folder. |
+
+Tests: the `kb_` flows in `../tools/flows.py` (section KRITA BRUSHES).
 
 To read the presets again: `sh tools/get_krita.sh`, unzip `krita/data/bundles/Krita_4_Default_Resources.bundle` from it into a folder, then `python3 tools/kpp.py <folder>/paintoppresets/<presets>.kpp --out krita/presets --bundle <folder>`.
 

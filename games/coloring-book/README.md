@@ -33,7 +33,7 @@ Flat brushes are held at one fixed angle, unless the turn switch in the brush po
 |---|---|
 | `coloring-book.html` | **The game.** Built by `build.py`; never edit it by hand. |
 | `src/index.html` | The game's code, one file with `SECTION:` markers (`grep -n "SECTION:"`); its model in plain words is in the MODEL section. |
-| `build.py` | Inlines Mixbox, the icons, the palettes and the brush previews into the one game file. |
+| `build.py` | Inlines Mixbox, the icons, the palettes and the brush previews into the one game file; also builds `experiments/brushes.html`. |
 | `lib/mixbox/` | Mixbox pigment mixing (shader `mixbox.glsl`, lookup picture `mixbox_lut.png`, `LICENSE`: CC BY-NC 4.0, Secret Weapons). |
 | `lib/phosphor/` | Phosphor icons used on the buttons (`LICENSE`: MIT). |
 | `lib/palettes/palettes.txt` | The palettes shown in the four columns (the owner's own), with the divider marks. |
@@ -47,7 +47,7 @@ Flat brushes are held at one fixed angle, unless the turn switch in the brush po
 | `tools/flows.py` | Play-through tests (`SECTION:` markers): the real page, real clicks, keys, drags and touches, at a finger's speed. The whole-game run (`whole_game`, section WHOLE GAME) plus separate short tests of each tool. |
 | `tools/backdoors.txt` | What a shortcut through the game's insides looks like; a test containing one is refused. |
 | `tools/previews.py` | Paints the brush previews straight through the game's stroke code (under 2 minutes). |
-| `experiments/` | New brushes copied from Krita's presets, built and tuned here before they go into the game: the presets' settings, tips and textures, Krita's reference pictures, Spectral.js, tools; its own `README.md`. |
+| `experiments/` | New brushes copied from Krita's presets, built and tuned here before they go into the game: the presets' settings, tips and textures, Krita's reference pictures, Spectral.js, tools, the shared brush core and its tuning page `experiments/brushes.html`; its own `README.md`. |
 | `tools/looks.py`, `tools/looks/` | Saves every brush's normal stroke as a picture; the `brush_looks` test fails when a brush no longer looks like its picture. |
 
 Shared with other games, at the repo root: `.githooks/` (the commit gate), `docs/design-rules.md` (rules for every game).

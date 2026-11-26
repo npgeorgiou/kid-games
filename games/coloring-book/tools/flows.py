@@ -3,7 +3,7 @@
 # PAPER names the size and where that part starts (ox, oy), and the page gives it that part's canvas grain; flows keep full-paper coordinates and the helpers shift them. Speed and undo-room flows keep the full paper.
 # Colours are picked by their place in the Basic palette: 0 white, 1 black, 2 red, 3 orange, 4 yellow, 5 green, 6 blue, 7 purple, 8 pink, 9 brown (owner 21 Nov: every palette 10 colours).
 # Each flow starts from a fresh page with no saved pictures and prints PASS or FAIL, its name, and what was seen.
-import colorsys, time, json, pathlib, math
+import colorsys, time, json, pathlib, math, re
 from playwright.sync_api import sync_playwright
 GAME = pathlib.Path(__file__).resolve().parent.parent / 'coloring-book.html'  # this copy's own build, so old and new code can be tested at once
 
@@ -385,7 +385,7 @@ def run(names):
     with sync_playwright() as p:
         b = p.chromium.launch()
         for n in (names or FLOWS):
-            q = page(b, *PAPER.get(n, ('400x250', (0, 0)))); t0 = time.time()
+            q = kb_page(b) if n in KB_FLOWS else page(b, *PAPER.get(n, ('400x250', (0, 0)))); t0 = time.time()
             try: (FLOWS.get(n) or STEPS[n])(q)  # a whole-game step can also be run on its own, while it is built
             except Exception as e: report(False, n, 'error: %s' % str(e).splitlines()[0])
             q.context.close(); print('TIME %-44s %.1f s' % (n, time.time() - t0))  # every flow timed (a slow test is fixed first)
@@ -1132,6 +1132,65 @@ def f_ink_splash_less(q):  # owner 24 Nov 08:50, point 6: ink splashes far too m
     report(0 < sum(out) <= 50, 'ink: a quarter of the splashing, every setting', 'splash spots few, some, many %s (drops crossed; 23 Nov about 140-160 together; random drops, so the three together)' % out)
 FLOWS['ink_splash_less'] = f_ink_splash_less
 PAPER['ink_splash_less'] = ('600x450', (0, 0))
+
+# SECTION: KRITA BRUSHES -- the tuning page of experiments/ (owner 26 Nov): Krita's presets on one shared brush core, every number a slider, Krita's picture beside
+KB = pathlib.Path(__file__).resolve().parent.parent / 'experiments' / 'brushes.html'
+KB_PRESETS = KB.parent / 'krita' / 'presets'
+
+def kb_page(b):
+    q = b.new_context(viewport={'width': 1280, 'height': 800}, has_touch=True).new_page()
+    q.goto(KB.as_uri()); q.wait_for_function("()=>window.__kb&&__kb.ready"); return q
+
+def kb_tap(q, eid): p = q.evaluate("(id)=>__kb.btn(id)", eid); q.mouse.click(*p); time.sleep(0.05)
+def kb_type(q, name, v): q.fill('#n-' + name, str(v)); q.press('#n-' + name, 'Enter'); time.sleep(0.05)
+def kb_drag(q, a, c):  # a stroke on the test paper from paper point a to c at a finger's speed (9 px per 16 ms)
+    s, e = q.evaluate("(p)=>__kb.screenOf(...p)", list(a)), q.evaluate("(p)=>__kb.screenOf(...p)", list(c))
+    n = max(1, int(math.dist(a, c) / 9)); q.mouse.move(*s); q.mouse.down()
+    for i in range(1, n + 1): q.mouse.move(s[0] + (e[0] - s[0]) * i / n, s[1] + (e[1] - s[1]) * i / n); time.sleep(0.016)
+    q.mouse.up(); time.sleep(0.1)
+def kb_line(q, x0, y0, dx, dy, n): return q.evaluate("([x,y,dx,dy,n])=>{const o=[];for(let i=0;i<n;i++)o.push(__kb.alpha(x+dx*i,y+dy*i));return o}", [x0, y0, dx, dy, n])
+def kb_cut(q, x, y, half=60, vertical=True):  # the paper's alpha across a stroke, one value per pixel, centred on (x, y)
+    return kb_line(q, x, y - half, 0, 1, 2 * half + 1) if vertical else kb_line(q, x - half, y, 1, 0, 2 * half + 1)
+def kb_width(cut, level=0.5): return sum(1 for a in cut if a < level)  # pixels erased past half
+def kb_soft(cut): return sum(1 for a in cut if 0.1 < a < 0.9)  # pixels of the soft rim
+def kb_file(name): return dict(l.split(' = ', 1) for l in (KB_PRESETS / (name + '.txt')).read_text().splitlines() if ' = ' in l)
+def kb_tip(f): return dict(re.findall(r'(\w+)="([^"]*)"', f['brush_definition']))
+def kb_curve(f, opt): return [[float(v) for v in p.split(',')] for p in re.findall(r'<curve>([^<]*)</curve>', f[opt + 'Sensor'])[0].strip(';').split(';')]
+
+ERASERS = {'Eraser_Circle': 'a)_Eraser_Circle', 'Eraser_Small': 'a)_Eraser_Small', 'Eraser_Soft': 'a)_Eraser_Soft'}
+
+def f_kb_eraser_presets(q):  # owner 26 Nov: each brush starts from its preset's own numbers; every number is a slider beside Krita's picture
+    for pid, fn in ERASERS.items():
+        kb_tap(q, 'p-' + pid); f, t = kb_file(fn), kb_tip(kb_file(fn))
+        want = {'diameter': t['diameter'], 'ratio': t['ratio'], 'hfade': t['hfade'], 'vfade': t['vfade'], 'spacing': t['spacing'],
+                'autoSpacingCoeff': t['autoSpacingCoeff'], 'opacity': f['OpacityValue'], 'flow': f['FlowValue']}
+        bad = {k: (v, q.evaluate("(k)=>__kb.value(k)", k)) for k, v in want.items() if abs(float(v) - q.evaluate("(k)=>__kb.value(k)", k)) > 1e-3}
+        size = q.evaluate("()=>__kb.curve('size')")
+        if [[round(x, 4), round(y, 4)] for x, y in size] != [[round(x, 4), round(y, 4)] for x, y in kb_curve(f, 'Size')]: bad['size curve'] = size
+        ref = q.evaluate("()=>{const r=document.getElementById('ref').getBoundingClientRect();return [r.width,r.height,__kb.refShown()]}")
+        report(not bad and ref[0] > 800 and ref[1] > 100 and ref[2] == pid, 'kb_eraser_presets ' + pid, 'differs %s, picture %s' % (bad, ref))
+FLOWS['kb_eraser_presets'] = f_kb_eraser_presets
+
+def f_kb_eraser_strokes(q):  # owner 26 Nov: Krita's erasers: Circle erases its own width, Soft has a soft rim, Small is a flat rectangle (no turning)
+    kb_tap(q, 'p-Eraser_Circle'); kb_drag(q, (100, 80), (400, 80)); d = q.evaluate("()=>__kb.value('diameter')")
+    circle = kb_cut(q, 250, 80); far = kb_line(q, 100, 80 + 2 * d, 3, 0, 100)
+    report(min(circle) < 0.05 and min(far) > 0.99 and 0.5 * d < kb_width(circle) < 1.05 * d, 'kb_eraser_strokes circle', 'centre %.2f, width %d of %g, far %.2f' % (min(circle), kb_width(circle), d, min(far)))
+    kb_tap(q, 'p-Eraser_Soft'); kb_drag(q, (100, 220), (400, 220)); soft = kb_cut(q, 250, 220)
+    report(min(soft) < 0.05 and kb_soft(soft) > 2 * kb_soft(circle), 'kb_eraser_strokes soft rim', 'rim %d px vs circle %d px' % (kb_soft(soft), kb_soft(circle)))
+    kb_tap(q, 'p-Eraser_Small'); kb_drag(q, (500, 60), (800, 60)); kb_drag(q, (650, 120), (650, 280))
+    d, r = q.evaluate("()=>__kb.value('diameter')"), q.evaluate("()=>__kb.value('ratio')")
+    across, along = kb_width(kb_cut(q, 650, 60, 40)), kb_width(kb_cut(q, 650, 200, 40, vertical=False))
+    report(abs(across - d * r) <= 3 and abs(along - d) <= 3, 'kb_eraser_strokes small rectangle', 'across a sideways stroke %d (%g), across a downward one %d (%g)' % (across, d * r, along, d))
+FLOWS['kb_eraser_strokes'] = f_kb_eraser_strokes
+
+def f_kb_slider(q):  # owner 26 Nov: he tunes with the sliders; a number changed changes the next stroke
+    kb_tap(q, 'p-Eraser_Circle'); d = q.evaluate("()=>__kb.value('diameter')")
+    kb_drag(q, (100, 80), (400, 80)); w0 = kb_width(kb_cut(q, 250, 80))
+    kb_type(q, 'diameter', d / 2); kb_drag(q, (100, 220), (400, 220)); w1 = kb_width(kb_cut(q, 250, 220))
+    nums = q.evaluate("()=>document.getElementById('numbers').value")
+    report(0.35 < w1 / max(1, w0) < 0.65 and 'diameter="%g"' % (d / 2) in nums, 'kb_slider diameter', 'width %d then %d; numbers show it: %s' % (w0, w1, 'diameter="%g"' % (d / 2) in nums))
+FLOWS['kb_slider'] = f_kb_slider
+KB_FLOWS = {'kb_eraser_presets', 'kb_eraser_strokes', 'kb_slider'}
 
 # SECTION: WHOLE GAME -- one run in the order the child meets the game: painting, drawing tools, brush popup, buckets, palettes, picker, undo, stickers, guide, canvas, gallery, delete
 # Every other flow is a short separate test of how a tool looks or behaves, each on its own fresh paper, run at the same time as this one (owner 25 Nov).

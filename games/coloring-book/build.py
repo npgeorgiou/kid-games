@@ -23,3 +23,4 @@ prev = {f.stem: json.loads(f.read_text()) for f in sorted((here / "lib" / "previ
 out = out.replace("/*%PREVIEWS%*/{}", json.dumps(prev))
 (here / "coloring-book.html").write_text(out, encoding="utf-8")
 print("wrote coloring-book.html", len(out), "bytes")
+import runpy; runpy.run_path(str(here / "experiments" / "build.py"))  # the Krita brushes tuning page (experiments/), tested with the game's flows
