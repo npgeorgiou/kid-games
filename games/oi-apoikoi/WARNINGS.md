@@ -23,3 +23,4 @@
 - Two functions must never share a name: a second `function puff` silently replaced the dust puff (JS keeps the last one).
 - Never put a `//` comment in the middle of a line that has code after it: an edit that added one swallowed `cx.restore()`, and the coins' clip then hid the pile and the market.
 - Push every sketch or picture shown to the owner into this folder at once: a sketch only shown in a chat is lost with the chat.
+- On narrow screens (4:3) the board's top corner lies under the deck line: every area shape must hold for both cases, or the pool opens.

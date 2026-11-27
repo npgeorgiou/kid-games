@@ -44,9 +44,8 @@ A playable game against the PC on one shared board in the new look (sea board of
 - See also `design.md` section 6.
 - Design phase (25-26 Nov): look, motion and layout changes are on pull request #47 (branch `oi-apoikoi-motion-fixes`), pushed with the commit check off for the owner to merge by hand; 27 flow steps fail, the same as on main, because the flow tests are not updated yet.
 - Areas built from `areas-sketch.png` (deck/buttons, market, face triangle with the extra tile, dead space, materials, coins with 8 full stacks fitted, dead space); the board with its border keeps its shape and takes the most room on every screen, the areas fit around it.
-- Stone look (not approved): every area a stone block at its level (deck 3, materials 3, dead triangles under the board 3, market 2, face 2, dead above the materials 2, coins 2), blocks touching so the pool is closed, front walls only where what is in front is lower, his slab pictures as tops, bevels and joints; the owner finds the height steps still too flat and the look not yet right.
+- Stone look (owner close to happy, 27 Nov): rules in the project doc `claude/oi-apoikoi-stone-rules.md`; two layers of stones, bases fill the areas, tops rise, sun at the top left, pool walls straight and low, waves along the pool's edge.
 
 ## Task list
 
-- Make the stone look right: clear height steps between blocks, stones that read as separate blocks, nothing outlined.
 - Update the flow tests to the design phase so the commit check passes again.
