@@ -338,6 +338,11 @@ def f_end_screen(q):  # owner 25 Nov (prototype): the end: a smaller box over th
     ok = flew and inside and [len(piles[0]), len(piles[1])] == [23, 7] and not panel and rows == {0: [3, 10, 10], 1: [7]} and len(sizes) == 1 and above and again
     report(ok, 'end: a box over the board, two piles, a star, play again', 'coins flew %s; box over the board %s; piles %s in rows %s, coin sizes %s; star over the taller %s; play button works %s' % (flew, inside, [len(piles[0]), len(piles[1])], rows, sizes, above, again))
 
+def f_again_same_animals(q):  # owner 27 Nov: play again keeps the same two animals
+    pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'seed': 1, 'bag': [[3, 3]] * 4, 'coins': [3, 1]}); run_until(q, "()=>__dg.state().over", 4000)
+    pets = lambda: [d['pic'].split('/')[1].split('-')[0] for d in sorted(drawn(q, 'avatar'), key=lambda d: d['o'])]
+    before = pets(); q.clock.resume(); tap(q, 'again'); after = pets()
+    report(after == before, 'play again: the same two animals', 'before %s, after play again %s' % (before, after))
 def f_pc_best(q):  # the PC picks and places for the most jars (2 connections)
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)

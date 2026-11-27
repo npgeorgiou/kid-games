@@ -59,6 +59,5 @@ A playable game against the PC on one shared board in the new look (sea board of
 - Sticker glow: less neon ("radioactive"), slower pulse, a more solid core, a little bigger.
 - Materials stockpile: the side places' gaps to the screen edge and to the stone's edge equal on both sides; swap the grapes and stone columns; the statue icon 7.5% wider (fills its place like the others).
 - Buttons: tappable with a pressed state: pressed loses its shadow and goes down (they are 3D).
-- Play again (vs PC or vs player) keeps the same two animals.
 - Pool walls lower: from the water to their top as high as a tile's ground (half a tile).
 - Deck: each layer as high as a tile's ground (the full pile as high as 4 tiles), layer lines kept; it fits its stone (base not past it, top not past the screen) on every screen; widen the top stones a little if needed.

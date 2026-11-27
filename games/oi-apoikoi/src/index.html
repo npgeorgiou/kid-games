@@ -514,7 +514,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); heard = []; flights = []; specks = []; G = { slotFaces: o.slotFaces || null, fromNowhere: 0, board: 0, round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], over: false, ending: null, piled: null, winner: null, slot: null, turn: null, animals: pickAnimals(), moods: [null, null], ruby: null, shown: [], pops: [], shines: [], splashes: [], jarWho: null, parked: false, parking: false, burst: null, dusk: null, dawn: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; flights = []; specks = []; G = { slotFaces: o.slotFaces || null, fromNowhere: 0, board: 0, round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], over: false, ending: null, piled: null, winner: null, slot: null, turn: null, animals: o.animals || pickAnimals(), moods: [null, null], ruby: null, shown: [], pops: [], shines: [], splashes: [], jarWho: null, parked: false, parking: false, burst: null, dusk: null, dawn: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y, r], k) => put({ id: 's' + k, cs: [0, 1], x, y, r, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; if (o.goods) p.goods = o.goods[k].slice(); });  // a saved game: each player's coins and goods
@@ -1385,7 +1385,7 @@ function drawEnd() {  // the coins of each player in his pile, flown there one b
   const bx = b.x + b.w / 2 - 40, by = b.y + 20;  // play again: a big green button with a play sign
   rrect(bx, by, 80, 80, 20, '#3a8a2a', '#245a1a', 4);
   cx.fillStyle = '#fff'; cx.beginPath(); cx.moveTo(bx + 30, by + 22); cx.lineTo(bx + 60, by + 40); cx.lineTo(bx + 30, by + 58); cx.closePath(); cx.fill();
-  btn('again', bx, by, 80, 80, () => restart());
+  btn('again', bx, by, 80, 80, () => restart({ animals: G.animals }));  // owner 27 Nov: play again keeps the same two animals
 }
 function drawSpecks() {
   const now = performance.now(); specks = specks.filter(p => now - p.t0 < (p.ms || SPECK_MS));
