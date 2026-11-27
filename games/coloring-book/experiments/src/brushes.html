@@ -7,6 +7,7 @@ body{margin:0;font:14px system-ui,sans-serif;background:#ddd;color:#222;display:
 #presets button.on{background:#335;color:#fff} #families button{font:inherit;padding:5px 9px;margin:0 4px 5px 0;border:0;border-radius:6px;background:#bbb} #families button.on{background:#557;color:#fff}
 #ref{width:880px;height:150px;background-repeat:no-repeat}
 #paper{display:block;margin-top:8px;touch-action:none;background:repeating-conic-gradient(#fff 0 25%,#ccc 0 50%) 0 0/20px 20px}
+#palette button{width:30px;height:30px;border:2px solid #fff;border-radius:50%;margin:4px 3px 0 0;vertical-align:middle} #palette button.on{border-color:#222;outline:2px solid #222}
 #numbers{width:880px;height:90px;margin-top:6px;font:12px monospace}
 .row{display:flex;align-items:center;gap:6px;margin:2px 0} .row label{width:150px;font-size:13px} .row input[type=range]{flex:1} .row input[type=number]{width:70px}
 h3{margin:8px 0 3px;font-size:14px}
@@ -16,7 +17,7 @@ h3{margin:8px 0 3px;font-size:14px}
   <div id="presets"></div>
   <div id="ref"></div>
   <canvas id="paper" width="880" height="300"></canvas>
-  <div><button id="krita">Krita's numbers</button> <button id="fill">Fill the paper again</button> <button id="clear">Empty the paper</button> colour <input type="color" id="colour" value="#202020"></div>
+  <div><button id="krita">Krita's numbers</button> <button id="fill">Grey paper</button> <button id="clear">White paper</button> <span id="palette"></span></div>
   <textarea id="numbers" readonly></textarea>
 </div>
 <div id="right"></div>
@@ -27,7 +28,6 @@ const FAMILIES = /*%FAMILIES%*/[];
 const ASSETS = /*%ASSETS%*/{};  // tips and textures the presets name: file name -> data URL
 const LAYER_GREY = [150, 150, 150];  // what the erasers take away: an even grey, so the checkerboard shows where the paper is erased
 const cv = document.getElementById('paper'), g = cv.getContext('2d');
-const pen = { pressure: 1, tiltX: 0, tiltY: 0 };  // a mouse or finger has none: Krita gives it pressure 1 and no tilt; a pen gives its own
 let layer, view, brush, chosen, assets = {};
 
 // SECTION: ASSETS -- tips and textures decoded once: pictures (png, svg) to pixels, GIMP brushes (gbr, gih) read by the core
@@ -47,7 +47,6 @@ function fill(rgba) {
   for (let i = 0; i < layer.data.length; i += 4) layer.data.set(rgba, i);
   g.putImageData(layer, 0, 0);
 }
-const fresh = () => fill(brush.compositeOp === 'erase' ? [...LAYER_GREY, 255] : [255, 255, 255, 255]);
 
 // SECTION: SLIDERS -- each number of the chosen preset; names are Krita's
 function numberList(b) {  // [label, get, set, min, max, step]
@@ -75,7 +74,6 @@ function slider(box, label, get, set, min, max, step) {
 function panel() {
   const b = brush, box = document.getElementById('right');
   box.innerHTML = `<h3>${chosen.id.replace(/_/g, ' ')}: ${b.tipType === 'auto_brush' ? b.shape + ' ' + b.fade : b.file}, ${b.spray ? 'spray' : b.smudge ? 'colour smudge, ' + ['smearing', 'dulling'][b.smudge.mode] : b.wash ? 'wash' : 'build-up'}, ${b.compositeOp}</h3>`;
-  for (const k of ['pressure', 'tiltX', 'tiltY']) slider(box, k, () => pen[k], v => pen[k] = v, k === 'pressure' ? 0 : -60, k === 'pressure' ? 1 : 60, 0.01);
   for (const n of numberList(b)) slider(box, ...n);
   for (const o of options(b)) {
     if (!o.useCurve) continue;
@@ -98,13 +96,20 @@ function choose(p) {
   for (const b of document.querySelectorAll('#presets button')) b.classList.toggle('on', b.id === 'p-' + p.id);
   const ref = document.getElementById('ref'), fam = FAMILIES.find(f => f.presets.includes(p));
   ref.style.backgroundImage = 'url(' + fam.picture + ')'; ref.style.backgroundSize = fam.width * fam.zoom + 'px auto'; ref.style.backgroundPosition = `-${p.row[0]}px -${p.row[1]}px`;
-  panel(); fresh();
+  panel();
 }
 
-// SECTION: PAINTING -- one finger or pen paints a stroke with the chosen brush
+// SECTION: PAINTING -- one finger or the mouse paints a stroke with the chosen brush
 let stroke = null;
-const hex = () => { const v = document.getElementById('colour').value; return [1, 3, 5].map(i => parseInt(v.slice(i, i + 2), 16)); };
-const at = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top, e.pointerType === 'pen' ? { pressure: e.pressure, tiltX: e.tiltX, tiltY: e.tiltY } : pen]; };
+const PALETTE = ['#202020', '#ffffff', '#e53935', '#fb8c00', '#fdd835', '#43a047', '#00897b', '#1e88e5', '#3949ab', '#8e24aa', '#d81b60', '#6d4c41', '#9e9e9e'];
+let colour = PALETTE[0];
+for (const c of PALETTE) {  // the colour a stroke paints with
+  const b = document.createElement('button'); b.style.background = c; b.id = 'c-' + c.slice(1);
+  b.onclick = () => { colour = c; for (const x of document.querySelectorAll('#palette button')) x.classList.toggle('on', x === b); };
+  document.getElementById('palette').appendChild(b); if (c === colour) b.classList.add('on');
+}
+const hex = () => [1, 3, 5].map(i => parseInt(colour.slice(i, i + 2), 16));
+const at = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
 function show() { const box = stroke.shown(view); if (box) g.putImageData(view, 0, 0, ...box); }
 cv.onpointerdown = e => {
   if (stroke) return; cv.setPointerCapture(e.pointerId);
@@ -124,7 +129,8 @@ function family(f) {
 document.getElementById('krita').onclick = () => choose(chosen);
 document.getElementById('fill').onclick = () => fill([...LAYER_GREY, 255]);
 document.getElementById('clear').onclick = () => fill([255, 255, 255, 255]);
-loadAssets().then(() => {
+loadAssets().then(() => {  // the paper is kept when another brush is chosen, so one brush can paint and another smudge or erase it
+  fill([255, 255, 255, 255]);
   for (const f of FAMILIES) {  // a button per family; the chosen family's presets below
     const b = document.createElement('button'); b.id = 'f-' + f.name.replace(/\W+/g, '_'); b.textContent = f.name; b.onclick = () => family(f); document.getElementById('families').appendChild(b);
   }

@@ -2,7 +2,8 @@
 // Standard technique: dabs of a brush tip stamped along the stroke (Krita: KisBrushOp::paintAt, KisDistanceInformation).
 // The model, in Krita's own parts:
 // 1. A preset is numbers: the tip (auto shape or picture, size, ratio, fades, spacing) and options (size, opacity, flow, rotation, ratio, scatter,
-//    mirror, softness, spacing, texture strength) whose value follows sensors (pressure, tilt, drawing angle, random, time) through curves.
+//    mirror, softness, spacing, texture strength) whose value follows sensors (drawing angle, random, time) through curves.
+//    The game has no pen: sensors of pen pressure and tilt are left out, so an option that only had those keeps its strength.
 // 2. Along the stroke a dab is placed each time the distance since the last one reaches the spacing ellipse of that dab's size.
 // 3. Each dab is the tip's mask at that size and angle, times the paper texture, laid by Krita's painting mode: build-up straight on the layer,
 //    or wash into a stroke layer (alpha darken: opacity caps it, flow builds it) that goes on the layer by the preset's composite op.
@@ -20,7 +21,11 @@ const KritaBrush = (() => {
     for (const l of text.split('\n')) { const i = l.indexOf(' = '); if (i > 0) f[l.slice(0, i)] = l.slice(i + 3); }
     return f;
   }
-  function sensorsOf(xml) {  // one <params id=...> or a sensorslist of <ChildSensor id=...>, each with its curve (none: straight line)
+  const PEN = { pressure: 1, pressurein: 1, tangentialpressure: 1, ascension: 1, declination: 1, xtilt: 1, ytilt: 1 };  // sensors only a pen has
+  function sensorsOf(xml) {  // one <params id=...> or a sensorslist of <ChildSensor id=...>, each with its curve (none: straight line); pen sensors left out
+    return allSensors(xml).filter(s => !PEN[s.id]);
+  }
+  function allSensors(xml) {
     xml = xml || '<params id="pressure"/>';
     const one = (tag, body) => { const a = attrs(tag), m = /<curve>([^<]*)<\/curve>/.exec(body || ''); return { ...a, curve: m ? m[1].split(';').filter(Boolean).map(p => p.split(',').map(Number)) : null }; };
     if (/id="sensorslist"/.test(xml)) return [...xml.matchAll(/<ChildSensor([^>]*?)(?:\/>|>(.*?)<\/ChildSensor>)/g)].map(m => one(m[1], m[2]));
@@ -95,25 +100,13 @@ const KritaBrush = (() => {
     };
   }
 
-  // SECTION: SENSORS -- what the pen and the stroke tell each dab (KisDynamicSensor*); ctx: pressure, tiltX/Y in degrees, angle, time
-  const ADDITIVE = { fuzzy: 1, fuzzystroke: 1, ascension: 1 }, ABSOLUTE = { drawingangle: 1 };
+  // SECTION: SENSORS -- what the stroke tells each dab (KisDynamicSensor*); ctx: drawing angle, time
+  const ADDITIVE = { fuzzy: 1, fuzzystroke: 1 }, ABSOLUTE = { drawingangle: 1 };
   function sensorValue(s, ctx) {
     switch (s.id) {
-      case 'pressure': return ctx.pressure;
       case 'fuzzy': return 2 * Math.random() - 1;
       case 'fuzzystroke': return ctx.strokeRandom[s.id] ??= 2 * Math.random() - 1;
       case 'drawingangle': return wrap(0.5 + ctx.angle / TAU + +(s.angleOffset ?? 0) / 360, 0, 1);
-      case 'ascension': {  // tilt direction; a pen standing straight up points to 3 o'clock
-        const d = ctx.tiltX === 0 && ctx.tiltY === 0 ? -Math.PI / 2 : Math.atan2(-ctx.tiltX, ctx.tiltY);
-        return 2 * (d / TAU + 0.5) - 1;
-      }
-      case 'declination': {  // tilt elevation, 60 degrees full tilt
-        const x = Math.max(-1, Math.min(1, ctx.tiltX / 60)), y = Math.max(-1, Math.min(1, ctx.tiltY / 60));
-        const e = Math.abs(x) > Math.abs(y) ? Math.sqrt(1 + y * y) : Math.sqrt(1 + x * x);
-        return Math.acos(Math.hypot(x, y) / e) / (Math.PI / 2);
-      }
-      case 'xtilt': return 1 - Math.abs(ctx.tiltX) / 60;
-      case 'ytilt': return 1 - Math.abs(ctx.tiltY) / 60;
       case 'time': { const dur = +(s.duration ?? 1000), t = ctx.time / dur; return s.periodic === '1' ? t % 1 : Math.min(1, t); }
       default: return 1;  // a sensor no preset of these families uses
     }
@@ -261,7 +254,7 @@ const KritaBrush = (() => {
     const tex = s.texture && assets[s.texture.pattern] ? (s.texture.mask ||= textureMask(s.texture, assets[s.texture.pattern].image)) : null;
     const texOff = tex ? [s.texture.randomX ? Math.floor(Math.random() * tex.w) : s.texture.offsetX, s.texture.randomY ? Math.floor(Math.random() * tex.h) : s.texture.offsetY] : null;
     const wash = s.wash ? { a: new Float32Array(W * H), rgb: new Float32Array(W * H * 3) } : null;
-    const ctx = { pressure: 1, tiltX: 0, tiltY: 0, angle: 0, time: 0, strokeRandom: {} };
+    const ctx = { angle: 0, time: 0, strokeRandom: {} };
     const t0 = performance.now(), dirty = [W, H, -1, -1];
     let last = null, acc = [0, 0], sp = null, cell = 0;
 
@@ -415,8 +408,8 @@ const KritaBrush = (() => {
     function place(x, y) { sp = spacingOf(dab(x, y)); acc = [0, 0]; lastDabAt = performance.now(); }
     const washRGB = i => [wash.rgb[i * 3], wash.rgb[i * 3 + 1], wash.rgb[i * 3 + 2]];
     return {
-      to(x, y, pen) {  // pen: pressure, tiltX, tiltY
-        ctx.pressure = pen.pressure; ctx.tiltX = pen.tiltX; ctx.tiltY = pen.tiltY; ctx.time = performance.now() - t0;
+      to(x, y) {
+        ctx.time = performance.now() - t0;
         if (!last) { place(x, y); last = [x, y]; return; }
         if (x === last[0] && y === last[1]) return;
         ctx.angle = Math.atan2(y - last[1], x - last[0]);
@@ -427,7 +420,7 @@ const KritaBrush = (() => {
           const ax = Math.abs(ex), ay = Math.abs(ey), a = (ax / sp.x) ** 2 + (ay / sp.y) ** 2;  // (acc + t·d)/spacing on the ellipse: solve for t
           const b = 2 * (acc[0] * ax / sp.x ** 2 + acc[1] * ay / sp.y ** 2), c = (acc[0] / sp.x) ** 2 + (acc[1] / sp.y) ** 2 - 1;
           const t = c >= 0 ? 0 : (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a);
-          if (t > 1) { acc = [acc[0] + ax, acc[1] + ay]; break; }
+          if (!(t <= 1)) { acc = [acc[0] + ax, acc[1] + ay]; break; }  // no dab left on this piece (also when nothing of it is left: a = 0 gives no t)
           x0 += (x - x0) * t; y0 += (y - y0) * t; place(x0, y0);
         }
         last = [x, y];
