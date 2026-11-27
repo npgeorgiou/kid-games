@@ -28,7 +28,7 @@ const LANDS = ['wheat', 'plains', 'vineyard', 'forest', 'mountain', 'town'], MAT
 const COLOUR_IDS = LANDS.map((c, k) => k), noGoods = () => LANDS.map(() => 0);
 const HALVES = [10, 10, 9, 9, 9, 9];  // the 56 halves of the 28 tiles, per colour (owner 25 Nov)
 const BORDER = ['#22a33a', '#d42a2a'], TINT = ['#eef8e6', '#fbebe8'];  // the kid's land green, the PC's red; their areas' light tints
-const GLOW = ['#3fbf55', '#d9454d'], GLOW_PULSE_MS = 4000, GLOW_SIZE = 26, GLOW_CORE = 0.3;  // owner 27 Nov: the turn's glow in the players' green and red, soft (not neon), pulsing slowly; its size (at a 1920 x 1080 screen) and its solid band by the sticker (a share of its size)
+const GLOW = ['#1fbf3c', '#e02a36'], GLOW_PULSE_MS = 4000, GLOW_SIZE = 32, GLOW_CORE = 0.3;  // owner 27 Nov: the turn's glow in the players' green and red, vivid but not neon, pulsing slowly; its size (at a 1920 x 1080 screen) and its solid band by the sticker (a share of its size)
 const ANIMALS = ['hamster', 'bunny', 'chick', 'cat', 'dog', 'frog'], MOOD_MS = 2200, POKE_MS = 450;  // owner 27 Nov: a tap on his sticker makes it happy for a moment  // owner 27 Nov: each player a sticker of an animal (a random pair each game); a face shows MOOD_MS after what made it, then neutral again
 const JAR_MIX = { empty: 10, coins: 45, coins2: 10, tile: 4, slot: 5, first: 8, jar: 8, set: 10 };  // what jars hold, per 100 jars (owner 25 Nov)
 const JAR_GOODS = 5;  // this many goods of one colour make a jar at once (owner 24 Nov)

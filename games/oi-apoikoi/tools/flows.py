@@ -695,15 +695,16 @@ def f_free_set(q):  # a free set: one of each of the 5 goods (on top of the plac
     get_jar(q, [{'k': 'set'}]); g = st(q)['players'][0]['goods']
     report(g == [3, 1, 1, 1, 1, 1], 'set: one of each good', str(g))
 
-def f_sticker_glow(q):  # owner 27 Nov: the turn's sticker glow: less neon ("radioactive"), a slower pulse, a more solid core, a little bigger
+def f_sticker_glow(q):  # owner 27 Nov: the turn's sticker glow: less neon ("radioactive"), a slower pulse, a more solid core, a little bigger; later: bigger again, and more vivid, just not neon
     pause_clock(q); table(q, fast=False); seen = []
     for _ in range(60): skip(q, 100); settle(q); g = [d for d in drawn(q, 'glow') if d['o'] == 0]; seen.append(g[0] if g else None)
     q.clock.resume(); a = [x['a'] for x in seen if x]
     peaks = [k for k in range(1, len(a) - 1) if a[k] >= a[k - 1] and a[k] > a[k + 1]]; period = (peaks[1] - peaks[0]) * 100 if len(peaks) > 1 else 6000
     def sat(col): r, g_, b = (int(col[k:k + 2], 16) / 255 for k in (1, 3, 5)); mx, mn = max(r, g_, b), min(r, g_, b); return (mx - mn) / (1 - abs(mx + mn - 1)) if mx != mn else 0
+    light = lambda col: (max(int(col[k:k + 2], 16) for k in (1, 3, 5)) + min(int(col[k:k + 2], 16) for k in (1, 3, 5))) / 510
     x = next((x for x in seen if x), {'col': '#000000', 'core': 0, 'g': 0, 'ui': 1})
-    ok = all(seen) and period >= 3000 and sat(x['col']) <= 0.75 and x['core'] >= 0.25 * x['g'] and x['g'] >= 24 * x['ui']
-    report(ok, 'faces: the turn glow is soft, slow, solid, bigger', 'pulse every %d ms, colour %s (saturation %.2f), solid core %.1f of a glow %.1f (%.1f at a 1080 screen)' % (period, x['col'], sat(x['col']), x['core'], x['g'], x['g'] / x['ui']))
+    ok = all(seen) and period >= 3000 and 0.7 <= sat(x['col']) <= 0.9 and light(x['col']) <= 0.5 and x['core'] >= 0.25 * x['g'] and x['g'] >= 30 * x['ui']
+    report(ok, 'faces: the turn glow is vivid not neon, slow, solid, bigger', 'pulse every %d ms, colour %s (saturation %.2f, lightness %.2f), solid core %.1f of a glow %.1f (%.1f at a 1080 screen)' % (period, x['col'], sat(x['col']), light(x['col']), x['core'], x['g'], x['g'] / x['ui']))
 def f_stockpile(q):  # owner 27 Nov: materials stockpile: the side places' gaps to the screen edge and to the stone's edge are equal, on both sides; the grapes and stone columns swapped
     # (wheat, sheep, stone, forest, grapes, town from the screen edge); the statue icon 7.5% wider than the others, filling its place like them
     table(q); settle(q); flat = {d['o']: d for d in drawn(q, 'goodsflat')}; pl = drawn(q, 'place'); icons = drawn(q, 'icon'); seen = {}
