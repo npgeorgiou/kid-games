@@ -541,6 +541,16 @@ def f_bee_next(q):  # owner 27 Nov: the bee shows who plays next: at the start t
     won = [0 if f and f[0]['tx'] < 640 and abs(f[0]['fx'] - jar['x']) < 80 else None] if f else []; q.clock.resume()
     report(start == [1] and then == [0] and won == [0] and size >= 31, 'bee: who plays next; flies on each turn; a jar\'s prize', 'at the start %s, after his move %s, after his first-player jar %s, size %.1f' % (start, then, won, size))
 
+def f_bee_hovers(q):  # owner 27 Nov: the bee moves in place in a small infinity loop (obvious, not big): it crosses its spot, wider than high, and stays near it
+    pause_clock(q); table(q, fast=False); pts = []
+    for _ in range(40): skip(q, 80); settle(q); t = drawn(q, 'token'); pts.append(t[0] if t else None)
+    q.clock.resume(); ok = all(pts)
+    if ok:
+        dx = [p['x'] - p['sx'] for p in pts]; dy = [p['y'] - p['sy'] for p in pts]; r = pts[0]['r']; wd, ht = max(dx) - min(dx), max(dy) - min(dy)
+        crosses = sum(1 for a, b in zip(dx, dx[1:]) if a * b < 0) >= 2
+        ok = crosses and r * 0.15 <= wd <= r * 0.8 and 0.2 * wd <= ht < wd
+    report(ok, 'bee: a small infinity loop in place', 'across %.1f, up and down %.1f px (bee %.0f px), crosses its spot %s' % (wd, ht, r, crosses) if all(pts) else 'no bee')
+
 def inside_poly(pts, x, y):
     o = False
     for k, (ax, ay) in enumerate(pts):

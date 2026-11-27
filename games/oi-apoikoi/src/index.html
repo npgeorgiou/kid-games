@@ -586,6 +586,7 @@ function faceBox(i) {  // the box his sticker fits in, on his face stone's top (
   }
   const b = faceMemo.box; return { x: i ? W - b.x - b.w : b.x, y: b.y, w: b.w, h: b.h };
 }
+const BEE_LOOP = 0.22, BEE_LOOP_MS = 2600;  // the bee's hover: how far it swings to each side (a share of its size), how long one loop takes
 const BEE_R = 32;  // owner 27 Nov: a third bigger  // the first-player bee's size (at a 1920 x 1080 screen)
 function inCorner(A, P, B, r) {  // the middle of a circle of radius r that touches both sides of the corner P (between A and B) from inside
   const u = [A[0] - P[0], A[1] - P[1]], v = [B[0] - P[0], B[1] - P[1]], lu = Math.hypot(...u), lv = Math.hypot(...v), b = [u[0] / lu + v[0] / lv, u[1] / lu + v[1] / lv], lb = Math.hypot(...b);
@@ -1288,7 +1289,7 @@ function drawPanel(i) {
   for (let k = 0; k < p.coins - (G.ending ? G.ending[i] : 0); k++) { const [x, y] = coinAt(k); flatCoin(x, y, cr, th); drawn.push({ k: 'coin', o: i, x, y, r: cr }); }
   const u = UI(), box = faceBox(i), st = sticker(i, box, lit); drawn.push({ k: 'avatar', o: i, x: st.x, y: st.y, r: Math.max(st.w || 0, st.h || 0) / 2, box, pic: st.name, lit, shown: st, mirrored: st.mirrored });
   btn('avatar-' + i, box.x, box.y, box.w, box.h, () => { feel(i, 'happy', POKE_MS); sound('poke'); });  // owner 27 Nov: a tap on his sticker
-  if (G.bee === i) { const [sx, sy] = beeSpot(i); bee(sx, sy, BEE_R * u); drawn.push({ k: 'token', o: i, x: sx, y: sy, r: BEE_R * u }); }  // the first-player token
+  if (G.bee === i) { const [sx, sy] = beeSpot(i), t = (fast ? 0 : performance.now()) * 2 * Math.PI / BEE_LOOP_MS, A = BEE_LOOP * BEE_R * u, x = sx + A * Math.sin(t), y = sy + A / 2 * Math.sin(2 * t); bee(x, y, BEE_R * u); drawn.push({ k: 'token', o: i, x, y, sx, sy, r: BEE_R * u }); }  // owner 27 Nov: it hovers in place in a small infinity loop (a lemniscate: across once, up and down twice)  // the first-player token
 }
 const extraGlows = new Map();  // the extra tile's glow for each look and turn, made once (a blur every frame costs a lot)
 function extraGlowOf(cs, r) {  // the tile's whole shape (ground and what stands on it), in gold, blurred: a canvas with the tile's centre at (c.ox, c.oy)
