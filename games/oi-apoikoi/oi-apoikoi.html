@@ -1188,7 +1188,7 @@ function glowOf(name, col, w, h, g) {
 }
 const REST_STRETCH = 0.035, REST_MS = 2400;  // the resting stretch: how much taller at most, and how long one breath takes
 function sticker(i, b, lit) {  // owner 27 Nov: a player is his animal's sticker, its face showing what just happened to him, as big as fits his box; on his turn in a strong, vivid glow of his colour
-  const name = 'avatars/' + G.animals[i] + '-' + moodOf(i), src = pics[name], flip = i === 0; if (!src) return { name };  // owner 27 Nov: the two face each other: the right player's picture as on the sheet, the left player's mirrored
+  const name = 'avatars/' + G.animals[i] + '-' + moodOf(i), src = pics[name], flip = i === 1; if (!src) return { name };  // owner 27 Nov: the two face each other: the left player's picture as on the sheet, the right player's mirrored
   const k = Math.min(b.w / src.width, b.h / src.height), w = src.width * k, h = src.height * k, x = b.x + b.w / 2, y = b.y + b.h / 2, g = GLOW_SIZE * UI();  // owner 27 Nov: always as big as fits, lit or not
   const feet = y + h / 2, sy = moodOf(i) === 'neutral' ? 1 + REST_STRETCH * Math.sin(2 * Math.PI * performance.now() / REST_MS) : 1;  // owner 27 Nov: resting, it stretches up and down, its feet still (an idle squash and stretch)
   cx.save(); cx.translate(x, feet); cx.scale(flip ? -1 : 1, sy); cx.translate(-x, -feet);
