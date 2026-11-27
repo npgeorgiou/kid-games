@@ -37,6 +37,7 @@ const COLS = 16, ROWS = 16, STARTS = [[4, 10, 0], [11, 5, 2]];  // a square boar
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half is, by turn
 const params = new URLSearchParams(location.search);
 let fast = params.has('fast'), stillWater = fast;  // tests: the PC moves without waiting, and nothing travels: it is where it goes at once
+const JAR_PACE = 1.1;  // owner 27 Nov: the PC breaks its jars 10% faster
 const HAND_SPEED = 700;  // owner 25 Nov: the PC moves faster  // px per second: slow enough to follow
 const EDGE_GROW_MS = 1755, EDGE_IN_PLACE = 0.7, EDGE_GO_MS = EDGE_GROW_MS * (1 - Math.cbrt(1 - EDGE_IN_PLACE)), EDGE_GLIDE_MS = 1440, EDGE_JAR_MS = EDGE_GO_MS + EDGE_GLIDE_MS;  // owner 26 Nov: growing 10% and gliding 20% faster than before; owner 26 Nov: a connection's jars grow slowly out of their edges, all at once, as the land's harvest starts
 const STAGGER = 120, GOOD_FLY = 675, COIN_FLY = 825;  // things that go one after another leave STAGGER apart; a good flies GOOD_FLY, a coin COIN_FLY (owner 26 Nov: goods and coins a third slower)
@@ -148,25 +149,25 @@ function ask(kind, who, extra) {
 function answer(v) { const w = wait; wait = null; if (!press || !press.taking) press = null; w.res(v); }  // a press that takes a tile lives on as its drag
 async function choose(kind, who, extra, pcMoves) {  // a human answers by tapping; the PC's hand makes its moves on the same screen
   const my = G, chosen = ask(kind, who, extra);
-  if (!G.players[who].human) { await pause(kind === 'jar' ? 80 : 300); if (G === my) await pcMoves(); }  // owner 25 Nov: the PC opens jars and moves faster
+  if (!G.players[who].human) { G.hand.pace = kind === 'jar' ? JAR_PACE : 1; await pause(kind === 'jar' ? 80 / JAR_PACE : 300); if (G === my) await pcMoves(); }  // owner 25 Nov: the PC opens jars and moves faster
   return chosen;
 }
 function handTo(x, y, ms) {  // the hand glides to a point (eased), slow enough to follow
   const h = G.hand, d = Math.hypot(x - h.x, y - h.y);
   if (fast || d < 1) { h.x = x; h.y = y; return Promise.resolve(); }
-  const t0 = performance.now(), x0 = h.x, y0 = h.y, T = ms || Math.max(350, d / HAND_SPEED * 1000);
+  const t0 = performance.now(), x0 = h.x, y0 = h.y, T = (ms || Math.max(350, d / HAND_SPEED * 1000)) / (h.pace || 1);  // pace: how much faster this move is
   return new Promise(res => {
     const my = G, step = () => { if (G !== my) return; const k = Math.min(1, (performance.now() - t0) / T), e = k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k); h.x = x0 + (x - x0) * e; h.y = y0 + (y - y0) * e; k < 1 ? requestAnimationFrame(step) : res(); };
     requestAnimationFrame(step);
   });
 }
 function handHome() { G.hand.g = 'point'; const p = homeSpot(); if (G.hand.x !== p[0] || G.hand.y !== p[1]) handTo(p[0], p[1]); }
-async function handTap(x, y) { G.hand.g = 'point'; await handTo(x, y); G.hand.down = true; await pause(140); G.hand.down = false; }
-async function pcTap(id) {  // the hand goes to the button, presses it, and the game takes it like a tap
-  const my = G; render(); const b = buttons.find(c => c.id === id); if (!b) return;
+async function handTap(x, y) { G.hand.g = 'point'; await handTo(x, y); G.hand.down = true; await pause(140 / (G.hand.pace || 1)); G.hand.down = false; }
+async function pcTap(id) {  // the hand goes to the button, presses it, and the game takes it like a tap, at the hand's pace
+  const my = G, pace = G.hand.pace || 1; render(); const b = buttons.find(c => c.id === id); if (!b) return;
   await handTap(b.x + b.w / 2, b.y + b.h / 2);
   if (G !== my) return;  // a new game started meanwhile: this move belonged to the old one
-  b.fn(); await pause(120);
+  b.fn(); await pause(120 / pace);
 }
 // A carried tile tilts toward where it moves (the standard "card sway" of digital card games, as in Hearthstone):
 // 1. each move sets the tilt from how fast the tile goes sideways (up to TILT degrees); 2. the tilt fades out once the tile stops moving.
@@ -941,7 +942,7 @@ function hand(h) {  // the PC's hand, the only hand drawn; a press shows a ring 
   const [, ax, ay] = GESTURES[h.g], im = handPics[h.g], u = UI(), z = (h.down ? 84 : 92) * u, k = z / 32;
   if (h.down) { cx.strokeStyle = '#ffffffcc'; cx.lineWidth = 4 * u; cx.beginPath(); cx.arc(h.x, h.y, 20 * u, 0, 7); cx.stroke(); }
   if (im.ready) cx.drawImage(im, h.x - ax * k, h.y - ay * k, z, z);
-  drawn.push({ k: 'hand', pic: GESTURES[h.g][0], z });
+  drawn.push({ k: 'hand', pic: GESTURES[h.g][0], z, pace: h.pace || 1 });
 }
 
 // SECTION: DRAWING -- each screen part

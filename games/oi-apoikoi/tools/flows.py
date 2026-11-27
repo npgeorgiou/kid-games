@@ -513,6 +513,18 @@ def f_extra_glow_bright(q):  # owner 27 Nov: the extra tile's glow with more lum
     col = g.get('col', '#000000'); light = (max(int(col[k:k + 2], 16) for k in (1, 3, 5)) + min(int(col[k:k + 2], 16) for k in (1, 3, 5))) / 510
     report(g.get('mode') == 'lighter' and light >= 0.65, 'extra tile: a brighter glow', 'colour %s (lightness %.2f), laid on as %s' % (col, light, g.get('mode')))
 
+def f_pc_jars_faster(q):  # owner 27 Nov: the PC breaks its jars 10% faster (the hand's move to a jar, between jars, and its tap); its other moves as before
+    pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 8, jarQueue=[COIN] * 12); paces = set()
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, best_spot(q))
+    for _ in range(300):
+        s = st(q)
+        if s['wait'] and s['wait']['kind'] == 'jar' and s['wait']['who'] == 0: tap(q, 'jar-0'); continue
+        skip(q, 50); settle(q); w = s['wait']; h = drawn(q, 'hand')
+        if h and w and w['who'] == 1: paces.add((w['kind'], h[0].get('pace')))
+        if s['turn'] == 0 and s['round'] == 1 and any(k == 'jar' for k, _ in paces): break
+    q.clock.resume(); jar = {p for k, p in paces if k == 'jar'}; other = {p for k, p in paces if k != 'jar'}
+    report(jar == {1.1} and other == {1}, 'pc: breaks jars 10% faster', 'hand pace on jars %s, on other moves %s' % (sorted(jar, key=str), sorted(other, key=str)))
+
 def f_bee_next(q):  # owner 27 Nov: the bee shows who plays next: at the start the player who plays second has it; when a player starts playing it flies to the other;
     # a jar's first-player prize sends it to its winner; the bee a third bigger
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); holder = lambda: [d['o'] for d in drawn(q, 'token')]
