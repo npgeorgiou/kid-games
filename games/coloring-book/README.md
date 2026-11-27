@@ -85,7 +85,9 @@ Do next, in this order (his words are in the Task list):
 ## Task list
 
 - Krita brushes (27 Nov):
-  - Wet brushes mix naturally (blue + yellow green, red + yellow orange), never mixing a bit and then covering with their own colour: waiting for his yes on the brush holding a load of paint (bucket level) that is used up and picks up what it passes over.
+  - Game brush set per tool (strong row, soft row with the same tips; bucket = strength, or paint for wet brushes): waiting for his yes on the proposed set; then port Krita's Basic and Ink families and the thick paint / impasto presets (RGBA bundle, paint thickness).
+  - Strokes against the pictures: Pencil-3 Large 4B shows fine grain where the picture is coarse; Marker Dry lays solid paint where the picture is streaky.
+  - Markers: in Krita two of the three, at lower opacity, darken where a stroke goes back over itself; here none does.
   - Into the game: the premade brushes as extra brushes in each tool's popup, bucket level as strength, size on the size buttons and mouse wheel; after his look at the page.
 
 Numbers are his points of 23 Nov; pictures in `owner-shots/2026-11-23-*`. Acrylic and impasto references of 25 Nov: `owner-shots/2026-11-25-acrylic-*`, `owner-shots/2026-11-25-impasto-*`.

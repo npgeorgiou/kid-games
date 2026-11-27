@@ -56,3 +56,4 @@
 - The Krita brushes page: he cannot test it, so every change is checked here for what he would see: wet brushes mixing two colours, long strokes with every brush without the tab crashing (time and memory per stroke), and each preset beside its Krita picture at the strength its picture shows (flows kb_wet_mixing, kb_long_strokes; the look by eye).
 - Krita brushes page: test strokes as his touchscreen sends them (moves half a ms apart, a little shaky); tidy mouse moves 8 ms apart hid lines painted off the finger's path.
 - Krita brushes page: CDP mouse moves wait for a frame each (16.7 ms), so time painting with the page's script time (Performance.getMetrics ScriptDuration), never with how long a move call took.
+- Krita brushes page: the paper is an empty layer over the paper's colour; painted white paper would be taken up by wet brushes as white paint and turn every colour pastel.

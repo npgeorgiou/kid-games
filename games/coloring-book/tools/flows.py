@@ -1177,6 +1177,7 @@ def f_kb_eraser_presets(q):  # owner 26 Nov: each brush starts from its preset's
 FLOWS['kb_eraser_presets'] = f_kb_eraser_presets
 
 def f_kb_eraser_strokes(q):  # owner 26 Nov: Krita's erasers: Circle erases its own width, Soft has a soft rim, Small is a flat rectangle (no turning)
+    kb_tap(q, 'fill')  # paint to erase: the grey paper (the white paper is an empty layer since 27 Nov, nothing on it to erase)
     kb_tap(q, 'p-Eraser_Circle'); kb_drag(q, (100, 80), (400, 80)); d = q.evaluate("()=>__kb.value('diameter')")
     circle = kb_cut(q, 250, 80); far = kb_line(q, 100, 80 + 2 * d, 3, 0, 100)
     report(min(circle) < 0.05 and min(far) > 0.99 and 0.5 * d < kb_width(circle) < 1.05 * d, 'kb_eraser_strokes circle', 'centre %.2f, width %d of %g, far %.2f' % (min(circle), kb_width(circle), d, min(far)))
@@ -1222,7 +1223,7 @@ def f_kb_settings(q):  # owner 26 Nov: "bring back the everyday settings (size, 
     kb_tap(q, 'f-Eraser'); kb_tap(q, 'p-Eraser_Circle'); f = kb_file('a)_Eraser_Circle'); d0 = float(kb_tip(f)['diameter'])
     opened = q.evaluate("()=>[__kb.value('strength'), __kb.value('diameter'), __kb.value('opacity'), __kb.value('flow')]")
     report(abs(opened[0] - kb_strength('a)_Eraser_Circle')) < 1e-6 and abs(opened[1] - d0) < 1e-6, 'kb_settings a brush opens at its own numbers and its picture\'s strength', 'strength, size, opacity, flow: %s' % opened)
-    size = kb_slide(q, 'size', 0.1); kb_tap(q, 'clear'); kb_drag(q, (100, 80), (400, 80)); w = kb_width(kb_cut(q, 250, 80))
+    size = kb_slide(q, 'size', 0.1); kb_tap(q, 'fill'); kb_drag(q, (100, 80), (400, 80)); w = kb_width(kb_cut(q, 250, 80))
     report(abs(q.evaluate("()=>__kb.value('diameter')") - size) < 1e-6 and size < d0 and 0.5 * size < w < 1.05 * size + 2, 'kb_settings size changes how wide the brush paints', 'size %g, erased %d px' % (size, w))
     soft = kb_slide(q, 'softness', 0.9); op = kb_slide(q, 'opacity', 0.3); fl = kb_slide(q, 'flow', 0.3); st = kb_slide(q, 'strength', 0.3)
     got = q.evaluate("()=>[__kb.value('hfade'), __kb.value('opacity'), __kb.value('flow'), __kb.value('strength')]")
@@ -1292,7 +1293,23 @@ def f_kb_premades(q):  # owner 27 Nov: "a button for each premade brush, that wh
     report(not wrong, 'kb_premades each premade brush chooses its preset, sets its sliders and shows its picture\'s colours', 'wrong: %s' % (wrong or 'none'))
 FLOWS['kb_premades'] = f_kb_premades
 
-KB_FLOWS = {'kb_eraser_presets', 'kb_eraser_strokes', 'kb_long_strokes', 'kb_settings', 'kb_wet_mixing', 'kb_finger_lines', 'kb_frame_time', 'kb_premades'}
+def f_kb_wet_load(q):  # owner 27 Nov: "wet colour mixing should happen (blue and yellow make green, red and yellow make orange); don't mix a bit and then kill the colour by applying their own,
+    # but mix, naturally": a wet brush keeps the colour it picked up, so after it leaves the blue (or red) it goes on laying green (or orange)
+    hue = lambda c: colorsys.rgb_to_hsv(*[v / 255 for v in c])
+    kb_tap(q, 'f-Wet_painting'); kept = {}
+    for pid in kb_presets(q)[[f for f, _ in kb_presets(q)].index('f-Wet_painting')][1]:
+        got = []
+        for band, want in (('c-1e88e5', (0.17, 0.45)), ('c-e53935', (0.02, 0.12))):  # green between yellow and blue's hues; orange between red and yellow's
+            kb_tap(q, 'clear'); kb_tap(q, 'p-Wet_Paint'); kb_slide(q, 'strength', 1); kb_tap(q, band)  # the same wet band of paint for every brush
+            for x in (250, 275, 300): kb_stroke(q, [(x, 60 + 6 * k) for k in range(30)])
+            kb_tap(q, pid); kb_slide(q, 'strength', 1); kb_tap(q, 'c-fdd835'); kb_stroke(q, [(60 + 5 * k, 150) for k in range(110)])
+            after = [hue(q.evaluate("(p)=>__kb.color(...p)", [x, 150])) for x in range(360, 460, 10)]  # just past the band
+            got.append(sum(1 for h, sat, v in after if want[0] < h < want[1] and sat > 0.25))
+        if min(got) < 5: kept[pid[2:]] = got
+    report(not kept, 'kb_wet_load every wet brush carries what it picked up: green after blue, orange after red', 'of 10 points past the band, (green, orange): %s' % (kept or 'all at least 5'))
+FLOWS['kb_wet_load'] = f_kb_wet_load
+
+KB_FLOWS = {'kb_eraser_presets', 'kb_eraser_strokes', 'kb_long_strokes', 'kb_settings', 'kb_wet_mixing', 'kb_finger_lines', 'kb_frame_time', 'kb_premades', 'kb_wet_load'}
 
 # SECTION: WHOLE GAME -- one run in the order the child meets the game: painting, drawing tools, brush popup, buckets, palettes, picker, undo, stickers, guide, canvas, gallery, delete
 # Every other flow is a short separate test of how a tool looks or behaves, each on its own fresh paper, run at the same time as this one (owner 25 Nov).

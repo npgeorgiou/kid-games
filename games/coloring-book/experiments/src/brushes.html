@@ -12,7 +12,7 @@ button{font:inherit;cursor:pointer}
 #presets button{padding:3px 8px;border:1px solid #888;border-radius:6px;background:#f4f4f4} #presets button.on{background:#335;color:#fff}
 #work{display:flex;gap:8px;align-items:flex-start}
 #ref{height:150px;background-repeat:no-repeat;margin-bottom:6px;border-radius:4px}
-#paper{display:block;touch-action:none;border-radius:4px;background:repeating-conic-gradient(#fff 0 25%,#ccc 0 50%) 0 0/20px 20px}
+#paper{display:block;touch-action:none;border-radius:4px} #paper.grey{background:repeating-conic-gradient(#fff 0 25%,#ccc 0 50%) 0 0/20px 20px}
 #side{width:250px;flex:none}
 #side h4{margin:8px 0 3px;font-size:13px}
 #palette button,#mixing button{width:30px;height:30px;border:2px solid #fff;border-radius:50%;margin:0 3px 4px 0} #side .on{border-color:#222;outline:2px solid #222}
@@ -41,7 +41,7 @@ const ASSETS = /*%ASSETS%*/{};
 const MIXBOX_LUT = /*%MIXBOX_LUT%*/'';  // Mixbox's table as RGB bytes, gzipped (../lib/mixbox, CC BY-NC 4.0)  // tips and textures the presets name: file name -> data URL
 const LAYER_GREY = [150, 150, 150];  // what the erasers take away: an even grey, so the checkerboard shows where the paper is erased
 const cv = document.getElementById('paper'), g = cv.getContext('2d');
-let layer, view, brush, chosen, strength = 1, assets = {};
+let layer, view, brush, chosen, strength = 1, paintLoad = 1, assets = {};
 
 // SECTION: ASSETS -- tips and textures decoded once: pictures (png, svg) to pixels, GIMP brushes (gbr, gih) read by the core
 async function loadAssets() {
@@ -60,14 +60,18 @@ function sizePaper() {  // the room the window leaves under the buttons and the 
   cv.width = Math.max(880, innerWidth - 250 - 30); cv.height = Math.max(300, innerHeight - cv.getBoundingClientRect().top - 8);
   document.getElementById('ref').style.width = cv.width + 'px';
 }
-function fill(rgba) {
+let paperColour = [255, 255, 255];
+function fill(rgba) {  // a fresh layer of that colour and alpha
   layer = g.createImageData(cv.width, cv.height); view = g.createImageData(cv.width, cv.height);
   for (let i = 0; i < layer.data.length; i += 4) layer.data.set(rgba, i);
-  g.putImageData(layer, 0, 0);
+  g.clearRect(0, 0, cv.width, cv.height); g.putImageData(layer, 0, 0);
+}
+function paper(rgb) {  // a paper of that colour with nothing on it: the layer is empty, so a wet brush never takes the paper up as paint (as in Krita on a new layer)
+  paperColour = rgb; cv.classList.remove('grey'); cv.style.background = 'rgb(' + rgb + ')'; fill([...rgb, 0]);
 }
 
 function choose(p) {  // the preset with its own numbers, at the strength its picture shows
-  chosen = p; brush = KritaBrush.fromPreset(p.text); KritaBrush.prepare(brush, assets); strength = p.strength; showSettings();
+  chosen = p; brush = KritaBrush.fromPreset(p.text); KritaBrush.prepare(brush, assets); strength = p.strength; paintLoad = 1; showSettings();
   for (const b of document.querySelectorAll('#presets button')) b.classList.toggle('on', b.id === 'p-' + p.id);
   for (const b of document.querySelectorAll('#premades button')) b.classList.remove('on');
   const sat = c => { const v = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)); return Math.max(...v) - Math.min(...v); };
@@ -90,6 +94,7 @@ const SETTINGS = [
   { id: 'opacity', label: 'Opacity', min: 0, max: 100, unit: '%', get: () => 100 * brush.opacity.value, set: v => { brush.opacity.value = v / 100; } },
   { id: 'flow', label: 'Flow', min: 0, max: 100, unit: '%', on: () => !brush.smudge, get: () => 100 * brush.flow.value, set: v => { brush.flow.value = v / 100; } },  // the smudge engine has no flow
   { id: 'strength', label: 'Strength', min: 0, max: 100, unit: '%', get: () => 100 * strength, set: v => { strength = v / 100; } },
+  { id: 'load', label: 'Paint', min: 0, max: 100, unit: '%', on: () => !!brush.smudge, get: () => 100 * paintLoad, set: v => { paintLoad = v / 100; } },  // how much paint a wet brush holds (the game's bucket)
 ];
 for (const o of SETTINGS) {
   const l = document.createElement('label'), r = document.createElement('input'), n = document.createElement('span');
@@ -161,7 +166,7 @@ const hover = { first: null, second: null, push(p) {
 cv.onpointerdown = e => {
   if (stroke) return; cv.setPointerCapture(e.pointerId);
   const p = at(e); if (e.pointerType !== 'mouse') hover.first = hover.second = p;
-  stroke = KritaBrush.stroke(layer, brush, hex(), assets, strength); stroke.id = e.pointerId; stroke.down(...p, e.timeStamp, hover.push(p));
+  stroke = KritaBrush.stroke(layer, brush, hex(), assets, strength, paintLoad); stroke.id = e.pointerId; stroke.down(...p, e.timeStamp, hover.push(p));
   const held = stroke, frame = t => { if (stroke !== held) return; stroke.tick(performance.now()); show(); requestAnimationFrame(frame); };  // the airbrush and the pause that ends a curve
   requestAnimationFrame(frame);
 };
@@ -179,15 +184,15 @@ function family(f, p = f.presets[0]) {
   for (const p of f.presets) { const b = document.createElement('button'); b.id = 'p-' + p.id; b.textContent = p.id.replace(/_/g, ' '); b.onclick = () => choose(p); box.appendChild(b); }
   choose(p);
 }
-document.getElementById('fill').onclick = () => fill([...LAYER_GREY, 255]);
-document.getElementById('paperpic').onclick = () => fill([...[1, 3, 5].map(i => parseInt(chosen.palette[0].slice(i, i + 2), 16)), 255]);
-document.getElementById('clear').onclick = () => fill([255, 255, 255, 255]);
+document.getElementById('fill').onclick = () => { paperColour = [255, 255, 255]; cv.style.background = ''; cv.classList.add('grey'); fill([...LAYER_GREY, 255]); };  // grey paint, for the erasers
+document.getElementById('paperpic').onclick = () => paper([1, 3, 5].map(i => parseInt(chosen.palette[0].slice(i, i + 2), 16)));
+document.getElementById('clear').onclick = () => paper([255, 255, 255]);
 loadAssets().then(() => {  // the paper is kept when another brush is chosen, so one brush can paint and another smudge or erase it
   colours('mixing', MIXING);
   for (const f of FAMILIES) {  // a button per family; the chosen family's presets below
     const b = document.createElement('button'); b.id = 'f-' + f.name.replace(/\W+/g, '_'); b.textContent = f.name; b.onclick = () => family(f); document.getElementById('families').appendChild(b);
   }
-  family(FAMILIES[0]); premades(); sizePaper(); fill([255, 255, 255, 255]);
+  family(FAMILIES[0]); premades(); sizePaper(); paper([255, 255, 255]);
   window.__kb.ready = true;
 });
 
@@ -196,11 +201,11 @@ const centre = el => { const r = el.getBoundingClientRect(); return [r.left + r.
 window.__kb = {
   ready: false, btn: id => centre(document.getElementById(id)), refShown: () => chosen.id,
   value: k => ({ diameter: brush.tip.gen.diameter, ratio: brush.tip.gen.ratio, hfade: brush.tip.gen.hfade, vfade: brush.tip.gen.vfade, spacing: brush.tip.spacing,
-    autoSpacingCoeff: brush.tip.autoSpacingCoeff, opacity: brush.opacity.value, flow: brush.flow.value, strength, pictureStrength: chosen.strength, randomReach: brush.scatter.on && (brush.scatterX || brush.scatterY) || (g => !!g && g.cells.length > 1 && g.selection === 'random')(assets[brush.tip.file]?.gih) || brush.tip.density < 1 || brush.tip.randomness > 0 })[k],  // scatter, a tip of several pictures picked at random, or a tip of random pixels
+    autoSpacingCoeff: brush.tip.autoSpacingCoeff, opacity: brush.opacity.value, flow: brush.flow.value, strength, paintLoad, pictureStrength: chosen.strength, randomReach: brush.scatter.on && (brush.scatterX || brush.scatterY) || (g => !!g && g.cells.length > 1 && g.selection === 'random')(assets[brush.tip.file]?.gih) || brush.tip.density < 1 || brush.tip.randomness > 0 })[k],  // scatter, a tip of several pictures picked at random, or a tip of random pixels
   box: id => { const r = document.getElementById(id).getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; },
   curve: n => brush[n].raw[0].curve.split(';').filter(Boolean).map(p => p.split(',').map(Number)),
   screenOf: (x, y) => { const r = cv.getBoundingClientRect(); return [r.left + x, r.top + y]; },
   alpha: (x, y) => layer.data[(Math.round(y) * cv.width + Math.round(x)) * 4 + 3] / 255,
-  color: (x, y) => { const i = (Math.round(y) * cv.width + Math.round(x)) * 4; return [layer.data[i], layer.data[i + 1], layer.data[i + 2]]; },
+  color: (x, y) => { const i = (Math.round(y) * cv.width + Math.round(x)) * 4, a = layer.data[i + 3] / 255; return [0, 1, 2].map(k => Math.round(layer.data[i + k] * a + paperColour[k] * (1 - a))); },  // what is seen: the layer on the paper
 };
 </script></body></html>

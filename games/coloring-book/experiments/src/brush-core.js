@@ -638,17 +638,25 @@ const KritaBrush = (() => {
       },
     };
   }
+  const LOAD = { GIVE: 4.6e-4, TAKE: 0.004, SURF: 0.3 };  // per pixel the brush moves: a full load halves in 1500 px; a band of other paint 75 px wide turns its colour about halfway (by eye); the outer 0.3 of a load mixes
   function smudgeOp(s, target, assets, stroke) {  // KisColorSmudgeOp with KisColorSmudgeStrategyMaskLegacy, worked in a precise (float) copy of the layer
     // The precise copy holds each pixel as Mixbox's latent (its pigments, what they miss) and alpha, made the first time the stroke touches the pixel:
     // every blend below is then a straight blend of latents, which is how Mixbox mixes, and a pixel goes back to 8-bit colour once per dab that changes it.
     const sm = s.smudge, brush = brushOf(s, assets), fetch = dabCache(s, brush, assets, stroke, !sm.dulling), W = target.W, H = target.H, D = target.data;
     const LP = stroke.latent ||= new Float32Array(W * H * 7), made = stroke.made ||= new Uint8Array(W * H);  // KisOverlayPaintDeviceWrapper: the layer in a precise colour space
+    const before = stroke.before ||= new Float32Array(W * H * 7);  // the paint that was there when the stroke began: what the brush can take up (not the paint it just laid)
     const RGB = [0, 0, 0], latentOf = (rgb, a, out, o) => { toLatent(rgb, out, o); out[o + 6] = a; };
-    const PL = new Float32Array(7); latentOf(target.color.map(v => v / 255), 1, PL, 0);  // the paint colour
+    // The paint on the brush (owner 27 Nov, in place of Krita's fresh paint at every dab, which covers whatever was mixed; the game's two-way paint transfer,
+    // as ArtRage and Rebelle do it, ../src/index.html MODEL part 2):
+    // 1. The brush holds a load of paint (the bucket level), its colour first the chosen one.
+    // 2. Each dab gives some of the load to the paper (Krita's colour rate is how much of the dab is the brush's paint), less as the load runs low.
+    // 3. Each dab takes some of the paint it smears into the load, mixed as pigment, so the brush's colour turns with what it passed through.
+    const PL = stroke.brushPaint ||= (() => { const l = new Float32Array(7); latentOf(target.color.map(v => v / 255), 1, l, 0); return l; })();  // the load's colour
+    stroke.load ??= stroke.paintLoad;
     let lastCenter = null;
     const at = (X, Y) => {  // the pixel's place in the precise copy, made from the layer when first needed
       const p = Y * W + X;
-      if (!made[p]) { made[p] = 1; const i = p * 4; RGB[0] = D[i] / 255; RGB[1] = D[i + 1] / 255; RGB[2] = D[i + 2] / 255; latentOf(RGB, D[i + 3] / 255, LP, p * 7); }
+      if (!made[p]) { made[p] = 1; const i = p * 4; RGB[0] = D[i] / 255; RGB[1] = D[i + 1] / 255; RGB[2] = D[i + 2] / 255; latentOf(RGB, D[i + 3] / 255, LP, p * 7); before.set(LP.subarray(p * 7, p * 7 + 7), p * 7); }
       return p * 7;
     };
     const read = (X, Y, out, o) => { if (X < 0 || Y < 0 || X >= W || Y >= H) { out.fill(0, o, o + 7); return; } const q = at(X, Y); for (let k = 0; k < 7; k++) out[o + k] = LP[q + k]; };
@@ -672,6 +680,21 @@ const KritaBrush = (() => {
       mixed(); const prev = Float32Array.from(out); let left = n - minSamples;
       while (left > 0) { const batch = Math.min(left, 16); for (let i = 0; i < batch; i++) sample(); mixed(); let diff = 0; for (let k = 0; k < 7; k++) { diff = Math.max(diff, Math.abs(out[k] - prev[k])); prev[k] = out[k]; } if (diff * 255 <= 2) break; left -= batch; }
     }
+    function take(x, y, dab, run) {  // part 3: the load takes the paint that was under the dab before this stroke (masked), as the game's oil and acrylic do (tip.rgb = mix(tip, picture, wt))
+      const sum = new Float64Array(7); let w = 0;
+      for (let j = 0; j < dab.h; j++) for (let i = 0; i < dab.w; i++) {
+        const a = dab.a[j * dab.w + i], X = x + i, Y = y + j; if (!a || X < 0 || Y < 0 || X >= W || Y >= H) continue; const q = at(X, Y), m = a / 255 * before[q + 6]; if (!m) continue;
+        for (let k = 0; k < 6; k++) sum[k] += before[q + k] * m; w += m;
+      }
+      if (!w) return;
+      const got = Math.min(1, w / (dab.w * dab.h)) * (1 - Math.exp(-LOAD.TAKE * run)), share = got / (Math.min(stroke.load, LOAD.SURF) + got);  // only the paint on the outside of the bristles mixes
+      for (let k = 0; k < 6; k++) PL[k] += (sum[k] / w - PL[k]) * share;
+      stroke.load += got;
+    }
+    function give(run) {  // part 2: the share of the dab that is the brush's paint, scaled by how full the brush is; the load goes down by what it gave
+      const full = Math.min(1, stroke.load / LOAD.SURF), gave = stroke.load * (1 - Math.exp(-LOAD.GIVE * run));
+      stroke.load -= gave; return full;
+    }
     let blend = new Float32Array(0);
     return {
       spacing(info) { return spacingOf(s, brush, checked(s.size, info), rotationOf(s.rotation, info), info); },
@@ -688,17 +711,19 @@ const KritaBrush = (() => {
         const radius = sm.radius.on ? sizeLike(sm.radius, info) : 0, spacing = spacingOf(s, brush, scale, rot, info);
         const { x, y, dab } = fetch(d, pos, info, 1), center = [x + dab.w / 2, y + dab.h / 2], n = dab.w * dab.h;
         if (!lastCenter) { lastCenter = center; return spacing; }
-        const src = { x: x + Math.round(lastCenter[0] - center[0]), y: y + Math.round(lastCenter[1] - center[1]) }; lastCenter = center;
+        const src = { x: x + Math.round(lastCenter[0] - center[0]), y: y + Math.round(lastCenter[1] - center[1]) };
+        const run = Math.hypot(center[0] - lastCenter[0], center[1] - lastCenter[1]) + 1e-6; lastCenter = center;  // how far the brush moved since the last dab
         const colorRate = sm.colorRate.on ? sizeLike(sm.colorRate, info) : 0, smudgeRate = sm.rate.on ? sizeLike(sm.rate, info) : 1, maxSmudge = sm.rate.value, opacity = sizeLike(s.opacity, info);
         const crOpacity = Math.min(1, Math.max(0, Math.max(1 - maxSmudge, 0.2) * colorRate * opacity)), finalOpacity = Math.min(1, Math.max(0, smudgeRate * opacity));
         if (blend.length < n * 7) blend = new Float32Array(n * 7);
+        take(x, y, dab, run);
         if (sm.dulling) {
           const dc = new Float32Array(7); dullingColor({ ...src, w: dab.w, h: dab.h }, radius, dc);
-          if (crOpacity > 0) overF(dc, 0, PL, 0, crOpacity);  // fused: the paint colour mixed into the dulling colour first
+          if (crOpacity > 0) overF(dc, 0, PL, 0, crOpacity * give(run));  // fused: the brush's paint mixed into the dulling colour first
           for (let i = 0; i < n; i++) blend.set(dc, i * 7);
         } else {
           for (let j = 0, i = 0; j < dab.h; j++) for (let k = 0; k < dab.w; k++, i++) read(src.x + k, src.y + j, blend, i * 7);
-          if (crOpacity > 0) for (let i = 0; i < n; i++) overF(blend, i * 7, PL, 0, crOpacity);
+          if (crOpacity > 0) { const c = crOpacity * give(run); for (let i = 0; i < n; i++) overF(blend, i * 7, PL, 0, c); }
         }
         for (let j = 0; j < dab.h; j++) for (let i = 0; i < dab.w; i++) {  // the final painter: copy (smear alpha) or over, through the mask, at smudge rate times opacity
           const X = x + i, Y = y + j; if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
@@ -781,18 +806,19 @@ const KritaBrush = (() => {
     }
     return { paintAt, paintLine, startAngle: a => { dist.lastAngle = a; } , begin: pi => { dist.last = pi.pos; } };
   }
-  // A stroke: layer is the paper's ImageData; s the brush; color [r, g, b]; assets the decoded tips and textures; pressure 0..1 for the whole stroke.
+  // A stroke: layer is the paper's ImageData; s the brush; color [r, g, b]; assets the decoded tips and textures; pressure 0..1 for the whole stroke;
+  // paintLoad 0..1 how much paint a wet (smudge) brush holds (the game's bucket level).
   // down(x, y, t, from) starts it (from: where the mouse hovered before, for the first dab's angle), move(x, y, t) for each finger move,
   // tick(t) each frame (the airbrush), shown(view) draws what changed, end() finishes it.
-  function stroke(layer, s, color, assets, pressure = 1) {
+  function stroke(layer, s, color, assets, pressure = 1, paintLoad = 1) {
     const W = layer.width, H = layer.height, L = layer.data, dirty = [W, H, -1, -1];
     const markDirty = (x0, y0, x1, y1) => { dirty[0] = Math.min(dirty[0], x0); dirty[1] = Math.min(dirty[1], y0); dirty[2] = Math.max(dirty[2], x1); dirty[3] = Math.max(dirty[3], y1); };
-    const shared = { random: {}, texOff: [], latent: null, made: null, pressure };
+    const shared = { random: {}, texOff: [], latent: null, made: null, before: null, pressure, paintLoad };
     const wash = s.wash && !s.spray;  // a wash stroke paints on a stroke layer first (indirect painting); spray and smudge paint on the layer
     const strokeLayer = wash ? new Uint8ClampedArray(W * H * 4) : null, maskLayer = wash && s.masking ? new Uint8ClampedArray(W * H * 4) : null;
     const painters = [painterOf(s, { data: wash ? strokeLayer : L, W, H, color, mode: wash ? 'wash' : s.compositeOp, indirect: wash, dirty: markDirty }, assets, shared)];
     if (maskLayer) {  // the masking brush: its own preset, white dabs in wash mode on the mask, sized from the main brush (createMaskingSettings)
-      const ms = s.masking.settings, mshared = { random: {}, texOff: [], latent: null, made: null, pressure };
+      const ms = s.masking.settings, mshared = { random: {}, texOff: [], latent: null, made: null, before: null, pressure, paintLoad };
       if (s.masking.useMasterSize) {
         const main = s.tip.type === 'auto_brush' ? s.tip.gen.diameter : (assets[s.tip.file].gih ? assets[s.tip.file].gih.cells[0].w : (assets[s.tip.file].gbr || assets[s.tip.file].image).w) * s.tip.scale;
         const size = Math.min(1000, s.masking.coeff * main);
