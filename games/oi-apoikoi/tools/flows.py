@@ -739,6 +739,14 @@ def f_sticker_rests(q):  # owner 27 Nov: resting, a sticker stretches a little u
     q.clock.resume(); hs = [x['h'] for x in seen if x]; feet = [x['y'] + x['h'] / 2 for x in seen if x]
     ok = len(hs) == len(seen) and (max(hs) - min(hs)) / max(hs) >= 0.02 and max(feet) - min(feet) < 0.5
     report(ok, 'faces: resting, the sticker stretches, feet still', 'heights %.1f to %.1f, feet moved %.2f px, resting frames %d of %d' % (min(hs or [0]), max(hs or [0]), (max(feet) - min(feet)) if feet else -1, len(hs), len(seen)))
+def f_button_hole_bevel(q):  # owner 27 Nov: a pressed button's top is level with its slab, so its bevel lies below the slab's surface, like a hole's: lit the other way round
+    # (up: its left bevel lit by the sun at the top left, its right one dark; pressed: its left bevel dark, its right one lit)
+    table(q); look = "([x,y])=>{const c=document.getElementById('under'),d=c.width/innerWidth,p=c.getContext('2d').getImageData(Math.round(x*d),Math.round(y*d),1,1).data;return p[0]+p[1]+p[2]}"
+    def sides():
+        b = [d for d in drawn(q, 'button') if d['kind'] == 'gear'][0]; e = b['edge'] - 3 * b['ui']
+        return q.evaluate(look, [b['x'] - e, b['y']]) - q.evaluate(look, [b['x'] + e, b['y']])
+    up = sides(); b = [d for d in drawn(q, 'button') if d['kind'] == 'gear'][0]; q.mouse.move(b['x'], b['y']); q.mouse.down(); settle(q); down = sides(); q.mouse.up(); settle(q)
+    report(up > 30 and down < -30, 'buttons: pressed, the bevel is lit like a hole\'s', 'left bevel minus right bevel (brightness): up %d, pressed %d' % (up, down))
 def f_starts_face(q):  # owner 25 Nov: the start tiles face each other: the PC's is the kid's turned half a turn around the board's centre (each colour on its turned square)
     table(q, bag=[[3, 3]] * 4); D = [[1, 0], [0, 1], [-1, 0], [0, -1]]
     sq = lambda t: {(t[0], t[1]): t[3], (t[0] + D[t[2]][0], t[1] + D[t[2]][1]): t[4]}

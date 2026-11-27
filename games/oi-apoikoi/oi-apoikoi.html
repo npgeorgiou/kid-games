@@ -756,7 +756,7 @@ function blocks() {  // the stones, back to front in each layer: base, top, side
     const sides = pts.map((p, k) => { if (outer[k] || norm[k][0] * v[0] + norm[k][1] * v[1] < 0.05 || (layer === 1 && !wet[k])) return null; const t = layer === 1 ? shiftSides(pts, lift(v)) : top, e0 = t[k], e1 = t[(k + 1) % M];  // a first-layer face shows only toward the pool (elsewhere a stone as high stands in front); its wall runs to the joint's middle, so neighbouring walls meet tight
       const foot = e => [e[0] < 1 || e[0] > W - 1 ? e[0] : e[0] + v[0], e[1] + v[1]];  // a face's end on the screen's edge stays on it (nothing past the edge shows)
       return { strip: [e0, e1, foot(e1), foot(e0)], vx: v[0], vy: v[1], tone: tone(norm[k]) }; }).filter(Boolean);
-    return { n, key: b.key, layer, up: v[1], base, top, sides, round, o, outer, low: lowest(base) };
+    return { n, key: b.key, layer, down: !!b.down, up: v[1], base, top, sides, round, o, outer, low: lowest(base) };
   };
   return [...first.map((b, n) => make(b, n, 1)), ...second.map((b, n) => make(b, first.length + n, 2)), ...squares.map((b, n) => make(b, first.length + second.length + n, 3))].sort((p, q) => p.layer - q.layer || p.low - q.low);
 }
@@ -794,7 +794,7 @@ function drawTop(b) {  // the stone's picture cut to its top, and its bevel: a b
   cx.save(); shapePath(b.top, 0, 0, b.round); cx.clip(); cx.fillStyle = STONE.base; cx.fillRect(box.x, box.y, box.w, box.h); if (pic) cx.drawImage(pic, ...STONE.src, box.x, box.y, box.w, box.h);
   const pts = roundedEdge(b.top, b.round, b.o, 4), r = seeded(11 + b.n), ph = [r() * 6, r() * 6, r() * 6], u = UI();
   const width = k => u * (STONE_BEVEL + 1.8 * Math.sin(k * 0.09 + ph[0]) + 1.2 * Math.sin(k * 0.27 + ph[1]) + 0.6 * Math.sin(k * 0.8 + ph[2]));
-  const bevel = offCanvas(box, () => pts.forEach((p, k) => { const q = pts[(k + 1) % pts.length]; if (b.outer[p[4]] || b.outer[q[4]]) return; const wp = width(k), wq = width(k + 1), l = Math.max(-1, Math.min(1, -(p[2] + p[3]) / Math.SQRT2 * 1.3));
+  const bevel = offCanvas(box, () => pts.forEach((p, k) => { const q = pts[(k + 1) % pts.length]; if (b.outer[p[4]] || b.outer[q[4]]) return; const wp = width(k), wq = width(k + 1), l = (b.down ? -1 : 1) * Math.max(-1, Math.min(1, -(p[2] + p[3]) / Math.SQRT2 * 1.3));  /* owner 27 Nov: a pressed button's bevel lies below the slab, like a hole's: lit the other way round */
     const v = Math.round(128 + (l > 0 ? 110 : 30) * l);  // opaque grey, mid grey changes nothing when laid over
     cx.beginPath(); cx.moveTo(p[0] + p[2], p[1] + p[3]); cx.lineTo(q[0] + q[2], q[1] + q[3]); cx.lineTo(q[0] - q[2] * wq, q[1] - q[3] * wq); cx.lineTo(p[0] - p[2] * wp, p[1] - p[3] * wp); cx.closePath();
     cx.fillStyle = `rgb(${v},${v},${v})`; cx.fill(); cx.strokeStyle = cx.fillStyle; cx.lineWidth = 1; cx.stroke(); }));
@@ -1092,7 +1092,7 @@ function drawDraft() {
   buttonSpots().forEach(({ x, y: by0, half, kind }) => { const down = kind === pressedBtn, [dx, dy] = down ? buttonLift() : [0, 0], u = UI() * 1.4; x += dx; const by = by0 + dy;  /* owner 27 Nov: pressed, its face goes down with its stone */ rrect(x - half, by - half, 2 * half, 2 * half, 8 * u, '#ffffff'); rrect(x - half + 3 * u, by - half + 3 * u, 2 * half - 6 * u, 2 * half - 6 * u, 6 * u, '#e9dfc9'); cx.strokeStyle = '#6b5a44'; cx.lineWidth = 4 * u; cx.lineCap = 'round'; cx.beginPath();  // owner 27 Nov: square buttons
     if (kind === 'gear') { cx.arc(x, by, 9 * u, 0, 7); for (let a = 0; a < 8; a++) { cx.moveTo(x + Math.cos(a * Math.PI / 4) * 11 * u, by + Math.sin(a * Math.PI / 4) * 11 * u); cx.lineTo(x + Math.cos(a * Math.PI / 4) * 15 * u, by + Math.sin(a * Math.PI / 4) * 15 * u); } }
     else { cx.rect(x - 9 * u, by - 12 * u, 13 * u, 24 * u); cx.moveTo(x + 2 * u, by); cx.lineTo(x + 14 * u, by); cx.moveTo(x + 9 * u, by - 5 * u); cx.lineTo(x + 14 * u, by); cx.lineTo(x + 9 * u, by + 5 * u); }
-    cx.stroke(); cx.lineCap = 'butt'; drawn.push({ k: 'button', kind, x, y: by, shadow: !down }); });
+    cx.stroke(); cx.lineCap = 'butt'; drawn.push({ k: 'button', kind, x, y: by, shadow: !down, edge: half + STONE_ROOM / 2 * UI(), ui: UI() }); });
   G.draft.forEach((t, k) => {
     const [x, y] = draftSlot(k);
     if (!t) return;
