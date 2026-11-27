@@ -54,4 +54,4 @@ A playable game against the PC on one shared board in the new look (sea board of
 ## Task list
 
 - Update the flow tests to the design phase so the commit check passes again.
-- Deck: each layer as high as a tile's ground (its substratum, half a tile's thickness) (owner to choose: 28 such layers are about 640 px on 16:9, the stone about 200 px), layer lines kept; it fits its stone (base not past it, top not past the screen) on every screen; widen the top stones a little if needed.
+- Deck: one layer per round (owner 27 Nov: 8; 28 tiles make 7 rounds), each as high as a tile's substratum (its ground, half a tile's thickness), layer lines kept; it fits its stone (base not past it, top not past the screen) on every screen. Blocked: a full-size pile needs about 254 px on 16:9, its stone about 165; owner to choose.
