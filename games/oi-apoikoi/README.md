@@ -10,21 +10,22 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - Each connection (a matching edge, with any land) glows and drops a jar from the top; it also lights the connected land of its colour, yours and the PC's, and each lit square sends one material to your area. 5 of a colour become a jar at once. Materials stay from round to round.
 - Jars stand in lines of up to 5; when the lines would reach below the screen they move up, then overlap a little. Tap them as fast as you like: each breaks and its prize pops up above it, then flies to its place: coins, the first-player star, another jar, one of each material, a random tile (shown in the jar, placed from beside the market) or the slot machine. Slot machine: tap a wheel to keep it (a clamp), pull the lever at the side to pay a coin and spin the others, tap the tray under the wheels to take the prize; only three of a kind wins.
 - Each area is the two triangles beside the board on your side; their thin ends at the screen's middle are grey and empty (for later UI); materials in a row of 5 places per land, from the top, beside the screen edge (a full row flies into a jar), your face beside them; coins in 8 stacks of 10 along the bottom, from the materials to the board's bottom corner, one stack filled at a time; the star is the first-player token. The 6 lands and their materials: wheat field (grain), pomegranate orchard (pomegranates), vineyard (grapes), forest (timber), mountain (rubies), town (little statues). A hand does every PC move: it points to tap, grabs to carry a tile, opens to let go, and is raised when the PC passes.
-- The game ends when no tile left can be placed by either player. Each player's coins fly into his pile over the board; the star marks the taller pile. The green play button starts again.
+- The game ends when no tile left can be placed by either player. Each player's coins fly into his pile over the board; the ruby marks the taller pile; then the winner jumps for joy, with a fanfare and ribbons. The green play button under the piles starts again.
 
 ## Where things are
 
 - `design.md`: the full design (draft): rules, jars, slot machine, points, tensions, sheet rows, everything open.
 - `WARNINGS.md`: traps found in this game.
 - `areas-sketch.png`: the areas sketch (each player's side split into areas, the board's border), to build from.
-- `shots/`: pictures shown to the owner (`coins-80-*.png`: 80 coins in each player's stacks at 16:10, 16:9 and 21:9).
+- `shots/`: pictures shown to the owner (`coins-80-*.png`: 80 coins in each player's stacks at 16:10, 16:9 and 21:9; `jars-aside.png`: jars stepped aside on the materials stone while an extra tile is placed).
 - `SOUNDS.md`: every sound's name and when it plays; the owner's own sound files go in `art/sounds/<name>.mp3` (or wav, ogg) and replace the built-in one.
 - `src/index.html`: the game source; `build.py` makes `oi-apoikoi.html` from it, with the hand, land, material and sea pictures put in.
 - `art/sea/`: the owner's water pack (sea and shore pictures, 6 colours); the game uses `water-c` (chosen in `build.py`), its open-water diamond only; the ripples, foam and glints moving over it are drawn by the game.
 - `art/lands/`: the 6 land pictures, each as its ground (`-ground`, one square's diamond and its two front walls of earth) and the things standing on it (`-things`); made by `tools/make_lands.py` (run it after changing it).
 - `art/materials/`: the 6 material pictures, made for the game.
 - `art/things/stone-slab-1.png`, `stone-slab-2.png`: the owner's two stone slab pictures (free to use, he says), cut from their background (`tools/cut_pictures.py`); every area's stone top is one of them.
-- `art/things/bee.png`: the first-player bee, the owner's picture (cut from its background); `art/things/ruby.png`: the owner's ruby, on the bottom stone of whoever has the most coins, beside his materials.
+- `art/things/apple.png`: the owner's bitten apple (his transparent file, trimmed): a jar or a slot face with nothing.
+- `art/things/bee.png`: the first-player bee, the owner's picture (cut from its background); `art/things/ruby.png`: the owner's ruby (his transparent file, trimmed), on the bottom stone of whoever has the most coins, beside his materials.
 - `art/avatars/<animal>-<face>.png`: the players' stickers, 6 animals x 5 faces (neutral, happy, excited, surprised, sad), cut from the owner's two sheets by `tools/cut_stickers.py`.
 - `art/sounds/watertap.mp3`: the water tap sound, taken from the architects game (`map-tap-water`, at its volume).
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
@@ -46,10 +47,10 @@ A playable game against the PC on one shared board in the new look (sea board of
 
 - The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` section 6.
-- Design phase (25-27 Nov): look, motion and layout changes are on pull request #49 (branch `oi-apoikoi-motion-fixes`, main merged in), pushed with the commit check off for the owner to merge by hand; 26 old flow steps fail because they are not updated yet (Task list).
-- Players are animal stickers (a random pair per game) whose faces follow what happens to them and to the other; the first player has a bee; the coin leader has a ruby on his bottom stone that flies, forms and bursts.
-- Areas built from `areas-sketch.png` (deck/buttons, market, face triangle with the extra tile, dead space, materials, coins with 8 full stacks fitted, dead space); the board with its border keeps its shape and takes the most room on every screen, the areas fit around it.
-- Stone look (owner close to happy, 27 Nov): rules in the project doc `claude/oi-apoikoi-stone-rules.md`; two layers of stones, bases fill the areas, tops rise, sun at the top left, pool walls straight and low, waves along the pool's edge.
+- Design phase (25-27 Nov): the 27 Nov evening changes (ruby, extra tile shine, bee for next round's first player, end party, apple, morning stripe, stickers centred on their stone, jars aside on the materials stone, deck of earth layers, smooth goods) are on branch `oi-apoikoi-owner-27nov`, not committed: the commit check refuses them for 26 old flow steps that already failed on main and a 99 s run (limit 30 s); turning the check off for that commit was refused in this session. Owner to choose: allow a check-off commit and pull request, or update the old steps first.
+- Players are animal stickers (a random pair per game) whose faces follow what happens to them and to the other; the bee shows who plays first next round; the coin leader has a ruby on his bottom stone.
+- Stone look (owner close to happy, 27 Nov): rules in the project doc `claude/oi-apoikoi-stone-rules.md`.
+- Proposed to the owner 27 Nov (not agreed): alternatives to the slot machine and new jar prizes.
 
 ## Task list
 

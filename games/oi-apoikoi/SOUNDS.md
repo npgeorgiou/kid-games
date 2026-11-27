@@ -28,7 +28,9 @@ Every sound the game makes has a name. Each one plays a soft built-in sound for 
 | `clamp` | A clamp goes on or comes off a slot wheel. |
 | `win` | The slot machine's prize is taken. |
 | `pass` | A player has no tile he can place and passes. |
-| `roundend` | A round ends (evening falls). |
+| `roundend` | A round ends. |
+| `victory` | The game's winner is announced (a fanfare). |
+| `popper` | The winner's ribbons burst out (a party popper). |
 | `board` | A tap on the table where nothing is (dust). |
 | `watertap` | A tap on the water (rings and drops); the architects game's water tap sound, in `art/sounds/watertap.mp3`. |
 | `poke` | A tap on a player's sticker (it looks happy for a moment). |

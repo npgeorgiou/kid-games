@@ -45,4 +45,8 @@ def solid(im, tol):  # a picture with no holes (a stone slab): background = only
     keep = ndimage.binary_fill_holes(ndimage.gaussian_filter(ndimage.binary_fill_holes(keep).astype(float), 3) > 0.5)
     out = im.convert('RGBA'); out.putalpha(Image.fromarray((ndimage.gaussian_filter(keep.astype(float), 0.8) * 255).clip(0, 255).astype('uint8'))); return out.crop(out.getbbox())
 slab = solid(Image.open(U + '76cb44b6-image.jpg'), 16); slab.resize((900, round(900 * slab.size[1] / slab.size[0])), Image.LANCZOS).save(OUT + 'things/stone-slab-2.png')
-ruby = cutout(Image.open(U + '19d76a31-image.png'), 10, 10 ** 9, False); ruby = ruby.crop(ruby.getbbox()); ruby.thumbnail((160, 160)); ruby.save(OUT + 'things/ruby.png')  # owner 27 Nov: his ruby, off its white
+def trimmed(im):  # a picture he gave already transparent: stray faint pixels away from it dropped (the apple's file has a faint veil), then trimmed to what is left
+    a = np.array(im.convert('RGBA')); solid = a[..., 3] > 128; lab, n = ndimage.label(solid); body = lab == 1 + np.argmax(ndimage.sum(solid, lab, range(1, n + 1)))
+    a[..., 3] = np.where(ndimage.binary_dilation(ndimage.binary_fill_holes(body), iterations=4), a[..., 3], 0); out = Image.fromarray(a); return out.crop(out.getbbox())
+ruby = trimmed(Image.open(U + 'b14da686-image.png')); ruby.save(OUT + 'things/ruby.png')  # owner 27 Nov: his ruby, given transparent (no shadow of its own)
+apple = trimmed(Image.open(U + '7efb9d06-image.png')); apple.thumbnail((300, 300)); apple.save(OUT + 'things/apple.png')  # owner 27 Nov: his bitten apple, given transparent: a jar or a slot face with nothing

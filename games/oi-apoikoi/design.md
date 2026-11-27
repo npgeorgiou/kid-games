@@ -42,20 +42,20 @@ Two players each build their own land from tiles with two terrain halves, on one
    - 5 materials of one colour become a jar at once; the jar drops while the 5th material flies; each material is used once.
    - The stockpile is a tray in the player's area: one row of 5 places per colour.
 5. **End of round.**
-   - the round's end is its own moment, seen and heard, before anything else in it (leftover market tiles fly back to the pile, then evening falls from the top, a moon and stars over the market, a falling chime; a round starts with morning light sweeping over).
+   - the round's end is its own moment, seen and heard, before anything else in it (leftover market tiles fly back to the pile, then a falling chime; no night; a round starts with a strong, wide morning light sweeping over).
    - materials left in the stockpile carry over to the next round.
 
 ### Jars
 - the child opens jars by tapping big jars lined up on screen. Opening one yourself is the fun.
 - a jar's benefit is immediate. Nothing carries to a "next" round.
 - jars stand in lines of up to 6, each line centred on its jars; a new jar takes the first free place (the others slide to keep the line centred); a broken jar leaves its place empty. No glow. Jars waiting are always drawn; while a tile is being placed they step aside over the market and come back.
-- jars break at once, as fast as he taps; what a jar held pops up above it as a picture (no words; an empty jar is an X), stays a moment, then flies to its place. Only the slot machine and a tile to place wait (for the other prizes to land, then for him).
-- Contents, per 100 jars: 45 one gold coin, 10 empty, 10 two coins, 10 one of each material, 8 another jar, 8 the first-player token, 5 the slot machine, 4 a random tile.
+- jars break at once, as fast as he taps; what a jar held pops up above it as a picture (no words; an empty jar is the bitten apple), stays a moment, then flies to its place. Only the slot machine and a tile to place wait (for the other prizes to land, then for him).
+- Contents, per 100 jars: 45 one gold coin, 10 empty, 10 two coins, 10 one of each material, 8 another jar, 8 the first-player token (a coin for the player who already has the bee, owner 27 Nov), 5 the slot machine, 4 a random tile.
 - the random tile has random colours and always fits his land; it flies to its place beside the market's 4 tiles, marked as his, and shows its colours only there; he drags it from there.
-- nobody starts with the first-player token; a jar sometimes gives it. Without it, the human player goes first (with two humans, one of them).
+- the bee (the first-player token) shows who plays first next round: the human player starts round 1 with it; when the round's first player starts his first turn it flies to the other, so the first player alternates by round; a jar that gives it sends it to its winner (owner 27 Nov).
 
 ### Slot machine (a jar bonus)
-- 3 wheels; every wheel has the same 4 faces in its own order: 2 coins, 2 jars, 2 of each material, and a blank (an X).
+- 3 wheels; every wheel has the same 4 faces in its own order: 2 coins, 2 jars, 2 of each material, and a blank (the bitten apple).
 - only three of a kind wins, and you win what you see (3 faces of 2: 6 coins, 6 jars or 6 of each material); anything else wins nothing. It spins once; then you pay 1 coin to spin the wheels you don't keep, as many times as you want, and stop when you like.
 - Worth in coins used by the PC: 1 coin = 1; a jar = what jars hold in coins on average, counting another jar as worth the same again; one of each material = 6/5 of a jar.
 - the wheels roll fast, then slow down and stop, by their order among the wheels rolling, at 1.8, 2.6 and 3.5 s, with sounds; the tray under the wheels shows the prize only after they stop.
@@ -65,7 +65,7 @@ Two players each build their own land from tiles with two terrain halves, on one
 - points are gold coins drawn one by one, with no numbers. They stand in the 5 material columns, in a tray under the materials, rows of 5 from the top.
 - coins come from jars and from the slot machine, and a slot spin costs 1 coin.
 - the game ends when no tile left can be placed by either player (so also when the tiles run out). Most coins wins.
-- the end is a smaller box over the board; each player's coins fly into his pile (face up, in columns of 10, the same coin size for both); a star stands over the taller pile; a green play button starts again.
+- the end is a smaller box over the board; each player's coins fly into his pile (face up, in columns of 10, the same coin size for both); the ruby (no shadow) stands over the taller pile; under the piles a green play button starts again; once the coins are counted the winner's sticker jumps up and down, excited, with a fanfare and a burst of ribbons.
 - Coins past 80 stack again from the first place.
 - Anything earned per tile or per round must stay a real choice over a whole game (28 tiles: at most 14 each).
 
