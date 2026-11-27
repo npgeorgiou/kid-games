@@ -151,12 +151,12 @@ def f_pile_no_frames(q):  # owner 24 Nov: no outline around the pile's tiles
     report(beside == tray, 'pile: tiles have no outline', 'beside the tile %s, the tray %s' % (beside, tray))
 
 def f_pile_fits(q):  # owner 24 Nov ("rethink all UI"): the pile ran off the top of the screen; owner 25 Nov: the pile holds every tile;
-    # owner 27 Nov changed the layers (was: a layer per tile): a layer per round (of 4 tiles), each as high as a tile's ground (its substratum, half a tile's thickness), layer lines kept; its base on its stone
+    # owner 27 Nov changed the layers (was: a layer per tile): a layer per round (of 4 tiles), each half a tile's height (a tile's ground is its full height: owner 27 Nov), layer lines kept; its base on its stone
     table(q); settle(q); pile = drawn(q, 'pile')[0]; s = st(q); in_pile = s['left'] - sum(1 for t in s['draft'] if t); ground = {round(d['ground'], 1) for d in drawn(q, 'square')}
     stone = max(p[1] for d in drawn(q, 'area') if d['o'] == 0 and d['kind'] == 'deck' for p in d['pts'])
     rounds = -(-in_pile // 4); g = ground.pop() if len(ground) == 1 else -1
-    ok = pile['layers'] == rounds and abs(pile['step'] - g) < 0.5 and pile['lines'] == rounds - 1 and pile['bottom'] <= stone
-    report(ok, 'pile: a layer per round, as high as a tile\'s ground, on its stone', '%d layers for %d tiles, %.1f px each (a tile\'s ground %.1f), %d lines, base at %.0f (stone to %.0f), top at %.0f' % (pile['layers'], in_pile, pile['step'], g, pile.get('lines', -1), pile['bottom'], stone, pile['y']))
+    ok = pile['layers'] == rounds and abs(pile['step'] - g / 2) < 0.5 and pile['lines'] == rounds - 1 and pile['bottom'] <= stone
+    report(ok, 'pile: a layer per round, half a tile high, on its stone', '%d layers for %d tiles, %.1f px each (a tile %.1f high), %d lines, base at %.0f (stone to %.0f), top at %.0f' % (pile['layers'], in_pile, pile['step'], g, pile.get('lines', -1), pile['bottom'], stone, pile['y']))
 def f_deal(q):  # owner 25 Nov (prototype): the 4 market tiles are dealt one by one from the pile
     pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'seed': 1}); counts, ms = [], 0
     while ms < 4000 and not st(q)['wait']:
@@ -756,7 +756,7 @@ def f_button_groove(q):  # owner 27 Nov: a pressed button looked like one stone 
     q.mouse.up(); settle(q)
     report(all(g < s - 60 for g, s in seen.values()), 'buttons: pressed, a groove round it in the slab', 'per side (groove, slab beyond it) %s' % seen)
 def f_sticker_heights(q):  # owner 27 Nov: all stickers the same height, every animal in every face, as big as fits their box with a good empty margin around;
-    # a wider pose stands with its feet on the same line and its head at the same place across as every other
+    # a wider pose stands with its feet on the same line and its head at the same place across as every other; later: as big as possible (the box keeps the stones' room, no more)
     seen = {}
     for w, h in ((1920, 1200), (1920, 1080), (3440, 1440)):
         q.set_viewport_size({'width': w, 'height': h}); per = {0: [set(), set(), set()], 1: [set(), set(), set()]}; room = []
@@ -769,7 +769,7 @@ def f_sticker_heights(q):  # owner 27 Nov: all stickers the same height, every a
                     room.append(min((sh['feet'] - sh['h0'] - bx['y']) / bx['h'], (bx['y'] + bx['h'] - sh['feet']) / bx['h'], (sh['x'] - sh['w'] / 2 - bx['x']) / bx['w'], (bx['x'] + bx['w'] - sh['x'] - sh['w'] / 2) / bx['w']))
         seen[(w, h)] = ({o: [len(x) for x in v] for o, v in per.items()}, sorted(per[0][0] | per[1][0]), round(min(room), 3))
     q.set_viewport_size({'width': 1280, 'height': 800})
-    ok = all(all(n == [1, 1, 1] for n in v[0].values()) and len(v[1]) == 1 and v[2] >= 0.04 for v in seen.values())
+    ok = all(all(n == [1, 1, 1] for n in v[0].values()) and len(v[1]) == 1 and v[2] >= -0.001 for v in seen.values())  # owner 27 Nov: as big as possible: inside the box, whose edges keep the stones' room
     report(ok, 'faces: same height, feet on one line, heads in one place, with a margin', 'per screen (per player: how many heights, feet lines, head places; heights; least margin) %s' % seen)
 def f_starts_face(q):  # owner 25 Nov: the start tiles face each other: the PC's is the kid's turned half a turn around the board's centre (each colour on its turned square)
     table(q, bag=[[3, 3]] * 4); D = [[1, 0], [0, 1], [-1, 0], [0, -1]]

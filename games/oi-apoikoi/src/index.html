@@ -565,9 +565,9 @@ function sideEnds(x, y, d) { const [a, b] = [[[1, 0], [1, 1]], [[0, 1], [1, 1]],
 function edgePoint(x, y, d) { return iso(x + 0.5 + DIRS[d][0] / 2, y + 0.5 + DIRS[d][1] / 2); }  // the middle of a square's side
 const UI_HH = 28.1, UI = () => L().hh / UI_HH;  // things with their own size (faces, the hand, the slot machine, jars) were made for a half-square UI_HH high (a 1920 x 1080 screen): they grow with the board (owner 25 Nov: all screen sizes)
 const TIP_GREY = '#a9a9a9';  // the market's and dead space's grey; material places thick where they end (owner 25 Nov)
-const FACE_BOX = { left: 24, top: 28, gap: 40, bottom: 70 };  // owner 27 Nov (his red box): the sticker's box on his face stone: from the screen edge, below the stone's top, before the extra tile's place and the pool, above the stone's bottom
+const FACE_BOX = { top: 28, bottom: 70 };  // owner 27 Nov (his red box; later: the stickers as big as possible, the room to the edge and the extra tile's place as on every stone): the sticker's box on his face stone: from the screen edge, below the stone's top, before the extra tile's place and the pool, above the stone's bottom
 function faceBox(i) {  // the box his sticker fits in, on his face stone's top
-  const u = UI(), t = topOf('face0'), top = Math.min(...t.map(q => q[1])), bottom = t[3][1], x0 = FACE_BOX.left * u, y0 = top + FACE_BOX.top * u, y1 = bottom - FACE_BOX.bottom * u, x1 = Math.min(giftSpot(0)[0] - 1.5 * L().hw, waterX(y1)) - FACE_BOX.gap * u;  // clear of the extra tile's place and of the pool
+  const u = UI(), t = topOf('face0'), top = Math.min(...t.map(q => q[1])), bottom = t[3][1], x0 = STONE_ROOM * u, y0 = top + FACE_BOX.top * u, y1 = bottom - FACE_BOX.bottom * u, x1 = Math.min(giftSpot(0)[0] - 1.5 * L().hw, waterX(y1)) - STONE_ROOM * u;  // clear of the extra tile's place and of the pool
   return { x: i ? W - x1 : x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 const BEE_R = 24;  // the first-player bee's size (at a 1920 x 1080 screen)
@@ -579,12 +579,12 @@ function beeSpot(i) { const t = topOf('face' + i); return inCorner(t[0], t[1], t
 function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { return stock(i).placeAt(c, k); }  // where good number k of colour c stands in player i's stockpile: place k of column c
 const ROUND_TILES = 4;  // a round's tiles
-// The pile (owner 27 Nov): 1. one layer per round still in it (ROUND_TILES tiles), each as high as a tile's ground (its substratum, half a tile's thickness); 2. a line between the layers;
+// The pile (owner 27 Nov): 1. one layer per round still in it (ROUND_TILES tiles), each half a tile's height (PILE_LAYER_H); 2. a line between the layers;
 // 3. its base on its stone's top, STONE_ROOM above the top's lower edge (a full pile may reach past the screen's top).
-const pileLayers = tiles => Math.ceil(tiles / ROUND_TILES);
+const pileLayers = tiles => Math.ceil(tiles / ROUND_TILES), PILE_LAYER_H = () => wallHigh() / 2;
 const cornerX = () => (deckEdge() - sideIn()) / 2;  // owner 27 Nov: the pile centred on its stone's top; the buttons the same from the right
 function pileBase() { return deckLine() - liftOf(2) - STONE_ROOM * UI() - 1.5 * L().hh; }  // the pile's bottom: where its bottom tile's centre would be
-function pileTop() { return [cornerX(), pileBase() - pileLayers(G.bag.length) * wallHigh()]; }  // the top tile's centre
+function pileTop() { return [cornerX(), pileBase() - pileLayers(G.bag.length) * PILE_LAYER_H()]; }  // the top tile's centre
 function giftSpot(i = 0) {  // owner 26 Nov (areas-sketch.png): the extra tile, in his face triangle under the deck line, as far from the board's border as the market's inner tile, turned as the market's tiles
   const { hw, hh } = L(), [ix, iy] = draftSlot(1), gap = waterX(iy - 0.5 * hh) - (ix + 1.5 * hw), y = deckLine() + deckOver() + 1.5 * hh + STONE_ROOM, x = waterX(y - 0.5 * hh) - gap - 1.5 * hw;
   return [i ? W - x : x, y];
@@ -1111,7 +1111,7 @@ function drawDraft() {
       answer(k);
     });
   });
-  const layers = pileLayers(G.bag.length), step = wallHigh(), [px, top] = pileTop(), bottom = pileBase(), box = { x: px - 1.5 * hw - 2, y: top - 1.5 * hh - 2, w: 3 * hw + 4, h: bottom - top + 3 * hh + 4 };
+  const layers = pileLayers(G.bag.length), step = PILE_LAYER_H(), [px, top] = pileTop(), bottom = pileBase(), box = { x: px - 1.5 * hw - 2, y: top - 1.5 * hh - 2, w: 3 * hw + 4, h: bottom - top + 3 * hh + 4 };
   drawLayer(layer('pile', layers, box, () => {  // owner 26 Nov: one block of tiles: two flat front sides and the top tile, each tile's line drawn on the sides (nothing sticks out); a dark line where each round's tiles begin (owner 25 Nov)
     if (!layers) return [{ k: 'pile', layers, x: px, y: top, step, lines: 0, bottom: bottom + 1.5 * hh }];
     const left = y => [px - 1.5 * hw, y + 0.5 * hh], front = y => [px - 0.5 * hw, y + 1.5 * hh], right = y => [px + 1.5 * hw, y - 0.5 * hh], y0 = bottom;  // the tile's three front corners, turned as the market's first two tiles (owner 27 Nov)
@@ -1188,9 +1188,8 @@ function glowOf(name, col, w, h, g) {
   for (let a = 0; a < 16; a++) q.drawImage(one, core * Math.cos(a * Math.PI / 8), core * Math.sin(a * Math.PI / 8));
   glows.set(k, c); return c;
 }
-const STICKER_MARGIN = 0.08;  // owner 27 Nov: the empty room round the stickers in their box, a share of the box on each side
 // The stickers' places (owner 27 Nov): 1. every sticker the same height, every animal in every face; 2. its feet on one line, its head (the middle of its top part) on one upright line;
-// 3. that height as big as lets every picture fit the box with STICKER_MARGIN round them, the line of heads where it leaves equal room both sides.
+// 3. that height as big as lets every picture fit the box (its edges keep STONE_ROOM from the stone's edge and the extra tile's place), the line of heads where it leaves equal room both sides.
 const heads = new Map();
 function headAt(name) {  // where a sticker picture's head is across it (0 left, 1 right): the middle of its drawn pixels in its top 30%, measured once
   if (heads.has(name)) return heads.get(name);
@@ -1201,8 +1200,8 @@ function headAt(name) {  // where a sticker picture's head is across it (0 left,
 }
 function stickerFit(b, flip) {  // the stickers' one height, and where their heads and feet go in the box b; flip: the pictures are mirrored
   const all = Object.keys(pics).filter(n => n.startsWith('avatars/') && picReady(n)).map(n => { const a = pics[n].width / pics[n].height, f = flip ? 1 - headAt(n) : headAt(n); return [f * a, (1 - f) * a]; });
-  const L = Math.max(...all.map(v => v[0])), R = Math.max(...all.map(v => v[1])), aw = b.w * (1 - 2 * STICKER_MARGIN), ah = b.h * (1 - 2 * STICKER_MARGIN), h = Math.min(ah, aw / (L + R));
-  return { h, ax: b.x + b.w * STICKER_MARGIN + (aw - (L + R) * h) / 2 + L * h, feet: b.y + b.h * (1 - STICKER_MARGIN) - (ah - h) / 2 };
+  const L = Math.max(...all.map(v => v[0])), R = Math.max(...all.map(v => v[1])), aw = b.w, ah = b.h, h = Math.min(ah, aw / (L + R));
+  return { h, ax: b.x + (aw - (L + R) * h) / 2 + L * h, feet: b.y + b.h - (ah - h) / 2 };
 }
 const REST_STRETCH = 0.035, REST_MS = 2400;  // the resting stretch: how much taller at most, and how long one breath takes
 function sticker(i, b, lit) {  // owner 27 Nov: a player is his animal's sticker, its face showing what just happened to him, as big as fits his box; on his turn in a strong, vivid glow of his colour
