@@ -16,11 +16,17 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 
 - `design.md`: the full design (draft): rules, jars, slot machine, points, tensions, sheet rows, everything open.
 - `WARNINGS.md`: traps found in this game.
+- `areas-sketch.png`: the areas sketch (each player's side split into areas, the board's border), to build from.
+- `shots/`: pictures shown to the owner (`coins-80-*.png`: 80 coins in each player's stacks at 16:10, 16:9 and 21:9).
 - `SOUNDS.md`: every sound's name and when it plays; the owner's own sound files go in `art/sounds/<name>.mp3` (or wav, ogg) and replace the built-in one.
 - `src/index.html`: the game source; `build.py` makes `oi-apoikoi.html` from it, with the hand, land, material and sea pictures put in.
 - `art/sea/`: the owner's water pack (sea and shore pictures, 6 colours); the game uses `water-c` (chosen in `build.py`), its open-water diamond only; the ripples, foam and glints moving over it are drawn by the game.
 - `art/lands/`: the 6 land pictures, each as its ground (`-ground`, one square's diamond and its two front walls of earth) and the things standing on it (`-things`); made by `tools/make_lands.py` (run it after changing it).
 - `art/materials/`: the 6 material pictures, made for the game.
+- `art/things/stone-slab-1.png`, `stone-slab-2.png`: the owner's two stone slab pictures (free to use, he says), cut from their background (`tools/cut_pictures.py`); every area's stone top is one of them.
+- `art/things/bee.png`: the first-player bee, the owner's picture (cut from its background); `art/things/ruby.png`: the owner's ruby, on the bottom stone of whoever has the most coins, beside his materials.
+- `art/avatars/<animal>-<face>.png`: the players' stickers, 6 animals x 5 faces (neutral, happy, excited, surprised, sad), cut from the owner's two sheets by `tools/cut_stickers.py`.
+- `art/sounds/watertap.mp3`: the water tap sound, taken from the architects game (`map-tap-water`, at its volume).
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
 - `tools/flows.py`: flow tests, one per owner rule and bug report, a main test playing a whole fixed game, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 18 s on a 2-core machine).
 - `tools/sim.py`: the simulation: plays seeded games through the screen and reports, per player, jars, coins and what the jars held (`python3 tools/sim.py [games] [random|best]`, the kid playing at random or for the most connections). Run it before every rule change and tell the owner the numbers.
@@ -38,17 +44,14 @@ A playable game against the PC on one shared board in the new look (sea board of
 
 ## Open
 
-- The full test run is about 20-23 s of its 30 s limit (`tools/time-limit.txt`) on a 2-core machine; keep flows sampling with skip, not run_for.
-- On the new look's first push GitHub ran no Οι Άποικοι checks, only the other games': find why the game's own checks were skipped.
 - The owner's own sound files, when they come, replace the built-in sounds.
-- The sea pack's terms of use are not checked.
-- See also `design.md` sections 6 and 7.
-- Design phase (25-26 Nov): look, motion and layout changes are on pull request #47 (branch `oi-apoikoi-motion-fixes`), pushed with the commit check off for the owner to merge by hand; 27 flow steps fail, the same as on main, because the flow tests are not updated yet.
-- City: open ground made beige dirt; owner to reconsider, with the 3 suggestions A (terracotta roofs), B (chapel), C (coloured doors, flowers, olive trees) still open.
-- Owner to confirm on his own screen that flying things now move smoothly.
-- Areas: a sketch (drawn over the game, not built) splits each player's side into deck/buttons, market, face + extra tile, a free triangle, materials and coins, with a board border of one width all round; awaiting the owner's yes.
+- See also `design.md` section 6.
+- Design phase (25-27 Nov): look, motion and layout changes are on pull request #49 (branch `oi-apoikoi-motion-fixes`, main merged in), pushed with the commit check off for the owner to merge by hand; 26 old flow steps fail because they are not updated yet (Task list).
+- Players are animal stickers (a random pair per game) whose faces follow what happens to them and to the other; the first player has a bee; the coin leader has a ruby on his bottom stone that flies, forms and bursts.
+- Areas built from `areas-sketch.png` (deck/buttons, market, face triangle with the extra tile, dead space, materials, coins with 8 full stacks fitted, dead space); the board with its border keeps its shape and takes the most room on every screen, the areas fit around it.
+- Stone look (owner close to happy, 27 Nov): rules in the project doc `claude/oi-apoikoi-stone-rules.md`; two layers of stones, bases fill the areas, tops rise, sun at the top left, pool walls straight and low, waves along the pool's edge.
 
 ## Task list
 
 - Update the flow tests to the design phase so the commit check passes again.
-- Once the owner approves the areas sketch: build the areas as plain colours and lines, draw the board border, and move the extra tile to its marked place (below the market's inner tile, in the face area, turned the same way).
+- Deck: built as a layer per round, each a tile's ground high, base on its stone; a full pile runs past the screen's top: owner to check and choose.
