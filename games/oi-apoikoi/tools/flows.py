@@ -733,6 +733,12 @@ def f_stickers_face(q):  # owner 27 Nov: the two animals face each other: his lo
         table(q, animals=[a, b]); settle(q); s = {d['o']: d['looks'] for d in drawn(q, 'avatar') if 'looks' in d}; seen[a + '/' + b] = (s.get(0), s.get(1))
     ok = all(v[0] is not None and v[1] is not None and v[0] >= 0 and v[1] <= 0 for v in seen.values()) and any(v[0] == 1 or v[1] == -1 for v in seen.values())
     report(ok, 'faces: the animals face each other', 'per pair (where his looks, where the PC\'s looks: 1 right, -1 left, 0 ahead) %s' % seen)
+def f_sticker_rests(q):  # owner 27 Nov: resting, a sticker stretches a little up and down, its feet still: only the part above them moves
+    pause_clock(q); table(q, fast=False); seen = []
+    for _ in range(30): skip(q, 100); settle(q); d = [d['shown'] for d in drawn(q, 'avatar') if d['o'] == 1 and d['pic'].endswith('-neutral')]; seen.append(d[0] if d else None)
+    q.clock.resume(); hs = [x['h'] for x in seen if x]; feet = [x['y'] + x['h'] / 2 for x in seen if x]
+    ok = len(hs) == len(seen) and (max(hs) - min(hs)) / max(hs) >= 0.02 and max(feet) - min(feet) < 0.5
+    report(ok, 'faces: resting, the sticker stretches, feet still', 'heights %.1f to %.1f, feet moved %.2f px, resting frames %d of %d' % (min(hs or [0]), max(hs or [0]), (max(feet) - min(feet)) if feet else -1, len(hs), len(seen)))
 def f_starts_face(q):  # owner 25 Nov: the start tiles face each other: the PC's is the kid's turned half a turn around the board's centre (each colour on its turned square)
     table(q, bag=[[3, 3]] * 4); D = [[1, 0], [0, 1], [-1, 0], [0, -1]]
     sq = lambda t: {(t[0], t[1]): t[3], (t[0] + D[t[2]][0], t[1] + D[t[2]][1]): t[4]}
