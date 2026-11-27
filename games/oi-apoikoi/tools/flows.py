@@ -544,6 +544,9 @@ def f_ruby_centred(q):  # owner 27 Nov: the ruby at the centre of the triangle f
         m = [(A[0] + B[0] + C[0]) / 3, (A[1] + B[1] + C[1]) / 3]; seen[o] = (r and (round(r[0]['x']), round(r[0]['y'])), (round(m[0]), round(m[1])))
     ok = all(v[0] and abs(v[0][0] - v[1][0]) <= 2 and abs(v[0][1] - v[1][1]) <= 2 for v in seen.values())
     report(ok, 'ruby: at the centre of its triangle', 'per player (ruby, the triangle\'s centre) %s' % seen)
+def f_ruby_smaller(q):  # owner 27 Nov: the ruby and its animation 10% smaller (it was 44 px across its middle at a 1920 x 1080 screen)
+    q.set_viewport_size({'width': 1920, 'height': 1080}); table(q, coins=[3, 1]); r = drawn(q, 'ruby'); u = drawn(q, 'button')[0]['ui']; q.set_viewport_size({'width': 1280, 'height': 800})
+    report(bool(r) and abs(r[0]['r'] - 0.9 * 44 * u) < 0.5, 'ruby: 10% smaller', 'ruby %s, was %.1f' % (r and round(r[0]['r'], 1), 44 * u))
 def f_extra_glow(q):  # owner 27 Nov: "the extra tile should have something like golden glow and sparkling small stars too, to draw attention to it"
     table(q, bag=[[0, 4]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); market = drawn(q, 'extraglow')
     drag_to(q, {'x': 3, 'y': 10, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')

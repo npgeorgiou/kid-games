@@ -1223,7 +1223,7 @@ function sticker(i, b, lit) {  // owner 27 Nov: a player is his animal's sticker
   if (lit) { const a = 0.88 + 0.12 * Math.sin(2 * Math.PI * performance.now() / GLOW_PULSE_MS); drawn.push({ k: 'glow', o: i, col: GLOW[i], a, g, core: GLOW_CORE * g, ui: UI() }); cx.globalAlpha = a; cx.drawImage(glowOf(name, GLOW[i], Math.round(w), Math.round(h), Math.round(g)), ax - f * w - 2 * g, y - h / 2 - 2 * g, w + 4 * g, h + 4 * g); cx.globalAlpha = 1; }
   fittedAt(name, ax - f * w, y - h / 2, w, h); cx.restore(); return { name, x: ax + (flip ? f - 0.5 : 0.5 - f) * w, y: feet - sy * h / 2, w, h: sy * h, h0: h, head: ax, feet, left: reachL, right: reachR, mirrored: flip };
 }
-const RUBY_R = 44, RUBY_MOVE_MS = 1200, RUBY_IN_MS = 1300, RUBY_OUT_MS = 950, RUBY_BITS = 34;  // the leader's ruby (at a 1920 x 1080 screen, as big as its room allows); its move from player to player; its forming and its bursting
+const RUBY_R = 39.6, RUBY_MOVE_MS = 1200, RUBY_IN_MS = 1300, RUBY_OUT_MS = 950, RUBY_BITS = 34;  // the leader's ruby (owner 27 Nov: 10% smaller; at a 1920 x 1080 screen, as big as its room allows); its move from player to player; its forming and its bursting
 function rubySpot(i) {  // owner 27 Nov: on his bottom stone, at the centre of the triangle formed by the pool's bottom edge, the top of his full coin stacks and his materials' side;
   // as big as RUBY_R allows, clear of the triangle's sides by STONE_ROOM
   const { cx: X, cy: Y, a, c } = boardDiamond(), u = UI(), room = STONE_ROOM * u, { cr, th } = stock(0), yLow = x => Y + c * (1 - (X - x) / a);
