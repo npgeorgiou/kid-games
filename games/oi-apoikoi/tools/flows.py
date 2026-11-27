@@ -534,6 +534,14 @@ def f_ruby_leader(q):  # owner 27 Nov: "divide it in half, and the half of the w
     a, b, c = res[(3, 1)], res[(1, 4)], res[(2, 2)]
     ok = a and a['o'] == 0 and a['x'] + a['r'] <= W / 2 and b and b['o'] == 1 and b['x'] - b['r'] >= W / 2 and c is None
     report(bool(ok), 'ruby: on the half of the player with the most coins, none when level', 'kid ahead %s, PC ahead %s, level %s' % (a and (a['o'], round(a['x'])), b and (b['o'], round(b['x'])), c))
+def f_ruby_centred(q):  # owner 27 Nov: the ruby at the centre of the triangle formed by the pool's bottom edge, the top of his coin stacks and his materials' side, the same on both sides
+    seen = {}
+    for o, coins in ((0, [3, 1]), (1, [1, 3])):
+        table(q, coins=coins); r = [d for d in drawn(q, 'ruby') if d['o'] == o]; pts = [p for d in drawn(q, 'area') if d['o'] == o and d['kind'] == 'coins' for p in d['pts']]
+        A = min(pts, key=lambda p: p[1]); C = max((p for p in pts if p[1] < max(y for _, y in pts) - 1), key=lambda p: p[1]); B = [A[0], C[1]]
+        m = [(A[0] + B[0] + C[0]) / 3, (A[1] + B[1] + C[1]) / 3]; seen[o] = (r and (round(r[0]['x']), round(r[0]['y'])), (round(m[0]), round(m[1])))
+    ok = all(v[0] and abs(v[0][0] - v[1][0]) <= 2 and abs(v[0][1] - v[1][1]) <= 2 for v in seen.values())
+    report(ok, 'ruby: at the centre of its triangle', 'per player (ruby, the triangle\'s centre) %s' % seen)
 def f_extra_glow(q):  # owner 27 Nov: "the extra tile should have something like golden glow and sparkling small stars too, to draw attention to it"
     table(q, bag=[[0, 4]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); market = drawn(q, 'extraglow')
     drag_to(q, {'x': 3, 'y': 10, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')

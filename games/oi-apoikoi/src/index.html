@@ -1190,12 +1190,12 @@ function sticker(i, b, lit) {  // owner 27 Nov: a player is his animal's sticker
   fittedAt(name, x - w / 2, y - h / 2, w, h); return { name, x, y, w, h };
 }
 const RUBY_R = 44, RUBY_MOVE_MS = 1200, RUBY_IN_MS = 1300, RUBY_OUT_MS = 950, RUBY_BITS = 34;  // the leader's ruby (at a 1920 x 1080 screen, as big as its room allows); its move from player to player; its forming and its bursting
-function rubySpot(i) {  // owner 27 Nov: on his bottom stone, in the free corner between his materials' stone, the pool and the top of his full coin stacks: the middle of the biggest circle there (the triangle's incircle)
+function rubySpot(i) {  // owner 27 Nov: on his bottom stone, at the centre of the triangle formed by the pool's bottom edge, the top of his full coin stacks and his materials' side;
+  // as big as RUBY_R allows, clear of the triangle's sides by STONE_ROOM
   const { cx: X, cy: Y, a, c } = boardDiamond(), u = UI(), room = STONE_ROOM * u, { cr, th } = stock(0), yLow = x => Y + c * (1 - (X - x) / a);
   const x0 = goodsBox().right, yc = H - LOW - 0.6 * cr - COIN_STACK * th - room, A = [x0, yLow(x0)], B = [x0, yc], C = [X - a * (1 - (yc - Y) / c), yc];
-  const la = Math.hypot(B[0] - C[0], B[1] - C[1]), lb = Math.hypot(A[0] - C[0], A[1] - C[1]), lc = Math.hypot(A[0] - B[0], A[1] - B[1]), p = la + lb + lc;
-  const x = (la * A[0] + lb * B[0] + lc * C[0]) / p, y = (la * A[1] + lb * B[1] + lc * C[1]) / p, inr = Math.abs((B[0] - A[0]) * (C[1] - A[1]) - (C[0] - A[0]) * (B[1] - A[1])) / p;
-  return [i ? W - x : x, y, Math.max(12 * u, Math.min(RUBY_R * u, inr - room))];
+  const x = (A[0] + B[0] + C[0]) / 3, y = (A[1] + B[1] + C[1]) / 3, hyp = Math.hypot(C[0] - A[0], C[1] - A[1]), toPool = Math.abs((C[0] - A[0]) * (A[1] - y) - (A[0] - x) * (C[1] - A[1])) / hyp;
+  return [i ? W - x : x, y, Math.max(12 * u, Math.min(RUBY_R * u, x - x0 - room, yc - y - room, toPool - room))];
 }
 function rubyCheck() {  // the one owner of where the ruby is, asked once a whole prize is in: it goes to whoever has the most coins, or bursts when they are level
   const [a, b] = G.players.map(p => p.coins), lead = a > b ? 0 : b > a ? 1 : null, R = G.ruby; if (R.to === lead) return;
