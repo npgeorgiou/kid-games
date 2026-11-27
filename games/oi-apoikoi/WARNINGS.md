@@ -24,3 +24,4 @@
 - Never put a `//` comment in the middle of a line that has code after it: an edit that added one swallowed `cx.restore()`, and the coins' clip then hid the pile and the market.
 - Push every sketch or picture shown to the owner into this folder at once: a sketch only shown in a chat is lost with the chat.
 - On narrow screens (4:3) the board's top corner lies under the deck line: every area shape must hold for both cases, or the pool opens.
+- What is drawn on a cached plane (the water) records itself in the records its draw returns, never with drawn.push: pushed records vanish on the frames between (a splash looked missing to the tests).

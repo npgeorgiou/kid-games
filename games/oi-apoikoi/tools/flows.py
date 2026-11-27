@@ -118,8 +118,8 @@ def f_tile_bounces(q):  # owner 24 Nov ("rethink all UI": pieces do not feel phy
     ok = flat[0] > 1.04 and min(flat) < 0.99 and not after
     report(ok, 'a landing tile bounces', 'size every 70 ms %s, then %s' % ([round(v, 3) for v in flat], after or 'still'))
 
-def f_board_tap(q):  # owner 24 Nov ("rethink all UI": the board does not answer a tap): a tap on the board puffs dust where it lands, with a soft knock, and changes nothing
-    table(q, bag=[[0, 4]] * 4); before = st(q); p = q.evaluate("()=>__dg.square(10,1)")
+def f_board_tap(q):  # owner 24 Nov ("rethink all UI": the board does not answer a tap): a tap on the board's land puffs dust where it lands, with a soft knock, and changes nothing
+    table(q, bag=[[0, 4]] * 4); before = st(q); t = before['tiles'][0]; p = q.evaluate("([x,y])=>__dg.square(x,y)", t[:2])  # owner 27 Nov: a tap on the water splashes (f_water_tap); on land it still puffs dust
     q.mouse.click(p[0], p[1]); settle(q); after = st(q)
     dust = [x for x in drawn(q, 'speck') if abs(x['x'] - p[0]) < 30 and abs(x['y'] - p[1]) < 30]; h = q.evaluate("()=>__dg.sounds()")
     ok = len(dust) >= 6 and 'board' in h and after['wait'] == before['wait'] and after['tiles'] == before['tiles']
@@ -509,7 +509,7 @@ def side_gap(pts, x, y):  # the shortest distance from (x, y) to the shape's sid
 def f_stickers(q):  # owner 27 Nov: "avatars for the 2 players ... like stickers ... the expressions should start from normal and react to the various game events; the active player should have a red/green glow"
     table(q, bag=[[0, 4]] * 4, jarQueue=[{'k': 'empty'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); av = {x['o']: x for x in drawn(q, 'avatar')}
     animals = [av[i]['pic'].split('/')[1].rsplit('-', 1)[0] for i in (0, 1)]
-    start = all(av[i]['pic'].startswith('avatars/') and av[i]['pic'].endswith('-neutral') for i in (0, 1)) and animals[0] != animals[1] and av[0]['lit'] and not av[1]['lit'] and av[0]['r'] > av[1]['r']
+    start = all(av[i]['pic'].startswith('avatars/') and av[i]['pic'].endswith('-neutral') for i in (0, 1)) and animals[0] != animals[1] and av[0]['lit'] and not av[1]['lit'] and av[0]['shown']['w'] * av[0]['shown']['h'] > av[1]['shown']['w'] * av[1]['shown']['h']
     drag_to(q, {'x': 3, 'y': 10, 'r': 2}); waiting(q, 'jar'); joined = [x['pic'] for x in drawn(q, 'avatar') if x['o'] == 0][0]
     tap(q, 'jar-0'); skip(q, 100); empty = [x['pic'] for x in drawn(q, 'avatar') if x['o'] == 0][0]
     get_jar(q, [{'k': 'set'}]); skip(q, 200); shown = [x['pic'] for x in drawn(q, 'avatar') if x['o'] == 0][0]
@@ -536,6 +536,41 @@ def f_extra_glow(q):  # owner 27 Nov: "the extra tile should have something like
         skip(q, 300)
     g, h = drawn(q, 'extraglow'), held(q)
     report(not market and bool(g) and abs(g[0]['x'] - h[0]) < 2 and abs(g[0]['y'] - h[1]) < 2, 'extra tile: a golden glow and stars, a market tile none', 'market tile glow %s, extra tile glow %s at %s' % (bool(market), bool(g), h))
+
+def f_sticker_box(q):  # owner 27 Nov: "make the avatars bigger and contain them in this box" (his red box on the face stone, beside the extra tile's place)
+    table(q); tap(q, 'draft-0'); waiting(q, 'place'); ok, seen = True, []
+    for i in (0, 1):
+        a0 = [x for x in drawn(q, 'avatar') if x['o'] == i][0]; a, s = a0['box'], a0['shown']; face = [x for x in drawn(q, 'area') if x['o'] == i and x['kind'] == 'face'][0]['pts']
+        corners = [(s['x'] + dx * s['w'] / 2, s['y'] + dy * s['h'] / 2) for dx in (-1, 1) for dy in (-1, 1)]
+        within = all(a['x'] - 0.5 <= x <= a['x'] + a['w'] + 0.5 and a['y'] - 0.5 <= y <= a['y'] + a['h'] + 0.5 for x, y in corners) and all(inside_poly(face, x, y) for x, y in corners)
+        big = max(s['w'] / a['w'], s['h'] / a['h']) > 0.99 if a0['lit'] else max(s['w'] / a['w'], s['h'] / a['h']) > 0.7
+        ok = ok and within and big; seen.append((i, round(s['w']), round(s['h']), within, big))
+    report(ok, 'stickers: as big as their box, inside it, on the face stone', seen)
+def f_sticker_poke(q):  # owner 27 Nov: "make clicking the avatar make it take the happy stance for a fraction of a second"
+    table(q, fast=False); tap(q, 'avatar-0'); now = [x['pic'] for x in drawn(q, 'avatar') if x['o'] == 0][0]; heard = q.evaluate("()=>__dg.sounds()")
+    skip(q, 1000); later = [x['pic'] for x in drawn(q, 'avatar') if x['o'] == 0][0]; q.clock.resume()
+    report(now.endswith('-happy') and later.endswith('-neutral') and 'poke' in heard, 'sticker: a tap makes it happy for a moment, with a sound', 'tapped %s, a second later %s, sound %s' % (now, later, 'poke' in heard))
+def f_water_tap(q):  # owner 27 Nov: "make the click on the water make the splash sound and the splash animation, the architects game has them"
+    table(q, fast=False); c = q.evaluate("()=>__dg.square(8, 8)"); q.mouse.click(c[0], c[1]); skip(q, 200)
+    rings, drops, heard = [x for x in drawn(q, 'splashring') if x.get('round')], drawn(q, 'drops'), q.evaluate("()=>__dg.sounds()"); q.clock.resume()
+    report(bool(rings) and 'splash' in heard, 'water: a tap splashes, rings and drops, with the splash sound', 'rings %d, splash sound %s' % (len(rings), 'splash' in heard))
+def f_ruby_moves(q):  # owner 27 Nov: "when it's equal coins dissolve it in many particles, dissolve it, and the opposite when it appears again or for the first time; add proper sound hooks"
+    table(q, coins=[1, 0]); a, h = drawn(q, 'ruby'), q.evaluate("()=>__dg.sounds()"); table(q, coins=[0, 2]); b = drawn(q, 'ruby')
+    report(bool(a) and a[0]['o'] == 0 and bool(b) and b[0]['o'] == 1, 'ruby: on the leader\'s half', 'kid ahead %s, PC ahead %s' % (a and a[0]['o'], b and b[0]['o']))
+    get_jar(q, [{'k': 'slot'}], coins=1, slots=[0, 1, 2]); waiting(q, 'slot'); tap(q, 'lever'); gone, h = drawn(q, 'ruby'), q.evaluate("()=>__dg.sounds()")
+    report(not gone and 'rubyout' in h, 'ruby: dissolves when the coins are level, with its sound', 'ruby %s, sound %s' % (gone, 'rubyout' in h))
+    table(q, fast=False, coins=[1, 1], bag=[[0, 4]] * 4, jarQueue=[COIN] * 9); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2})
+    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 15000); tap(q, 'jar-0')
+    states = []
+    for _ in range(80):
+        skip(q, 50); r = drawn(q, 'ruby'); states.append(r[0] if r else None)
+        if r and r[0].get('whole'): break
+    formed = any(x and x.get('fading') == 'in' and not x['whole'] for x in states) and bool(states[-1]) and states[-1]['whole']; h = q.evaluate("()=>__dg.sounds()"); q.clock.resume()
+    report(formed and 'rubyin' in h, 'ruby: forms from its bits, with its sound, when a player takes the lead', '%d steps of 50 ms, formed %s, sound %s' % (len(states), formed, 'rubyin' in h))
+def f_pile_turn(q):  # owner 27 Nov: "rotate deck the other way so it is like the first 2 drawn slots"
+    table(q); tap(q, 'draft-0'); waiting(q, 'place'); pile = drawn(q, 'pile')[0]; tiles = drawn(q, 'tile')
+    at = lambda k: q.evaluate("(k)=>__dg.slot(k)", k); turns = [[t['r'] for t in tiles if t.get('x') is not None and abs(t['x'] - at(k)[0]) < 2 and abs(t['y'] - at(k)[1]) < 2] for k in (1,)]
+    report(bool(turns[0]) and all(r == pile['turn'] for r in turns[0]), 'pile: turned as the market\'s first two tiles', 'pile %s, second market tile %s' % (pile['turn'], turns))
 
 def f_free_tile(q):  # owner 25 Nov (prototype): a jar's free tile is a random tile, no wild tile; its colours are not shown until it lies beside the market; it always fits; it is his ("marked as yours", 24 Nov)
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8)
@@ -615,6 +650,7 @@ def f_player_areas(q):  # owner 25 Nov (design 3, the new look): each player's a
     report(ok, 'areas: grey empty tips, material rows, coin rows', '%s, pile %s' % (out, pile))
 def f_no_sets(q):  # owner 25 Nov (prototype): no wild tiles, no sets to tap: one of each colour lights nothing; only the market's tiles can be tapped
     table(q, bag=[[0, 4]] * 4, goods=[[2] * 6, [0] * 6]); b = q.evaluate("()=>__dg.buttons()"); marks = drawn(q, 'setrow') + drawn(q, 'setsign')
+    b = [x for x in b if not x.startswith('avatar-')]  # owner 27 Nov: the stickers answer a tap
     report(sorted(b) == ['draft-%d' % k for k in range(4)] and not marks, 'no sets, no wild tile', 'buttons %s, set marks %d' % (b, len(marks)))
 def f_another_jar(q):  # another jar, which you open yourself
     get_jar(q, [{'k': 'jar'}, {'k': 'coins2'}]); waiting(q, 'jar'); c0 = st(q)['players'][0]['coins']
@@ -638,11 +674,12 @@ def f_scales(q):  # owner 25 Nov: "make sure your ui is adoptable to all laptop 
         a, c = q.evaluate("()=>[__dg.square(0,0), __dg.square(1,0)]"); hh = c[1] - a[1]
         face = [x for x in drawn(q, 'avatar') if x['o'] == 0][0]; m = drawn(q, 'machine')[0]; hand = drawn(q, 'hand')[0]; lever = q.evaluate("()=>__dg.btn('lever')")
         inside = m['x'] >= 0 and m['y'] >= 0 and m['x'] + m['w'] <= w and m['y'] + m['h'] <= h and m['x'] <= lever[0] <= m['x'] + m['w'] * 1.3 and m['y'] <= lever[1] <= m['y'] + m['h']
-        seen.append((round(face['r'] / hh, 3), round(m['w'] / hh, 2), round(hand['z'] / hh, 2), inside)); small_hh = small_hh if seen[1:] else hh
+        fills = round(max(face['shown']['w'] / face['box']['w'], face['shown']['h'] / face['box']['h']), 2)  # owner 27 Nov: the sticker is as big as its box on the face stone, whatever the screen
+        seen.append((fills, round(m['w'] / hh, 2), round(hand['z'] / hh, 2), inside)); small_hh = small_hh if seen[1:] else hh
     q.set_viewport_size({'width': 1280, 'height': 800})
-    same = all(abs(x[k] - seen[1][k]) <= 0.02 * seen[1][k] for x in seen[1:] for k in range(3)) and all(abs(seen[0][k] - seen[1][k]) <= 0.02 * seen[1][k] for k in (0, 2))
+    same = all(abs(x[k] - seen[1][k]) <= 0.02 * seen[1][k] for x in seen[1:] for k in (1, 2)) and abs(seen[0][2] - seen[1][2]) <= 0.02 * seen[1][2] and all(x[0] >= 0.99 for x in seen)
     small = seen[0][1] * small_hh >= 540 - 1  # on a small screen the machine keeps its made size (its buttons stay big enough to touch), as long as it fits
-    report(same and small and all(x[3] for x in seen), 'scales: sizes grow with the screen, on screen', 'per size (face, machine width, hand, in half-square heights; on screen) %s' % seen)
+    report(same and small and all(x[3] for x in seen), 'scales: sizes grow with the screen, on screen', 'per size (the sticker filling its box, machine width and hand in half-square heights, on screen) %s' % seen)
 def f_thick_land(q):  # owner 25 Nov: land squares are blocks with some thickness: walls of earth under the top's front edges, the sea below them
     table(q, bag=[[0, 4]] * 4); a, c = q.evaluate("()=>[__dg.square(0,0), __dg.square(1,0)]"); hh = c[1] - a[1]
     x, y = q.evaluate("()=>__dg.square(5,10)"); px = lambda dy: q.evaluate("([x,y])=>__dg.pixel(x,y)", [x, y + hh + dy * hh])[:3]  # under the start tile's front corner

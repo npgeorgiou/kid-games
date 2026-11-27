@@ -45,3 +45,4 @@ def solid(im, tol):  # a picture with no holes (a stone slab): background = only
     keep = ndimage.binary_fill_holes(ndimage.gaussian_filter(ndimage.binary_fill_holes(keep).astype(float), 3) > 0.5)
     out = im.convert('RGBA'); out.putalpha(Image.fromarray((ndimage.gaussian_filter(keep.astype(float), 0.8) * 255).clip(0, 255).astype('uint8'))); return out.crop(out.getbbox())
 slab = solid(Image.open(U + '76cb44b6-image.jpg'), 16); slab.resize((900, round(900 * slab.size[1] / slab.size[0])), Image.LANCZOS).save(OUT + 'things/stone-slab-2.png')
+ruby = cutout(Image.open(U + '19d76a31-image.png'), 10, 10 ** 9, False); ruby = ruby.crop(ruby.getbbox()); ruby.thumbnail((160, 160)); ruby.save(OUT + 'things/ruby.png')  # owner 27 Nov: his ruby, off its white
