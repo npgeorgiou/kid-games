@@ -11,7 +11,7 @@ Every sound the game makes has a name. Each one plays a soft built-in sound for 
 | `rotate` | A tile in hand is turned (a tap on it). |
 | `back` | A tile in hand is put back on an empty market place. |
 | `snap` | A tile snaps into its place on the board. |
-| `splash` | The same moment: the tile drops onto the water (rings spread on the sea); also a tap on the water. |
+| `splash` | The same moment: the tile drops onto the water (rings spread on the sea) |
 | `edge` | A matching edge glows and its land lights up. |
 | `good` | A material flies from a lit square to the player's area. |
 | `shine` | A column of 5 materials is full and flashes. |
@@ -30,9 +30,10 @@ Every sound the game makes has a name. Each one plays a soft built-in sound for 
 | `pass` | A player has no tile he can place and passes. |
 | `roundend` | A round ends (evening falls). |
 | `board` | A tap on the table where nothing is (dust). |
+| `watertap` | A tap on the water (rings and drops); the architects game's water tap sound, in `art/sounds/watertap.mp3`. |
 | `poke` | A tap on a player's sticker (it looks happy for a moment). |
-| `rubyin` | The ruby forms on the half of the player who takes the lead in coins. |
-| `rubyout` | The ruby dissolves: the coins are level. |
-| `rubymove` | The ruby moves from one half to the other. |
+| `rubyin` | The ruby forms on the side of the player who takes the lead in coins. |
+| `rubyout` | The ruby bursts into bits: the coins are level. |
+| `rubymove` | The ruby flies from one player's side to the other's. |
 
 Missing a moment? Add a line: the name you want and when it should play.

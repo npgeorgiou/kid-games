@@ -321,9 +321,9 @@ def f_turn_shown(q):  # owner 24 Nov: "make it obvious who plays; now there is n
     mine = lit(); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-0')
     run_until(q, "()=>__dg.state().turn===1"); pcs = lit(); w = st(q)['wait']; h = q.evaluate("()=>__dg.sounds()")
     faces = {x['o']: x for x in drawn(q, 'avatar')}; light = [x for x in drawn(q, 'flight') if x['look'] == 'turnlight']; market = drawn(q, 'market')
-    bigger = faces[1]['r'] > faces[0]['r'] and market and market[0]['o'] == 1; q.clock.resume()
+    bigger = faces[1]['lit'] and not faces[0]['lit'] and market and market[0]['o'] == 1; q.clock.resume()  # owner 27 Nov: the stickers never change size; his turn is his sticker's glow
     ok = mine == {0: True, 1: False} and pcs == {0: False, 1: True} and 'turn' in h and not light and bigger
-    report(ok, 'turn: lit, no sign flying, his face bigger, the market his colour', 'kid playing %s; PC playing %s (wait %s); turn sound %s; a sign flying face to face %s; PC face bigger and market his %s' % (mine, pcs, w, 'turn' in h, bool(light), bool(bigger)))
+    report(ok, 'turn: lit, no sign flying, his sticker glows, the market his colour', 'kid playing %s; PC playing %s (wait %s); turn sound %s; a sign flying face to face %s; PC sticker glows and market his %s' % (mine, pcs, w, 'turn' in h, bool(light), bool(bigger)))
 
 def f_end_screen(q):  # owner 25 Nov (prototype): the end: a smaller box over the board; each player's coins fly into his pile, both piles the same coin size, rows of 10;
     # a star over the taller pile; a green play button that works
@@ -506,15 +506,17 @@ def inside_poly(pts, x, y):
 def side_gap(pts, x, y):  # the shortest distance from (x, y) to the shape's sides
     def d(a, b): vx, vy = b[0] - a[0], b[1] - a[1]; t = max(0, min(1, ((x - a[0]) * vx + (y - a[1]) * vy) / ((vx * vx + vy * vy) or 1))); return math.hypot(a[0] + t * vx - x, a[1] + t * vy - y)
     return min(d(pts[k], pts[(k + 1) % len(pts)]) for k in range(len(pts)))
-def f_stickers(q):  # owner 27 Nov: "avatars for the 2 players ... like stickers ... the expressions should start from normal and react to the various game events; the active player should have a red/green glow"
-    table(q, bag=[[0, 4]] * 4, jarQueue=[{'k': 'empty'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); av = {x['o']: x for x in drawn(q, 'avatar')}
+def f_stickers(q):  # owner 27 Nov: "avatars for the 2 players ... like stickers ... the expressions should start from normal and react to the various game events; the active player should have a red/green glow"; "the avatars should react to the opponent's events too"
+    pic = lambda o: [x['pic'] for x in drawn(q, 'avatar') if x['o'] == o][0]
+    table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[{'k': 'empty'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); av = {x['o']: x for x in drawn(q, 'avatar')}
     animals = [av[i]['pic'].split('/')[1].rsplit('-', 1)[0] for i in (0, 1)]
-    start = all(av[i]['pic'].startswith('avatars/') and av[i]['pic'].endswith('-neutral') for i in (0, 1)) and animals[0] != animals[1] and av[0]['lit'] and not av[1]['lit'] and av[0]['shown']['w'] * av[0]['shown']['h'] > av[1]['shown']['w'] * av[1]['shown']['h']
-    drag_to(q, {'x': 3, 'y': 10, 'r': 2}); waiting(q, 'jar'); joined = [x['pic'] for x in drawn(q, 'avatar') if x['o'] == 0][0]
-    tap(q, 'jar-0'); skip(q, 100); empty = [x['pic'] for x in drawn(q, 'avatar') if x['o'] == 0][0]
-    get_jar(q, [{'k': 'set'}]); skip(q, 200); shown = [x['pic'] for x in drawn(q, 'avatar') if x['o'] == 0][0]
-    report(start and joined.endswith('-happy') and empty.endswith('-sad') and shown.endswith('-surprised'), 'stickers: two animals, neutral first, his turn glows, faces follow what happens',
-           'animals %s, start %s, after a connection %s, an empty jar %s, a jar of materials %s' % (animals, start, joined, empty, shown))
+    start = all(av[i]['pic'].startswith('avatars/') and av[i]['pic'].endswith('-neutral') for i in (0, 1)) and animals[0] != animals[1] and av[0]['lit'] and not av[1]['lit']
+    drag_to(q, {'x': 3, 'y': 10, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 15000); joined = pic(0)
+    tap(q, 'jar-0'); run_until(q, "()=>__dg.drawn().some(d=>d.k==='avatar'&&d.o===0&&d.pic.endsWith('-sad'))", 4000); empty, other = pic(0), pic(1); q.clock.resume()
+    table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[{'k': 'set'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2})
+    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 15000); tap(q, 'jar-0'); run_until(q, "()=>__dg.sounds().includes('reveal')", 4000); settle(q); shown = pic(0); q.clock.resume()
+    report(start and joined.endswith('-happy') and empty.endswith('-sad') and other.endswith('-happy') and shown.endswith('-happy'), 'stickers: two animals, neutral first, his turn glows, faces follow what happens, the other reacts too',
+           'animals %s, start %s, after a connection %s, an empty jar %s (the other %s), a jar of materials %s' % (animals, start, joined, empty, other, shown))
 def f_bee_corner(q):  # owner 27 Nov: "replace the star (who goes first next round) with a bee icon, that you will put in this corner" (his face stone's corner by the pool)
     get_jar(q, [{'k': 'first'}]); t = drawn(q, 'token'); face = [a for a in drawn(q, 'area') if a['o'] == 0 and a['kind'] == 'face'][0]['pts']
     b = t[0] if t else None; corner = face[1]
@@ -543,7 +545,7 @@ def f_sticker_box(q):  # owner 27 Nov: "make the avatars bigger and contain them
         a0 = [x for x in drawn(q, 'avatar') if x['o'] == i][0]; a, s = a0['box'], a0['shown']; face = [x for x in drawn(q, 'area') if x['o'] == i and x['kind'] == 'face'][0]['pts']
         corners = [(s['x'] + dx * s['w'] / 2, s['y'] + dy * s['h'] / 2) for dx in (-1, 1) for dy in (-1, 1)]
         within = all(a['x'] - 0.5 <= x <= a['x'] + a['w'] + 0.5 and a['y'] - 0.5 <= y <= a['y'] + a['h'] + 0.5 for x, y in corners) and all(inside_poly(face, x, y) for x, y in corners)
-        big = max(s['w'] / a['w'], s['h'] / a['h']) > 0.99 if a0['lit'] else max(s['w'] / a['w'], s['h'] / a['h']) > 0.7
+        big = max(s['w'] / a['w'], s['h'] / a['h']) > 0.99  # owner 27 Nov: always the biggest size, his turn or not
         ok = ok and within and big; seen.append((i, round(s['w']), round(s['h']), within, big))
     report(ok, 'stickers: as big as their box, inside it, on the face stone', seen)
 def f_sticker_poke(q):  # owner 27 Nov: "make clicking the avatar make it take the happy stance for a fraction of a second"
@@ -553,11 +555,14 @@ def f_sticker_poke(q):  # owner 27 Nov: "make clicking the avatar make it take t
 def f_water_tap(q):  # owner 27 Nov: "make the click on the water make the splash sound and the splash animation, the architects game has them"
     table(q, fast=False); c = q.evaluate("()=>__dg.square(8, 8)"); q.mouse.click(c[0], c[1]); skip(q, 200)
     rings, drops, heard = [x for x in drawn(q, 'splashring') if x.get('round')], drawn(q, 'drops'), q.evaluate("()=>__dg.sounds()"); q.clock.resume()
-    report(bool(rings) and 'splash' in heard, 'water: a tap splashes, rings and drops, with the splash sound', 'rings %d, splash sound %s' % (len(rings), 'splash' in heard))
+    report(bool(rings) and 'watertap' in heard, 'water: a tap splashes, rings and drops, with the architects game\'s water sound', 'rings %d, sound %s' % (len(rings), 'watertap' in heard))
 def f_ruby_moves(q):  # owner 27 Nov: "when it's equal coins dissolve it in many particles, dissolve it, and the opposite when it appears again or for the first time; add proper sound hooks"
     table(q, coins=[1, 0]); a, h = drawn(q, 'ruby'), q.evaluate("()=>__dg.sounds()"); table(q, coins=[0, 2]); b = drawn(q, 'ruby')
     report(bool(a) and a[0]['o'] == 0 and bool(b) and b[0]['o'] == 1, 'ruby: on the leader\'s half', 'kid ahead %s, PC ahead %s' % (a and a[0]['o'], b and b[0]['o']))
-    get_jar(q, [{'k': 'slot'}], coins=1, slots=[0, 1, 2]); waiting(q, 'slot'); tap(q, 'lever'); gone, h = drawn(q, 'ruby'), q.evaluate("()=>__dg.sounds()")
+    table(q, fast=False, coins=[1, 0], bag=[[0, 4]] * 4, jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 1, 2], slotFaces=FACES); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2})
+    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 15000); tap(q, 'jar-0'); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='slot'}", 8000); tap(q, 'lever')
+    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='slot'}", 8000); tap(q, 'tray'); run_until(q, "()=>__dg.sounds().includes('rubyout')", 8000); skip(q, 2000)
+    gone, h = drawn(q, 'ruby'), q.evaluate("()=>__dg.sounds()"); q.clock.resume()
     report(not gone and 'rubyout' in h, 'ruby: dissolves when the coins are level, with its sound', 'ruby %s, sound %s' % (gone, 'rubyout' in h))
     table(q, fast=False, coins=[1, 1], bag=[[0, 4]] * 4, jarQueue=[COIN] * 9); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2})
     run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 15000); tap(q, 'jar-0')
@@ -567,6 +572,17 @@ def f_ruby_moves(q):  # owner 27 Nov: "when it's equal coins dissolve it in many
         if r and r[0].get('whole'): break
     formed = any(x and x.get('fading') == 'in' and not x['whole'] for x in states) and bool(states[-1]) and states[-1]['whole']; h = q.evaluate("()=>__dg.sounds()"); q.clock.resume()
     report(formed and 'rubyin' in h, 'ruby: forms from its bits, with its sound, when a player takes the lead', '%d steps of 50 ms, formed %s, sound %s' % (len(states), formed, 'rubyin' in h))
+def f_ruby_flies(q):  # owner 27 Nov: "the ruby changed places by moving ... slow, faster, slow"; "move the ruby in this area" (his bottom stone beside his materials, under the pool)
+    table(q, fast=False, coins=[1, 2], bag=[[0, 4]] * 4, jarQueue=[{'k': 'coins2'}] + [COIN] * 8); start = drawn(q, 'ruby')
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 15000); tap(q, 'jar-0')
+    run_until(q, "()=>__dg.drawn().some(d=>d.k==='ruby'&&d.moving)", 8000); xs = []
+    for _ in range(60):
+        r = drawn(q, 'ruby')[0]; xs.append(r['x'])
+        if not r.get('moving'): break
+        skip(q, 40)
+    q.clock.resume(); steps = [abs(b - a) for a, b in zip(xs, xs[1:])]; n = len(steps); W = q.evaluate("()=>innerWidth")
+    eased = n >= 6 and max(steps[n // 3: 2 * n // 3]) > 2 * max(steps[0], steps[-1])
+    report(bool(start) and start[0]['o'] == 1 and start[0]['x'] > W / 2 and xs[-1] < W / 2 and eased, 'ruby: flies from player to player, slow, fast, slow', 'from %s to %s in %d steps, first %.0f, middle %.0f, last %.0f px' % (start and round(start[0]['x']), round(xs[-1]), n, steps[0] if steps else 0, max(steps[n // 3: 2 * n // 3]) if n >= 3 else 0, steps[-1] if steps else 0))
 def f_pile_turn(q):  # owner 27 Nov: "rotate deck the other way so it is like the first 2 drawn slots"
     table(q); tap(q, 'draft-0'); waiting(q, 'place'); pile = drawn(q, 'pile')[0]; tiles = drawn(q, 'tile')
     at = lambda k: q.evaluate("(k)=>__dg.slot(k)", k); turns = [[t['r'] for t in tiles if t.get('x') is not None and abs(t['x'] - at(k)[0]) < 2 and abs(t['y'] - at(k)[1]) < 2] for k in (1,)]

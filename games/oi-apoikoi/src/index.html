@@ -28,6 +28,7 @@ const LANDS = ['wheat', 'plains', 'vineyard', 'forest', 'mountain', 'town'], MAT
 const COLOUR_IDS = LANDS.map((c, k) => k), noGoods = () => LANDS.map(() => 0);
 const HALVES = [10, 10, 9, 9, 9, 9];  // the 56 halves of the 28 tiles, per colour (owner 25 Nov)
 const BORDER = ['#22a33a', '#d42a2a'], TINT = ['#eef8e6', '#fbebe8'];  // the kid's land green, the PC's red; their areas' light tints
+const GLOW = ['#1cff3a', '#ff1f2e'];  // owner 27 Nov: the turn's glow, the players' green and red made vivid
 const ANIMALS = ['hamster', 'bunny', 'chick', 'cat', 'dog', 'frog'], MOOD_MS = 2200, POKE_MS = 450;  // owner 27 Nov: a tap on his sticker makes it happy for a moment  // owner 27 Nov: each player a sticker of an animal (a random pair each game); a face shows MOOD_MS after what made it, then neutral again
 const JAR_MIX = { empty: 10, coins: 45, coins2: 10, tile: 4, slot: 5, first: 8, jar: 8, set: 10 };  // what jars hold, per 100 jars (owner 25 Nov)
 const JAR_GOODS = 5;  // this many goods of one colour make a jar at once (owner 24 Nov)
@@ -56,7 +57,7 @@ const SOUNDS = {  // kind and its notes (Hz)
   good: ['knock', [640]], board: ['knock', [180]], pick: ['knock', [520]], deal: ['knock', [520]], snap: ['knock', [300, 220]], stop: ['knock', [360]], clamp: ['knock', [250]], pass: ['chime', [392, 294]],
   jar: ['break', []], coin: ['clink', [1320, 1760]], made: ['chime', [392, 494, 587]], win: ['chime', [523, 659, 784, 1047]],
   dawn: ['chime', [392, 523, 659]], splash: ['splash', []], rotate: ['knock', [420]], jarland: ['knock', [200]], back: ['knock', [340]], shine: ['chime', [880, 1175]], reveal: ['chime', [659, 880]], token: ['chime', [523, 784]], into: ['knock', [460]], edge: ['chime', [784]], turn: ['chime', [587, 784]], roundend: ['chime', [784, 659, 523, 392]], spin: ['whoosh', []], roll: ['knock', [700]],
-  poke: ['chime', [988, 1319]], rubymove: ['whoosh', []], rubyout: ['chime', [1175, 880, 659]], rubyin: ['chime', [659, 880, 1175]],
+  poke: ['chime', [988, 1319]], watertap: ['splash', []], rubymove: ['whoosh', []], rubyout: ['chime', [1175, 880, 659]], rubyin: ['chime', [659, 880, 1175]],
 };
 let audio = null, heard = [];  // heard: every sound played in this game, in order (the flows read it)
 function noise(len) { const b = audio.createBuffer(1, audio.sampleRate * len, audio.sampleRate), d = b.getChannelData(0); for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1; const n = audio.createBufferSource(); n.buffer = b; return n; }
@@ -340,7 +341,9 @@ async function play() {
   if (G !== my) return; G.over = true;
 }
 function pickAnimals() { const a = ANIMALS[Math.floor(rnd2() * ANIMALS.length)], rest = ANIMALS.filter(x => x !== a); return [a, rest[Math.floor(rnd2() * rest.length)]]; }  // looks only: never the game's own random source
-function feel(i, face, ms = MOOD_MS) { G.moods[i] = { face, t0: performance.now(), ms }; }  // what just happened to player i shows on his sticker
+const OTHER_FEELS = { excited: 'surprised', sad: 'happy' };  // owner 27 Nov: the other player reacts too: shocked when this one is thrilled, happy when he is sad
+const JAR_FEELS = { coins: 'happy', coins2: 'excited', first: 'happy', jar: 'happy', set: 'happy', tile: 'happy', slot: 'excited', empty: 'sad' };  // what a jar's prize makes him feel when he sees it (surprised is a shock: something bad)
+function feel(i, face, ms = MOOD_MS) { const t0 = performance.now(); G.moods[i] = { face, t0, ms }; if (OTHER_FEELS[face] && ms === MOOD_MS) G.moods[1 - i] = { face: OTHER_FEELS[face], t0, ms }; }  // what just happened to player i shows on his sticker, and on the other's
 function moodOf(i) {  // his sticker's face: at the end, won (excited), lost (sad) or level (happy); else the last thing that happened to him, for MOOD_MS; else neutral
   if (G.over) return G.winner === i ? 'excited' : G.winner < 0 ? 'happy' : 'sad';
   const m = G.moods[i]; return m && performance.now() - m.t0 < m.ms ? m.face : 'neutral';
@@ -413,8 +416,8 @@ async function openJars(i) {  // tap jars as fast as he likes (owner 25 Nov): ea
     const show = { who: i, j, at: [at[0], at[1] - JAR_SIZE() * 1.2] }, needsHim = j.k === 'slot' || j.k === 'tile';
     const run = (async () => {
       await fly({ k: 'shown', j, o: i }, at, show.at, RISE_MS, { arc: JAR_SIZE() * 0.6, z0: 0.3 }); if (G !== my) return;  // it jumps out of the jar (owner 25 Nov)
-      G.shown.push(show); sound('reveal'); feel(i, j.k === 'empty' || (j.k === 'tile' && !j.cs) ? 'sad' : 'surprised'); await pause(SHOW_MS); G.shown = G.shown.filter(x => x !== show); if (G !== my) return;  // a jar with nothing in it makes him sad
-      if (needsHim) await Promise.all([...open].filter(x => x !== run)); await bonus(i, j, show.at, jar.slot);
+      G.shown.push(show); sound('reveal'); feel(i, j.k === 'tile' && !j.cs ? 'sad' : JAR_FEELS[j.k] || 'happy'); await pause(SHOW_MS); G.shown = G.shown.filter(x => x !== show); if (G !== my) return;  // a jar with nothing in it makes him sad
+      if (needsHim) await Promise.all([...open].filter(x => x !== run)); await bonus(i, j, show.at, jar.slot); rubyCheck();  // the ruby goes where the coins say once the whole prize is in
     })();
     open.add(run); run.then(() => open.delete(run));
     if (needsHim) await run;
@@ -425,9 +428,9 @@ async function bonus(i, j, from, jarPlace) {  // jarPlace: the broken jar's plac
   const p = G.players[i], my = G;
   if (j.k === 'coins' || j.k === 'coins2') {  // each coin leaves from where the jar showed it, one after the other; owner 26 Nov: the second stays in sight until its turn
     const S = SHOWN, list = j.k === 'coins' ? [[from, 0.24]] : [[[from[0] - 0.13 * S, from[1] + 0.08 * S], 0.24], [[from[0] + 0.13 * S, from[1] - 0.08 * S], 0.24]];  // as content() draws them
-    await Promise.all(list.map(([at, k], c) => fly({ k: 'coin', r: k * S }, at, coinSpot(i, p.coins + c), COIN_FLY, { delay: c * COIN_FLY, z1: stock(i).cr / (k * S) }).then(() => { if (G !== my) return; p.coins++; rubyCheck(); sound('coin'); feel(i, 'happy'); })));
+    await Promise.all(list.map(([at, k], c) => fly({ k: 'coin', r: k * S }, at, coinSpot(i, p.coins + c), COIN_FLY, { delay: c * COIN_FLY, z1: stock(i).cr / (k * S) }).then(() => { if (G !== my) return; p.coins++; sound('coin'); })));
   }
-  else if (j.k === 'first') { await fly({ k: 'bee' }, from, beeSpot(i), REWARD_MS, { arc: 100 }); if (G !== my) return; G.first = i; sound('token'); feel(i, 'happy'); }
+  else if (j.k === 'first') { await fly({ k: 'bee' }, from, beeSpot(i), REWARD_MS, { arc: 100 }); if (G !== my) return; G.first = i; sound('token'); }
   else if (j.k === 'jar') await dropJar(i, from, jarPlace);
   else if (j.k === 'set') await gain(i, COLOUR_IDS.map(c => [c, from, 'good']), STAGGER);
   else if (j.k === 'tile') { const t = j.cs; if (t) { G.fromNowhere++; await fly({ k: 'tile', cs: t, r: i ? 0 : 1 }, from, giftSpot(i), REWARD_MS); if (G !== my) return; await place(i, t, giftSpot(i), undefined, i ? 0 : 1); } }  // the free tile flies blank to its place beside the market, marked as his, and shows its colours there (owner 25 Nov)
@@ -493,13 +496,13 @@ async function slot(i) {
       await pcTap('lever');
     });
     if (a === 'collect') break;
-    p.coins--; rubyCheck(); await roll([0, 1, 2].filter(k => !G.slot.kept[k]));  // the lever spins the wheels not kept; a clamp stays until tapped off
+    p.coins--; await roll([0, 1, 2].filter(k => !G.slot.kept[k]));  // the lever spins the wheels not kept; a clamp stays until tapped off
   }
   const f = shownFaces(G.slot), won = wins(f) ? Array(3 * FACE_COUNT).fill(f[0]) : [], goods = [], at = [W / 2, H / 2];  // three of a kind: what the 3 faces show; anything else: nothing
   G.slot = null; if (won.length) sound('win'); feel(i, won.length ? 'excited' : 'sad');  // three of a kind: excited; anything else: sad
   await Promise.all(won.filter(x => x === 'jar').map((x, k) => pause(k * STAGGER).then(() => G === my && dropJar(i, at))));  // jars won fly from the machine to their places
   for (const x of won) if (x === 'set') goods.push(...COLOUR_IDS.map(c => [c, at, 'good']));
-  await Promise.all(won.filter(x => x === 'coin').map((x, k) => pause(k * STAGGER).then(async () => { if (G !== my) return; await fly({ k: 'coin', r: stock(i).cr }, at, coinSpot(i, p.coins + k), COIN_FLY); if (G === my) { p.coins++; rubyCheck(); sound('coin'); } })));  // owner 25 Nov: coins won fly to their places
+  await Promise.all(won.filter(x => x === 'coin').map((x, k) => pause(k * STAGGER).then(async () => { if (G !== my) return; await fly({ k: 'coin', r: stock(i).cr }, at, coinSpot(i, p.coins + k), COIN_FLY); if (G === my) { p.coins++; sound('coin'); } })));  // owner 25 Nov: coins won fly to their places
   await gain(i, goods, STAGGER);  // the goods won fly from the machine to the stockpile
 }
 
@@ -1171,34 +1174,49 @@ function glowOf(name, col, w, h, g) {
   const o = one.getContext('2d'); o.drawImage(pics[name], 2 * g * d, 2 * g * d, w * d, h * d); o.globalCompositeOperation = 'source-in'; o.fillStyle = col; o.fillRect(0, 0, one.width, one.height);
   const q = c.getContext('2d'); q.filter = `blur(${g * d / 2}px)`; for (let n = 0; n < 4; n++) q.drawImage(one, 0, 0); glows.set(k, c); return c;  // drawn over itself: a strong glow
 }
-function sticker(i, b, lit) {  // owner 27 Nov: a player is his animal's sticker, its face showing what just happened to him, as big as fits his box; on his turn the whole box, in a strong glow of his colour
+function sticker(i, b, lit) {  // owner 27 Nov: a player is his animal's sticker, its face showing what just happened to him, as big as fits his box; on his turn in a strong, vivid glow of his colour
   const name = 'avatars/' + G.animals[i] + '-' + moodOf(i), src = pics[name]; if (!src) return { name };
-  const z = lit ? 1 : 0.82, k = z * Math.min(b.w / src.width, b.h / src.height), w = src.width * k, h = src.height * k, x = b.x + b.w / 2, y = b.y + b.h / 2, g = 16 * UI();
-  if (lit) { cx.globalAlpha = 0.8 + 0.2 * Math.sin(performance.now() / 250); cx.drawImage(glowOf(name, BORDER[i], Math.round(w), Math.round(h), Math.round(g)), x - w / 2 - 2 * g, y - h / 2 - 2 * g, w + 4 * g, h + 4 * g); cx.globalAlpha = 1; }
+  const k = Math.min(b.w / src.width, b.h / src.height), w = src.width * k, h = src.height * k, x = b.x + b.w / 2, y = b.y + b.h / 2, g = 22 * UI();  // owner 27 Nov: always as big as fits, lit or not
+  if (lit) { cx.globalAlpha = 0.8 + 0.2 * Math.sin(performance.now() / 250); cx.drawImage(glowOf(name, GLOW[i], Math.round(w), Math.round(h), Math.round(g)), x - w / 2 - 2 * g, y - h / 2 - 2 * g, w + 4 * g, h + 4 * g); cx.globalAlpha = 1; }
   fittedAt(name, x - w / 2, y - h / 2, w, h); return { name, x, y, w, h };
 }
-const RUBY_R = 26, RUBY_MOVE_MS = 900, RUBY_FADE_MS = 800, RUBY_BITS = 26;  // the leader's ruby (at a 1920 x 1080 screen); its move from half to half, and its dissolving or forming
-function rubySpot(i) {  // owner 27 Nov: the middle of his half of the stone under the pool (narrow screens: no stone there, the bottom stones meet: in the corner under the pool)
-  const r = RUBY_R * UI() + STONE_ROOM, t = topOf('plug'); let x, y;
-  if (t[1][0] - t[0][0] > 2 * r) { const half = [t[0], t[1], [t[1][0], H], [t[0][0], H]], n = half.length; let a = 0, cxs = 0, cys = 0;  // the visible half's centre (the standard polygon centroid)
-    half.forEach((p, k) => { const q = half[(k + 1) % n], c = p[0] * q[1] - q[0] * p[1]; a += c; cxs += (p[0] + q[0]) * c; cys += (p[1] + q[1]) * c; }); [x, y] = [cxs / (3 * a), cys / (3 * a)]; }
-  else { const [A, P] = topOf('bottom0').slice(1, 3); [x, y] = inCorner(A, P, [P[0], H], r); }
-  return [i ? W - x : x, y];
+const RUBY_R = 44, RUBY_MOVE_MS = 1200, RUBY_IN_MS = 1300, RUBY_OUT_MS = 950, RUBY_BITS = 34;  // the leader's ruby (at a 1920 x 1080 screen, as big as its room allows); its move from player to player; its forming and its bursting
+function rubySpot(i) {  // owner 27 Nov: on his bottom stone, in the free corner between his materials' stone, the pool and the top of his full coin stacks: the middle of the biggest circle there (the triangle's incircle)
+  const { cx: X, cy: Y, a, c } = boardDiamond(), u = UI(), room = STONE_ROOM * u, { cr, th } = stock(0), yLow = x => Y + c * (1 - (X - x) / a);
+  const x0 = goodsBox().right, yc = H - LOW - 0.6 * cr - COIN_STACK * th - room, A = [x0, yLow(x0)], B = [x0, yc], C = [X - a * (1 - (yc - Y) / c), yc];
+  const la = Math.hypot(B[0] - C[0], B[1] - C[1]), lb = Math.hypot(A[0] - C[0], A[1] - C[1]), lc = Math.hypot(A[0] - B[0], A[1] - B[1]), p = la + lb + lc;
+  const x = (la * A[0] + lb * B[0] + lc * C[0]) / p, y = (la * A[1] + lb * B[1] + lc * C[1]) / p, inr = Math.abs((B[0] - A[0]) * (C[1] - A[1]) - (C[0] - A[0]) * (B[1] - A[1])) / p;
+  return [i ? W - x : x, y, Math.max(12 * u, Math.min(RUBY_R * u, inr - room))];
 }
-function rubyCheck() {  // the one owner of where the ruby is: whenever coins change, it goes to whoever has the most, or dissolves when they are level
+function rubyCheck() {  // the one owner of where the ruby is, asked once a whole prize is in: it goes to whoever has the most coins, or bursts when they are level
   const [a, b] = G.players.map(p => p.coins), lead = a > b ? 0 : b > a ? 1 : null, R = G.ruby; if (R.to === lead) return;
   G.ruby = { from: R.to, to: lead, t0: performance.now() }; sound(R.to == null ? 'rubyin' : lead == null ? 'rubyout' : 'rubymove');
+  if (lead != null) feel(lead, 'excited'); else feel(R.to, 'sad');  // the one who takes it is thrilled (the other shocked); the one who loses it to a draw is sad (the other glad)
 }
-function drawRuby() {  // owner 27 Nov: it moves slow, fast, slow from half to half; it dissolves into many bits, and forms again from them
-  const R = G.ruby, u = UI(), rr = RUBY_R * u, now = performance.now(), ms = R.from != null && R.to != null ? RUBY_MOVE_MS : RUBY_FADE_MS, e = fast ? 1 : Math.min(1, (now - R.t0) / ms);
+const easeOutBack = v => 1 + 2.70158 * Math.pow(v - 1, 3) + 1.70158 * Math.pow(v - 1, 2);  // the standard overshoot: a pop that settles
+function rubyBit(x, y, s, k, a = 1) { cx.globalAlpha = Math.max(0, Math.min(1, a)); cx.beginPath(); cx.moveTo(x, y - s); cx.lineTo(x + s * 0.7, y); cx.lineTo(x, y + s); cx.lineTo(x - s * 0.7, y); cx.closePath(); cx.fillStyle = ['#e0193f', '#ff6b8a', '#ffd1dc', '#b3122f'][k % 4]; cx.fill(); }
+function twinkle(x, y, s, a) { cx.globalAlpha = Math.max(0, Math.min(1, a)); cx.beginPath(); for (let q = 0; q < 8; q++) { const t = q * Math.PI / 4, rr = q % 2 ? s * 0.25 : s; cx.lineTo(x + rr * Math.cos(t), y + rr * Math.sin(t)); } cx.closePath(); cx.fillStyle = '#fff6c8'; cx.fill(); }
+function drawRuby() {  // owner 27 Nov: it flies from player to player slow, fast, slow; it forms from sparkling bits that swirl in and pops into being; it bursts into bits when the coins are level
+  const R = G.ruby, now = performance.now(), moving = R.from != null && R.to != null && R.from !== R.to, ms = moving ? RUBY_MOVE_MS : R.to == null ? RUBY_OUT_MS : RUBY_IN_MS, e = fast || R.from === R.to ? 1 : Math.min(1, (now - R.t0) / ms), u = UI();
+  const one = (x, y, r, z, a = 1) => { cx.globalAlpha = a; picture('things/ruby', x - r * z, y - r * z, 2 * r * z, 2 * r * z); cx.globalAlpha = 1; };
   if (R.to == null && (R.from == null || e >= 1)) return;
-  const one = (x, y, z, a) => { cx.globalAlpha = a; picture('things/ruby', x - rr * z, y - rr * z, 2 * rr * z, 2 * rr * z); cx.globalAlpha = 1; };
-  if (R.from != null && R.to != null) { const [x0, y0] = rubySpot(R.from), [x1, y1] = rubySpot(R.to), k = easeInOut(e), [x, y] = [x0 + (x1 - x0) * k, y0 + (y1 - y0) * k - Math.sin(Math.PI * k) * 40 * u]; one(x, y, 1, 1); drawn.push({ k: 'ruby', o: R.to, x, y, r: rr, moving: e < 1 }); return; }
-  const out = R.to == null, at = rubySpot(out ? R.from : R.to), v = out ? e : 1 - e;  // v: how far gone, 0 whole, 1 all bits
-  if (v < 1) one(at[0], at[1], 1 - 0.4 * v, 1 - v);
-  for (let k = 0; v > 0 && k < RUBY_BITS; k++) { const a = k * 2.399, d = rr * (0.3 + 2.4 * v * (0.6 + 0.4 * ((k * 7) % 5) / 4)), s = rr * (0.16 + 0.1 * ((k * 3) % 4) / 3) * (1 - 0.6 * v);  // each bit its own way out (the golden angle) and its own size
-    const x = at[0] + Math.cos(a) * d, y = at[1] + Math.sin(a) * d * 0.8 - 30 * u * v; cx.globalAlpha = Math.max(0, 1 - v); cx.beginPath(); cx.moveTo(x, y - s); cx.lineTo(x + s * 0.7, y); cx.lineTo(x, y + s); cx.lineTo(x - s * 0.7, y); cx.closePath(); cx.fillStyle = k % 3 ? '#d81f3c' : '#ff8aa0'; cx.fill(); }
-  cx.globalAlpha = 1; drawn.push({ k: 'ruby', o: out ? R.from : R.to, x: at[0], y: at[1], r: rr, fading: out ? 'out' : 'in', whole: v === 0 });
+  if (moving) { const [x0, y0, r0] = rubySpot(R.from), [x1, y1, r1] = rubySpot(R.to), k = easeInOut(e), lift = Math.sin(Math.PI * k) * 140 * u, x = x0 + (x1 - x0) * k, y = y0 + (y1 - y0) * k - lift, r = r0 + (r1 - r0) * k;
+    for (let n = 1; n <= 5 && e < 1; n++) { const k2 = easeInOut(Math.max(0, e - n * 0.03)); twinkle(x0 + (x1 - x0) * k2, y0 + (y1 - y0) * k2 - Math.sin(Math.PI * k2) * 140 * u, r * 0.3 * (1 - n / 6), 0.8 - n * 0.14); }  // a trail of twinkles
+    cx.globalAlpha = 1; one(x, y, r, 1 + 0.15 * Math.sin(Math.PI * k)); drawn.push({ k: 'ruby', o: R.to, x, y, r, moving: e < 1, whole: e >= 1 }); return; }
+  const out = R.to == null, [x, y, r] = rubySpot(out ? R.from : R.to);
+  if (!out) {  // forming: bits swirl in from a wide ring, then a flash and the ruby pops out of it
+    const pin = Math.min(1, e / 0.6), pop = Math.max(0, (e - 0.6) / 0.4);
+    for (let k = 0; pin < 1 && k < RUBY_BITS; k++) { const d = r * (3 + 2 * ((k * 7) % 5) / 4) * (1 - pin * pin), t = k * 2.399 + (1 - pin) * 2.5; rubyBit(x + Math.cos(t) * d, y + Math.sin(t) * d, r * (0.14 + 0.1 * (k % 3)), k, 0.4 + pin); }
+    if (pop >= 1) one(x, y, r, 1);
+    else if (pop > 0) { const g = cx.createRadialGradient(x, y, 0, x, y, r * (1.3 + 1.6 * pop)); g.addColorStop(0, `rgba(255,250,220,${0.95 * (1 - pop)})`); g.addColorStop(1, 'rgba(255,200,220,0)'); cx.fillStyle = g; cx.beginPath(); cx.arc(x, y, r * (1.3 + 1.6 * pop), 0, 7); cx.fill();
+      one(x, y, r, easeOutBack(pop)); for (let k = 0; k < 8; k++) { const t = k * Math.PI / 4 + 0.3, d = r * (1.1 + 1.2 * pop); twinkle(x + Math.cos(t) * d, y + Math.sin(t) * d, r * 0.28 * (1 - pop) + 2, 1 - pop); } }
+    cx.globalAlpha = 1; drawn.push({ k: 'ruby', o: R.to, x, y, r, fading: 'in', whole: e >= 1, bits: pin < 1 }); return;
+  }
+  const shake = Math.min(1, e / 0.25), burst = Math.max(0, (e - 0.25) / 0.75);  // bursting: it wobbles, then pops into bits that fly out and fall
+  if (burst === 0) one(x + Math.sin(now / 25) * 4 * u * shake, y, r, 1 + 0.1 * shake);
+  else { one(x, y, r, 1 + 0.4 * burst, 1 - burst * 2);
+    for (let k = 0; k < RUBY_BITS; k++) { const t = k * 2.399, v = r * (1.5 + 2.5 * ((k * 7) % 5) / 4), bx = x + Math.cos(t) * v * burst, by = y + Math.sin(t) * v * burst * 0.8 + 260 * u * burst * burst; rubyBit(bx, by, r * (0.14 + 0.1 * (k % 3)), k, 1 - burst); } }
+  cx.globalAlpha = 1; drawn.push({ k: 'ruby', o: R.from, x, y, r, fading: 'out', whole: false });
 }
 
 function drawPanel(i) {
@@ -1411,7 +1429,7 @@ function frame() { render(); requestAnimationFrame(frame); }
 function tapBoard(x, y) {  // the board answers any other tap: water splashes with rings and drops (owner 27 Nov: as in the architects game), land throws up dust with a soft knock
   const { hw, hh, T, bx } = L(), a = (x - bx) / hw, b = (y - T) / hh, sq = G.cells.get(key(Math.floor((a + b) / 2), Math.floor((b - a) / 2)));  // the square under the finger (iso, the other way round)
   if (sq) { puff([x, y]); sound('board'); return; }
-  G.splashes.push({ at: [x, y - waterDrop()], round: true, t0: performance.now() }); sound('splash'); drops([x, y]);
+  G.splashes.push({ at: [x, y - waterDrop()], round: true, t0: performance.now() }); sound('watertap'); drops([x, y]);  // owner 27 Nov: the architects game's water tap sound (art/sounds/watertap.mp3)
 }
 function drops(at) { const t0 = performance.now(); for (let k = 0; k < 12; k++) { const a = rnd2() * Math.PI * 2, v = 40 + rnd2() * 70; specks.push({ x: at[0], y: at[1], vx: Math.cos(a) * v, vy: -110 - rnd2() * 120, col: 'rgba(235,248,255,0.95)', size: (2 + rnd2() * 2.5) * UI() * 1.4, t0, ms: 700 }); } drawn.push({ k: 'drops' }); }
 const human = () => (wait && G.players[wait.who].human) || G.over;  // after the game his play button works
