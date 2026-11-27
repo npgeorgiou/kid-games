@@ -503,6 +503,16 @@ def f_slot_faces(q):  # owner 25 Nov (prototype): each wheel has the same 4 face
 def f_first_token(q):  # the first-player token comes from a jar
     get_jar(q, [{'k': 'first'}]); report(st(q)['first'] == 0, 'first: token comes to you', 'first %s' % st(q)['first'])
 
+def f_extra_glow_bright(q):  # owner 27 Nov: the extra tile's glow with more luminosity: a lighter gold, adding light to what is under it
+    table(q, bag=[[0, 4]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')
+    for _ in range(40):
+        s = st(q)
+        if s['wait'] and s['wait']['kind'] == 'place' and s['fromNowhere']: break
+        skip(q, 300)
+    g = drawn(q, 'extraglow'); g = g[0] if g else {}
+    col = g.get('col', '#000000'); light = (max(int(col[k:k + 2], 16) for k in (1, 3, 5)) + min(int(col[k:k + 2], 16) for k in (1, 3, 5))) / 510
+    report(g.get('mode') == 'lighter' and light >= 0.65, 'extra tile: a brighter glow', 'colour %s (lightness %.2f), laid on as %s' % (col, light, g.get('mode')))
+
 def f_bee_next(q):  # owner 27 Nov: the bee shows who plays next: at the start the player who plays second has it; when a player starts playing it flies to the other;
     # a jar's first-player prize sends it to its winner; the bee a third bigger
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); holder = lambda: [d['o'] for d in drawn(q, 'token')]
