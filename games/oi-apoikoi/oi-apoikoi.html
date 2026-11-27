@@ -587,7 +587,7 @@ function inCorner(A, P, B, r) {  // the middle of a circle of radius r that touc
 }
 const giftEdge = () => giftSpot(0)[0] - 1.5 * L().hw;  // the extra tile's place's corner toward his sticker (the left player's)
 function beeSpot(i) {  // owner 27 Nov: the bee between his sticker and the extra tile's place, in the middle of the room between them, level with the place
-  const r = BEE_R * UI(), b = faceBox(0), { ax, right } = stickerFit(b, false), x = (ax + right + giftEdge()) / 2; return [i ? W - x : x, giftSpot(0)[1], r];
+  const r = BEE_R * UI(), x = (stickerFit(faceBox(0), false).reach + giftEdge()) / 2; return [i ? W - x : x, giftSpot(0)[1], r];
 }
 function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { return stock(i).placeAt(c, k); }  // where good number k of colour c stands in player i's stockpile: place k of column c
@@ -1202,8 +1202,8 @@ function glowOf(name, col, w, h, g) {
   for (let a = 0; a < 16; a++) q.drawImage(one, core * Math.cos(a * Math.PI / 8), core * Math.sin(a * Math.PI / 8));
   glows.set(k, c); return c;
 }
-// The stickers' places (owner 27 Nov): 1. every sticker the same height, every animal in every face; 2. its feet on one line, its head (the middle of its top part) on one upright line;
-// 3. that height as big as lets every resting picture fit the box (owner 27 Nov: a short wide pose may spill over) (its edges keep STONE_ROOM from the stone's edge and the extra tile's place), the line of heads where it leaves equal room both sides.
+// The stickers' places (owner 27 Nov): 1. every sticker the same height, every animal in every face; 2. its feet on one line; each animal's faces with their head (the middle of its top part) where its resting face has it;
+// 3. that height as big as lets every resting picture fit the box, centred in it (owner 27 Nov: a short wide pose may spill over) (its edges keep STONE_ROOM from the stone's edge and the extra tile's place), the line of heads where it leaves equal room both sides.
 const heads = new Map();
 function headAt(name) {  // where a sticker picture's head is across it (0 left, 1 right): the middle of its drawn pixels in its top 30%, measured once
   if (heads.has(name)) return heads.get(name);
@@ -1212,19 +1212,22 @@ function headAt(name) {  // where a sticker picture's head is across it (0 left,
   for (let k = 3; k < d.length; k += 4) if (d[k] > 128) { sx += (k >> 2) % c.width; n++; }
   const f = n ? sx / n / c.width : 0.5; heads.set(name, f); return f;
 }
-function stickerFit(b, flip) {  // the stickers' one height, and where their heads and feet go in the box b; flip: the pictures are mirrored
-  const all = Object.keys(pics).filter(n => n.startsWith('avatars/') && n.endsWith('-neutral') && picReady(n)).map(n => { const a = pics[n].width / pics[n].height, f = flip ? 1 - headAt(n) : headAt(n); return [f * a, (1 - f) * a]; });
-  const L = Math.max(...all.map(v => v[0])), R = Math.max(...all.map(v => v[1])), aw = b.w, ah = b.h / (1 + REST_STRETCH), h = Math.min(ah, aw / (L + R));  // room for the resting stretch
-  return { h, ax: b.x + (aw - (L + R) * h) / 2 + L * h, feet: b.y + b.h - (ah - h) / 2 * (1 + REST_STRETCH), left: L * h, right: R * h };
+function stickerFit(b, flip, animal) {  // the stickers' one height, and where his feet and head go in the box b; flip: the pictures are mirrored
+  const rest = Object.keys(pics).filter(n => n.startsWith('avatars/') && n.endsWith('-neutral') && picReady(n)), wide = Math.max(...rest.map(n => pics[n].width / pics[n].height));
+  const ah = b.h / (1 + REST_STRETCH), h = Math.min(ah, b.w / wide), feet = b.y + b.h - (ah - h) / 2 * (1 + REST_STRETCH);  // room for the resting stretch
+  const out = { h, feet, reach: b.x + (b.w + wide * h) / 2 };  // reach: where the widest resting sticker ends on the right
+  if (!animal) return out;
+  const n = 'avatars/' + animal + '-neutral', w = h * pics[n].width / pics[n].height, f = flip ? 1 - headAt(n) : headAt(n);
+  return { ...out, ax: b.x + (b.w - w) / 2 + f * w };  // his resting sticker centred in the box: its head's x, where every other face's head goes
 }
 const REST_STRETCH = 0.035, REST_MS = 2400;  // the resting stretch: how much taller at most, and how long one breath takes
 function sticker(i, b, lit) {  // owner 27 Nov: a player is his animal's sticker, its face showing what just happened to him, as big as fits his box; on his turn in a strong, vivid glow of his colour
   const name = 'avatars/' + G.animals[i] + '-' + moodOf(i), src = pics[name], flip = i === 1; if (!src) return { name };  // owner 27 Nov: the two face each other: the left player's picture as on the sheet, the right player's mirrored
-  const { h, ax, feet, left: reachL, right: reachR } = stickerFit(b, flip), f = headAt(name), w = h * src.width / src.height, x = ax, y = feet - h / 2, g = GLOW_SIZE * UI();
+  const { h, ax, feet } = stickerFit(b, flip, G.animals[i]), f = headAt(name), w = h * src.width / src.height, x = ax, y = feet - h / 2, g = GLOW_SIZE * UI();
   const sy = moodOf(i) === 'neutral' ? 1 + REST_STRETCH * Math.sin(2 * Math.PI * performance.now() / REST_MS) : 1;  // owner 27 Nov: resting, it stretches up and down, its feet still (an idle squash and stretch)
   cx.save(); cx.translate(ax, feet); cx.scale(flip ? -1 : 1, sy); cx.translate(-ax, -feet);  // mirrored round its head's x: the head stays where it is
   if (lit) { const a = 0.88 + 0.12 * Math.sin(2 * Math.PI * performance.now() / GLOW_PULSE_MS); drawn.push({ k: 'glow', o: i, col: GLOW[i], a, g, core: GLOW_CORE * g, ui: UI() }); cx.globalAlpha = a; cx.drawImage(glowOf(name, GLOW[i], Math.round(w), Math.round(h), Math.round(g)), ax - f * w - 2 * g, y - h / 2 - 2 * g, w + 4 * g, h + 4 * g); cx.globalAlpha = 1; }
-  fittedAt(name, ax - f * w, y - h / 2, w, h); cx.restore(); return { name, x: ax + (flip ? f - 0.5 : 0.5 - f) * w, y: feet - sy * h / 2, w, h: sy * h, h0: h, head: ax, feet, left: reachL, right: reachR, mirrored: flip };
+  fittedAt(name, ax - f * w, y - h / 2, w, h); cx.restore(); return { name, x: ax + (flip ? f - 0.5 : 0.5 - f) * w, y: feet - sy * h / 2, w, h: sy * h, h0: h, head: ax, feet, mirrored: flip };
 }
 const RUBY_R = 39.6, RUBY_MOVE_MS = 1200, RUBY_IN_MS = 1300, RUBY_OUT_MS = 950, RUBY_BITS = 34;  // the leader's ruby (owner 27 Nov: 10% smaller; at a 1920 x 1080 screen, as big as its room allows); its move from player to player; its forming and its bursting
 function rubySpot(i) {  // owner 27 Nov: on his bottom stone, at the centre of the triangle formed by the pool's bottom edge, the top of his full coin stacks and his materials' side;

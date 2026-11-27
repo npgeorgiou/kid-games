@@ -526,8 +526,8 @@ def f_stickers(q):  # owner 27 Nov: "avatars for the 2 players ... like stickers
 def f_bee_corner(q):  # owner 27 Nov: "replace the star (who goes first next round) with a bee icon, that you will put in this corner" (his face stone's corner by the pool);
     # later: the bee between his sticker and the extra tile's place
     get_jar(q, [{'k': 'first'}]); settle(q); t = drawn(q, 'token'); a = [d for d in drawn(q, 'avatar') if d['o'] == 0][0]['shown']; g = [d for d in drawn(q, 'giftplace') if d['o'] == 0]
-    b = t[0] if t else None; right = a['head'] + a['right'] if 'right' in a else -1; left = g[0]['x'] if g else -1
-    ok = bool(b) and right < b['x'] - b['r'] and b['x'] + b['r'] < left and abs((b['x'] - b['r'] - right) - (left - b['x'] - b['r'])) < 2  # in the middle of the room between them
+    b = [x for x in t if x['o'] == 0]; b = b[0] if b else None; right = a['x'] + a['w'] / 2; left = g[0]['x'] if g else -1
+    ok = bool(b) and right < b['x'] - b['r'] and b['x'] + b['r'] < left  # owner 27 Nov: clear of his resting sticker (other faces may overlap it)
     report(ok, 'bee: between his sticker and the extra tile\'s place', 'sticker reaches %s, bee %s, the extra tile\'s place from %s' % (round(right), b and (round(b['x'] - b['r']), round(b['x'] + b['r'])), round(left)))
 def f_ruby_leader(q):  # owner 27 Nov: "divide it in half, and the half of the winning player gets a ruby on top"
     res = {}
@@ -760,21 +760,21 @@ def f_button_groove(q):  # owner 27 Nov: a pressed button looked like one stone 
     q.mouse.up(); settle(q)
     report(all(g < s - 60 for g, s in seen.values()), 'buttons: pressed, a groove round it in the slab', 'per side (groove, slab beyond it) %s' % seen)
 def f_sticker_heights(q):  # owner 27 Nov: all stickers the same height, every animal in every face, as big as fits their box with a good empty margin around;
-    # a wider pose stands with its feet on the same line and its head at the same place across as every other; later: as big as possible (the box keeps the stones' room, no more), sized by the resting poses: a short wide pose may spill over
+    # a wider pose stands with its feet on the same line and its head at the same place across as his resting pose; later: as big as possible (the box keeps the stones' room, no more), sized by the resting poses: a short wide pose may spill over
     seen = {}
     for w, h in ((1920, 1200), (1920, 1080), (3440, 1440)):
-        q.set_viewport_size({'width': w, 'height': h}); per = {0: [set(), set(), set()], 1: [set(), set(), set()]}; room = []
+        q.set_viewport_size({'width': w, 'height': h}); per = {0: [set(), set(), {}], 1: [set(), set(), {}]}; room = []
         for a, b in (('cat', 'hamster'), ('frog', 'bunny'), ('dog', 'chick'), ('hamster', 'frog')):
             table(q, animals=[a, b]); settle(q)
             for poke in (False, True):
                 if poke: tap(q, 'avatar-0'); tap(q, 'avatar-1')
                 for d in drawn(q, 'avatar'):
-                    sh, bx = d['shown'], d['box']; v = per[d['o']]; v[0].add(round(sh['h0'], 1)); v[1].add(round(sh['feet'], 1)); v[2].add(round(sh['head'], 1))
+                    sh, bx = d['shown'], d['box']; v = per[d['o']]; v[0].add(round(sh['h0'], 1)); v[1].add(round(sh['feet'], 1)); v[2].setdefault(d['pic'].split('/')[1].split('-')[0], set()).add(round(sh['head'], 1))
                     if d['pic'].endswith('-neutral'): room.append(min((sh['feet'] - sh['h0'] - bx['y']) / bx['h'], (bx['y'] + bx['h'] - sh['feet']) / bx['h'], (sh['x'] - sh['w'] / 2 - bx['x']) / bx['w'], (bx['x'] + bx['w'] - sh['x'] - sh['w'] / 2) / bx['w']))
-        seen[(w, h)] = ({o: [len(x) for x in v] for o, v in per.items()}, sorted(per[0][0] | per[1][0]), round(min(room), 3))
+        seen[(w, h)] = ({o: [len(v[0]), len(v[1]), max(len(x) for x in v[2].values())] for o, v in per.items()}, sorted(per[0][0] | per[1][0]), round(min(room), 3))
     q.set_viewport_size({'width': 1280, 'height': 800})
     ok = all(all(n == [1, 1, 1] for n in v[0].values()) and len(v[1]) == 1 and v[2] >= -0.001 for v in seen.values())  # owner 27 Nov: as big as possible: inside the box, whose edges keep the stones' room
-    report(ok, 'faces: same height, feet on one line, heads in one place, with a margin', 'per screen (per player: how many heights, feet lines, head places; heights; least margin) %s' % seen)
+    report(ok, 'faces: same height, feet on one line, each animal\'s head in one place', 'per screen (per player: how many heights, feet lines, most head places of one animal; heights; least margin) %s' % seen)
 def f_starts_face(q):  # owner 25 Nov: the start tiles face each other: the PC's is the kid's turned half a turn around the board's centre (each colour on its turned square)
     table(q, bag=[[3, 3]] * 4); D = [[1, 0], [0, 1], [-1, 0], [0, -1]]
     sq = lambda t: {(t[0], t[1]): t[3], (t[0] + D[t[2]][0], t[1] + D[t[2]][1]): t[4]}
