@@ -342,7 +342,7 @@ async function play() {
 }
 function pickAnimals() { const a = ANIMALS[Math.floor(rnd2() * ANIMALS.length)], rest = ANIMALS.filter(x => x !== a); return [a, rest[Math.floor(rnd2() * rest.length)]]; }  // looks only: never the game's own random source
 const OTHER_FEELS = { excited: 'surprised', sad: 'happy' };  // owner 27 Nov: the other player reacts too: shocked when this one is thrilled, happy when he is sad
-const JAR_FEELS = { coins: 'happy', coins2: 'excited', first: 'happy', jar: 'happy', set: 'happy', tile: 'happy', slot: 'excited', empty: 'sad' };  // what a jar's prize makes him feel when he sees it (surprised is a shock: something bad)
+const JAR_FEELS = { coins: 'happy', coins2: 'excited', first: 'happy', jar: 'happy', set: 'happy', tile: 'excited', slot: 'excited', empty: 'sad' };  // owner 27 Nov: an extra tile excites him; what a jar's prize makes him feel when he sees it (surprised is a shock: something bad)
 function feel(i, face, ms = MOOD_MS) { const t0 = performance.now(); G.moods[i] = { face, t0, ms }; if (OTHER_FEELS[face] && ms === MOOD_MS) G.moods[1 - i] = { face: OTHER_FEELS[face], t0, ms }; }  // what just happened to player i shows on his sticker, and on the other's
 function moodOf(i) {  // his sticker's face: at the end, won (excited), lost (sad) or level (happy); else the last thing that happened to him, for MOOD_MS; else neutral
   if (G.over) return G.winner === i ? 'excited' : G.winner < 0 ? 'happy' : 'sad';

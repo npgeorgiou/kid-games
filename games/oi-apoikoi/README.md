@@ -57,7 +57,6 @@ A playable game against the PC on one shared board in the new look (sea board of
 - Ruby: visibly centred in its free corner (his screenshots: it looks off-centre), the same on both sides.
 - Stickers: big enough on every screen size; both look the same size (a wide cat comes out smaller than a tall bunny).
 - Sticker glow: less neon ("radioactive"), slower pulse, a more solid core, a little bigger.
-- Extra tile from a jar makes him excited (now happy).
 - Materials stockpile: the side places' gaps to the screen edge and to the stone's edge equal on both sides; swap the grapes and stone columns; the statue icon 7.5% wider (fills its place like the others).
 - Buttons: tappable with a pressed state: pressed loses its shadow and goes down (they are 3D).
 - Play again (vs PC or vs player) keeps the same two animals.

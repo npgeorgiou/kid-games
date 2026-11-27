@@ -588,6 +588,11 @@ def f_pile_turn(q):  # owner 27 Nov: "rotate deck the other way so it is like th
     at = lambda k: q.evaluate("(k)=>__dg.slot(k)", k); turns = [[t['r'] for t in tiles if t.get('x') is not None and abs(t['x'] - at(k)[0]) < 2 and abs(t['y'] - at(k)[1]) < 2] for k in (1,)]
     report(bool(turns[0]) and all(r == pile['turn'] for r in turns[0]), 'pile: turned as the market\'s first two tiles', 'pile %s, second market tile %s' % (pile['turn'], turns))
 
+def f_tile_excites(q):  # owner 27 Nov: an extra tile from a jar makes him excited (it made him happy)
+    pause_clock(q); table(q, bag=[[0, 4]] * 4, fast=False, jarQueue=[{'k': 'tile'}] + [COIN] * 8)
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-0')
+    run_until(q, "()=>__dg.sounds().some(x=>(x.n||x)==='reveal')", 3000); settle(q); face = [d['pic'] for d in drawn(q, 'avatar') if d['o'] == 0]; q.clock.resume()
+    report(bool(face) and face[0].endswith('-excited'), 'faces: an extra tile makes him excited', 'his face %s' % face)
 def f_free_tile(q):  # owner 25 Nov (prototype): a jar's free tile is a random tile, no wild tile; its colours are not shown until it lies beside the market; it always fits; it is his ("marked as yours", 24 Nov)
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8)
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-0')
