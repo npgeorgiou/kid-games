@@ -696,6 +696,16 @@ def f_sticker_glow(q):  # owner 27 Nov: the turn's sticker glow: less neon ("rad
     x = next((x for x in seen if x), {'col': '#000000', 'core': 0, 'g': 0, 'ui': 1})
     ok = all(seen) and period >= 3000 and sat(x['col']) <= 0.75 and x['core'] >= 0.25 * x['g'] and x['g'] >= 24 * x['ui']
     report(ok, 'faces: the turn glow is soft, slow, solid, bigger', 'pulse every %d ms, colour %s (saturation %.2f), solid core %.1f of a glow %.1f (%.1f at a 1080 screen)' % (period, x['col'], sat(x['col']), x['core'], x['g'], x['g'] / x['ui']))
+def f_stockpile(q):  # owner 27 Nov: materials stockpile: the side places' gaps to the screen edge and to the stone's edge are equal, on both sides; the grapes and stone columns swapped
+    # (wheat, sheep, stone, forest, grapes, town from the screen edge); the statue icon 7.5% wider than the others, filling its place like them
+    table(q); settle(q); flat = {d['o']: d for d in drawn(q, 'goodsflat')}; pl = drawn(q, 'place'); icons = drawn(q, 'icon'); seen = {}
+    for o in (0, 1):
+        mine = [d for d in pl if d['o'] == o]; lo = min(d['x'] - d['r'] for d in mine); hi = max(d['x'] + d['r'] for d in mine); f = flat.get(o, {'x0': 0, 'x1': 0})
+        order = [c for c, _ in sorted({d['c']: d['x'] for d in mine}.items(), key=lambda kv: kv[1] if o == 0 else -kv[1])]
+        w = {d['c']: d['w'] for d in icons if d['o'] == o}
+        seen[o] = (round(lo - f['x0']), round(f['x1'] - hi), order, round(w.get(5, 0) / w.get(0, 1), 3))
+    ok = all(abs(v[0] - v[1]) <= 1 and v[0] > 0 and v[2] == [0, 1, 4, 3, 2, 5] and abs(v[3] - 1.075) < 0.005 for v in seen.values())
+    report(ok, 'materials: even gaps, grapes and stone swapped, statue wider', 'per player (gap at the screen side, gap at the stone side, columns from the edge, statue icon to others) %s' % seen)
 def f_starts_face(q):  # owner 25 Nov: the start tiles face each other: the PC's is the kid's turned half a turn around the board's centre (each colour on its turned square)
     table(q, bag=[[3, 3]] * 4); D = [[1, 0], [0, 1], [-1, 0], [0, -1]]
     sq = lambda t: {(t[0], t[1]): t[3], (t[0] + D[t[2]][0], t[1] + D[t[2]][1]): t[4]}

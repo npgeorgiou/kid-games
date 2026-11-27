@@ -712,10 +712,11 @@ function foamAt(i, j, land) {  // the foam where squares (i-1, j-1), (i, j-1), (
 const STONE_LEVEL = { first: 2, second: 3 };  // owner 27 Nov
 const LEVEL_UP = 52, POOL_DOWN = 0.125, SIDE = [0.175, 0.25], SLAB_ROUND = 18, STONE_JOINT = 2;  // a level's height (at a 1920 x 1080 screen); the first layer shows this part of its height straight down, the second this part right and down; the corners' rounding; half a joint
 const liftOf = layer => { const step = LEVEL_UP * UI(), d = STONE_LEVEL.second - STONE_LEVEL.first, up1 = POOL_DOWN * STONE_LEVEL.first * step; return layer === 1 ? up1 : up1 + SIDE[1] * d * step; };  // how far a stone's top lies above its base
+const GOODS_COLUMN = [0, 1, 4, 3, 2, 5], ICON_SIZE = [1, 1, 1, 1, 1, 1.075];  // owner 27 Nov: each colour's column in the stockpile from the screen's edge (grapes and stone swapped); each icon's size (the statue 7.5% bigger, filling its place like the others)
 const ICON_UP = 1.2;  // owner 27 Nov: the material icons this many steps above the top places, clear of the groove under them
 const faceTone = ([nx, ny]) => Math.min(0.92, 0.92 - 0.4 * nx - 0.22 * ny);  // owner 27 Nov: a face lit by the sun at the top left, clearly by its way: a right face darkest, a down face in between, a face turned left lit
 const sideIn = () => SIDE[0] * (STONE_LEVEL.second - STONE_LEVEL.first) * LEVEL_UP * UI();  // how far a second-layer stone's top lies left of its base's right edge
-const STONE_ROOM = 16, deckOver = () => 0;  // owner 27 Nov: room between anything on a stone and its top's edge; nothing of the deck over the face
+const STONE_ROOM = 16, STONE_BEVEL = 8, deckOver = () => 0;  // STONE_BEVEL: a stone top's bevel, its mean width (at a 1920 x 1080 screen); owner 27 Nov: room between anything on a stone and its top's edge; nothing of the deck over the face
 const wallIn = level => level * LEVEL_UP * UI() * POOL_DOWN;  // how far a first-layer top lies above its base (the pool's wall, straight down to the water)
 const STONE = { base: '#b7bbb3', shadow: 'rgba(20,22,20,0.3)', lift: 'rgba(255,255,250,0.18)', floor: '#4b4f49', seamDark: 'rgba(45,50,44,0.55)', src: [70, 45, 760, 385] };  // the slab pictures' middle, inside their own rim
 const shapePath = (pts, dx = 0, dy = 0, round = null) => {  // a shape's outline; round: each corner's radius (at most a third of each side), or none
@@ -792,7 +793,7 @@ function drawTop(b) {  // the stone's picture cut to its top, and its bevel: a b
   const box = boxOf(b.top), pic = slab(b);
   cx.save(); shapePath(b.top, 0, 0, b.round); cx.clip(); cx.fillStyle = STONE.base; cx.fillRect(box.x, box.y, box.w, box.h); if (pic) cx.drawImage(pic, ...STONE.src, box.x, box.y, box.w, box.h);
   const pts = roundedEdge(b.top, b.round, b.o, 4), r = seeded(11 + b.n), ph = [r() * 6, r() * 6, r() * 6], u = UI();
-  const width = k => u * (8 + 1.8 * Math.sin(k * 0.09 + ph[0]) + 1.2 * Math.sin(k * 0.27 + ph[1]) + 0.6 * Math.sin(k * 0.8 + ph[2]));
+  const width = k => u * (STONE_BEVEL + 1.8 * Math.sin(k * 0.09 + ph[0]) + 1.2 * Math.sin(k * 0.27 + ph[1]) + 0.6 * Math.sin(k * 0.8 + ph[2]));
   const bevel = offCanvas(box, () => pts.forEach((p, k) => { const q = pts[(k + 1) % pts.length]; if (b.outer[p[4]] || b.outer[q[4]]) return; const wp = width(k), wq = width(k + 1), l = Math.max(-1, Math.min(1, -(p[2] + p[3]) / Math.SQRT2 * 1.3));
     const v = Math.round(128 + (l > 0 ? 110 : 30) * l);  // opaque grey, mid grey changes nothing when laid over
     cx.beginPath(); cx.moveTo(p[0] + p[2], p[1] + p[3]); cx.lineTo(q[0] + q[2], q[1] + q[3]); cx.lineTo(q[0] - q[2] * wq, q[1] - q[3] * wq); cx.lineTo(p[0] - p[2] * wp, p[1] - p[3] * wp); cx.closePath();
@@ -1136,6 +1137,9 @@ const DECK_LINE = 3.2;  // the deck line: this many half-square heights under th
 const deckLine = () => marketY() + DECK_LINE * L().hh + wallIn(STONE_LEVEL.first);  // owner 27 Nov: a stone's base fills its area, so the base line lies the first layer's height under the joint seen
 const deckEdge = () => W / 2 - marketReach().end;  // where the deck's area ends and the market's begins (left side)
 function waterX(y) { const { cx: X, cy: Y, a, c } = boardDiamond(); return X - a * (1 - Math.abs(y - Y) / c); }  // the water's left edge at height y
+function goodsFlat(i) {  // owner 27 Nov: the flat part of his materials stone's top: inside the bevel on its inner side (its outer side is the screen's edge, with no bevel)
+  const t = goodsTop(i), b = STONE_BEVEL * UI(); return i ? { x0: t.x0 + b, x1: t.x1 } : { x0: t.x0, x1: t.x1 - b };
+}
 function goodsTop(i) {  // player i's materials stone's top: its base (his materials' area) raised by its height, up and to the left; along the screen's edge it goes on
   const g = goodsBox(), s = sideIn(), y0 = g.top - liftOf(2); return i ? { x0: W - g.right - s, x1: W, y0 } : { x0: 0, x1: g.right - s, y0 };
 }
@@ -1159,8 +1163,8 @@ function coinRoom() {  // owner 26 Nov: COIN_SLOTS full stacks of COIN_STACK fit
 function stock(i) {  // player i's things in his area: materials in a row of JAR_GOODS places per colour, from the top, beside the screen edge (owner 25 Nov: rows, not columns);
   // coins: stacks in his grey bottom tip (below)
   const { T, hh } = L(), p = G.players[i], { r, rp } = goodRoom(), out = k => i ? W - k : k;
-  const t = goodsTop(i), xc = (t.x0 + t.x1) / 2, hc = (JAR_GOODS - 1 + ICON_UP + 0.9) * rp, yb = (t.y0 + H) / 2 + hc / 2 - 0.5 * rp;  // owner 27 Nov: the icons and places centred on the stone's top
-  const placeAt = (c, k) => [xc + (i ? -1 : 1) * rp * (c - (LANDS.length - 1) / 2), yb - rp * k];  // a column of JAR_GOODS per colour, from the bottom (owner 25 Nov: columns, at the bottom with the coins)
+  const t = goodsTop(i), f = goodsFlat(i), xc = (f.x0 + f.x1) / 2, hc = (JAR_GOODS - 1 + ICON_UP + 0.9) * rp, yb = (t.y0 + H) / 2 + hc / 2 - 0.5 * rp;  // owner 27 Nov: the icons and places centred on the stone's top
+  const placeAt = (c, k) => [xc + (i ? -1 : 1) * rp * (GOODS_COLUMN[c] - (LANDS.length - 1) / 2), yb - rp * k];  // a column of JAR_GOODS per colour, from the bottom (owner 25 Nov: columns, at the bottom with the coins)
   // coins (owner 26 Nov): COIN_SLOTS places in a line along the bottom of his coins' area (coinRoom); the place nearest the screen's edge fills first,
   // COIN_STACK coins high, then the next (100 simulated games: 66 coins at most); past COIN_SLOTS * COIN_STACK the stacks grow on from the first place
   const { a0: a, sp } = coinRoom(), cr = COIN_R * sp, th = COIN_TH * cr, base = H - LOW - 0.6 * cr;  // between places, a coin's radius and thickness
@@ -1224,7 +1228,8 @@ function drawRuby() {  // owner 27 Nov: it flies from player to player slow, fas
 
 function drawPanel(i) {
   const p = G.players[i], lit = G.turn === i, { r, rp, placeAt, cr, th, coinAt } = stock(i);  // his area's tint and places are in the scene
-  const { hw } = L(), z = rp * 0.9 / (2 * hw); COLOUR_IDS.forEach(c => { const [x, y] = placeAt(c, JAR_GOODS - 1); groundAt(c, x, y - ICON_UP * rp, z); thingsAt(c, x, y - ICON_UP * rp, z); });  // owner 25 Nov: a tiny square of each column's land, above it
+  const { hw } = L(), z = rp * 0.9 / (2 * hw); COLOUR_IDS.forEach(c => { const [x, y] = placeAt(c, JAR_GOODS - 1), zc = z * ICON_SIZE[c]; groundAt(c, x, y - ICON_UP * rp, zc); thingsAt(c, x, y - ICON_UP * rp, zc); drawn.push({ k: 'icon', o: i, c, w: 2 * hw * zc }); });
+  drawn.push({ k: 'goodsflat', o: i, ...goodsFlat(i) });  // owner 25 Nov: a tiny square of each column's land, above it
   const now = performance.now(); G.shines = G.shines.filter(q => now - q.t0 < SHINE_MS);
   const shine = c => { const q = G.shines.find(q => q.o === i && q.c === c); return q ? Math.sin(Math.PI * (now - q.t0) / SHINE_MS) * 0.75 : 0; };  // the harvest's flash, spread over the whole SHINE_MS
   COLOUR_IDS.forEach(c => { const a = shine(c); if (!a) return; const [x0, y0] = placeAt(c, 0), [x1, y1] = placeAt(c, JAR_GOODS - 1), top = Math.min(y0, y1) - rp / 2, bot = Math.max(y0, y1) + rp / 2;  // owner 26 Nov: the whole column's area flashes too
