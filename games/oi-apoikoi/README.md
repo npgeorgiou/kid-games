@@ -46,7 +46,7 @@ A playable game against the PC on one shared board in the new look (sea board of
 
 - The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` section 6.
-- Design phase (25-27 Nov): look, motion and layout changes are on pull request #49 (branch `oi-apoikoi-motion-fixes`), pushed with the commit check off for the owner to merge by hand; 27 flow steps fail, the same as on main, because the flow tests are not updated yet.
+- Design phase (25-27 Nov): look, motion and layout changes are on pull request #49 (branch `oi-apoikoi-motion-fixes`, main merged in), pushed with the commit check off for the owner to merge by hand; 26 old flow steps fail because they are not updated yet (Task list).
 - Players are animal stickers (a random pair per game) whose faces follow what happens to them and to the other; the first player has a bee; the coin leader has a ruby on his bottom stone that flies, forms and bursts.
 - Areas built from `areas-sketch.png` (deck/buttons, market, face triangle with the extra tile, dead space, materials, coins with 8 full stacks fitted, dead space); the board with its border keeps its shape and takes the most room on every screen, the areas fit around it.
 - Stone look (owner close to happy, 27 Nov): rules in the project doc `claude/oi-apoikoi-stone-rules.md`; two layers of stones, bases fill the areas, tops rise, sun at the top left, pool walls straight and low, waves along the pool's edge.
