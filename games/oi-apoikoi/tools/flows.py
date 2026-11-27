@@ -4,7 +4,7 @@
 # Colours are numbered 0-5 (0 and 1 the most common); a tile is [first half, second half]; the board is 16 x 16 squares, the start tiles [0, 1] at (4, 10) turned 0 (the kid's) and (11, 5) turned 2 (the PC's: the kid's turned half a turn).
 # A table tile is [x, y, turn, colour, colour, owner]: turn 0 puts the second half to the right, 1 below, 2 left, 3 above; owner 0 is the kid, 1 the PC.
 # Jar contents a test needs are queued: {'k': 'empty'}, {'k': 'coins'}, {'k': 'coins2'}, {'k': 'slot'}, {'k': 'first'}, {'k': 'tile'}, {'k': 'jar'}, {'k': 'set'}.
-import time, pathlib, datetime
+import time, pathlib, datetime, math
 from playwright.sync_api import sync_playwright
 GAME = next((pathlib.Path(__file__).resolve().parent.parent).glob('*.html'))  # this copy's own built page (whatever its name then), so old and new code can be tested at once
 COIN = {'k': 'coins'}
@@ -398,7 +398,7 @@ def f_jar_breaks(q):  # owner 24 Nov: "jars should visually break and the reveal
     broke = bool(specks) and all(near(p, at1, 40) for p in specks)
     out = flights(seen1, 'shown'); came_out = bool(out) and near((out[0]['fx'], out[0]['fy']), at1)
     coin = flights(seen1, 'coin'); P = drawn(q, 'panel')[0]['w']; coin_flew = bool(coin) and coin[0]['tx'] < P and all(s['players'][0]['coins'] == 0 for d, s in seen1 if any(x['k'] == 'flight' and x['look'] == 'coin' for x in d))
-    star = flights(seen0, 'star'); token = drawn(q, 'token'); star_flew = bool(star) and bool(token) and near((star[-1]['tx'], star[-1]['ty']), (token[0]['x'], token[0]['y'])) and all(s['first'] is None for d, s in seen0 if any(x['k'] == 'flight' and x['look'] == 'star' for x in d))
+    star = flights(seen0, 'bee'); token = drawn(q, 'token'); star_flew = bool(star) and bool(token) and near((star[-1]['tx'], star[-1]['ty']), (token[0]['x'], token[0]['y'])) and all(s['first'] is None for d, s in seen0 if any(x['k'] == 'flight' and x['look'] == 'bee' for x in d))
     q.clock.resume()
     report(broke and came_out and coin_flew and star_flew, 'jars: break where tapped, the bonus comes out, rewards fly to their place', 'broke where tapped %s, bonus out of it %s, coin flew to his coins %s, star flew to its place %s' % (broke, came_out, coin_flew, star_flew))
 
@@ -496,6 +496,46 @@ def f_slot_faces(q):  # owner 25 Nov (prototype): each wheel has the same 4 face
     report(len(seen) > 6 and same, 'slot: the same 4 faces on every wheel, own order', '%d different machines in 12, every wheel coin, jar, materials, blank %s' % (len(seen), same))
 def f_first_token(q):  # the first-player token comes from a jar
     get_jar(q, [{'k': 'first'}]); report(st(q)['first'] == 0, 'first: token comes to you', 'first %s' % st(q)['first'])
+
+def inside_poly(pts, x, y):
+    o = False
+    for k, (ax, ay) in enumerate(pts):
+        bx, by = pts[(k + 1) % len(pts)]
+        if (ay > y) != (by > y) and x < ax + (y - ay) * (bx - ax) / (by - ay): o = not o
+    return o
+def side_gap(pts, x, y):  # the shortest distance from (x, y) to the shape's sides
+    def d(a, b): vx, vy = b[0] - a[0], b[1] - a[1]; t = max(0, min(1, ((x - a[0]) * vx + (y - a[1]) * vy) / ((vx * vx + vy * vy) or 1))); return math.hypot(a[0] + t * vx - x, a[1] + t * vy - y)
+    return min(d(pts[k], pts[(k + 1) % len(pts)]) for k in range(len(pts)))
+def f_stickers(q):  # owner 27 Nov: "avatars for the 2 players ... like stickers ... the expressions should start from normal and react to the various game events; the active player should have a red/green glow"
+    table(q, bag=[[0, 4]] * 4, jarQueue=[{'k': 'empty'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); av = {x['o']: x for x in drawn(q, 'avatar')}
+    animals = [av[i]['pic'].split('/')[1].rsplit('-', 1)[0] for i in (0, 1)]
+    start = all(av[i]['pic'].startswith('avatars/') and av[i]['pic'].endswith('-neutral') for i in (0, 1)) and animals[0] != animals[1] and av[0]['lit'] and not av[1]['lit'] and av[0]['r'] > av[1]['r']
+    drag_to(q, {'x': 3, 'y': 10, 'r': 2}); waiting(q, 'jar'); joined = [x['pic'] for x in drawn(q, 'avatar') if x['o'] == 0][0]
+    tap(q, 'jar-0'); skip(q, 100); empty = [x['pic'] for x in drawn(q, 'avatar') if x['o'] == 0][0]
+    get_jar(q, [{'k': 'set'}]); skip(q, 200); shown = [x['pic'] for x in drawn(q, 'avatar') if x['o'] == 0][0]
+    report(start and joined.endswith('-happy') and empty.endswith('-sad') and shown.endswith('-surprised'), 'stickers: two animals, neutral first, his turn glows, faces follow what happens',
+           'animals %s, start %s, after a connection %s, an empty jar %s, a jar of materials %s' % (animals, start, joined, empty, shown))
+def f_bee_corner(q):  # owner 27 Nov: "replace the star (who goes first next round) with a bee icon, that you will put in this corner" (his face stone's corner by the pool)
+    get_jar(q, [{'k': 'first'}]); t = drawn(q, 'token'); face = [a for a in drawn(q, 'area') if a['o'] == 0 and a['kind'] == 'face'][0]['pts']
+    b = t[0] if t else None; corner = face[1]
+    ok = bool(b) and inside_poly(face, b['x'], b['y']) and side_gap(face, b['x'], b['y']) >= b['r'] and min(range(len(face)), key=lambda k: math.hypot(face[k][0] - b['x'], face[k][1] - b['y'])) == 1
+    report(ok, 'bee: the first-player bee in his face stone\'s corner by the pool', 'bee %s, corner %s' % (b and (round(b['x']), round(b['y'])), [round(v) for v in corner]))
+def f_ruby_leader(q):  # owner 27 Nov: "divide it in half, and the half of the winning player gets a ruby on top"
+    res = {}
+    for coins in ([3, 1], [1, 4], [2, 2]):
+        table(q, coins=coins); r = drawn(q, 'ruby'); W = q.evaluate("()=>innerWidth"); res[tuple(coins)] = r[0] if r else None
+    a, b, c = res[(3, 1)], res[(1, 4)], res[(2, 2)]
+    ok = a and a['o'] == 0 and a['x'] + a['r'] <= W / 2 and b and b['o'] == 1 and b['x'] - b['r'] >= W / 2 and c is None
+    report(bool(ok), 'ruby: on the half of the player with the most coins, none when level', 'kid ahead %s, PC ahead %s, level %s' % (a and (a['o'], round(a['x'])), b and (b['o'], round(b['x'])), c))
+def f_extra_glow(q):  # owner 27 Nov: "the extra tile should have something like golden glow and sparkling small stars too, to draw attention to it"
+    table(q, bag=[[0, 4]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); market = drawn(q, 'extraglow')
+    drag_to(q, {'x': 3, 'y': 10, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')
+    for _ in range(40):
+        s = st(q)
+        if s['wait'] and s['wait']['kind'] == 'place' and s['fromNowhere']: break
+        skip(q, 300)
+    g, h = drawn(q, 'extraglow'), held(q)
+    report(not market and bool(g) and abs(g[0]['x'] - h[0]) < 2 and abs(g[0]['y'] - h[1]) < 2, 'extra tile: a golden glow and stars, a market tile none', 'market tile glow %s, extra tile glow %s at %s' % (bool(market), bool(g), h))
 
 def f_free_tile(q):  # owner 25 Nov (prototype): a jar's free tile is a random tile, no wild tile; its colours are not shown until it lies beside the market; it always fits; it is his ("marked as yours", 24 Nov)
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8)

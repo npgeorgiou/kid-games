@@ -37,3 +37,11 @@ for (y0, x0, y1, x1) in boxes:
     if name == 'stone': rgb = ImageEnhance.Brightness(ImageEnhance.Color(im.convert('RGB')).enhance(0.15)).enhance(0.78); rgb.putalpha(im.getchannel('A')); im = rgb  # owner 25 Nov: greyer, darker, against the white statues
     im = im.crop(im.getbbox()); im.thumbnail((128, 128)); im.save(OUT + ('things/' if name == 'coin' else 'materials/') + name + '.png'); print(name, im.size)
 b = Image.open(U + '91c2ade3-image.png'); b = cutout(b, 8, 400, False); b = b.crop(b.getbbox()); b.thumbnail((128, 128)); b.save(OUT + 'materials/bust.png')
+def solid(im, tol):  # a picture with no holes (a stone slab): background = only what touches the border, warm and near its colour; every enclosed part kept (owner 27 Nov: light cracks are stone, not holes); outline smoothed
+    a = np.array(im.convert('RGB')).astype(float); bg = np.median(np.concatenate([a[0], a[-1], a[:, 0], a[:, -1]]), axis=0)
+    near = (np.sqrt(((a - bg) ** 2).sum(-1)) < tol) & (a[..., 0] - a[..., 1] >= 1.5)  # the beige background is warm; the slab's light rim is cooler
+    lab, n = ndimage.label(near); back = np.isin(lab, list(set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}))
+    keep = ~back; lab, n = ndimage.label(keep); keep = lab == 1 + np.argmax(ndimage.sum(keep, lab, range(1, n + 1)))
+    keep = ndimage.binary_fill_holes(ndimage.gaussian_filter(ndimage.binary_fill_holes(keep).astype(float), 3) > 0.5)
+    out = im.convert('RGBA'); out.putalpha(Image.fromarray((ndimage.gaussian_filter(keep.astype(float), 0.8) * 255).clip(0, 255).astype('uint8'))); return out.crop(out.getbbox())
+slab = solid(Image.open(U + '76cb44b6-image.jpg'), 16); slab.resize((900, round(900 * slab.size[1] / slab.size[0])), Image.LANCZOS).save(OUT + 'things/stone-slab-2.png')

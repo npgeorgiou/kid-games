@@ -28,6 +28,7 @@ const LANDS = ['wheat', 'plains', 'vineyard', 'forest', 'mountain', 'town'], MAT
 const COLOUR_IDS = LANDS.map((c, k) => k), noGoods = () => LANDS.map(() => 0);
 const HALVES = [10, 10, 9, 9, 9, 9];  // the 56 halves of the 28 tiles, per colour (owner 25 Nov)
 const BORDER = ['#22a33a', '#d42a2a'], TINT = ['#eef8e6', '#fbebe8'];  // the kid's land green, the PC's red; their areas' light tints
+const ANIMALS = ['hamster', 'bunny', 'chick', 'cat', 'dog', 'frog'], MOOD_MS = 2200;  // owner 27 Nov: each player a sticker of an animal (a random pair each game); a face shows MOOD_MS after what made it, then neutral again
 const JAR_MIX = { empty: 10, coins: 45, coins2: 10, tile: 4, slot: 5, first: 8, jar: 8, set: 10 };  // what jars hold, per 100 jars (owner 25 Nov)
 const JAR_GOODS = 5;  // this many goods of one colour make a jar at once (owner 24 Nov)
 const COIN_SLOTS = 8, COIN_STACK = 10, GOODS_SHARE = 0.2175;  /* owner 26 Nov: coins 1/8 smaller; the coin stack's room this saves goes to the materials' area (was 0.18) */  // owner 26 Nov: coins in 8 places of 10, filled one place at a time; the materials' area reaches GOODS_SHARE of the screen's width (his mark)  // coin places in his line (owner 25 Nov);  // coins in a row at most; a material's and a coin's radius, in half square heights: 1.5 times their old size (owner 25 Nov, design 3)
@@ -335,6 +336,12 @@ async function play() {
   }))));
   if (G !== my) return; G.over = true;
 }
+function pickAnimals() { const a = ANIMALS[Math.floor(rnd2() * ANIMALS.length)], rest = ANIMALS.filter(x => x !== a); return [a, rest[Math.floor(rnd2() * rest.length)]]; }  // looks only: never the game's own random source
+function feel(i, face) { G.moods[i] = { face, t0: performance.now() }; }  // what just happened to player i shows on his sticker
+function moodOf(i) {  // his sticker's face: at the end, won (excited), lost (sad) or level (happy); else the last thing that happened to him, for MOOD_MS; else neutral
+  if (G.over) return G.winner === i ? 'excited' : G.winner < 0 ? 'happy' : 'sad';
+  const m = G.moods[i]; return m && performance.now() - m.t0 < MOOD_MS ? m.face : 'neutral';
+}
 function setTurn(i) {  // whose turn it is: the one place that says so; the screen lights his area, with a sound (owner 24 Nov: no sign flying from face to face)
   if (G.turn === i) return;
   G.turn = i; sound('turn');
@@ -349,7 +356,7 @@ async function makeJar(i, c, landing) {  // a full row of colour c: its jar drop
     return fly({ k: 'good', c, o: i, rim }, from, mouth, INTO_MS, { via: via(from), ease: u => u }).then(() => G === my && g === JAR_GOODS - 1 && sound('made'));
   }));
 }
-async function pass(i) { G.players[i].passes++; sound('pass'); G.passing = i; if (!G.players[i].human) G.hand.g = 'raised'; await pause(1200); G.passing = null; G.hand.g = 'point'; }  // a skipped turn: only its sound (owner 25 Nov); the PC raises its hand
+async function pass(i) { G.players[i].passes++; sound('pass'); feel(i, 'sad'); G.passing = i; if (!G.players[i].human) G.hand.g = 'raised'; await pause(1200); G.passing = null; G.hand.g = 'point'; }  // a skipped turn: only its sound (owner 25 Nov); the PC raises its hand
 const pickable = (k, i) => fits(G.draft[k], i);  // fits his land
 function pick(i) {
   let best = -1, bw = null; G.draft.forEach((t, k) => { if (!pickable(k, i)) return; const w = bestPlace(t, i).worth; if (better(w, bw)) { bw = w; best = k; } });  // the tile whose best place is worth most
@@ -373,7 +380,7 @@ async function place(i, cs, pos, home, lies = 0) {  // lies: how it is turned to
   const { x, y, r } = a, edges = matchEdges(cs, x, y, r);
   put({ id: 't' + (tileNo++), cs, x, y, r, o: i, landed: performance.now() });
   sound('snap'); sound('splash'); G.splashes.push({ at: tileCentre(x, y, r), r, t0: performance.now() });  // owner 26 Nov: it drops on the water: a bigger wave
-  G.burst = { who: i, edges, t0: performance.now() };  // each connection (a matched edge) glows
+  G.burst = { who: i, edges, t0: performance.now() }; if (edges.length) feel(i, 'happy');  // each connection (a matched edge) glows; he is happy
   // owner 26 Nov: every jar this placing gives gets its place first (its connections' jars and the jars its full columns make), so the lines never re-centre while they fly
   const lit = litLand(edges), P = G.players[i], fills = COLOUR_IDS.reduce((n, c) => n + Math.floor((P.goods[c] + P.coming[c] + lit.filter(l => l[0] === c).length) / JAR_GOODS), 0), keep = () => { const k = freeSlot(P); P.reserved.add(k); return k; };
   const edgeSlots = edges.map(keep); P.planned.push(...Array.from({ length: fills }, keep));
@@ -403,7 +410,7 @@ async function openJars(i) {  // tap jars as fast as he likes (owner 25 Nov): ea
     const show = { who: i, j, at: [at[0], at[1] - JAR_SIZE() * 1.2] }, needsHim = j.k === 'slot' || j.k === 'tile';
     const run = (async () => {
       await fly({ k: 'shown', j, o: i }, at, show.at, RISE_MS, { arc: JAR_SIZE() * 0.6, z0: 0.3 }); if (G !== my) return;  // it jumps out of the jar (owner 25 Nov)
-      G.shown.push(show); sound('reveal'); await pause(SHOW_MS); G.shown = G.shown.filter(x => x !== show); if (G !== my) return;
+      G.shown.push(show); sound('reveal'); feel(i, j.k === 'empty' || (j.k === 'tile' && !j.cs) ? 'sad' : 'surprised'); await pause(SHOW_MS); G.shown = G.shown.filter(x => x !== show); if (G !== my) return;  // a jar with nothing in it makes him sad
       if (needsHim) await Promise.all([...open].filter(x => x !== run)); await bonus(i, j, show.at, jar.slot);
     })();
     open.add(run); run.then(() => open.delete(run));
@@ -415,9 +422,9 @@ async function bonus(i, j, from, jarPlace) {  // jarPlace: the broken jar's plac
   const p = G.players[i], my = G;
   if (j.k === 'coins' || j.k === 'coins2') {  // each coin leaves from where the jar showed it, one after the other; owner 26 Nov: the second stays in sight until its turn
     const S = SHOWN, list = j.k === 'coins' ? [[from, 0.24]] : [[[from[0] - 0.13 * S, from[1] + 0.08 * S], 0.24], [[from[0] + 0.13 * S, from[1] - 0.08 * S], 0.24]];  // as content() draws them
-    await Promise.all(list.map(([at, k], c) => fly({ k: 'coin', r: k * S }, at, coinSpot(i, p.coins + c), COIN_FLY, { delay: c * COIN_FLY, z1: stock(i).cr / (k * S) }).then(() => { if (G !== my) return; p.coins++; sound('coin'); })));
+    await Promise.all(list.map(([at, k], c) => fly({ k: 'coin', r: k * S }, at, coinSpot(i, p.coins + c), COIN_FLY, { delay: c * COIN_FLY, z1: stock(i).cr / (k * S) }).then(() => { if (G !== my) return; p.coins++; sound('coin'); feel(i, 'happy'); })));
   }
-  else if (j.k === 'first') { await fly({ k: 'star' }, from, starSpot(i), REWARD_MS, { arc: 100 }); if (G !== my) return; G.first = i; sound('token'); }
+  else if (j.k === 'first') { await fly({ k: 'bee' }, from, beeSpot(i), REWARD_MS, { arc: 100 }); if (G !== my) return; G.first = i; sound('token'); feel(i, 'happy'); }
   else if (j.k === 'jar') await dropJar(i, from, jarPlace);
   else if (j.k === 'set') await gain(i, COLOUR_IDS.map(c => [c, from, 'good']), STAGGER);
   else if (j.k === 'tile') { const t = j.cs; if (t) { G.fromNowhere++; await fly({ k: 'tile', cs: t, r: i ? 0 : 1 }, from, giftSpot(i), REWARD_MS); if (G !== my) return; await place(i, t, giftSpot(i), undefined, i ? 0 : 1); } }  // the free tile flies blank to its place beside the market, marked as his, and shows its colours there (owner 25 Nov)
@@ -486,7 +493,7 @@ async function slot(i) {
     p.coins--; await roll([0, 1, 2].filter(k => !G.slot.kept[k]));  // the lever spins the wheels not kept; a clamp stays until tapped off
   }
   const f = shownFaces(G.slot), won = wins(f) ? Array(3 * FACE_COUNT).fill(f[0]) : [], goods = [], at = [W / 2, H / 2];  // three of a kind: what the 3 faces show; anything else: nothing
-  G.slot = null; if (won.length) sound('win');
+  G.slot = null; if (won.length) sound('win'); feel(i, won.length ? 'excited' : 'sad');  // three of a kind: excited; anything else: sad
   await Promise.all(won.filter(x => x === 'jar').map((x, k) => pause(k * STAGGER).then(() => G === my && dropJar(i, at))));  // jars won fly from the machine to their places
   for (const x of won) if (x === 'set') goods.push(...COLOUR_IDS.map(c => [c, at, 'good']));
   await Promise.all(won.filter(x => x === 'coin').map((x, k) => pause(k * STAGGER).then(async () => { if (G !== my) return; await fly({ k: 'coin', r: stock(i).cr }, at, coinSpot(i, p.coins + k), COIN_FLY); if (G === my) { p.coins++; sound('coin'); } })));  // owner 25 Nov: coins won fly to their places
@@ -501,7 +508,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); heard = []; flights = []; specks = []; G = { slotFaces: o.slotFaces || null, fromNowhere: 0, board: 0, round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], over: false, ending: null, piled: null, winner: null, slot: null, turn: null, shown: [], pops: [], shines: [], splashes: [], jarWho: null, parked: false, parking: false, burst: null, dusk: null, dawn: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; flights = []; specks = []; G = { slotFaces: o.slotFaces || null, fromNowhere: 0, board: 0, round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], over: false, ending: null, piled: null, winner: null, slot: null, turn: null, animals: pickAnimals(), moods: [null, null], shown: [], pops: [], shines: [], splashes: [], jarWho: null, parked: false, parking: false, burst: null, dusk: null, dawn: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y, r], k) => put({ id: 's' + k, cs: [0, 1], x, y, r, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; if (o.goods) p.goods = o.goods[k].slice(); });  // a saved game: each player's coins and goods
@@ -554,7 +561,12 @@ const FACE_ROOM = 46;  // the lit face's size and a gap: the face sits in the th
 function faceSpot(i) {  // owner 26 Nov (areas-sketch.png): in his face triangle's corner by the screen edge, under the deck line
   const r = FACE_ROOM * UI() + 16, x = r, y = deckLine() + deckOver() + r; return [i ? W - x : x, y];
 }
-function starSpot(i) { const [x, y] = faceSpot(i); const u = UI(); return [x + (i ? -1 : 1) * (FACE_ROOM + 24) * u, y - 12 * u]; }  // the first-player token, beside his face, away from the board
+const BEE_R = 24;  // the first-player bee's size (at a 1920 x 1080 screen)
+function inCorner(A, P, B, r) {  // the middle of a circle of radius r that touches both sides of the corner P (between A and B) from inside
+  const u = [A[0] - P[0], A[1] - P[1]], v = [B[0] - P[0], B[1] - P[1]], lu = Math.hypot(...u), lv = Math.hypot(...v), b = [u[0] / lu + v[0] / lv, u[1] / lu + v[1] / lv], lb = Math.hypot(...b);
+  const half = Math.acos(Math.max(-1, Math.min(1, (u[0] * v[0] + u[1] * v[1]) / (lu * lv)))) / 2, d = r / Math.sin(half); return [P[0] + b[0] / lb * d, P[1] + b[1] / lb * d];
+}
+function beeSpot(i) { const t = topOf('face' + i); return inCorner(t[0], t[1], t[2], BEE_R * UI() + STONE_ROOM); }  // owner 27 Nov: the bee in his face stone's corner by the pool, clear of its edges
 function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { return stock(i).placeAt(c, k); }  // where good number k of colour c stands in player i's stockpile: place k of column c
 const PILE_LAYERS = HALVES.reduce((a, b) => a + b) / 2, ROUND_TILES = 4, ROUND_GAP = 0;  // a full pile: one layer per tile (owner 25 Nov); a stack of ROUND_TILES layers per round, ROUND_GAP px apart (owner 25 Nov)
@@ -716,10 +728,10 @@ const inside = (pts, x, y) => pts.reduce((o, p, k) => { const q = pts[(k + 1) % 
 function blocks() {  // the stones, back to front in each layer: base, top, sides (each: its strip, the shape swept, its tone), rounded corners, which top sides lie on the screen's edge
   const ar = [0, 1].map(i => Object.fromEntries(areas(i).map(a => [a.key, a.pts]))), L0 = ar[0].market, R0 = ar[1].market, { cx: X, cy: Y, a, c } = boardDiamond(), dl = deckLine();
   const first = [{ pts: [[0, 0], [W, 0], [W, dl], ...R0.slice(2, -1).reverse(), ...L0.slice(2, -1), [0, dl]] },
-    ...[0, 1].flatMap(i => { const m = ([x, y]) => [i ? W - x : x, y]; return [{ pts: ar[i].face }, { pts: [[0, Y], [X - a, Y], [X, Y + c], [X, H], [0, H]].map(m) }]; })];
+    ...[0, 1].flatMap(i => { const m = ([x, y]) => [i ? W - x : x, y]; return [{ pts: ar[i].face, key: 'face' + i }, { pts: [[0, Y], [X - a, Y], [X, Y + c], [X, H], [0, H]].map(m), key: 'bottom' + i }]; })];
   const u = UI(), step = LEVEL_UP * u, v1 = [0, POOL_DOWN * STONE_LEVEL.first * step], v2 = [SIDE[0] * (STONE_LEVEL.second - STONE_LEVEL.first) * step, SIDE[1] * (STONE_LEVEL.second - STONE_LEVEL.first) * step];
   const squares = buttonSpots().map(({ x, y, half }) => { const [vx, vy] = [v2[0] / 2, v2[1] / 2], h = half + STONE_ROOM / 2 * u, by = [x + vx, y + vy + v1[1]]; return { layer: 3, pts: [[by[0] - h, by[1] - h], [by[0] + h, by[1] - h], [by[0] + h, by[1] + h], [by[0] - h, by[1] + h]] }; });  // owner 27 Nov: each button on its own small square stone, half as high, standing on the buttons' stone
-  const second = [ar[0].deck, ar[1].deck, ar[0].materials, ar[1].materials, [ar[0].deadLow[0], ar[0].deadLow[1], ar[1].deadLow[0], ar[1].deadLow[3], ar[0].deadLow[3]]].map(p => Array.isArray(p) ? { pts: p } : p);
+  const second = [ar[0].deck, ar[1].deck, ar[0].materials, ar[1].materials, { pts: [ar[0].deadLow[0], ar[0].deadLow[1], ar[1].deadLow[0], ar[1].deadLow[3], ar[0].deadLow[3]], key: 'plug' }].map(p => Array.isArray(p) ? { pts: p } : p);
   const edge = ([x, y]) => x < 1 || x > W - 1 || y < 1 || y > H - 1, tone = faceTone;  // the sun at the top left (more from the left): a face turned away from it darker
   const lowest = pts => Math.max(...pts.map(q => q[1]));
   const make = (b, n, layer) => {
@@ -734,7 +746,7 @@ function blocks() {  // the stones, back to front in each layer: base, top, side
     const sides = pts.map((p, k) => { if (outer[k] || norm[k][0] * v[0] + norm[k][1] * v[1] < 0.05 || (layer === 1 && !wet[k])) return null; const t = layer === 1 ? shiftSides(pts, lift(v)) : top, e0 = t[k], e1 = t[(k + 1) % M];  // a first-layer face shows only toward the pool (elsewhere a stone as high stands in front); its wall runs to the joint's middle, so neighbouring walls meet tight
       const foot = e => [e[0] < 1 || e[0] > W - 1 ? e[0] : e[0] + v[0], e[1] + v[1]];  // a face's end on the screen's edge stays on it (nothing past the edge shows)
       return { strip: [e0, e1, foot(e1), foot(e0)], vx: v[0], vy: v[1], tone: tone(norm[k]) }; }).filter(Boolean);
-    return { n, layer, up: v[1], base, top, sides, round, o, outer, low: lowest(base) };
+    return { n, key: b.key, layer, up: v[1], base, top, sides, round, o, outer, low: lowest(base) };
   };
   return [...first.map((b, n) => make(b, n, 1)), ...second.map((b, n) => make(b, first.length + n, 2)), ...squares.map((b, n) => make(b, first.length + second.length + n, 3))].sort((p, q) => p.layer - q.layer || p.low - q.low);
 }
@@ -789,9 +801,10 @@ function drawSides(b) {  // each side: its strip filled by the top swept down to
   }
 }
 let stoneTops = null;
+function tops() { const mark = [W, H].join(); if (!stoneTops || stoneTops.mark !== mark) { stoneTops = blocks().map(b => ({ key: b.key, top: b.top, round: b.round })); stoneTops.mark = mark; } return stoneTops; }  // the stones' tops, made once per screen size
+const topOf = key => tops().find(b => b.key === key).top;
 function stonesOverWater() {  // owner 27 Nov: the stones in front of the pool cover its front edge: the moving water is cut away under their tops
-  const mark = [W, H].join(); if (!stoneTops || stoneTops.mark !== mark) { stoneTops = blocks().map(b => ({ top: b.top, round: b.round })); stoneTops.mark = mark; }
-  cx.save(); cx.globalCompositeOperation = 'destination-out'; for (const b of stoneTops) { shapePath(b.top, 0, 0, b.round); cx.fill(); } cx.restore();
+  cx.save(); cx.globalCompositeOperation = 'destination-out'; for (const b of tops()) { shapePath(b.top, 0, 0, b.round); cx.fill(); } cx.restore();
 }
 function stoneAreas() {  // back to front, the first layer then the second: each stone's shadow (second layer), faces and top (a higher top a little lighter); then the pool walls' joints
   const all = blocks();
@@ -799,6 +812,7 @@ function stoneAreas() {  // back to front, the first layer then the second: each
     if (b.layer >= 2) { cx.save(); cx.shadowColor = STONE.shadow; cx.shadowBlur = 0; cx.shadowOffsetX = 0.35 * b.up; cx.shadowOffsetY = 0.35 * b.up; shapePath(b.base, 0, 0, b.round); cx.fillStyle = STONE.floor; cx.fill(); cx.restore(); }  // a contact shadow from its base, so it sits on the stone below
     drawSides(b); drawTop(b);
     if (b.layer >= 2) { cx.save(); shapePath(b.top, 0, 0, b.round); cx.fillStyle = STONE.lift; cx.fill(); cx.restore(); }
+    if (b.key === 'plug') { const [x, y] = b.top[1]; cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x, H); cx.strokeStyle = STONE.seamDark; cx.lineWidth = 1.5; cx.stroke(); }  // owner 27 Nov: the stone under the pool in two halves, one per player: a joint down its middle
   }
   const walls = all.filter(b => b.layer === 1).flatMap(b => b.sides.map(q => q.strip));  // owner 27 Nov: where two walls meet, the left one's dark edge touches the right one's light edge, airtight
   for (const w of walls) for (const z of walls) { if (w === z) continue; const [, a1, a2] = w, [b0] = z; if (Math.hypot(a1[0] - b0[0], a1[1] - b0[1]) > 1) continue;
@@ -866,7 +880,8 @@ function symbol(f, x, y, r, n = 1) {  // a slot face: n coins, jars or sets of o
   if (f === 'coin') coin(x, y, r * 0.8); else if (f === 'jar') jarShape(x, y, r * 1.6); else setShape(x, y, r * 0.9);
 }
 function nothing(x, y, r) { cx.strokeStyle = '#d0342c'; cx.lineWidth = Math.max(4, r * 0.22); cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(x - r, y - r); cx.lineTo(x + r, y + r); cx.moveTo(x + r, y - r); cx.lineTo(x - r, y + r); cx.stroke(); cx.lineCap = 'butt'; drawn.push({ k: 'nothing' }); }  // an X: nothing  // owner 25 Nov: red
-function star(x, y, r) {  // the first-player token
+function bee(x, y, r) { picture('things/bee', x - r, y - r, 2 * r, 2 * r); }  // owner 27 Nov: the first-player token, a bee
+function star(x, y, r) {  // a star
   cx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r; cx.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); }
   cx.closePath(); cx.fillStyle = '#f4cf4a'; cx.fill(); cx.strokeStyle = '#a07810'; cx.lineWidth = 2; cx.stroke();
 }
@@ -876,7 +891,7 @@ function content(j, x, y, s) {  // what a jar held
   else if (j.k === 'coins') coin(x, y, s * 0.24);
   else if (j.k === 'coins2') { coin(x - s * 0.13, y + s * 0.08, s * 0.24); coin(x + s * 0.13, y - s * 0.08, s * 0.24); }  // owner 26 Nov: each as big as the single coin  // owner 26 Nov: overlapping, the second higher and on top
   else if (j.k === 'slot') { const k = 0.6; rrect(x - s * 0.42 * k, y - s * 0.24 * k, s * 0.84 * k, s * 0.48 * k, 8, '#7a2f2f'); for (let n = 0; n < 3; n++) rrect(x + (-0.36 + n * 0.25) * s * k, y - s * 0.17 * k, s * 0.21 * k, s * 0.34 * k, 4, '#fff'); }
-  else if (j.k === 'first') star(x, y, s * 0.27);
+  else if (j.k === 'first') bee(x, y, s * 0.27);
   else if (j.k === 'tile') j.cs ? tileShape(x, y, s * 0.55 / (3 * L().hw), j.cs, 0) : nothing(x, y, s * 0.2);  // owner 26 Nov: the very tile he gets; nothing when none fits
   else if (j.k === 'jar') jarShape(x, y, JAR_SIZE());  // owner 26 Nov: full size, as it will stand in its place
   else if (j.k === 'set') setShape(x, y, s * 0.26);
@@ -1142,9 +1157,23 @@ function stock(i) {  // player i's things in his area: materials in a row of JAR
   const coinAt = k => { const n = Math.floor(k / COIN_STACK) % COIN_SLOTS, up = k % COIN_STACK + COIN_STACK * Math.floor(k / (COIN_STACK * COIN_SLOTS)); return [out(a + sp * (n + 0.5)), base - up * th]; };
   return { r, rp, placeAt, cr, th, coinAt };
 }
-function face(x, y, r, col) {  // a player: a round face in his colour
-  dot(x, y, r, col); dot(x - r * 0.35, y - r * 0.15, r * 0.13, '#fff'); dot(x + r * 0.35, y - r * 0.15, r * 0.13, '#fff');
-  cx.strokeStyle = '#fff'; cx.lineWidth = r * 0.12; cx.lineCap = 'round'; cx.beginPath(); cx.arc(x, y + r * 0.05, r * 0.45, 0.5, Math.PI - 0.5); cx.stroke(); cx.lineCap = 'butt';
+const glows = new Map();  // each sticker's glow in a colour, at a size, made once (a blur every frame costs a lot)
+function glowOf(name, col, w, h, g) {
+  const d = devicePixelRatio || 1, k = [name, col, w, h, g, d].join(); if (glows.has(k)) return glows.get(k);
+  const one = document.createElement('canvas'), c = document.createElement('canvas'); one.width = c.width = Math.ceil((w + 4 * g) * d); one.height = c.height = Math.ceil((h + 4 * g) * d);
+  const o = one.getContext('2d'); o.drawImage(pics[name], 2 * g * d, 2 * g * d, w * d, h * d); o.globalCompositeOperation = 'source-in'; o.fillStyle = col; o.fillRect(0, 0, one.width, one.height);
+  const q = c.getContext('2d'); q.filter = `blur(${g * d / 2}px)`; q.drawImage(one, 0, 0); q.drawImage(one, 0, 0); glows.set(k, c); return c;
+}
+function sticker(i, x, y, size, lit) {  // owner 27 Nov: a player is his animal's sticker, its face showing what just happened to him; on his turn bigger, in a glow of his colour
+  const name = 'avatars/' + G.animals[i] + '-' + moodOf(i), src = pics[name]; if (!src) return name;
+  const k = size / Math.max(src.width, src.height), w = src.width * k, h = src.height * k, g = 10 * UI();
+  if (lit) { cx.globalAlpha = 0.75 + 0.25 * Math.sin(performance.now() / 250); cx.drawImage(glowOf(name, BORDER[i], Math.round(w), Math.round(h), Math.round(g)), x - w / 2 - 2 * g, y - h / 2 - 2 * g, w + 4 * g, h + 4 * g); cx.globalAlpha = 1; }
+  fittedAt(name, x - w / 2, y - h / 2, w, h); return name;
+}
+const RUBY_R = 26;  // the leader's ruby (at a 1920 x 1080 screen)
+function rubySpot(i) {  // owner 27 Nov: on his half of the stone under the pool's bottom corner, in the corner between the pool and the middle joint, clear of both
+  const r = RUBY_R * UI() + STONE_ROOM, plug = topOf('plug'), [A, P] = plug[1][0] - plug[0][0] > 2 * r ? plug : topOf('bottom0').slice(1, 3);  // narrow screens: no stone under the pool, the bottom stones meet there
+  const [x, y] = inCorner(A, P, [P[0], H], r); return [i ? W - x : x, y];
 }
 function drawPanel(i) {
   const p = G.players[i], lit = G.turn === i, { r, rp, placeAt, cr, th, coinAt } = stock(i);  // his area's tint and places are in the scene
@@ -1155,16 +1184,24 @@ function drawPanel(i) {
     cx.globalAlpha = a; rrect(x0 - rp / 2, top, rp, bot - top, rp / 2, '#fff2b0'); cx.globalAlpha = 1; drawn.push({ k: 'columnshine', o: i, c }); });
   p.goods.forEach((g, c) => { const a = shine(c); if (a) drawn.push({ k: 'shine', o: i, c }); for (let k = 0; k < g; k++) { const [x, y] = placeAt(c, k); a ? flashGood(c, x, y, r, a) : goodShape(c, x, y, r, true); drawn.push({ k: 'good', o: i, c, x, y, r, pic: 'materials/' + MATERIALS[c], ready: picReady('materials/' + MATERIALS[c]) }); } });
   for (let k = 0; k < p.coins - (G.ending ? G.ending[i] : 0); k++) { const [x, y] = coinAt(k); flatCoin(x, y, cr, th); drawn.push({ k: 'coin', o: i, x, y, r: cr }); }
-  const u = UI(), [fx, fy] = faceSpot(i), fr = (lit ? 38 : 26) * u; if (lit) dot(fx, fy, fr + (6 + 2 * Math.sin(performance.now() / 250)) * u, BORDER[i] + '55');  // the player whose turn it is: a bigger face with a soft glow
-  face(fx, fy, fr, BORDER[i]); drawn.push({ k: 'avatar', o: i, x: fx, y: fy, r: fr });
-  if (G.first === i) { const [sx, sy] = starSpot(i); star(sx, sy, 16 * u); drawn.push({ k: 'token', o: i, x: sx, y: sy, r: 16 * u }); }  // the first-player token, beside his face
+  const u = UI(), [fx, fy] = faceSpot(i), fr = (lit ? 46 : 34) * u, pic = sticker(i, fx, fy, 2 * fr, lit); drawn.push({ k: 'avatar', o: i, x: fx, y: fy, r: fr, pic, lit });
+  if (p.coins > G.players[1 - i].coins) { const [rx, ry] = rubySpot(i), rr = RUBY_R * u; picture('things/ruby', rx - rr, ry - rr, 2 * rr, 2 * rr); drawn.push({ k: 'ruby', o: i, x: rx, y: ry, r: rr }); }  // owner 27 Nov: a ruby on the half of whoever has the most coins
+  if (G.first === i) { const [sx, sy] = beeSpot(i); bee(sx, sy, BEE_R * u); drawn.push({ k: 'token', o: i, x: sx, y: sy, r: BEE_R * u }); }  // the first-player token
+}
+function extraGlow(x, y, b, r) {  // a golden glow round the tile, breathing, and small stars twinkling round it
+  const now = fast ? 0 : performance.now(), breath = 0.5 + 0.5 * Math.sin(now / 300);
+  [[1.45, 0.22], [1.3, 0.32], [1.16, 0.45]].forEach(([z, a]) => { tilePath(x, y, z, r); cx.fillStyle = `rgba(255,196,40,${a * (0.65 + 0.35 * breath)})`; cx.fill(); });
+  for (let k = 0; k < 7; k++) { const t = 2 * Math.PI * k / 7 + now / 4000, tw = 0.3 + 0.7 * Math.max(0, Math.sin(now / 260 + k * 2.1)), sr = (4 + 8 * tw) * UI(), sx = x + Math.cos(t) * b.w * 0.62, sy = y + Math.sin(t) * b.h * 0.7;
+    cx.beginPath(); for (let q = 0; q < 8; q++) { const ang = q * Math.PI / 4, rr = q % 2 ? sr * 0.3 : sr; cx.lineTo(sx + rr * Math.cos(ang), sy + rr * Math.sin(ang)); } cx.closePath(); cx.fillStyle = '#fff2a0'; cx.fill(); cx.strokeStyle = 'rgba(200,140,0,0.6)'; cx.lineWidth = 1; cx.stroke(); }
+  drawn.push({ k: 'extraglow', x, y });
 }
 function drawHeld() {  // the tile in hand where it lies, and the place it will snap to
   const sp = snapSpot(), [x, y] = wait.pos, b = tileBox(x, y, 1, wait.r), cs = wait.tile;
   const ms = sp ? null : marketSpot(), lying = ms != null && Math.hypot(x - draftSlot(ms)[0], y - draftSlot(ms)[1]) < 1, ghost = lying ? null : sp ? [...tileCentre(sp.x, sp.y, sp.r), sp.r] : ms != null ? [...draftSlot(ms), marketLie(turnShown(wait), ms).r1] : null;  // owner 26 Nov: no preview of the place it already lies on (just taken)  // owner 26 Nov: an empty market place shows the same preview as the board
   if (ghost) { const [gx, gy, gr] = ghost; tileShape(gx, gy, 1, cs, gr, sp ? 'ghost' : 'ghost-market');  /* owner 27 Nov: in a market place the preview looks as the tile lying there */ cx.setLineDash([8, 6]); cx.lineCap = 'round'; tilePath(gx, gy + (sp ? waterDrop() : wallHigh()), 1.08, gr); cx.strokeStyle = '#ffffff'; cx.lineWidth = 4; cx.stroke(); cx.setLineDash([]); cx.lineCap = 'butt'; drawn.push({ k: 'preview', where: sp ? 'board' : 'market' }); }  // owner 27 Nov: the outline marks where the tile's base will stand (on the water, or in its market place)
   const tilt = tiltNow(wait); cx.save(); cx.translate(x, y); cx.rotate(tilt * Math.PI / 180); cx.translate(-x, -y);
-  const tr = turnShown(wait); tilePath(x + 3, y + 7, 1, tr); cx.fillStyle = '#00000033'; cx.fill(); tileShape(x, y, 1.06, cs, tr, null, 'held');  // a plain offset shadow: a blurred one costs a lot to draw every frame
+  const tr = turnShown(wait); if (wait.home === undefined) extraGlow(x, y, b, tr);  // owner 27 Nov: the extra tile (from a jar, it has no market place) draws the eye
+  tilePath(x + 3, y + 7, 1, tr); cx.fillStyle = '#00000033'; cx.fill(); tileShape(x, y, 1.06, cs, tr, null, 'held');  // a plain offset shadow: a blurred one costs a lot to draw every frame
   cx.restore(); drawn.push({ k: 'heldmark', o: wait.who, tilt });  // owner 25 Nov: no colour around a held tile, either player's
   btn('held', b.x - 8, b.y - 8, b.w + 16, b.h + 16, e => { press = { x: e.clientX, y: e.clientY, dx: x - e.clientX, dy: y - e.clientY, moved: false }; });
 }
@@ -1310,7 +1347,7 @@ function drawFlights() {  // everything on its way, at its point on its curve
     }
     else if (L0.k === 'jar') jarShape(x, y, JAR_SIZE() * z);
     else if (L0.k === 'shown') shownCard(L0.j, L0.o, x, y, z);
-    else if (L0.k === 'star') star(x, y, 16 * z);
+    else if (L0.k === 'bee') bee(x, y, BEE_R * UI() * z);
     else if (L0.k === 'tile') tileShape(x, y, z, L0.cs, L0.r1 == null ? L0.r || 0 : L0.r + (L0.r1 - L0.r) * easeInOut(Math.min(1, Math.max(0, (now - f.t0) / f.ms))));  // r1: it turns on its way
     drawn.push({ k: 'flight', look: L0.k, c: L0.c, x, y, fx: f.from[0], fy: f.from[1], tx: f.to[0], ty: f.to[1] });
   }
