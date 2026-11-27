@@ -568,11 +568,12 @@ const TIP_GREY = '#a9a9a9';  // the market's and dead space's grey; material pla
 let faceMemo = null;
 function faceBox(i) {  // the box his sticker fits in, on his face stone's top (owner 27 Nov: as big as possible): from STONE_ROOM inside the screen's edge and the stone's top
   // to STONE_ROOM before the bee (beside the extra tile's place) and the pool; its bottom where the stickers come out biggest (lower, the pool comes nearer)
-  if (!faceMemo || faceMemo.mark !== [W, H].join()) {
+  const mark = [W, H, Object.keys(pics).filter(n => n.startsWith('avatars/') && picReady(n)).length].join();  // made again once the pictures are in
+  if (!faceMemo || faceMemo.mark !== mark) {
     const u = UI(), room = STONE_ROOM * u, t = topOf('face0'), top = Math.min(...t.map(q => q[1])) + room, bottom = t[3][1] - room, x0 = room, right = giftEdge() - 2 * room - 2 * BEE_R * u;  // room for the bee
     let best = null;
     for (let k = 1; k <= 40; k++) { const y1 = top + (bottom - top) * k / 40, b = { x: x0, y: top, w: Math.min(right, waterX(y1) - room) - x0, h: y1 - top }; if (b.w > 0 && (!best || stickerFit(b, false).h > stickerFit(best, false).h)) best = b; }
-    faceMemo = { mark: [W, H].join(), box: best };
+    faceMemo = { mark, box: best };
   }
   const b = faceMemo.box; return { x: i ? W - b.x - b.w : b.x, y: b.y, w: b.w, h: b.h };
 }
