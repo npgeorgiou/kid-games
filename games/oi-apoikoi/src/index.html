@@ -713,7 +713,7 @@ const STONE_LEVEL = { first: 2, second: 3 };  // owner 27 Nov
 const LEVEL_UP = 52, SIDE = [0.175, 0.25], SLAB_ROUND = 18, STONE_JOINT = 2;  // a level's height (at a 1920 x 1080 screen); the second layer shows this part of it right and down; the corners' rounding; half a joint
 const poolWall = () => waterDrop();  // owner 27 Nov: the first layer's top over its base: the pool's wall, straight down to the water, as high as a tile's ground shows over the water
 const liftOf = layer => { const step = LEVEL_UP * UI(), d = STONE_LEVEL.second - STONE_LEVEL.first, up1 = poolWall(); return layer === 1 ? up1 : up1 + SIDE[1] * d * step; };  // how far a stone's top lies above its base
-const GOODS_COLUMN = [0, 1, 4, 3, 2, 5], ICON_SIZE = [1, 1, 1, 1, 1, 1.075];  // owner 27 Nov: each colour's column in the stockpile from the screen's edge (grapes and stone swapped); each icon's size (the statue 7.5% bigger, filling its place like the others)
+const GOODS_COLUMN = [0, 1, 4, 3, 2, 5], ICON_SIZE = [1, 1, 1, 1, 1, 1.075];  // owner 27 Nov: each colour's column in the stockpile from the left (grapes and stone swapped), the same for both players; each icon's size (the statue 7.5% bigger, filling its place like the others)
 const ICON_UP = 1.2;  // owner 27 Nov: the material icons this many steps above the top places, clear of the groove under them
 const faceTone = ([nx, ny]) => Math.min(0.92, 0.92 - 0.4 * nx - 0.22 * ny);  // owner 27 Nov: a face lit by the sun at the top left, clearly by its way: a right face darkest, a down face in between, a face turned left lit
 const sideIn = () => SIDE[0] * (STONE_LEVEL.second - STONE_LEVEL.first) * LEVEL_UP * UI();  // how far a second-layer stone's top lies left of its base's right edge
@@ -1166,7 +1166,7 @@ function stock(i) {  // player i's things in his area: materials in a row of JAR
   // coins: stacks in his grey bottom tip (below)
   const { T, hh } = L(), p = G.players[i], { r, rp } = goodRoom(), out = k => i ? W - k : k;
   const t = goodsTop(i), f = goodsFlat(i), xc = (f.x0 + f.x1) / 2, hc = (JAR_GOODS - 1 + ICON_UP + 0.9) * rp, yb = (t.y0 + H) / 2 + hc / 2 - 0.5 * rp;  // owner 27 Nov: the icons and places centred on the stone's top
-  const placeAt = (c, k) => [xc + (i ? -1 : 1) * rp * (GOODS_COLUMN[c] - (LANDS.length - 1) / 2), yb - rp * k];  // a column of JAR_GOODS per colour, from the bottom (owner 25 Nov: columns, at the bottom with the coins)
+  const placeAt = (c, k) => [xc + rp * (GOODS_COLUMN[c] - (LANDS.length - 1) / 2), yb - rp * k];  // owner 27 Nov: both players' columns in the same order from left to right  // a column of JAR_GOODS per colour, from the bottom (owner 25 Nov: columns, at the bottom with the coins)
   // coins (owner 26 Nov): COIN_SLOTS places in a line along the bottom of his coins' area (coinRoom); the place nearest the screen's edge fills first,
   // COIN_STACK coins high, then the next (100 simulated games: 66 coins at most); past COIN_SLOTS * COIN_STACK the stacks grow on from the first place
   const { a0: a, sp } = coinRoom(), cr = COIN_R * sp, th = COIN_TH * cr, base = H - LOW - 0.6 * cr;  // between places, a coin's radius and thickness

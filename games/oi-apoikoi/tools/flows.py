@@ -706,15 +706,15 @@ def f_sticker_glow(q):  # owner 27 Nov: the turn's sticker glow: less neon ("rad
     ok = all(seen) and period >= 3000 and 0.7 <= sat(x['col']) <= 0.9 and light(x['col']) <= 0.5 and x['core'] >= 0.25 * x['g'] and x['g'] >= 30 * x['ui']
     report(ok, 'faces: the turn glow is vivid not neon, slow, solid, bigger', 'pulse every %d ms, colour %s (saturation %.2f, lightness %.2f), solid core %.1f of a glow %.1f (%.1f at a 1080 screen)' % (period, x['col'], sat(x['col']), light(x['col']), x['core'], x['g'], x['g'] / x['ui']))
 def f_stockpile(q):  # owner 27 Nov: materials stockpile: the side places' gaps to the screen edge and to the stone's edge are equal, on both sides; the grapes and stone columns swapped
-    # (wheat, sheep, stone, forest, grapes, town from the screen edge); the statue icon 7.5% wider than the others, filling its place like them
+    # (wheat, sheep, stone, forest, grapes, town); later: both players' columns in the same order from left to right, not mirrored; the statue icon 7.5% wider than the others, filling its place like them
     table(q); settle(q); flat = {d['o']: d for d in drawn(q, 'goodsflat')}; pl = drawn(q, 'place'); icons = drawn(q, 'icon'); seen = {}
     for o in (0, 1):
         mine = [d for d in pl if d['o'] == o]; lo = min(d['x'] - d['r'] for d in mine); hi = max(d['x'] + d['r'] for d in mine); f = flat.get(o, {'x0': 0, 'x1': 0})
-        order = [c for c, _ in sorted({d['c']: d['x'] for d in mine}.items(), key=lambda kv: kv[1] if o == 0 else -kv[1])]
+        order = [c for c, _ in sorted({d['c']: d['x'] for d in mine}.items(), key=lambda kv: kv[1])]
         w = {d['c']: d['w'] for d in icons if d['o'] == o}
         seen[o] = (round(lo - f['x0']), round(f['x1'] - hi), order, round(w.get(5, 0) / w.get(0, 1), 3))
     ok = all(abs(v[0] - v[1]) <= 1 and v[0] > 0 and v[2] == [0, 1, 4, 3, 2, 5] and abs(v[3] - 1.075) < 0.005 for v in seen.values())
-    report(ok, 'materials: even gaps, grapes and stone swapped, statue wider', 'per player (gap at the screen side, gap at the stone side, columns from the edge, statue icon to others) %s' % seen)
+    report(ok, 'materials: even gaps, grapes and stone swapped, same order both sides, statue wider', 'per player (gap at the left, gap at the right, columns from left to right, statue icon to others) %s' % seen)
 def f_buttons_press(q):  # owner 27 Nov: the buttons (3D stones) are tappable with a pressed state: pressed, a button loses its shadow and goes down; let go, it comes back up
     table(q); seen = {}
     for kind in ('gear', 'exit'):
