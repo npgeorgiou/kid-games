@@ -727,12 +727,11 @@ def f_pool_walls(q):  # owner 27 Nov: the pool's walls lower: from the water to 
     table(q); settle(q); w = drawn(q, 'poolwall'); g = {round(d['shows'], 1) for d in drawn(q, 'square')}
     ok = bool(w) and len(g) == 1 and abs(w[0]['h'] - g.pop()) < 0.5 if w and g else False
     report(ok, 'pool: walls as high as a tile\'s ground', 'wall %s, tile ground over the water %s' % ([round(d['h'], 1) for d in w], sorted({round(d['shows'], 1) for d in drawn(q, 'square')})))
-def f_stickers_face(q):  # owner 27 Nov: the two animals face each other: his looks right (or straight ahead), the PC's looks left (or straight ahead)
+def f_stickers_face(q):  # owner 27 Nov: the two animals face each other; later: the right player's sticker is the picture as on the sheet, the left player's is mirrored, in every face
     seen = {}
-    for a, b in (('cat', 'dog'), ('dog', 'chick'), ('chick', 'cat'), ('hamster', 'frog'), ('bunny', 'cat')):
-        table(q, animals=[a, b]); settle(q); s = {d['o']: d['looks'] for d in drawn(q, 'avatar') if 'looks' in d}; seen[a + '/' + b] = (s.get(0), s.get(1))
-    ok = all(v[0] is not None and v[1] is not None and v[0] >= 0 and v[1] <= 0 for v in seen.values()) and any(v[0] == 1 or v[1] == -1 for v in seen.values())
-    report(ok, 'faces: the animals face each other', 'per pair (where his looks, where the PC\'s looks: 1 right, -1 left, 0 ahead) %s' % seen)
+    for a, b in (('cat', 'dog'), ('frog', 'cat'), ('bunny', 'chick'), ('hamster', 'frog')):
+        table(q, animals=[a, b]); settle(q); s = {d['o']: d.get('mirrored') for d in drawn(q, 'avatar')}; seen[a + '/' + b] = (s.get(0), s.get(1))
+    report(all(v == (True, False) for v in seen.values()), 'faces: left sticker mirrored, right one as on the sheet', 'per pair (left mirrored, right mirrored) %s' % seen)
 def f_sticker_rests(q):  # owner 27 Nov: resting, a sticker stretches a little up and down, its feet still: only the part above them moves
     pause_clock(q); table(q, fast=False); seen = []
     for _ in range(30): skip(q, 100); settle(q); d = [d['shown'] for d in drawn(q, 'avatar') if d['o'] == 1 and d['pic'].endswith('-neutral')]; seen.append(d[0] if d else None)
