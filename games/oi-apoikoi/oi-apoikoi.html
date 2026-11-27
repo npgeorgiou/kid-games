@@ -544,7 +544,7 @@ const BOARD_RATIO = 1.76;
 const LAND_PIC = 256, LAND_WALL = 52;  // the land pictures (tools/make_lands.py): a square's diamond LAND_PIC wide, its walls LAND_WALL high, and LAND_PIC / 2 of room above it for what stands on it
 const GROUND_TALL = 1 + LAND_WALL * BOARD_RATIO / LAND_PIC, WALL_HH = 2 * (GROUND_TALL - 1);  // the ground picture: the square's diamond and its walls under it ( see tools/make_lands.py; owner 25 Nov: land with thickness); the walls in half-square heights
 const BOARD_BORDER = 1;  // owner 26 Nov: room round the board, the same all round (half-square heights at top and bottom, widths at the sides), where the slabs reach the water at its corners
-const PAD = 12, LOW = 8, PILE_STEP = 1.5;  // the band's margin; the stockpile's gap above the screen's bottom edge; px between the pile's layers
+const PAD = 12, LOW = 8;  // the band's margin; the stockpile's gap above the screen's bottom edge
 function L() {  // hw, hh: half a square's width and height on screen; T: the board's top corner; s: from one square's centre to the next
   // owner 26 Nov: a square has one shape (BOARD_RATIO wide to 1 high) at every screen size, only its size changes: the board with its border as big as fits both ways, touching the screen's edges on the tighter side; the board's centre is the screen's centre
   const hh = Math.min(H, W / BOARD_RATIO) / (ROWS + COLS + 2 * BOARD_BORDER), hw = BOARD_RATIO * hh, T = H / 2 - ROWS * hh;  // T: the board's top corner
@@ -578,11 +578,13 @@ function inCorner(A, P, B, r) {  // the middle of a circle of radius r that touc
 function beeSpot(i) { const t = topOf('face' + i); return inCorner(t[0], t[1], t[2], BEE_R * UI() + STONE_ROOM); }  // owner 27 Nov: the bee in his face stone's corner by the pool, clear of its edges
 function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { return stock(i).placeAt(c, k); }  // where good number k of colour c stands in player i's stockpile: place k of column c
-const PILE_LAYERS = HALVES.reduce((a, b) => a + b) / 2, ROUND_TILES = 4, ROUND_GAP = 0;  // a full pile: one layer per tile (owner 25 Nov); a stack of ROUND_TILES layers per round, ROUND_GAP px apart (owner 25 Nov)
-const PILE_HIGH = (PILE_LAYERS - 1) * PILE_STEP + (Math.ceil(PILE_LAYERS / ROUND_TILES) - 1) * ROUND_GAP;  // from the full pile's top layer to its bottom one
+const ROUND_TILES = 4;  // a round's tiles
+// The pile (owner 27 Nov): 1. one layer per round still in it (ROUND_TILES tiles), each as high as a tile's ground (its substratum, half a tile's thickness); 2. a line between the layers;
+// 3. its base on its stone's top, STONE_ROOM above the top's lower edge (a full pile may reach past the screen's top).
+const pileLayers = tiles => Math.ceil(tiles / ROUND_TILES);
 const cornerX = () => (deckEdge() - sideIn()) / 2;  // owner 27 Nov: the pile centred on its stone's top; the buttons the same from the right
-function pileLayerY(k) { return (deckLine() - liftOf(2)) / 2 + PILE_HIGH / 2 - k * PILE_STEP - Math.floor(k / ROUND_TILES) * ROUND_GAP; }  // owner 27 Nov: the full pile centred on its stone's top  // layer k from the bottom; owner 26 Nov: the pile's bottom level with the market tiles' bottom (their walls' foot)
-function pileTop() { return [cornerX(), pileLayerY(Math.max(1, G.bag.length) - 1)]; }  // the top layer's centre
+function pileBase() { return deckLine() - liftOf(2) - STONE_ROOM * UI() - 1.5 * L().hh; }  // the pile's bottom: where its bottom tile's centre would be
+function pileTop() { return [cornerX(), pileBase() - pileLayers(G.bag.length) * wallHigh()]; }  // the top tile's centre
 function giftSpot(i = 0) {  // owner 26 Nov (areas-sketch.png): the extra tile, in his face triangle under the deck line, as far from the board's border as the market's inner tile, turned as the market's tiles
   const { hw, hh } = L(), [ix, iy] = draftSlot(1), gap = waterX(iy - 0.5 * hh) - (ix + 1.5 * hw), y = deckLine() + deckOver() + 1.5 * hh + STONE_ROOM, x = waterX(y - 0.5 * hh) - gap - 1.5 * hw;
   return [i ? W - x : x, y];
@@ -1075,7 +1077,7 @@ function drawScene() {  // the band and both areas (one picture for each turn) a
   drawn.push(...onPlane('water', [step, G.board, W, H, G.splashes.length].join(), () => { ripples(now); shorePulse(now); const rings = splashRings(performance.now()), out = [...rings, ...waterShapes(now)]; stonesOverWater(); return out; }));
   drawn.push(...onPlane('land', board.mark, () => { cx.drawImage(board, board.box.x, board.box.y, board.box.w, board.box.h); return board.records; }));
   drawn.push({ k: 'boardarea', x: W / 2 - COLS * hw, y: T, w: (COLS + ROWS) * hw, h: (COLS + ROWS) * hh, cols: COLS, rows: ROWS });
-  for (const c of G.cells.values()) drawn.push({ k: 'square', shows: waterDrop(), x: c.x, y: c.y, c: c.c, o: c.o, pic: 'lands/' + LANDS[c.c], ready: picReady(groundPic(c.c)) && picReady(thingsPic(c.c)) });  // what the board shows, for the checks
+  for (const c of G.cells.values()) drawn.push({ k: 'square', shows: waterDrop(), ground: wallHigh(), x: c.x, y: c.y, c: c.c, o: c.o, pic: 'lands/' + LANDS[c.c], ready: picReady(groundPic(c.c)) && picReady(thingsPic(c.c)) });  // what the board shows, for the checks
   for (const t of landing) { const k = bounce(t); drawn.push({ k: 'bounce', id: t.id, scale: k }); tileShape(...tileCentre(t.x, t.y, t.r), k, t.cs, t.r, 'wet', t.id); }
   const at = performance.now(); G.pops = G.pops.filter(q => at - q.t0 < POP_MS);  // a square giving its material lights up and jumps (drawn over the board's picture and over a tile still landing: his new tile's squares too, owner 25 Nov)
   G.pops.slice().sort((a, b) => a.sq.x + a.sq.y - b.sq.x - b.sq.y).forEach(({ sq, t0 }) => {
@@ -1109,14 +1111,14 @@ function drawDraft() {
       answer(k);
     });
   });
-  const layers = G.bag.length, [px, top] = pileTop(), bottom = pileLayerY(0), box = { x: px - 1.5 * hw - 2, y: top - 1.5 * hh - 2, w: 3 * hw + 4, h: bottom - top + 3 * hh + 4 };
+  const layers = pileLayers(G.bag.length), step = wallHigh(), [px, top] = pileTop(), bottom = pileBase(), box = { x: px - 1.5 * hw - 2, y: top - 1.5 * hh - 2, w: 3 * hw + 4, h: bottom - top + 3 * hh + 4 };
   drawLayer(layer('pile', layers, box, () => {  // owner 26 Nov: one block of tiles: two flat front sides and the top tile, each tile's line drawn on the sides (nothing sticks out); a dark line where each round's tiles begin (owner 25 Nov)
-    if (!layers) return [{ k: 'pile', layers, x: px, y: top, step: PILE_STEP, bottom: bottom + 1.5 * hh }];
+    if (!layers) return [{ k: 'pile', layers, x: px, y: top, step, lines: 0, bottom: bottom + 1.5 * hh }];
     const left = y => [px - 1.5 * hw, y + 0.5 * hh], front = y => [px - 0.5 * hw, y + 1.5 * hh], right = y => [px + 1.5 * hw, y - 0.5 * hh], y0 = bottom;  // the tile's three front corners, turned as the market's first two tiles (owner 27 Nov)
     cx.beginPath(); [left(top), front(top), right(top), right(y0), front(y0), left(y0)].forEach(q => cx.lineTo(...q)); cx.closePath(); cx.fillStyle = '#c9ad7f'; cx.fill();
-    for (let k = 1; k < layers - 1; k++) { const y = pileLayerY(k), cut = k % ROUND_TILES === 0; cx.beginPath(); [left(y), front(y), right(y)].forEach(q => cx.lineTo(...q)); cx.strokeStyle = cut ? '#4a3418' : '#8a6d42'; cx.lineWidth = cut ? 1 : 0.5; cx.stroke(); }
+    for (let k = 1; k < layers; k++) { const y = bottom - k * step; cx.beginPath(); [left(y), front(y), right(y)].forEach(q => cx.lineTo(...q)); cx.strokeStyle = '#4a3418'; cx.lineWidth = 1; cx.stroke(); }  // a line between rounds
     tilePath(px, top, 1, PILE_TURN); cx.fillStyle = '#c9ad7f'; cx.fill(); cx.strokeStyle = '#8a6d42'; cx.lineWidth = 0.5; cx.stroke();
-    return [{ k: 'pile', layers, x: px, y: top, step: PILE_STEP, bottom: bottom + 1.5 * hh, turn: PILE_TURN }]; }));  // the pile: one layer per tile, drawn again only when it changes
+    return [{ k: 'pile', layers, x: px, y: top, step, lines: layers - 1, bottom: bottom + 1.5 * hh, turn: PILE_TURN }]; }));  // the pile, drawn again only when it changes
 }
 const goodsEdge = () => GOODS_SHARE * W;  // how far his materials' area reaches from the screen's edge
 function goodRoom() {  // a material's radius and the step between places: as big as his materials' area allows; the area's box (its places and their icons above) stays clear of the board's border (owner 26 Nov)
@@ -1128,7 +1130,7 @@ const EDGE_CLEAR = 0.5;  // owner 25 Nov: the market's tiles stay this many half
 function buttonLift() { const step = LEVEL_UP * UI(), d = STONE_LEVEL.second - STONE_LEVEL.first; return [SIDE[0] * d * step / 2, SIDE[1] * d * step / 2]; }  // how high a button's stone stands over the stone under it
 let pressedBtn = null;  // owner 27 Nov: the button held down (its stone down, no shadow) until the finger lifts
 function buttonSpots() {  // settings and exit, top right (owner 25 Nov): shown, not working yet; centred where the pile is from its edge; owner 27 Nov: square, side by side
-  const u = UI() * 1.4, y = pileLayerY(0) - PILE_HIGH / 2, x = W - cornerX(), half = 26 * u, gap = 2 * half + STONE_ROOM * UI() + 8 * u;
+  const u = UI() * 1.4, y = (deckLine() - liftOf(2)) / 2, x = W - cornerX(), half = 26 * u, gap = 2 * half + STONE_ROOM * UI() + 8 * u;
   return [{ x: x - gap / 2, y, half, kind: 'gear' }, { x: x + gap / 2, y, half, kind: 'exit' }];
 }
 function marketReach() {  // how far from the screen's middle the market's tiles reach (inner tile, outer tile, end): they sit just above the board's edge (owner 25 Nov: no tray, close to the board)

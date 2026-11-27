@@ -150,12 +150,13 @@ def f_pile_no_frames(q):  # owner 24 Nov: no outline around the pile's tiles
     tray = q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [m['x'] + 12, m['y'] + m['h'] - 12])  # the tray, away from the tile
     report(beside == tray, 'pile: tiles have no outline', 'beside the tile %s, the tray %s' % (beside, tray))
 
-def f_pile_fits(q):  # owner 24 Nov ("rethink all UI"): the pile ran off the top of the screen; a full pile stays on screen; owner 25 Nov: the pile holds every tile, a layer each
-    table(q); pile = drawn(q, 'pile')[0]; ds = drawn(q, 'tile')[0]['h']; T = drawn(q, 'market')[0]; s = st(q); in_pile = s['left'] - sum(1 for t in s['draft'] if t)
-    top, bottom = pile['y'] - ds / 2, pile['bottom']
-    ok = pile['layers'] == in_pile and top >= 4 and bottom <= T['y'] + T['h'] and pile['step'] >= 1  # every layer still its own line
-    report(ok, 'pile: every tile a layer, on screen', '%d layers for %d tiles, %.1f px apart, from %.0f to %.0f px (screen top 0, market bottom %.0f)' % (pile['layers'], in_pile, pile['step'], top, bottom, T['y'] + T['h']))
-
+def f_pile_fits(q):  # owner 24 Nov ("rethink all UI"): the pile ran off the top of the screen; owner 25 Nov: the pile holds every tile;
+    # owner 27 Nov changed the layers (was: a layer per tile): a layer per round (of 4 tiles), each as high as a tile's ground (its substratum, half a tile's thickness), layer lines kept; its base on its stone
+    table(q); settle(q); pile = drawn(q, 'pile')[0]; s = st(q); in_pile = s['left'] - sum(1 for t in s['draft'] if t); ground = {round(d['ground'], 1) for d in drawn(q, 'square')}
+    stone = max(p[1] for d in drawn(q, 'area') if d['o'] == 0 and d['kind'] == 'deck' for p in d['pts'])
+    rounds = -(-in_pile // 4); g = ground.pop() if len(ground) == 1 else -1
+    ok = pile['layers'] == rounds and abs(pile['step'] - g) < 0.5 and pile['lines'] == rounds - 1 and pile['bottom'] <= stone
+    report(ok, 'pile: a layer per round, as high as a tile\'s ground, on its stone', '%d layers for %d tiles, %.1f px each (a tile\'s ground %.1f), %d lines, base at %.0f (stone to %.0f), top at %.0f' % (pile['layers'], in_pile, pile['step'], g, pile.get('lines', -1), pile['bottom'], stone, pile['y']))
 def f_deal(q):  # owner 25 Nov (prototype): the 4 market tiles are dealt one by one from the pile
     pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'seed': 1}); counts, ms = [], 0
     while ms < 4000 and not st(q)['wait']:
