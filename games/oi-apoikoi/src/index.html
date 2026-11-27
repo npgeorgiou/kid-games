@@ -529,7 +529,7 @@ addEventListener('resize', resize); resize();
 const BOARD_RATIO = 1.76;
 const LAND_PIC = 256, LAND_WALL = 52;  // the land pictures (tools/make_lands.py): a square's diamond LAND_PIC wide, its walls LAND_WALL high, and LAND_PIC / 2 of room above it for what stands on it
 const GROUND_TALL = 1 + LAND_WALL * BOARD_RATIO / LAND_PIC, WALL_HH = 2 * (GROUND_TALL - 1);  // the ground picture: the square's diamond and its walls under it ( see tools/make_lands.py; owner 25 Nov: land with thickness); the walls in half-square heights
-const BOARD_BORDER = 1;  // owner 26 Nov: the board's border, the same width all round: at the board's corners, in half-square heights (top, bottom) and widths (sides); its walls (WALL_HH) stand inside it
+const BOARD_BORDER = 1;  // owner 26 Nov: room round the board, the same all round (half-square heights at top and bottom, widths at the sides), where the slabs reach the water at its corners
 const PAD = 12, LOW = 8, PILE_STEP = 1.5;  // the band's margin; the stockpile's gap above the screen's bottom edge; px between the pile's layers
 function L() {  // hw, hh: half a square's width and height on screen; T: the board's top corner; s: from one square's centre to the next
   // owner 26 Nov: a square has one shape (BOARD_RATIO wide to 1 high) at every screen size, only its size changes: the board with its border as big as fits both ways, touching the screen's edges on the tighter side; the board's centre is the screen's centre
@@ -539,7 +539,6 @@ function L() {  // hw, hh: half a square's width and height on screen; T: the bo
 function squareUnder(x, y) { const { hw, hh, T } = L(), a = (x - W / 2) / hw, b = (y - T) / hh; return [Math.floor((a + b) / 2), Math.floor((b - a) / 2)]; }  // the square a screen point lies on (iso turned back)
 function iso(u, v) { const { hw, hh, T, bx } = L(); return [bx + (u - v) * hw, T + (u + v) * hh]; }  // a point of the board (in squares) on screen
 function boardDiamond() { const { hw, hh, T } = L(); return { cx: W / 2, cy: T + ROWS * hh, a: COLS * hw, c: ROWS * hh }; }  // the board's centre and half sizes
-function borderDiamond() { const { hw, hh } = L(), d = boardDiamond(); return { ...d, a: d.a + BOARD_BORDER * hw, c: d.c + BOARD_BORDER * hh }; }  // the board with its border: its outer edge
 function clearOfBoard(x, y, r) { const { cx: X, cy: Y, a, c } = boardDiamond(); return (Math.abs(x - X) * c + Math.abs(y - Y) * a - a * c) / Math.hypot(a, c) >= r; }  // a round thing at (x, y) stays off the board
 function marketY() { const { hh } = L(); return PAD + 2.5 * hh; }  // the market tiles' centres along the top
 function draftSlot(k) { const r = marketReach(), d = k === 1 || k === 2 ? r.inner : r.outer; return [k < 2 ? W / 2 - d : W / 2 + d, marketY()]; }  // owner 25 Nov: 2 tiles on the left, 2 on the right, mirrored; the pile top left, the buttons top right  // the 4 places in the band, along its bottom
@@ -564,7 +563,7 @@ const cornerX = () => PAD + 1.5 * L().hw + 24 * UI();  // the pile's centre from
 function pileLayerY(k) { return marketY() + WALL_HH * L().hh - k * PILE_STEP - Math.floor(k / ROUND_TILES) * ROUND_GAP; }  // layer k from the bottom; owner 26 Nov: the pile's bottom level with the market tiles' bottom (their walls' foot)
 function pileTop() { return [cornerX(), pileLayerY(Math.max(1, G.bag.length) - 1)]; }  // the top layer's centre
 function giftSpot(i = 0) {  // owner 26 Nov (areas-sketch.png): the extra tile, in his face triangle under the deck line, as far from the board's border as the market's inner tile, turned as the market's tiles
-  const { hw, hh } = L(), [ix, iy] = draftSlot(1), gap = borderX(iy - 0.5 * hh) - (ix + 1.5 * hw), y = deckLine() + 1.5 * hh + 8, x = borderX(y - 0.5 * hh) - gap - 1.5 * hw;
+  const { hw, hh } = L(), [ix, iy] = draftSlot(1), gap = waterX(iy - 0.5 * hh) - (ix + 1.5 * hw), y = deckLine() + 1.5 * hh + 8, x = waterX(y - 0.5 * hh) - gap - 1.5 * hw;
   return [i ? W - x : x, y];
 }  // owner 25 Nov: a bonus tile's place: on from the market's outer tile, down along the board's edge, as far from it, on his side  // a bonus tile's place: just right of the market's 4 tiles
 function homeSpot() { const { T, hh } = L(); return [W - 64, T + ROWS * hh + 16]; }  // the PC's hand rests at the board's right corner, all of it on screen
@@ -680,26 +679,82 @@ function foamAt(i, j, land) {  // the foam where squares (i-1, j-1), (i, j-1), (
 }
 
 // SECTION: SHAPES -- tiles, jars, coins, sets, the token, the hand
-function stoneSlab(x, y, w, h, seed) {  // a cartoon stone slab filling a box (owner 26 Nov: his stone UI pictures): chipped corners, a dark rim, a light bevel, cracks and specks; the same stone every time (seeded)
-  let t = seed * 9973; const rnd = () => ((t = (t * 16807) % 2147483647) / 2147483647);
-  const m = 6, x0 = x + m, y0 = y + m, x1 = x + w - m, y1 = y + h - m, pts = [];
-  const edge = (ax, ay, bx, by) => { const n = Math.max(2, Math.round(Math.hypot(bx - ax, by - ay) / 40)); for (let k = 0; k < n; k++) { const f = k / n; pts.push([ax + (bx - ax) * f + (rnd() - 0.5) * 3, ay + (by - ay) * f + (rnd() - 0.5) * 3]); } };
-  const ch = () => 8 + rnd() * 14;  // each corner chipped off by its own amount
-  const [a, b, c, d] = [ch(), ch(), ch(), ch()];
-  edge(x0 + a, y0, x1 - b, y0); edge(x1 - b, y0, x1, y0 + b); edge(x1, y0 + b, x1, y1 - c); edge(x1, y1 - c, x1 - c, y1); edge(x1 - c, y1, x0 + d, y1); edge(x0 + d, y1, x0, y1 - d); edge(x0, y1 - d, x0, y0 + a); edge(x0, y0 + a, x0 + a, y0);
-  const path = (dx = 0, dy = 0) => { cx.beginPath(); pts.forEach(([px, py]) => cx.lineTo(px + dx, py + dy)); cx.closePath(); };
-  path(0, 5); cx.fillStyle = '#3d3646'; cx.fill();  // its dark underside
-  const g = cx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, '#9a91a6'); g.addColorStop(1, '#756c82'); path(); cx.fillStyle = g; cx.fill();
-  cx.save(); path(); cx.clip();
-  path(2, 2); cx.strokeStyle = '#c3bccc'; cx.lineWidth = 3; cx.stroke();  // the bevel's light top edge
-  for (let k = 0; k < (w * h) / 900; k++) { cx.globalAlpha = 0.25; dot(x0 + rnd() * (x1 - x0), y0 + rnd() * (y1 - y0), 1 + rnd() * 3, rnd() < 0.5 ? '#5d5568' : '#b0a8bb'); }
-  cx.globalAlpha = 1; cx.strokeStyle = '#4b4456'; cx.lineWidth = 1.5; cx.lineCap = 'round';
-  for (let k = 0; k < 4; k++) {  // cracks, each from an edge a little way in
-    let px = x0 + rnd() * (x1 - x0), py = rnd() < 0.5 ? y0 : y1, dir = py === y0 ? 1 : -1; cx.beginPath(); cx.moveTo(px, py);
-    for (let s = 0; s < 4; s++) { px += (rnd() - 0.5) * 30; py += dir * (8 + rnd() * 16); cx.lineTo(px, py); } cx.stroke();
-  }
-  cx.restore(); cx.lineCap = 'butt'; path(); cx.strokeStyle = '#3d3646'; cx.lineWidth = 3; cx.stroke();  // the dark rim
+// The stone (owner 27 Nov, his slab pictures art/things/stone-slab-*.png), seen from the front and above:
+// 1. every area is a stone block standing on the ground, as high as its level (STONE_LEVEL); the blocks touch, with no gaps, so the pool is closed all round, its water lowest of all;
+// 2. a block's front wall shows only where what lies in front of it is lower, as tall as the difference, inside its own area; the rest of the area is its top: his slab picture stretched
+//    to it in nine parts (corners keep their size) and cut to it, its corners rounded except at the water and the screen's edges;
+// 3. light from the top left: a block's shadow falls down and right onto what is lower; places for tiles and materials are cut straight down into a top.
+const STONE_LEVEL = { deck: 3, market: 2, face: 2, dead: 2, materials: 3, coins: 2, deadLow: 3 };  // owner 27 Nov
+const LEVEL_UP = 16, SLAB_CORNER = 70, SLAB_ROUND = 18, STONE_JOINT = 2;  // STONE_JOINT: half the joint between two tops  // a level's height and the corners' rounding (at a 1920 x 1080 screen); a slab picture's corner, in its own pixels
+const STONE = { base: '#b7bbb3', wall: '#6f746e', wallTop: '#9a9f98', wallFoot: '#6a6f69', joint: '#55594f', bevelLight: 'rgba(250,252,246,0.55)', bevelDark: 'rgba(70,76,70,0.35)', shadow: 'rgba(35,40,35,0.38)', floor: '#6f746e' };
+const shapePath = (pts, dx = 0, dy = 0, round = null) => {  // a shape's outline; round: each corner's radius (at most a third of each side), or none
+  cx.beginPath(); const n = pts.length; if (!round) { pts.forEach(([x, y]) => cx.lineTo(x + dx, y + dy)); cx.closePath(); return; }
+  const mid = k => { const [a, b] = [pts[k], pts[(k + 1) % n]]; return [(a[0] + b[0]) / 2 + dx, (a[1] + b[1]) / 2 + dy]; };
+  cx.moveTo(...mid(n - 1)); pts.forEach(([x, y], k) => { const a = pts[(k + n - 1) % n], b = pts[(k + 1) % n], r = Math.min(round[k], Math.hypot(x - a[0], y - a[1]) / 3, Math.hypot(x - b[0], y - b[1]) / 3); cx.arcTo(x + dx, y + dy, ...mid(k), r); }); cx.closePath();
+};
+function insetSides(pts, ms, o) {  // the shape with side k moved in by ms[k] (o: its winding), then each corner where its two sides now cross
+  const n = pts.length, side = k => { const [a, b] = [pts[k], pts[(k + 1) % n]], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = o * (b[1] - a[1]) / l, ny = -o * (b[0] - a[0]) / l; return [a[0] - nx * ms[k], a[1] - ny * ms[k], b[0] - nx * ms[k], b[1] - ny * ms[k]]; };
+  return pts.map((p, k) => { const a = side((k + n - 1) % n), b = side(k), d = (a[2] - a[0]) * (b[3] - b[1]) - (a[3] - a[1]) * (b[2] - b[0]);
+    if (Math.abs(d) < 1e-9) return [b[0], b[1]]; const t = ((b[0] - a[0]) * (b[3] - b[1]) - (b[1] - a[1]) * (b[2] - b[0])) / d; return [a[0] + t * (a[2] - a[0]), a[1] + t * (a[3] - a[1])]; });
 }
+function moveSides(pts, up) {  // the shape with side k moved up by up[k]: each side moved, then each corner where its two sides now cross
+  const n = pts.length, side = k => { const [a, b] = [pts[k], pts[(k + 1) % n]]; return [a[0], a[1] - up[k], b[0], b[1] - up[k]]; };
+  return pts.map((p, k) => { const a = side((k + n - 1) % n), b = side(k), d = (a[2] - a[0]) * (b[3] - b[1]) - (a[3] - a[1]) * (b[2] - b[0]);
+    if (Math.abs(d) < 1e-9) return [b[0], b[1]]; const t = ((b[0] - a[0]) * (b[3] - b[1]) - (b[1] - a[1]) * (b[2] - b[0])) / d; return [a[0] + t * (a[2] - a[0]), a[1] + t * (a[3] - a[1])]; });
+}
+const inside = (pts, x, y) => pts.reduce((o, p, k) => { const q = pts[(k + 1) % pts.length]; return (p[1] > y) !== (q[1] > y) && x < p[0] + (y - p[1]) * (q[0] - p[0]) / (q[1] - p[1]) ? !o : o; }, false);
+function blocks() {  // both players' blocks: area, height, top, which sides lie on the water, which corners are rounded
+  const one = [0, 1].flatMap(i => areas(i).map((a, n) => ({ ...a, i, n }))), low = one.filter(a => a.key === 'deadLow');  // owner 27 Nov: the two dead triangles under the board are one block
+  const joined = { ...low[0], pts: [low[0].pts[0], low[0].pts[1], low[1].pts[0], low[1].pts[3], low[0].pts[3]] };
+  const { cx: X, cy: Y, a, c } = boardDiamond(), onWater = ([x, y]) => Math.abs(Math.abs(x - X) / a + Math.abs(y - Y) / c - 1) < 0.002, u = UI();
+  const all = [...one.filter(b => b.key !== 'deadLow'), joined].map(b => ({ ...b, pts: b.pts.filter((q, k, p) => { const m = p[(k + 1) % p.length]; return Math.hypot(m[0] - q[0], m[1] - q[1]) > 0.5; }), h: STONE_LEVEL[b.key] * LEVEL_UP * u }));
+  const heightAt = (self, x, y) => { if (Math.abs(x - X) / a + Math.abs(y - Y) / c < 1) return 0; if (x < 0 || x > W || y < 0 || y > H) return null; const b = all.find(b => b !== self && inside(b.pts, x, y)); return b ? b.h : null; };
+  for (const b of all) {
+    const n = b.pts.length, ar = b.pts.reduce((s, [x, y], k) => s + x * b.pts[(k + 1) % n][1] - b.pts[(k + 1) % n][0] * y, 0), o = ar > 0 ? 1 : -1;
+    b.wet = b.pts.map((p, k) => onWater(p) && onWater(b.pts[(k + 1) % n]));
+    const up = b.pts.map((p, k) => { const q = b.pts[(k + 1) % n], l = Math.hypot(q[0] - p[0], q[1] - p[1]), nx = o * (q[1] - p[1]) / l, ny = -o * (q[0] - p[0]) / l;  // the side's outward normal
+      if (ny < 0.05) return 0; const f = heightAt(b, (p[0] + q[0]) / 2 + nx * 3, (p[1] + q[1]) / 2 + ny * 3); return f == null ? 0 : Math.max(0, b.h - f); });  // a front side: the step down to what lies in front
+    b.top = moveSides(b.pts, up); b.up = up; b.o = o;
+    b.groove = insetSides(b.top, b.wet.map(w => w ? 0 : STONE_JOINT * u), o);  // a narrow joint between neighbouring tops; none at the water
+    b.round = b.top.map(([x, y], k) => b.wet[k] || b.wet[(k + n - 1) % n] || x < 1 || x > W - 1 || y < 1 || y > H - 1 ? 0 : SLAB_ROUND * u);
+  }
+  return all;
+}
+function nineSlice(name, x, y, w, h) {  // a slab picture stretched to a box: corners kept, sides stretched one way, middle both ways
+  const src = pics[name]; if (!src) return; const sw = src.width, sh = src.height, s = SLAB_CORNER, d = Math.min(s * UI() * 0.6, w / 3, h / 3);
+  const xs = [[0, s, x, d], [s, sw - 2 * s, x + d, w - 2 * d], [sw - s, s, x + w - d, d]], ys = [[0, s, y, d], [s, sh - 2 * s, y + d, h - 2 * d], [sh - s, s, y + h - d, d]];
+  for (const [sx, sW, dx, dW] of xs) for (const [sy, sH, dy, dH] of ys) cx.drawImage(src, sx, sy, sW, sH, dx, dy, dW, dH);
+}
+function drawBlock(b) {  // its front walls (the area under its top: lit at the top, darker at the foot, a joint where each front wall ends), then its top
+  shapePath(b.pts); cx.fillStyle = STONE.wall; cx.fill();
+  b.pts.forEach((p, k) => { if (!b.up[k]) return; const q = b.pts[(k + 1) % b.pts.length], t0 = b.top[k], t1 = b.top[(k + 1) % b.pts.length];  // this front wall: from the top's side down to the area's side
+    const w = cx.createLinearGradient(0, Math.min(t0[1], t1[1]), 0, Math.max(p[1], q[1])); w.addColorStop(0, STONE.wallTop); w.addColorStop(1, STONE.wallFoot);
+    cx.beginPath(); cx.moveTo(...t0); cx.lineTo(...t1); cx.lineTo(...q); cx.lineTo(...p); cx.closePath(); cx.fillStyle = w; cx.fill();
+    cx.strokeStyle = STONE.joint; cx.lineWidth = 2; for (const [a, c] of [[t0, p], [t1, q]]) { cx.beginPath(); cx.moveTo(...a); cx.lineTo(...c); cx.stroke(); } });
+  const top = b.groove, xs = top.map(q => q[0]), ys = top.map(q => q[1]), x0 = Math.min(...xs), y0 = Math.min(...ys), w = Math.max(...xs) - x0, h = Math.max(...ys) - y0;
+  cx.save(); shapePath(top, 0, 0, b.round); cx.clip(); cx.fillStyle = STONE.base; cx.fillRect(x0, y0, w, h);
+  nineSlice('things/stone-slab-' + (1 + (b.n + b.i) % 2), x0, y0, w, h);  // the picture's own rim and bevel along the top's straight sides
+  top.forEach((p, k) => { const q = top[(k + 1) % top.length], dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy); if (Math.abs(dx) < 1 || Math.abs(dy) < 1 || l < 1) return;
+    const nx = b.o * dy / l, ny = -b.o * dx / l, lit = nx + ny < 0;  // a slanted side: a bevel like the picture's, light where it faces the light (top left), shaded where it faces away
+    cx.beginPath(); cx.moveTo(p[0] - nx * 4, p[1] - ny * 4); cx.lineTo(q[0] - nx * 4, q[1] - ny * 4); cx.strokeStyle = lit ? STONE.bevelLight : STONE.bevelDark; cx.lineWidth = 8; cx.stroke(); });
+  cx.restore();
+}
+function stoneAreas() {  // the lowest blocks first; at each level the shadows, then the blocks
+  const all = blocks();
+  for (const h of [...new Set(all.map(b => b.h))].sort((p, q) => p - q)) {
+    const here = all.filter(b => b.h === h);
+    for (const b of here) { shapePath(b.top, h * 0.6, h * 0.6, b.round); cx.fillStyle = STONE.shadow; cx.fill(); }
+    here.forEach(drawBlock);
+  }
+}
+function dent(pts, depth) {  // a place cut straight down into the stone: its floor darker, its far wall (the strip between its outline and the outline lowered by depth) showing
+  shapePath(pts); cx.fillStyle = 'rgba(60,66,60,0.28)'; cx.fill();
+  cx.save(); shapePath(pts); cx.clip(); cx.beginPath(); pts.forEach(q => cx.lineTo(...q)); cx.closePath(); pts.slice().reverse().forEach(([x, y], k) => k ? cx.lineTo(x, y + depth) : cx.moveTo(x, y + depth)); cx.closePath();
+  cx.fillStyle = STONE.wall; cx.fill('evenodd'); cx.restore();
+  shapePath(pts); cx.strokeStyle = 'rgba(70,76,70,0.6)'; cx.lineWidth = 1; cx.stroke();
+}
+const circlePts = (x, y, r) => Array.from({ length: 24 }, (_, k) => [x + r * Math.cos(k * Math.PI / 12), y + r * Math.sin(k * Math.PI / 12)]);
+function floor() { cx.fillStyle = STONE.floor; cx.fillRect(0, 0, W, H); }  // under everything (shows only past the screen's last block, if anywhere)
 function rrect(x, y, w, h, r, fill, stroke, lw) {
   cx.beginPath(); cx.roundRect(x, y, w, h, r);
   if (fill) { cx.fillStyle = fill; cx.fill(); }
@@ -721,9 +776,9 @@ function flatCoin(x, y, r, th) {  // a coin lying flat, seen from the board's an
 }
 function coin(x, y, r) { if (pics['things/coin']) picture('things/coin', x - r * 1.1, y - r * 1.1, r * 2.2, r * 2.2); else dot(x, y, r, '#b8860b'); }  // owner 25 Nov: his coin picture
 function tilePath(x, y, z, r) {  // a tile's ground outline: its two squares together, in the board's view; r may be part of a quarter turn (a tile turning)
-  const { hw, hh } = L(), [c, s] = turnDir(r);
-  cx.beginPath(); [[-1, -0.5], [1, -0.5], [1, 0.5], [-1, 0.5]].forEach(([p, q]) => { const u = p * c - q * s, v = p * s + q * c; cx.lineTo(x + (u - v) * hw * z, y + (u + v) * hh * z); }); cx.closePath();
+  shapePath(tileCorners(x, y, z, r));
 }
+function tileCorners(x, y, z, r) { const { hw, hh } = L(), [c, s] = turnDir(r); return [[-1, -0.5], [1, -0.5], [1, 0.5], [-1, 0.5]].map(([p, q]) => { const u = p * c - q * s, v = p * s + q * c; return [x + (u - v) * hw * z, y + (u + v) * hh * z]; }); }
 const turnDir = r => [Math.round(Math.cos(r * Math.PI / 2) * 1e6) / 1e6, Math.round(Math.sin(r * Math.PI / 2) * 1e6) / 1e6];  // where the second half lies at r quarter turns (whole r: DIRS[r])
 // A tile turns smoothly (owner 26 Nov; the standard tween of an angle): 1. a tap sets the new quarter at once (the game's turn) and the turn starts from where the picture is;
 // 2. the picture turns to it over TURN_MS, slowing at the end, on the board's ground (its halves swing round its middle).
@@ -886,16 +941,11 @@ function openSea() {  // the sea with its shore around the land: a sea diamond a
 }
 function areaShapes(i) {  // player i's area under his things: its tint (lit when it is his turn, with a glow in his colour) and a recess for each material's place
   const lit = G.turn === i, { r, placeAt } = stock(i), out = [{ k: 'panel', o: i, lit, x: i ? W / 2 : 0, w: W / 2 }];
-  // owner 26 Nov (areas-sketch.png): each area a plain colour with a line round it; his own areas in his tint (dimmed when it is not his turn), the market and dead space grey
-  for (const { kind, pts } of areas(i)) {
-    const own = kind !== 'market' && kind !== 'dead', outline = () => { cx.beginPath(); pts.forEach(([x, y]) => cx.lineTo(x, y)); cx.closePath(); };
-    outline(); cx.fillStyle = own ? (lit ? TINT[i] : '#efe6d4') : TIP_GREY; cx.fill();
-    if (own && !lit) { outline(); cx.fillStyle = 'rgba(120,110,95,0.38)'; cx.fill(); }
-    outline(); cx.strokeStyle = own && lit ? BORDER[i] + '99' : '#00000033'; cx.lineWidth = 2; cx.stroke();
-    if (kind === 'materials') { const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]); stoneSlab(Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), 7 + i); }  // owner 26 Nov: a stone look, tried on the materials first
-    out.push({ k: 'area', o: i, kind, pts });
-  }
-  for (const c of COLOUR_IDS) for (let k = 0; k < JAR_GOODS; k++) { const [x, y] = placeAt(c, k); dot(x, y, r, '#00000014'); out.push({ k: 'place', o: i, c, x, y, r }); }
+  // owner 27 Nov: the slabs are drawn for both players at once (stoneAreas), with no outline of his colour; here his tile and material places are cut into them
+  for (const a of areas(i)) out.push({ k: 'area', o: i, kind: a.kind, pts: a.pts });
+  const depth = 6 * UI();
+  [...[0, 1, 2, 3].filter(k => (k < 2) === !i).map(k => [...draftSlot(k), slotTurn(k)]), [...giftSpot(i), i ? 0 : 1]].forEach(([x, y, t]) => dent(tileCorners(x, y, 1, t), depth));  // owner 26 Nov: the tile places are cut into the stone
+  for (const c of COLOUR_IDS) for (let k = 0; k < JAR_GOODS; k++) { const [x, y] = placeAt(c, k); dent(circlePts(x, y, r), depth * 0.6); out.push({ k: 'place', o: i, c, x, y, r }); }
   return out;
 }
 let flashPad = null, goodPad = null;
@@ -922,7 +972,7 @@ function drawScene() {  // the band and both areas (one picture for each turn) a
   cx.clearRect(0, 0, W, H);  // a clear first: the browser then drops earlier frames it has not drawn yet (a full-screen fill does not)
   const full = { x: 0, y: 0, w: W, h: H }, open = openSea();  // the areas and the sea: one picture for each turn; the band on top
   const step = waterStep(), now = step * WATER_STEP;  // the water moves under the land (the land is one still picture over it)
-  const areas = layer('areas' + G.turn, [G.turn, open && open.mark].join(), full, () => { const out = [...areaShapes(0), ...areaShapes(1)]; if (open) cx.drawImage(open, 0, 0, W, H); return [{ k: 'sea', ready: !!open }, ...out]; });
+  const areas = layer('areas' + G.turn, [G.turn, open && open.mark, picReady('things/stone-slab-1') && picReady('things/stone-slab-2')].join(), full, () => { floor(); if (open) cx.drawImage(open, 0, 0, W, H); stoneAreas(); const out = [...areaShapes(0), ...areaShapes(1)]; return [{ k: 'sea', ready: !!open }, ...out]; });
   const alive = !fast && [...G.cells.values()].some(c => ['plains', 'wheat', 'forest'].includes(LANDS[c.c])), bands = !!(wait && wait.kind === 'place'), board = layer('board', [G.board, ...skip, alive ? step : 0, bands].join(), boardBox(), () => landShapes(skip, bands));  // sheep and wind: drawn again each step
   const onPlane = (k, mark, draw) => {  // draw on plane k only when its mark changed; its records kept for the frames between
     if (planeMark[k] === mark) return planes[k].records; const c = planes[k], e = k === 'water' ? WATER_DPR() : (devicePixelRatio || 1), main = cx;
@@ -954,7 +1004,6 @@ function drawDraft() {
     if (kind === 'gear') { cx.arc(x, by, 9 * u, 0, 7); for (let a = 0; a < 8; a++) { cx.moveTo(x + Math.cos(a * Math.PI / 4) * 11 * u, by + Math.sin(a * Math.PI / 4) * 11 * u); cx.lineTo(x + Math.cos(a * Math.PI / 4) * 15 * u, by + Math.sin(a * Math.PI / 4) * 15 * u); } }
     else { cx.rect(x - 9 * u, by - 12 * u, 13 * u, 24 * u); cx.moveTo(x + 2 * u, by); cx.lineTo(x + 14 * u, by); cx.moveTo(x + 9 * u, by - 5 * u); cx.lineTo(x + 14 * u, by); cx.lineTo(x + 9 * u, by + 5 * u); }
     cx.stroke(); cx.lineCap = 'butt'; drawn.push({ k: 'button', kind }); });
-  for (let k = 0; k < 4; k++) if (!G.draft[k]) { tilePath(...draftSlot(k), 1, slotTurn(k)); cx.fillStyle = '#00000014'; cx.fill(); }  // an empty place shows as a recess
   G.draft.forEach((t, k) => {
     const [x, y] = draftSlot(k);
     if (!t) return;
@@ -979,36 +1028,36 @@ function drawDraft() {
 }
 const goodsEdge = () => GOODS_SHARE * W;  // how far his materials' area reaches from the screen's edge
 function goodRoom() {  // a material's radius and the step between places: as big as his materials' area allows; the area's box (its places and their icons above) stays clear of the board's border (owner 26 Nov)
-  const { cx: X, cy: Y, a, c } = borderDiamond(), g = 4;  // the box's inner top corner, (8 + LANDS.length * rp, H - LOW - (JAR_GOODS + 1) * rp), lies g px outside the border's lower edge
-  const fit = ((X - 8 - g) / a + (H - LOW - Y - g) / c - 1) / (LANDS.length / a + (JAR_GOODS + 1) / c);
+  const { cx: X, cy: Y, a, c } = boardDiamond(), g = 4;  // the box's inner top corner, (8 + LANDS.length * rp, H - LOW - (JAR_GOODS + 1) * rp), lies g px outside the border's lower edge
+  const fit = ((X - 20 - g) / a + (H - LOW - 12 - Y - g) / c - 1) / (LANDS.length / a + (JAR_GOODS + 1.6) / c);
   const rp = Math.min(fit, (goodsEdge() - 8) / LANDS.length); return { r: (rp - 6) / 2, rp };  // and inside his area's width
 }
 const EDGE_CLEAR = 0.5;  // owner 25 Nov: the market's tiles stay this many half-square heights clear of the board's upper edges, so what stands on the land there is never hidden; owner 26 Nov: closer to the board
 function marketReach() {  // how far from the screen's middle the market's tiles reach (inner tile, outer tile, end): they sit just above the board's edge (owner 25 Nov: no tray, close to the board)
-  const { hw, hh, T } = L(), y = marketY(), inner = 1.5 * hw + Math.max(4, (y + (0.5 + WALL_HH) * hh + 6 + EDGE_CLEAR * hh - T) * hw / hh), outer = inner + 3 * hw + 16;
+  const { hw, hh, T } = L(), y = marketY(), inner = 1.5 * hw + Math.max(4, (y + (0.5 + WALL_HH) * hh + 6 + EDGE_CLEAR * hh + STONE_LEVEL.market * LEVEL_UP * UI() - T) * hw / hh), outer = inner + 3 * hw + 16;
   return { inner, outer, end: outer + 1.5 * hw + 12 };
 }
 // The areas (owner 26 Nov, areas-sketch.png): 1. the board with its border is as big as fits, its shape kept (L); 2. each player's side is cut by the border and two lines:
 // the deck line under the market's tiles, and his materials' top; above the deck line his deck (or buttons) and the market, below it his face triangle down to the board's side corner,
 // dead space down to his materials, his materials beside the screen edge, his coins between them and the board, dead space past the last stack; 3. what lies in an area keeps its shape.
-const DECK_LINE = 2.6;  // the deck line: this many half-square heights under the market's tiles' centres
+const DECK_LINE = 3.2;  // the deck line: this many half-square heights under the market's tiles' centres
 const deckLine = () => marketY() + DECK_LINE * L().hh;
 const deckEdge = () => W / 2 - marketReach().end;  // where the deck's area ends and the market's begins (left side)
-function borderX(y) { const { cx: X, cy: Y, a, c } = borderDiamond(); return X - a * (1 - Math.abs(y - Y) / c); }  // the border's outer left edge at height y
-function goodsBox() { const { rp } = goodRoom(); return { right: 16 + LANDS.length * rp, top: H - LOW - (JAR_GOODS + 1) * rp - 8 }; }  // his materials' area: its places and their icons
+function waterX(y) { const { cx: X, cy: Y, a, c } = boardDiamond(); return X - a * (1 - Math.abs(y - Y) / c); }  // the water's left edge at height y
+function goodsBox() { const { rp } = goodRoom(); return { right: 20 + LANDS.length * rp, top: H - LOW - (JAR_GOODS + 1.6) * rp - 12 }; }  // his materials' area: its places and their icons
 function areas(i) {  // player i's areas: the left side's shapes, turned to his side
-  const { cx: X, cy: Y, a, c } = borderDiamond(), dl = deckLine(), de = deckEdge(), g = goodsBox(), { end } = coinRoom(), yLow = x => Y + c * (1 - (X - x) / a);
-  const side = { deck: [[0, 0], [de, 0], [de, dl], [0, dl]], market: [[de, 0], [X, 0], [X, Y - c], [borderX(dl), dl], [de, dl]],
-    face: [[0, dl], [borderX(dl), dl], [X - a, Y], [0, Y]], dead: [[0, Y], [X - a, Y], [borderX(g.top), g.top], [0, g.top]],
-    materials: [[0, g.top], [g.right, g.top], [g.right, H], [0, H]], coins: [[g.right, g.top], [borderX(g.top), g.top], [end, yLow(end)], [end, H], [g.right, H]],
+  const { cx: X, cy: Y, a, c } = boardDiamond(), dl = deckLine(), de = deckEdge(), g = goodsBox(), { end } = coinRoom(), yLow = x => Y + c * (1 - (X - x) / a);
+  const side = { deck: [[0, 0], [de, 0], [de, dl], [0, dl]], market: [[de, 0], [X, 0], [X, Y - c], [waterX(dl), dl], [de, dl]],
+    face: [[0, dl], [waterX(dl), dl], [X - a, Y], [0, Y]], dead: [[0, Y], [X - a, Y], [waterX(g.top), g.top], [0, g.top]],
+    materials: [[0, g.top], [g.right, g.top], [g.right, H], [0, H]], coins: [[g.right, g.top], [waterX(g.top), g.top], [end, yLow(end)], [end, H], [g.right, H]],
     deadLow: [[end, yLow(end)], [X, Y + c], [X, H], [end, H]] };
-  return Object.entries(side).map(([kind, pts]) => ({ kind: kind === 'deadLow' ? 'dead' : kind, pts: pts.map(([x, y]) => [i ? W - x : x, y]) }));
+  return Object.entries(side).map(([kind, pts]) => ({ kind: kind === 'deadLow' ? 'dead' : kind, key: kind, pts: pts.map(([x, y]) => [i ? W - x : x, y]) }));
 }
-const COIN_R = 0.42, COIN_TH = 0.32, COIN_GAP = 16;  // a coin's radius, in steps between places, and its thickness, in radii; the room between the last full stack and the border
+const COIN_R = 0.42, COIN_TH = 0.32, COIN_GAP = 16;  // a coin's radius, in steps between places, and its thickness, in radii; the room between the last full stack and the water
 function coinRoom() {  // owner 26 Nov: COIN_SLOTS full stacks of COIN_STACK fit between his materials and the board's lower edge, as big as they can be: the step between places
-  const { cx: X, cy: Y, a, c } = borderDiamond(), a0 = goodsBox().right + 8, k = c / a;
+  const { cx: X, cy: Y, a, c } = boardDiamond(), a0 = goodsBox().right + 8, k = c / a;
   const up = COIN_R * (1.1 + COIN_STACK * COIN_TH), out = COIN_SLOTS - 0.5 + COIN_R;  // a full stack's top above the floor and the last stack's right side, per step
-  const sp = Math.max(0, Math.min((X - a0 - COIN_GAP) / out, (H - LOW - Y - c + (X - a0) * k - COIN_GAP) / (up + out * k)));  // the last stack's top corner stays COIN_GAP clear of the border
+  const sp = Math.max(0, Math.min((X - a0 - COIN_GAP) / out, (H - LOW - Y - c + (X - a0) * k - COIN_GAP) / (up + out * k)));  // the last stack's top corner stays COIN_GAP clear of the water
   return { a0, sp, end: a0 + out * sp + COIN_GAP };
 }
 function stock(i) {  // player i's things in his area: materials in a row of JAR_GOODS places per colour, from the top, beside the screen edge (owner 25 Nov: rows, not columns);

@@ -22,6 +22,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `art/sea/`: the owner's water pack (sea and shore pictures, 6 colours); the game uses `water-c` (chosen in `build.py`), its open-water diamond only; the ripples, foam and glints moving over it are drawn by the game.
 - `art/lands/`: the 6 land pictures, each as its ground (`-ground`, one square's diamond and its two front walls of earth) and the things standing on it (`-things`); made by `tools/make_lands.py` (run it after changing it).
 - `art/materials/`: the 6 material pictures, made for the game.
+- `art/things/stone-slab-1.png`, `stone-slab-2.png`: the owner's two stone slab pictures (free to use, he says), cut from their background; every area's stone top is one of them.
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
 - `tools/flows.py`: flow tests, one per owner rule and bug report, a main test playing a whole fixed game, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 18 s on a 2-core machine).
 - `tools/sim.py`: the simulation: plays seeded games through the screen and reports, per player, jars, coins and what the jars held (`python3 tools/sim.py [games] [random|best]`, the kid playing at random or for the most connections). Run it before every rule change and tell the owner the numbers.
@@ -43,7 +44,9 @@ A playable game against the PC on one shared board in the new look (sea board of
 - See also `design.md` section 6.
 - Design phase (25-26 Nov): look, motion and layout changes are on pull request #47 (branch `oi-apoikoi-motion-fixes`), pushed with the commit check off for the owner to merge by hand; 27 flow steps fail, the same as on main, because the flow tests are not updated yet.
 - Areas built from `areas-sketch.png` (deck/buttons, market, face triangle with the extra tile, dead space, materials, coins with 8 full stacks fitted, dead space); the board with its border keeps its shape and takes the most room on every screen, the areas fit around it.
+- Stone look (not approved): every area a stone block at its level (deck 3, materials 3, dead triangles under the board 3, market 2, face 2, dead above the materials 2, coins 2), blocks touching so the pool is closed, front walls only where what is in front is lower, his slab pictures as tops, bevels and joints; the owner finds the height steps still too flat and the look not yet right.
 
 ## Task list
 
+- Make the stone look right: clear height steps between blocks, stones that read as separate blocks, nothing outlined.
 - Update the flow tests to the design phase so the commit check passes again.
