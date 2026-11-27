@@ -17,7 +17,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `design.md`: the full design (draft): rules, jars, slot machine, points, tensions, sheet rows, everything open.
 - `WARNINGS.md`: traps found in this game.
 - `areas-sketch.png`: the areas sketch (each player's side split into areas, the board's border), to build from.
-- `shots/`: pictures shown to the owner (`coins-80-*.png`: 80 coins in each player's stacks at 3 screen sizes).
+- `shots/`: pictures shown to the owner (`coins-80-*.png`: 80 coins in each player's stacks at 16:10, 16:9 and 21:9).
 - `SOUNDS.md`: every sound's name and when it plays; the owner's own sound files go in `art/sounds/<name>.mp3` (or wav, ogg) and replace the built-in one.
 - `src/index.html`: the game source; `build.py` makes `oi-apoikoi.html` from it, with the hand, land, material and sea pictures put in.
 - `art/sea/`: the owner's water pack (sea and shore pictures, 6 colours); the game uses `water-c` (chosen in `build.py`), its open-water diamond only; the ripples, foam and glints moving over it are drawn by the game.
