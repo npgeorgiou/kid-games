@@ -503,6 +503,22 @@ def f_slot_faces(q):  # owner 25 Nov (prototype): each wheel has the same 4 face
 def f_first_token(q):  # the first-player token comes from a jar
     get_jar(q, [{'k': 'first'}]); report(st(q)['first'] == 0, 'first: token comes to you', 'first %s' % st(q)['first'])
 
+def f_bee_next(q):  # owner 27 Nov: the bee shows who plays next: at the start the player who plays second has it; when a player starts playing it flies to the other;
+    # a jar's first-player prize sends it to its winner; the bee a third bigger
+    pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); holder = lambda: [d['o'] for d in drawn(q, 'token')]
+    start = holder(); u = drawn(q, 'button')[0]['ui']; size = drawn(q, 'token')[0]['r'] / u if drawn(q, 'token') else 0
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, best_spot(q))
+    for _ in range(10):  # he opens his jars; then the PC's turn starts
+        run_until(q, "()=>{const s=__dg.state();return s.turn===1||(s.wait&&s.wait.kind==='jar')}", 8000)
+        if st(q)['turn'] == 1: break
+        tap(q, 'jar-0')
+    run_until(q, "()=>__dg.drawn().some(d=>d.k==='token'&&d.o===0)", 3000); then = holder()
+    q.clock.resume(); pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[{'k': 'first'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2})
+    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 8000); jar = [d for d in drawn(q, 'jar') if d['o'] == 0][0]; tap(q, 'jar-0')
+    run_until(q, "()=>__dg.drawn().some(d=>d.k==='flight'&&d.look==='bee')", 3000); f = [d for d in drawn(q, 'flight') if d['look'] == 'bee']
+    won = [0 if f and f[0]['tx'] < 640 and abs(f[0]['fx'] - jar['x']) < 80 else None] if f else []; q.clock.resume()
+    report(start == [1] and then == [0] and won == [0] and size >= 31, 'bee: who plays next; flies on each turn; a jar\'s prize', 'at the start %s, after his move %s, after his first-player jar %s, size %.1f' % (start, then, won, size))
+
 def inside_poly(pts, x, y):
     o = False
     for k, (ax, ay) in enumerate(pts):
@@ -524,11 +540,12 @@ def f_stickers(q):  # owner 27 Nov: "avatars for the 2 players ... like stickers
     report(start and joined.endswith('-happy') and empty.endswith('-sad') and other.endswith('-happy') and shown.endswith('-happy'), 'stickers: two animals, neutral first, his turn glows, faces follow what happens, the other reacts too',
            'animals %s, start %s, after a connection %s, an empty jar %s (the other %s), a jar of materials %s' % (animals, start, joined, empty, other, shown))
 def f_bee_corner(q):  # owner 27 Nov: "replace the star (who goes first next round) with a bee icon, that you will put in this corner" (his face stone's corner by the pool);
-    # later: the bee between his sticker and the extra tile's place
-    get_jar(q, [{'k': 'first'}]); settle(q); t = drawn(q, 'token'); a = [d for d in drawn(q, 'avatar') if d['o'] == 0][0]['shown']; g = [d for d in drawn(q, 'giftplace') if d['o'] == 0]
-    b = [x for x in t if x['o'] == 0]; b = b[0] if b else None; right = a['x'] + a['w'] / 2; left = g[0]['x'] if g else -1
-    ok = bool(b) and right < b['x'] - b['r'] and b['x'] + b['r'] < left  # owner 27 Nov: clear of his resting sticker (other faces may overlap it)
-    report(ok, 'bee: between his sticker and the extra tile\'s place', 'sticker reaches %s, bee %s, the extra tile\'s place from %s' % (round(right), b and (round(b['x'] - b['r']), round(b['x'] + b['r'])), round(left)))
+    # later: the bee between the sticker and the extra tile's place, clear of the resting sticker (other faces may overlap it)
+    table(q); settle(q); b = drawn(q, 'token'); b = b[0] if b else None; o = b['o'] if b else 1
+    a = [d for d in drawn(q, 'avatar') if d['o'] == o][0]['shown']; g = [d for d in drawn(q, 'giftplace') if d['o'] == o]; gx = g[0]['x'] if g else -1
+    if o == 0: ok = bool(b) and a['x'] + a['w'] / 2 < b['x'] - b['r'] and b['x'] + b['r'] < gx
+    else: ok = bool(b) and gx < b['x'] - b['r'] and b['x'] + b['r'] < a['x'] - a['w'] / 2
+    report(ok, 'bee: between the sticker and the extra tile\'s place', 'player %d: sticker %s, bee %s, the extra tile\'s place at %s' % (o, (round(a['x'] - a['w'] / 2), round(a['x'] + a['w'] / 2)), b and (round(b['x'] - b['r']), round(b['x'] + b['r'])), round(gx)))
 def f_ruby_leader(q):  # owner 27 Nov: "divide it in half, and the half of the winning player gets a ruby on top"
     res = {}
     for coins in ([3, 1], [1, 4], [2, 2]):

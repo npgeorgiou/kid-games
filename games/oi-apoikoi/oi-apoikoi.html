@@ -350,7 +350,12 @@ function moodOf(i) {  // his sticker's face: at the end, won (excited), lost (sa
 }
 function setTurn(i) {  // whose turn it is: the one place that says so; the screen lights his area, with a sound (owner 24 Nov: no sign flying from face to face)
   if (G.turn === i) return;
-  G.turn = i; sound('turn');
+  G.turn = i; sound('turn'); sendBee(1 - i);  // owner 27 Nov: the bee shows who plays next
+}
+async function sendBee(to, from) {  // the one owner of where the bee is: it flies to player 'to' (from his holder, or from 'from': a jar), one flight at a time; the last wish wins
+  const my = G; G.beeTo = to; if (G.beeFlying) return; G.beeFlying = true;
+  while (G === my && (G.bee !== G.beeTo || from)) { const t = G.beeTo, a = from || (G.bee != null ? beeSpot(G.bee) : null); from = null; G.bee = null; if (a) await fly({ k: 'bee' }, a, beeSpot(t), REWARD_MS, { arc: 80 }); if (G === my) G.bee = t; }
+  if (G === my) G.beeFlying = false;
 }
 async function makeJar(i, c, landing) {  // a full row of colour c: its jar drops from the top to its place while the 5th good still flies; then the 5 fly into it on curves, one after another
   const my = G, p = G.players[i], [at] = await Promise.all([dropJar(i), landing.then(() => { if (G !== my) return; G.shines.push({ o: i, c, t0: performance.now() }); sound('shine'); return pause(SHINE_MS); })]); if (G !== my) return [];  // owner 26 Nov: the full column shines like the harvest for SHINE_MS, then its goods leave
@@ -430,7 +435,7 @@ async function bonus(i, j, from, jarPlace) {  // jarPlace: the broken jar's plac
     const S = SHOWN, list = j.k === 'coins' ? [[from, 0.24]] : [[[from[0] - 0.13 * S, from[1] + 0.08 * S], 0.24], [[from[0] + 0.13 * S, from[1] - 0.08 * S], 0.24]];  // as content() draws them
     await Promise.all(list.map(([at, k], c) => fly({ k: 'coin', r: k * S }, at, coinSpot(i, p.coins + c), COIN_FLY, { delay: c * COIN_FLY, z1: stock(i).cr / (k * S) }).then(() => { if (G !== my) return; p.coins++; sound('coin'); })));
   }
-  else if (j.k === 'first') { await fly({ k: 'bee' }, from, beeSpot(i), REWARD_MS, { arc: 100 }); if (G !== my) return; G.first = i; sound('token'); }
+  else if (j.k === 'first') { G.first = i; await sendBee(i, from); if (G !== my) return; sound('token'); }  // owner 27 Nov: the bee flies from the jar to its winner
   else if (j.k === 'jar') await dropJar(i, from, jarPlace);
   else if (j.k === 'set') await gain(i, COLOUR_IDS.map(c => [c, from, 'good']), STAGGER);
   else if (j.k === 'tile') { const t = j.cs; if (t) { G.fromNowhere++; await fly({ k: 'tile', cs: t, r: i ? 0 : 1 }, from, giftSpot(i), REWARD_MS); if (G !== my) return; await place(i, t, giftSpot(i), undefined, i ? 0 : 1); } }  // the free tile flies blank to its place beside the market, marked as his, and shows its colours there (owner 25 Nov)
@@ -514,7 +519,7 @@ function restart(o = {}) {
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
   slotQ.length = 0; (o.slotQueue || []).forEach(v => slotQ.push(v));
-  spotMemo.clear(); heard = []; flights = []; specks = []; G = { slotFaces: o.slotFaces || null, fromNowhere: 0, board: 0, round: 0, phase: 'round', first: o.first ?? null, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], over: false, ending: null, piled: null, winner: null, slot: null, turn: null, animals: o.animals || pickAnimals(), moods: [null, null], ruby: null, shown: [], pops: [], shines: [], splashes: [], jarWho: null, parked: false, parking: false, burst: null, dusk: null, dawn: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; flights = []; specks = []; G = { slotFaces: o.slotFaces || null, fromNowhere: 0, board: 0, round: 0, phase: 'round', first: o.first ?? null, bee: 1 - (o.first ?? 0), players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], over: false, ending: null, piled: null, winner: null, slot: null, turn: null, animals: o.animals || pickAnimals(), moods: [null, null], ruby: null, shown: [], pops: [], shines: [], splashes: [], jarWho: null, parked: false, parking: false, burst: null, dusk: null, dawn: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
   STARTS.forEach(([x, y, r], k) => put({ id: 's' + k, cs: [0, 1], x, y, r, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; if (o.goods) p.goods = o.goods[k].slice(); });  // a saved game: each player's coins and goods
@@ -580,7 +585,7 @@ function faceBox(i) {  // the box his sticker fits in, on his face stone's top (
   }
   const b = faceMemo.box; return { x: i ? W - b.x - b.w : b.x, y: b.y, w: b.w, h: b.h };
 }
-const BEE_R = 24;  // the first-player bee's size (at a 1920 x 1080 screen)
+const BEE_R = 32;  // owner 27 Nov: a third bigger  // the first-player bee's size (at a 1920 x 1080 screen)
 function inCorner(A, P, B, r) {  // the middle of a circle of radius r that touches both sides of the corner P (between A and B) from inside
   const u = [A[0] - P[0], A[1] - P[1]], v = [B[0] - P[0], B[1] - P[1]], lu = Math.hypot(...u), lv = Math.hypot(...v), b = [u[0] / lu + v[0] / lv, u[1] / lu + v[1] / lv], lb = Math.hypot(...b);
   const half = Math.acos(Math.max(-1, Math.min(1, (u[0] * v[0] + u[1] * v[1]) / (lu * lv)))) / 2, d = r / Math.sin(half); return [P[0] + b[0] / lb * d, P[1] + b[1] / lb * d];
@@ -1280,7 +1285,7 @@ function drawPanel(i) {
   for (let k = 0; k < p.coins - (G.ending ? G.ending[i] : 0); k++) { const [x, y] = coinAt(k); flatCoin(x, y, cr, th); drawn.push({ k: 'coin', o: i, x, y, r: cr }); }
   const u = UI(), box = faceBox(i), st = sticker(i, box, lit); drawn.push({ k: 'avatar', o: i, x: st.x, y: st.y, r: Math.max(st.w || 0, st.h || 0) / 2, box, pic: st.name, lit, shown: st, mirrored: st.mirrored });
   btn('avatar-' + i, box.x, box.y, box.w, box.h, () => { feel(i, 'happy', POKE_MS); sound('poke'); });  // owner 27 Nov: a tap on his sticker
-  if (G.first === i) { const [sx, sy] = beeSpot(i); bee(sx, sy, BEE_R * u); drawn.push({ k: 'token', o: i, x: sx, y: sy, r: BEE_R * u }); }  // the first-player token
+  if (G.bee === i) { const [sx, sy] = beeSpot(i); bee(sx, sy, BEE_R * u); drawn.push({ k: 'token', o: i, x: sx, y: sy, r: BEE_R * u }); }  // the first-player token
 }
 const extraGlows = new Map();  // the extra tile's glow for each look and turn, made once (a blur every frame costs a lot)
 function extraGlowOf(cs, r) {  // the tile's whole shape (ground and what stands on it), in gold, blurred: a canvas with the tile's centre at (c.ox, c.oy)
