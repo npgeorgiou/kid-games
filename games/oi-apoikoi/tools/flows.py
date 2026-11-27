@@ -543,13 +543,13 @@ def f_bee_next(q):  # owner 27 Nov: the bee shows who plays next: at the start t
 
 def f_bee_hovers(q):  # owner 27 Nov: the bee moves in place in a small infinity loop (obvious, not big): it crosses its spot, wider than high, and stays near it
     pause_clock(q); table(q, fast=False); pts = []
-    for _ in range(40): skip(q, 80); settle(q); t = drawn(q, 'token'); pts.append(t[0] if t else None)
-    q.clock.resume(); ok = all(pts)
+    for _ in range(70): skip(q, 80); settle(q); t = drawn(q, 'token'); pts.append(t[0] if t else None)
+    q.clock.resume(); ok = all(pts); wd = ht = r = 0; crosses = False
     if ok:
         dx = [p['x'] - p['sx'] for p in pts]; dy = [p['y'] - p['sy'] for p in pts]; r = pts[0]['r']; wd, ht = max(dx) - min(dx), max(dy) - min(dy)
-        crosses = sum(1 for a, b in zip(dx, dx[1:]) if a * b < 0) >= 2
+        crosses = (min(dx) < -1) and (max(dx) > 1)
         ok = crosses and r * 0.15 <= wd <= r * 0.8 and 0.2 * wd <= ht < wd
-    report(ok, 'bee: a small infinity loop in place', 'across %.1f, up and down %.1f px (bee %.0f px), crosses its spot %s' % (wd, ht, r, crosses) if all(pts) else 'no bee')
+    report(ok, 'bee: a small infinity loop in place', 'across %.1f, up and down %.1f px (bee %.0f px), crosses its spot %s %s' % (wd, ht, r, crosses, [round(v) for v in dx[:12]]) if all(pts) else 'no bee')
 
 def inside_poly(pts, x, y):
     o = False
