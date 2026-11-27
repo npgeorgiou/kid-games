@@ -25,3 +25,4 @@
 - Push every sketch or picture shown to the owner into this folder at once: a sketch only shown in a chat is lost with the chat.
 - On narrow screens (4:3) the board's top corner lies under the deck line: every area shape must hold for both cases, or the pool opens.
 - What is drawn on a cached plane (the water) records itself in the records its draw returns, never with drawn.push: pushed records vanish on the frames between (a splash looked missing to the tests).
+- The page draws before its pictures are in: anything measured from a picture (sizes, a sticker's head) must check picReady first, or the game stops at load (it did, and the flows did not see it).

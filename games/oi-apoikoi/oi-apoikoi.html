@@ -593,7 +593,7 @@ function inCorner(A, P, B, r) {  // the middle of a circle of radius r that touc
 }
 const giftEdge = () => giftSpot(0)[0] - 1.5 * L().hw;  // the extra tile's place's corner toward his sticker (the left player's)
 function beeSpot(i) {  // owner 27 Nov: the bee between his sticker and the extra tile's place, in the middle of the room between them, level with the place
-  const r = BEE_R * UI(), a = G.animals[i], n = 'avatars/' + a + '-neutral', fit = stickerFit(faceBox(0), false, a), f = headAt(n), reach = fit.ax + (1 - f) * fit.h * pics[n].width / pics[n].height, x = (reach + giftEdge()) / 2;  /* between his resting sticker and the place */ return [i ? W - x : x, giftSpot(0)[1], r];
+  const r = BEE_R * UI(), a = G.animals[i], n = 'avatars/' + a + '-neutral', fit = stickerFit(faceBox(0), false, a), reach = picReady(n) ? fit.ax + (1 - headAt(n)) * fit.h * pics[n].width / pics[n].height : fit.reach, x = (reach + giftEdge()) / 2;  /* between his resting sticker and the place */ return [i ? W - x : x, giftSpot(0)[1], r];
 }
 function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { return stock(i).placeAt(c, k); }  // where good number k of colour c stands in player i's stockpile: place k of column c
@@ -1223,8 +1223,8 @@ function stickerFit(b, flip, animal) {  // the stickers' one height, and where h
   const rest = Object.keys(pics).filter(n => n.startsWith('avatars/') && n.endsWith('-neutral') && picReady(n)), wide = Math.max(...rest.map(n => pics[n].width / pics[n].height));
   const ah = b.h / (1 + REST_STRETCH), h = Math.min(ah, b.w / wide), feet = b.y + b.h - (ah - h) / 2 * (1 + REST_STRETCH);  // room for the resting stretch
   const out = { h, feet, reach: b.x + (b.w + wide * h) / 2 };  // reach: where the widest resting sticker ends on the right
-  if (!animal) return out;
-  const n = 'avatars/' + animal + '-neutral', g = animal === 'frog' ? 1 : STICKER_GROW, H = h * g, w = H * pics[n].width / pics[n].height, f = flip ? 1 - headAt(n) : headAt(n);
+  const n = 'avatars/' + animal + '-neutral'; if (!animal || !picReady(n)) return { ...out, ax: b.x + b.w / 2 };  // before his picture is in
+  const g = animal === 'frog' ? 1 : STICKER_GROW, H = h * g, w = H * pics[n].width / pics[n].height, f = flip ? 1 - headAt(n) : headAt(n);
   const toLake = (flip ? -1 : 1) * STICKER_SHIFT[0] * h, down = STICKER_SHIFT[1] * h;  // owner 27 Nov: lower and a little toward the lake
   return { ...out, h: H, feet: feet + down, ax: b.x + (b.w - w) / 2 + f * w + toLake };  // his resting sticker centred in the box (then moved): its head's x, where every other face's head goes
 }
