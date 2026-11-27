@@ -558,9 +558,9 @@ def f_sticker_box(q):  # owner 27 Nov: "make the avatars bigger and contain them
         a0 = [x for x in drawn(q, 'avatar') if x['o'] == i][0]; a, s = a0['box'], a0['shown']; face = [x for x in drawn(q, 'area') if x['o'] == i and x['kind'] == 'face'][0]['pts']
         corners = [(s['x'] + dx * s['w'] / 2, s['y'] + dy * s['h'] / 2) for dx in (-1, 1) for dy in (-1, 1)]
         within = all(a['x'] - 0.5 <= x <= a['x'] + a['w'] + 0.5 and a['y'] - 0.5 <= y <= a['y'] + a['h'] + 0.5 for x, y in corners) and all(inside_poly(face, x, y) for x, y in corners)
-        big = max(s['w'] / a['w'], s['h'] / a['h']) > 0.99  # owner 27 Nov: always the biggest size, his turn or not
+        big = abs(s['h0'] - [x for x in drawn(q, 'avatar') if x['o'] != i][0]['shown']['h0']) < 0.5  # owner 27 Nov changed the size rule (was: as big as the box): both the same height, his turn or not; the size is checked in sticker_heights
         ok = ok and within and big; seen.append((i, round(s['w']), round(s['h']), within, big))
-    report(ok, 'stickers: as big as their box, inside it, on the face stone', seen)
+    report(ok, 'stickers: inside their box, on the face stone, both the same height', seen)
 def f_sticker_poke(q):  # owner 27 Nov: "make clicking the avatar make it take the happy stance for a fraction of a second"
     table(q, fast=False); tap(q, 'avatar-0'); now = [x['pic'] for x in drawn(q, 'avatar') if x['o'] == 0][0]; heard = q.evaluate("()=>__dg.sounds()")
     skip(q, 1000); later = [x['pic'] for x in drawn(q, 'avatar') if x['o'] == 0][0]; q.clock.resume()
@@ -754,6 +754,22 @@ def f_button_groove(q):  # owner 27 Nov: a pressed button looked like one stone 
         seen[name] = (q.evaluate(look, at(1)), q.evaluate(look, at(14)))
     q.mouse.up(); settle(q)
     report(all(g < s - 60 for g, s in seen.values()), 'buttons: pressed, a groove round it in the slab', 'per side (groove, slab beyond it) %s' % seen)
+def f_sticker_heights(q):  # owner 27 Nov: all stickers the same height, every animal in every face, as big as fits their box with a good empty margin around;
+    # a wider pose stands with its feet on the same line and its head at the same place across as every other
+    seen = {}
+    for w, h in ((1920, 1200), (1920, 1080), (3440, 1440)):
+        q.set_viewport_size({'width': w, 'height': h}); per = {0: [set(), set(), set()], 1: [set(), set(), set()]}; room = []
+        for a, b in (('cat', 'hamster'), ('frog', 'bunny'), ('dog', 'chick'), ('hamster', 'frog')):
+            table(q, animals=[a, b]); settle(q)
+            for poke in (False, True):
+                if poke: tap(q, 'avatar-0'); tap(q, 'avatar-1')
+                for d in drawn(q, 'avatar'):
+                    sh, bx = d['shown'], d['box']; v = per[d['o']]; v[0].add(round(sh['h0'], 1)); v[1].add(round(sh['feet'], 1)); v[2].add(round(sh['head'], 1))
+                    room.append(min((sh['feet'] - sh['h0'] - bx['y']) / bx['h'], (bx['y'] + bx['h'] - sh['feet']) / bx['h'], (sh['x'] - sh['w'] / 2 - bx['x']) / bx['w'], (bx['x'] + bx['w'] - sh['x'] - sh['w'] / 2) / bx['w']))
+        seen[(w, h)] = ({o: [len(x) for x in v] for o, v in per.items()}, sorted(per[0][0] | per[1][0]), round(min(room), 3))
+    q.set_viewport_size({'width': 1280, 'height': 800})
+    ok = all(all(n == [1, 1, 1] for n in v[0].values()) and len(v[1]) == 1 and v[2] >= 0.04 for v in seen.values())
+    report(ok, 'faces: same height, feet on one line, heads in one place, with a margin', 'per screen (per player: how many heights, feet lines, head places; heights; least margin) %s' % seen)
 def f_starts_face(q):  # owner 25 Nov: the start tiles face each other: the PC's is the kid's turned half a turn around the board's centre (each colour on its turned square)
     table(q, bag=[[3, 3]] * 4); D = [[1, 0], [0, 1], [-1, 0], [0, -1]]
     sq = lambda t: {(t[0], t[1]): t[3], (t[0] + D[t[2]][0], t[1] + D[t[2]][1]): t[4]}
@@ -767,12 +783,12 @@ def f_scales(q):  # owner 25 Nov: "make sure your ui is adoptable to all laptop 
         a, c = q.evaluate("()=>[__dg.square(0,0), __dg.square(1,0)]"); hh = c[1] - a[1]
         face = [x for x in drawn(q, 'avatar') if x['o'] == 0][0]; m = drawn(q, 'machine')[0]; hand = drawn(q, 'hand')[0]; lever = q.evaluate("()=>__dg.btn('lever')")
         inside = m['x'] >= 0 and m['y'] >= 0 and m['x'] + m['w'] <= w and m['y'] + m['h'] <= h and m['x'] <= lever[0] <= m['x'] + m['w'] * 1.3 and m['y'] <= lever[1] <= m['y'] + m['h']
-        fills = round(max(face['shown']['w'] / face['box']['w'], face['shown']['h'] / face['box']['h']), 2)  # owner 27 Nov: the sticker is as big as its box on the face stone, whatever the screen
+        fills = round(face['shown']['h0'] / hh, 2)  # owner 27 Nov changed the size rule (was: as big as its box): the sticker's height grows with the screen like the rest
         seen.append((fills, round(m['w'] / hh, 2), round(hand['z'] / hh, 2), inside)); small_hh = small_hh if seen[1:] else hh
     q.set_viewport_size({'width': 1280, 'height': 800})
-    same = all(abs(x[k] - seen[1][k]) <= 0.02 * seen[1][k] for x in seen[1:] for k in (1, 2)) and abs(seen[0][2] - seen[1][2]) <= 0.02 * seen[1][2] and all(x[0] >= 0.99 for x in seen)
+    same = all(abs(x[k] - seen[1][k]) <= 0.02 * seen[1][k] for x in seen[1:] for k in (1, 2)) and abs(seen[0][2] - seen[1][2]) <= 0.02 * seen[1][2] and all(abs(x[0] - seen[1][0]) <= 0.02 * seen[1][0] for x in seen)
     small = seen[0][1] * small_hh >= 540 - 1  # on a small screen the machine keeps its made size (its buttons stay big enough to touch), as long as it fits
-    report(same and small and all(x[3] for x in seen), 'scales: sizes grow with the screen, on screen', 'per size (the sticker filling its box, machine width and hand in half-square heights, on screen) %s' % seen)
+    report(same and small and all(x[3] for x in seen), 'scales: sizes grow with the screen, on screen', 'per size (the sticker height, machine width and hand in half-square heights, on screen) %s' % seen)
 def f_thick_land(q):  # owner 25 Nov: land squares are blocks with some thickness: walls of earth under the top's front edges, the sea below them
     table(q, bag=[[0, 4]] * 4); a, c = q.evaluate("()=>[__dg.square(0,0), __dg.square(1,0)]"); hh = c[1] - a[1]
     x, y = q.evaluate("()=>__dg.square(5,10)"); px = lambda dy: q.evaluate("([x,y])=>__dg.pixel(x,y)", [x, y + hh + dy * hh])[:3]  # under the start tile's front corner

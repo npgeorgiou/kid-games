@@ -1186,14 +1186,30 @@ function glowOf(name, col, w, h, g) {
   for (let a = 0; a < 16; a++) q.drawImage(one, core * Math.cos(a * Math.PI / 8), core * Math.sin(a * Math.PI / 8));
   glows.set(k, c); return c;
 }
+const STICKER_MARGIN = 0.08;  // owner 27 Nov: the empty room round the stickers in their box, a share of the box on each side
+// The stickers' places (owner 27 Nov): 1. every sticker the same height, every animal in every face; 2. its feet on one line, its head (the middle of its top part) on one upright line;
+// 3. that height as big as lets every picture fit the box with STICKER_MARGIN round them, the line of heads where it leaves equal room both sides.
+const heads = new Map();
+function headAt(name) {  // where a sticker picture's head is across it (0 left, 1 right): the middle of its drawn pixels in its top 30%, measured once
+  if (heads.has(name)) return heads.get(name);
+  const src = pics[name], c = document.createElement('canvas'); c.width = src.width; c.height = src.height; const q = c.getContext('2d'); q.drawImage(src, 0, 0);
+  const d = q.getImageData(0, 0, c.width, Math.ceil(c.height * 0.3)).data; let sx = 0, n = 0;
+  for (let k = 3; k < d.length; k += 4) if (d[k] > 128) { sx += (k >> 2) % c.width; n++; }
+  const f = n ? sx / n / c.width : 0.5; heads.set(name, f); return f;
+}
+function stickerFit(b, flip) {  // the stickers' one height, and where their heads and feet go in the box b; flip: the pictures are mirrored
+  const all = Object.keys(pics).filter(n => n.startsWith('avatars/') && picReady(n)).map(n => { const a = pics[n].width / pics[n].height, f = flip ? 1 - headAt(n) : headAt(n); return [f * a, (1 - f) * a]; });
+  const L = Math.max(...all.map(v => v[0])), R = Math.max(...all.map(v => v[1])), aw = b.w * (1 - 2 * STICKER_MARGIN), ah = b.h * (1 - 2 * STICKER_MARGIN), h = Math.min(ah, aw / (L + R));
+  return { h, ax: b.x + b.w * STICKER_MARGIN + (aw - (L + R) * h) / 2 + L * h, feet: b.y + b.h * (1 - STICKER_MARGIN) - (ah - h) / 2 };
+}
 const REST_STRETCH = 0.035, REST_MS = 2400;  // the resting stretch: how much taller at most, and how long one breath takes
 function sticker(i, b, lit) {  // owner 27 Nov: a player is his animal's sticker, its face showing what just happened to him, as big as fits his box; on his turn in a strong, vivid glow of his colour
   const name = 'avatars/' + G.animals[i] + '-' + moodOf(i), src = pics[name], flip = i === 1; if (!src) return { name };  // owner 27 Nov: the two face each other: the left player's picture as on the sheet, the right player's mirrored
-  const k = Math.min(b.w / src.width, b.h / src.height), w = src.width * k, h = src.height * k, x = b.x + b.w / 2, y = b.y + b.h / 2, g = GLOW_SIZE * UI();  // owner 27 Nov: always as big as fits, lit or not
-  const feet = y + h / 2, sy = moodOf(i) === 'neutral' ? 1 + REST_STRETCH * Math.sin(2 * Math.PI * performance.now() / REST_MS) : 1;  // owner 27 Nov: resting, it stretches up and down, its feet still (an idle squash and stretch)
-  cx.save(); cx.translate(x, feet); cx.scale(flip ? -1 : 1, sy); cx.translate(-x, -feet);
-  if (lit) { const a = 0.88 + 0.12 * Math.sin(2 * Math.PI * performance.now() / GLOW_PULSE_MS); drawn.push({ k: 'glow', o: i, col: GLOW[i], a, g, core: GLOW_CORE * g, ui: UI() }); cx.globalAlpha = a; cx.drawImage(glowOf(name, GLOW[i], Math.round(w), Math.round(h), Math.round(g)), x - w / 2 - 2 * g, y - h / 2 - 2 * g, w + 4 * g, h + 4 * g); cx.globalAlpha = 1; }
-  fittedAt(name, x - w / 2, y - h / 2, w, h); cx.restore(); return { name, x, y: feet - sy * h / 2, w, h: sy * h, mirrored: flip };
+  const { h, ax, feet } = stickerFit(b, flip), f = headAt(name), w = h * src.width / src.height, x = ax, y = feet - h / 2, g = GLOW_SIZE * UI();
+  const sy = moodOf(i) === 'neutral' ? 1 + REST_STRETCH * Math.sin(2 * Math.PI * performance.now() / REST_MS) : 1;  // owner 27 Nov: resting, it stretches up and down, its feet still (an idle squash and stretch)
+  cx.save(); cx.translate(ax, feet); cx.scale(flip ? -1 : 1, sy); cx.translate(-ax, -feet);  // mirrored round its head's x: the head stays where it is
+  if (lit) { const a = 0.88 + 0.12 * Math.sin(2 * Math.PI * performance.now() / GLOW_PULSE_MS); drawn.push({ k: 'glow', o: i, col: GLOW[i], a, g, core: GLOW_CORE * g, ui: UI() }); cx.globalAlpha = a; cx.drawImage(glowOf(name, GLOW[i], Math.round(w), Math.round(h), Math.round(g)), ax - f * w - 2 * g, y - h / 2 - 2 * g, w + 4 * g, h + 4 * g); cx.globalAlpha = 1; }
+  fittedAt(name, ax - f * w, y - h / 2, w, h); cx.restore(); return { name, x: ax + (flip ? f - 0.5 : 0.5 - f) * w, y: feet - sy * h / 2, w, h: sy * h, h0: h, head: ax, feet, mirrored: flip };
 }
 const RUBY_R = 44, RUBY_MOVE_MS = 1200, RUBY_IN_MS = 1300, RUBY_OUT_MS = 950, RUBY_BITS = 34;  // the leader's ruby (at a 1920 x 1080 screen, as big as its room allows); its move from player to player; its forming and its bursting
 function rubySpot(i) {  // owner 27 Nov: on his bottom stone, at the centre of the triangle formed by the pool's bottom edge, the top of his full coin stacks and his materials' side;
