@@ -756,7 +756,7 @@ def f_button_groove(q):  # owner 27 Nov: a pressed button looked like one stone 
     q.mouse.up(); settle(q)
     report(all(g < s - 60 for g, s in seen.values()), 'buttons: pressed, a groove round it in the slab', 'per side (groove, slab beyond it) %s' % seen)
 def f_sticker_heights(q):  # owner 27 Nov: all stickers the same height, every animal in every face, as big as fits their box with a good empty margin around;
-    # a wider pose stands with its feet on the same line and its head at the same place across as every other; later: as big as possible (the box keeps the stones' room, no more)
+    # a wider pose stands with its feet on the same line and its head at the same place across as every other; later: as big as possible (the box keeps the stones' room, no more), sized by the resting poses: a short wide pose may spill over
     seen = {}
     for w, h in ((1920, 1200), (1920, 1080), (3440, 1440)):
         q.set_viewport_size({'width': w, 'height': h}); per = {0: [set(), set(), set()], 1: [set(), set(), set()]}; room = []
@@ -766,7 +766,7 @@ def f_sticker_heights(q):  # owner 27 Nov: all stickers the same height, every a
                 if poke: tap(q, 'avatar-0'); tap(q, 'avatar-1')
                 for d in drawn(q, 'avatar'):
                     sh, bx = d['shown'], d['box']; v = per[d['o']]; v[0].add(round(sh['h0'], 1)); v[1].add(round(sh['feet'], 1)); v[2].add(round(sh['head'], 1))
-                    room.append(min((sh['feet'] - sh['h0'] - bx['y']) / bx['h'], (bx['y'] + bx['h'] - sh['feet']) / bx['h'], (sh['x'] - sh['w'] / 2 - bx['x']) / bx['w'], (bx['x'] + bx['w'] - sh['x'] - sh['w'] / 2) / bx['w']))
+                    if d['pic'].endswith('-neutral'): room.append(min((sh['feet'] - sh['h0'] - bx['y']) / bx['h'], (bx['y'] + bx['h'] - sh['feet']) / bx['h'], (sh['x'] - sh['w'] / 2 - bx['x']) / bx['w'], (bx['x'] + bx['w'] - sh['x'] - sh['w'] / 2) / bx['w']))
         seen[(w, h)] = ({o: [len(x) for x in v] for o, v in per.items()}, sorted(per[0][0] | per[1][0]), round(min(room), 3))
     q.set_viewport_size({'width': 1280, 'height': 800})
     ok = all(all(n == [1, 1, 1] for n in v[0].values()) and len(v[1]) == 1 and v[2] >= -0.001 for v in seen.values())  # owner 27 Nov: as big as possible: inside the box, whose edges keep the stones' room

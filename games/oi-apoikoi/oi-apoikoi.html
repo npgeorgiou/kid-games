@@ -1189,7 +1189,7 @@ function glowOf(name, col, w, h, g) {
   glows.set(k, c); return c;
 }
 // The stickers' places (owner 27 Nov): 1. every sticker the same height, every animal in every face; 2. its feet on one line, its head (the middle of its top part) on one upright line;
-// 3. that height as big as lets every picture fit the box (its edges keep STONE_ROOM from the stone's edge and the extra tile's place), the line of heads where it leaves equal room both sides.
+// 3. that height as big as lets every resting picture fit the box (owner 27 Nov: a short wide pose may spill over) (its edges keep STONE_ROOM from the stone's edge and the extra tile's place), the line of heads where it leaves equal room both sides.
 const heads = new Map();
 function headAt(name) {  // where a sticker picture's head is across it (0 left, 1 right): the middle of its drawn pixels in its top 30%, measured once
   if (heads.has(name)) return heads.get(name);
@@ -1199,7 +1199,7 @@ function headAt(name) {  // where a sticker picture's head is across it (0 left,
   const f = n ? sx / n / c.width : 0.5; heads.set(name, f); return f;
 }
 function stickerFit(b, flip) {  // the stickers' one height, and where their heads and feet go in the box b; flip: the pictures are mirrored
-  const all = Object.keys(pics).filter(n => n.startsWith('avatars/') && picReady(n)).map(n => { const a = pics[n].width / pics[n].height, f = flip ? 1 - headAt(n) : headAt(n); return [f * a, (1 - f) * a]; });
+  const all = Object.keys(pics).filter(n => n.startsWith('avatars/') && n.endsWith('-neutral') && picReady(n)).map(n => { const a = pics[n].width / pics[n].height, f = flip ? 1 - headAt(n) : headAt(n); return [f * a, (1 - f) * a]; });
   const L = Math.max(...all.map(v => v[0])), R = Math.max(...all.map(v => v[1])), aw = b.w, ah = b.h, h = Math.min(ah, aw / (L + R));
   return { h, ax: b.x + (aw - (L + R) * h) / 2 + L * h, feet: b.y + b.h - (ah - h) / 2 };
 }
