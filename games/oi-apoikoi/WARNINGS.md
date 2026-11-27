@@ -26,3 +26,5 @@
 - On narrow screens (4:3) the board's top corner lies under the deck line: every area shape must hold for both cases, or the pool opens.
 - What is drawn on a cached plane (the water) records itself in the records its draw returns, never with drawn.push: pushed records vanish on the frames between (a splash looked missing to the tests).
 - The page draws before its pictures are in: anything measured from a picture (sizes, a sticker's head) must check picReady first, or the game stops at load (it did, and the flows did not see it).
+- A tile going back to a market place is not in the market until its glide ends: anything that reads the market (can he pick? must he pass?) waits for that glide first.
+- A canvas ignores a globalAlpha outside 0..1 and keeps the last one: clamp every computed alpha (a ruby fading below 0 flickered at full strength).
