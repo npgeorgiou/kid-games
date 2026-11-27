@@ -56,5 +56,4 @@ A playable game against the PC on one shared board in the new look (sea board of
 - Update the flow tests to the design phase so the commit check passes again.
 - Ruby: visibly centred in its free corner (his screenshots: it looks off-centre), the same on both sides.
 - Stickers: big enough on every screen size; both look the same size (a wide cat comes out smaller than a tall bunny).
-- Pool walls lower: from the water to their top as high as a tile's ground (half a tile).
 - Deck: each layer as high as a tile's ground (the full pile as high as 4 tiles), layer lines kept; it fits its stone (base not past it, top not past the screen) on every screen; widen the top stones a little if needed.
