@@ -523,11 +523,12 @@ def f_stickers(q):  # owner 27 Nov: "avatars for the 2 players ... like stickers
     run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 15000); tap(q, 'jar-0'); run_until(q, "()=>__dg.sounds().includes('reveal')", 4000); settle(q); shown = pic(0); q.clock.resume()
     report(start and joined.endswith('-happy') and empty.endswith('-sad') and other.endswith('-happy') and shown.endswith('-happy'), 'stickers: two animals, neutral first, his turn glows, faces follow what happens, the other reacts too',
            'animals %s, start %s, after a connection %s, an empty jar %s (the other %s), a jar of materials %s' % (animals, start, joined, empty, other, shown))
-def f_bee_corner(q):  # owner 27 Nov: "replace the star (who goes first next round) with a bee icon, that you will put in this corner" (his face stone's corner by the pool)
-    get_jar(q, [{'k': 'first'}]); t = drawn(q, 'token'); face = [a for a in drawn(q, 'area') if a['o'] == 0 and a['kind'] == 'face'][0]['pts']
-    b = t[0] if t else None; corner = face[1]
-    ok = bool(b) and inside_poly(face, b['x'], b['y']) and side_gap(face, b['x'], b['y']) >= b['r'] and min(range(len(face)), key=lambda k: math.hypot(face[k][0] - b['x'], face[k][1] - b['y'])) == 1
-    report(ok, 'bee: the first-player bee in his face stone\'s corner by the pool', 'bee %s, corner %s' % (b and (round(b['x']), round(b['y'])), [round(v) for v in corner]))
+def f_bee_corner(q):  # owner 27 Nov: "replace the star (who goes first next round) with a bee icon, that you will put in this corner" (his face stone's corner by the pool);
+    # later: the bee between his sticker and the extra tile's place
+    get_jar(q, [{'k': 'first'}]); settle(q); t = drawn(q, 'token'); a = [d for d in drawn(q, 'avatar') if d['o'] == 0][0]['shown']; g = [d for d in drawn(q, 'giftplace') if d['o'] == 0]
+    b = t[0] if t else None; right = a['head'] + a['right'] if 'right' in a else -1; left = g[0]['x'] if g else -1
+    ok = bool(b) and right < b['x'] - b['r'] and b['x'] + b['r'] < left and abs((b['x'] - b['r'] - right) - (left - b['x'] - b['r'])) < 2  # in the middle of the room between them
+    report(ok, 'bee: between his sticker and the extra tile\'s place', 'sticker reaches %s, bee %s, the extra tile\'s place from %s' % (round(right), b and (round(b['x'] - b['r']), round(b['x'] + b['r'])), round(left)))
 def f_ruby_leader(q):  # owner 27 Nov: "divide it in half, and the half of the winning player gets a ruby on top"
     res = {}
     for coins in ([3, 1], [1, 4], [2, 2]):
@@ -784,10 +785,10 @@ def f_scales(q):  # owner 25 Nov: "make sure your ui is adoptable to all laptop 
         a, c = q.evaluate("()=>[__dg.square(0,0), __dg.square(1,0)]"); hh = c[1] - a[1]
         face = [x for x in drawn(q, 'avatar') if x['o'] == 0][0]; m = drawn(q, 'machine')[0]; hand = drawn(q, 'hand')[0]; lever = q.evaluate("()=>__dg.btn('lever')")
         inside = m['x'] >= 0 and m['y'] >= 0 and m['x'] + m['w'] <= w and m['y'] + m['h'] <= h and m['x'] <= lever[0] <= m['x'] + m['w'] * 1.3 and m['y'] <= lever[1] <= m['y'] + m['h']
-        fills = round(face['shown']['h0'] / hh, 2)  # owner 27 Nov changed the size rule (was: as big as its box): the sticker's height grows with the screen like the rest
+        fills = round(face['shown']['h0'] / hh, 2)  # owner 27 Nov changed the size rule (was: as big as its box): the sticker as big as its stone allows on each screen (sticker_heights), so only shown here
         seen.append((fills, round(m['w'] / hh, 2), round(hand['z'] / hh, 2), inside)); small_hh = small_hh if seen[1:] else hh
     q.set_viewport_size({'width': 1280, 'height': 800})
-    same = all(abs(x[k] - seen[1][k]) <= 0.02 * seen[1][k] for x in seen[1:] for k in (1, 2)) and abs(seen[0][2] - seen[1][2]) <= 0.02 * seen[1][2] and all(abs(x[0] - seen[1][0]) <= 0.02 * seen[1][0] for x in seen)
+    same = all(abs(x[k] - seen[1][k]) <= 0.02 * seen[1][k] for x in seen[1:] for k in (1, 2)) and abs(seen[0][2] - seen[1][2]) <= 0.02 * seen[1][2] 
     small = seen[0][1] * small_hh >= 540 - 1  # on a small screen the machine keeps its made size (its buttons stay big enough to touch), as long as it fits
     report(same and small and all(x[3] for x in seen), 'scales: sizes grow with the screen, on screen', 'per size (the sticker height, machine width and hand in half-square heights, on screen) %s' % seen)
 def f_thick_land(q):  # owner 25 Nov: land squares are blocks with some thickness: walls of earth under the top's front edges, the sea below them

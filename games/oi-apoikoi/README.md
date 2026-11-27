@@ -24,7 +24,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `art/lands/`: the 6 land pictures, each as its ground (`-ground`, one square's diamond and its two front walls of earth) and the things standing on it (`-things`); made by `tools/make_lands.py` (run it after changing it).
 - `art/materials/`: the 6 material pictures, made for the game.
 - `art/things/stone-slab-1.png`, `stone-slab-2.png`: the owner's two stone slab pictures (free to use, he says), cut from their background (`tools/cut_pictures.py`); every area's stone top is one of them.
-- `art/things/bee.svg`: the first-player bee, drawn for the game; `art/things/ruby.png`: the owner's ruby, on the bottom stone of whoever has the most coins, beside his materials.
+- `art/things/bee.png`: the first-player bee, the owner's picture (cut from its background); `art/things/ruby.png`: the owner's ruby, on the bottom stone of whoever has the most coins, beside his materials.
 - `art/avatars/<animal>-<face>.png`: the players' stickers, 6 animals x 5 faces (neutral, happy, excited, surprised, sad), cut from the owner's two sheets by `tools/cut_stickers.py`.
 - `art/sounds/watertap.mp3`: the water tap sound, taken from the architects game (`map-tap-water`, at its volume).
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
