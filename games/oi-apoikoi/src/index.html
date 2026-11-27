@@ -1183,11 +1183,13 @@ function glowOf(name, col, w, h, g) {
   for (let a = 0; a < 16; a++) q.drawImage(one, core * Math.cos(a * Math.PI / 8), core * Math.sin(a * Math.PI / 8));
   glows.set(k, c); return c;
 }
+const STICKER_LOOKS = { 'cat-neutral': 1, 'cat-happy': 1, 'cat-excited': 1, 'cat-surprised': -1, 'dog-neutral': 1, 'dog-happy': 1, 'dog-excited': 1, 'dog-surprised': 1, 'chick-neutral': 1, 'chick-surprised': 1 };  // where each sticker picture looks (1 right, -1 left), seen on the pictures; the rest look straight ahead
 function sticker(i, b, lit) {  // owner 27 Nov: a player is his animal's sticker, its face showing what just happened to him, as big as fits his box; on his turn in a strong, vivid glow of his colour
-  const name = 'avatars/' + G.animals[i] + '-' + moodOf(i), src = pics[name]; if (!src) return { name };
+  const name = 'avatars/' + G.animals[i] + '-' + moodOf(i), src = pics[name], looks = STICKER_LOOKS[G.animals[i] + '-' + moodOf(i)] || 0, flip = looks === (i ? 1 : -1); if (!src) return { name };  // owner 27 Nov: the two face each other: a picture looking away is mirrored
   const k = Math.min(b.w / src.width, b.h / src.height), w = src.width * k, h = src.height * k, x = b.x + b.w / 2, y = b.y + b.h / 2, g = GLOW_SIZE * UI();  // owner 27 Nov: always as big as fits, lit or not
+  cx.save(); cx.translate(x, 0); cx.scale(flip ? -1 : 1, 1); cx.translate(-x, 0);
   if (lit) { const a = 0.8 + 0.2 * Math.sin(2 * Math.PI * performance.now() / GLOW_PULSE_MS); drawn.push({ k: 'glow', o: i, col: GLOW[i], a, g, core: GLOW_CORE * g, ui: UI() }); cx.globalAlpha = a; cx.drawImage(glowOf(name, GLOW[i], Math.round(w), Math.round(h), Math.round(g)), x - w / 2 - 2 * g, y - h / 2 - 2 * g, w + 4 * g, h + 4 * g); cx.globalAlpha = 1; }
-  fittedAt(name, x - w / 2, y - h / 2, w, h); return { name, x, y, w, h };
+  fittedAt(name, x - w / 2, y - h / 2, w, h); cx.restore(); return { name, x, y, w, h, looks: flip ? -looks : looks };
 }
 const RUBY_R = 44, RUBY_MOVE_MS = 1200, RUBY_IN_MS = 1300, RUBY_OUT_MS = 950, RUBY_BITS = 34;  // the leader's ruby (at a 1920 x 1080 screen, as big as its room allows); its move from player to player; its forming and its bursting
 function rubySpot(i) {  // owner 27 Nov: on his bottom stone, at the centre of the triangle formed by the pool's bottom edge, the top of his full coin stacks and his materials' side;
@@ -1238,7 +1240,7 @@ function drawPanel(i) {
     cx.globalAlpha = a; rrect(x0 - rp / 2, top, rp, bot - top, rp / 2, '#fff2b0'); cx.globalAlpha = 1; drawn.push({ k: 'columnshine', o: i, c }); });
   p.goods.forEach((g, c) => { const a = shine(c); if (a) drawn.push({ k: 'shine', o: i, c }); for (let k = 0; k < g; k++) { const [x, y] = placeAt(c, k); a ? flashGood(c, x, y, r, a) : goodShape(c, x, y, r, true); drawn.push({ k: 'good', o: i, c, x, y, r, pic: 'materials/' + MATERIALS[c], ready: picReady('materials/' + MATERIALS[c]) }); } });
   for (let k = 0; k < p.coins - (G.ending ? G.ending[i] : 0); k++) { const [x, y] = coinAt(k); flatCoin(x, y, cr, th); drawn.push({ k: 'coin', o: i, x, y, r: cr }); }
-  const u = UI(), box = faceBox(i), st = sticker(i, box, lit); drawn.push({ k: 'avatar', o: i, x: st.x, y: st.y, r: Math.max(st.w || 0, st.h || 0) / 2, box, pic: st.name, lit, shown: st });
+  const u = UI(), box = faceBox(i), st = sticker(i, box, lit); drawn.push({ k: 'avatar', o: i, x: st.x, y: st.y, r: Math.max(st.w || 0, st.h || 0) / 2, box, pic: st.name, lit, shown: st, looks: st.looks });
   btn('avatar-' + i, box.x, box.y, box.w, box.h, () => { feel(i, 'happy', POKE_MS); sound('poke'); });  // owner 27 Nov: a tap on his sticker
   if (G.first === i) { const [sx, sy] = beeSpot(i); bee(sx, sy, BEE_R * u); drawn.push({ k: 'token', o: i, x: sx, y: sy, r: BEE_R * u }); }  // the first-player token
 }

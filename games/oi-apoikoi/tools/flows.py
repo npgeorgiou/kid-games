@@ -727,6 +727,12 @@ def f_pool_walls(q):  # owner 27 Nov: the pool's walls lower: from the water to 
     table(q); settle(q); w = drawn(q, 'poolwall'); g = {round(d['shows'], 1) for d in drawn(q, 'square')}
     ok = bool(w) and len(g) == 1 and abs(w[0]['h'] - g.pop()) < 0.5 if w and g else False
     report(ok, 'pool: walls as high as a tile\'s ground', 'wall %s, tile ground over the water %s' % ([round(d['h'], 1) for d in w], sorted({round(d['shows'], 1) for d in drawn(q, 'square')})))
+def f_stickers_face(q):  # owner 27 Nov: the two animals face each other: his looks right (or straight ahead), the PC's looks left (or straight ahead)
+    seen = {}
+    for a, b in (('cat', 'dog'), ('dog', 'chick'), ('chick', 'cat'), ('hamster', 'frog'), ('bunny', 'cat')):
+        table(q, animals=[a, b]); settle(q); s = {d['o']: d['looks'] for d in drawn(q, 'avatar') if 'looks' in d}; seen[a + '/' + b] = (s.get(0), s.get(1))
+    ok = all(v[0] is not None and v[1] is not None and v[0] >= 0 and v[1] <= 0 for v in seen.values()) and any(v[0] == 1 or v[1] == -1 for v in seen.values())
+    report(ok, 'faces: the animals face each other', 'per pair (where his looks, where the PC\'s looks: 1 right, -1 left, 0 ahead) %s' % seen)
 def f_starts_face(q):  # owner 25 Nov: the start tiles face each other: the PC's is the kid's turned half a turn around the board's centre (each colour on its turned square)
     table(q, bag=[[3, 3]] * 4); D = [[1, 0], [0, 1], [-1, 0], [0, -1]]
     sq = lambda t: {(t[0], t[1]): t[3], (t[0] + D[t[2]][0], t[1] + D[t[2]][1]): t[4]}
