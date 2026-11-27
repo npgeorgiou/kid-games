@@ -45,10 +45,21 @@ A playable game against the PC on one shared board in the new look (sea board of
 
 - The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` section 6.
-- Design phase (25-26 Nov): look, motion and layout changes are on pull request #47 (branch `oi-apoikoi-motion-fixes`), pushed with the commit check off for the owner to merge by hand; 27 flow steps fail, the same as on main, because the flow tests are not updated yet.
+- Design phase (25-27 Nov): look, motion and layout changes are on pull request #49 (branch `oi-apoikoi-motion-fixes`), pushed with the commit check off for the owner to merge by hand; 27 flow steps fail, the same as on main, because the flow tests are not updated yet.
+- Players are animal stickers (a random pair per game) whose faces follow what happens to them and to the other; the first player has a bee; the coin leader has a ruby on his bottom stone that flies, forms and bursts.
 - Areas built from `areas-sketch.png` (deck/buttons, market, face triangle with the extra tile, dead space, materials, coins with 8 full stacks fitted, dead space); the board with its border keeps its shape and takes the most room on every screen, the areas fit around it.
 - Stone look (owner close to happy, 27 Nov): rules in the project doc `claude/oi-apoikoi-stone-rules.md`; two layers of stones, bases fill the areas, tops rise, sun at the top left, pool walls straight and low, waves along the pool's edge.
 
 ## Task list
 
 - Update the flow tests to the design phase so the commit check passes again.
+- Fit and symmetry (owner 27 Nov): send him the end screen with a full line of 80 coins at 3 screen sizes (one very tall ratio, one very wide, one 16:9); fix what does not fit.
+- Ruby: visibly centred in its free corner (his screenshots: it looks off-centre), the same on both sides.
+- Stickers: big enough on every screen size; both look the same size (a wide cat comes out smaller than a tall bunny).
+- Sticker glow: less neon ("radioactive"), slower pulse, a more solid core, a little bigger.
+- Extra tile from a jar makes him excited (now happy).
+- Materials stockpile: the side places' gaps to the screen edge and to the stone's edge equal on both sides; swap the grapes and stone columns; the statue icon 7.5% wider (fills its place like the others).
+- Buttons: tappable with a pressed state: pressed loses its shadow and goes down (they are 3D).
+- Play again (vs PC or vs player) keeps the same two animals.
+- Pool walls lower: from the water to their top as high as a tile's ground (half a tile).
+- Deck: each layer as high as a tile's ground (the full pile as high as 4 tiles), layer lines kept; it fits its stone (base not past it, top not past the screen) on every screen; widen the top stones a little if needed.
