@@ -53,7 +53,6 @@ A playable game against the PC on one shared board in the new look (sea board of
 ## Task list
 
 - Update the flow tests to the design phase so the commit check passes again.
-- Fit and symmetry (owner 27 Nov): send him the end screen with a full line of 80 coins at 3 screen sizes (one very tall ratio, one very wide, one 16:9); fix what does not fit.
 - Ruby: visibly centred in its free corner (his screenshots: it looks off-centre), the same on both sides.
 - Stickers: big enough on every screen size; both look the same size (a wide cat comes out smaller than a tall bunny).
 - Sticker glow: less neon ("radioactive"), slower pulse, a more solid core, a little bigger.
