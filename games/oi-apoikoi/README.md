@@ -54,5 +54,5 @@ A playable game against the PC on one shared board in the new look (sea board of
 ## Task list
 
 - Update the flow tests to the design phase so the commit check passes again.
-- Stickers: big enough on every screen size; both look the same size (a wide cat comes out smaller than a tall bunny).
-- Deck: each layer as high as a tile's ground (the full pile as high as 4 tiles), layer lines kept; it fits its stone (base not past it, top not past the screen) on every screen; widen the top stones a little if needed.
+- Stickers: every animal in every face the same height, as big as fits its box with a good margin; not smaller on bigger screens. Blocked: the box is narrow on 16:9 and 16:10, so equal heights come out about 90 px (the leaping frog is widest); owner to choose how to make room.
+- Deck: each layer as high as a tile's ground (its substratum, half a tile's thickness) (owner to choose: 28 such layers are about 640 px on 16:9, the stone about 200 px), layer lines kept; it fits its stone (base not past it, top not past the screen) on every screen; widen the top stones a little if needed.
