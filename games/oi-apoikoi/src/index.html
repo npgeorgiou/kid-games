@@ -28,7 +28,7 @@ const LANDS = ['wheat', 'plains', 'vineyard', 'forest', 'mountain', 'town'], MAT
 const COLOUR_IDS = LANDS.map((c, k) => k), noGoods = () => LANDS.map(() => 0);
 const HALVES = [10, 10, 9, 9, 9, 9];  // the 56 halves of the 28 tiles, per colour (owner 25 Nov)
 const BORDER = ['#22a33a', '#d42a2a'], TINT = ['#eef8e6', '#fbebe8'];  // the kid's land green, the PC's red; their areas' light tints
-const GLOW = ['#1fbf3c', '#e02a36'], GLOW_PULSE_MS = 4000, GLOW_SIZE = 32, GLOW_CORE = 0.3;  // owner 27 Nov: the turn's glow in the players' green and red, vivid but not neon, pulsing slowly; its size (at a 1920 x 1080 screen) and its solid band by the sticker (a share of its size)
+const GLOW = ['#10d838', '#f0222f'], GLOW_PULSE_MS = 4000, GLOW_SIZE = 32, GLOW_CORE = 0.3;  // owner 27 Nov: the turn's glow in the players' green and red, vivid but not neon, pulsing slowly; its size (at a 1920 x 1080 screen) and its solid band by the sticker (a share of its size)
 const ANIMALS = ['hamster', 'bunny', 'chick', 'cat', 'dog', 'frog'], MOOD_MS = 2200, POKE_MS = 450;  // owner 27 Nov: a tap on his sticker makes it happy for a moment  // owner 27 Nov: each player a sticker of an animal (a random pair each game); a face shows MOOD_MS after what made it, then neutral again
 const JAR_MIX = { empty: 10, coins: 45, coins2: 10, tile: 4, slot: 5, first: 8, jar: 8, set: 10 };  // what jars hold, per 100 jars (owner 25 Nov)
 const JAR_GOODS = 5;  // this many goods of one colour make a jar at once (owner 24 Nov)
@@ -1178,7 +1178,7 @@ function glowOf(name, col, w, h, g) {
   const d = devicePixelRatio || 1, k = [name, col, w, h, g, d].join(); if (glows.has(k)) return glows.get(k);
   const one = document.createElement('canvas'), c = document.createElement('canvas'); one.width = c.width = Math.ceil((w + 4 * g) * d); one.height = c.height = Math.ceil((h + 4 * g) * d);
   const o = one.getContext('2d'); o.drawImage(pics[name], 2 * g * d, 2 * g * d, w * d, h * d); o.globalCompositeOperation = 'source-in'; o.fillStyle = col; o.fillRect(0, 0, one.width, one.height);
-  const q = c.getContext('2d'); q.filter = `blur(${g * d / 2}px)`; for (let n = 0; n < 2; n++) q.drawImage(one, 0, 0);  // the soft glow, drawn over itself
+  const q = c.getContext('2d'); q.filter = `blur(${g * d / 2}px)`; for (let n = 0; n < 3; n++) q.drawImage(one, 0, 0);  // the soft glow, drawn over itself
   q.filter = `blur(${g * d / 12}px)`; const core = GLOW_CORE * g * d;  // owner 27 Nov: a solid core: the sticker's shape grown by the core's width all round, hardly blurred
   for (let a = 0; a < 16; a++) q.drawImage(one, core * Math.cos(a * Math.PI / 8), core * Math.sin(a * Math.PI / 8));
   glows.set(k, c); return c;
@@ -1189,7 +1189,7 @@ function sticker(i, b, lit) {  // owner 27 Nov: a player is his animal's sticker
   const k = Math.min(b.w / src.width, b.h / src.height), w = src.width * k, h = src.height * k, x = b.x + b.w / 2, y = b.y + b.h / 2, g = GLOW_SIZE * UI();  // owner 27 Nov: always as big as fits, lit or not
   const feet = y + h / 2, sy = moodOf(i) === 'neutral' ? 1 + REST_STRETCH * Math.sin(2 * Math.PI * performance.now() / REST_MS) : 1;  // owner 27 Nov: resting, it stretches up and down, its feet still (an idle squash and stretch)
   cx.save(); cx.translate(x, feet); cx.scale(flip ? -1 : 1, sy); cx.translate(-x, -feet);
-  if (lit) { const a = 0.8 + 0.2 * Math.sin(2 * Math.PI * performance.now() / GLOW_PULSE_MS); drawn.push({ k: 'glow', o: i, col: GLOW[i], a, g, core: GLOW_CORE * g, ui: UI() }); cx.globalAlpha = a; cx.drawImage(glowOf(name, GLOW[i], Math.round(w), Math.round(h), Math.round(g)), x - w / 2 - 2 * g, y - h / 2 - 2 * g, w + 4 * g, h + 4 * g); cx.globalAlpha = 1; }
+  if (lit) { const a = 0.88 + 0.12 * Math.sin(2 * Math.PI * performance.now() / GLOW_PULSE_MS); drawn.push({ k: 'glow', o: i, col: GLOW[i], a, g, core: GLOW_CORE * g, ui: UI() }); cx.globalAlpha = a; cx.drawImage(glowOf(name, GLOW[i], Math.round(w), Math.round(h), Math.round(g)), x - w / 2 - 2 * g, y - h / 2 - 2 * g, w + 4 * g, h + 4 * g); cx.globalAlpha = 1; }
   fittedAt(name, x - w / 2, y - h / 2, w, h); cx.restore(); return { name, x, y: feet - sy * h / 2, w, h: sy * h, mirrored: flip };
 }
 const RUBY_R = 44, RUBY_MOVE_MS = 1200, RUBY_IN_MS = 1300, RUBY_OUT_MS = 950, RUBY_BITS = 34;  // the leader's ruby (at a 1920 x 1080 screen, as big as its room allows); its move from player to player; its forming and its bursting
