@@ -37,7 +37,7 @@ const COLS = 16, ROWS = 16, STARTS = [[4, 10, 0], [11, 5, 2]];  // a square boar
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];  // where a tile's second half is, by turn
 const params = new URLSearchParams(location.search);
 let fast = params.has('fast'), stillWater = fast;  // tests: the PC moves without waiting, and nothing travels: it is where it goes at once
-const JAR_PACE = 1.1;  // owner 27 Nov: the PC breaks its jars 10% faster
+const JAR_PACE = 1.1 / 1.05;  // owner 27 Nov: the PC breaks its jars 10% faster, then 5% slower than that
 const HAND_SPEED = 700;  // owner 25 Nov: the PC moves faster  // px per second: slow enough to follow
 const EDGE_GROW_MS = 1755, EDGE_IN_PLACE = 0.7, EDGE_GO_MS = EDGE_GROW_MS * (1 - Math.cbrt(1 - EDGE_IN_PLACE)), EDGE_GLIDE_MS = 1440, EDGE_JAR_MS = EDGE_GO_MS + EDGE_GLIDE_MS;  // owner 26 Nov: growing 10% and gliding 20% faster than before; owner 26 Nov: a connection's jars grow slowly out of their edges, all at once, as the land's harvest starts
 const STAGGER = 120, GOOD_FLY = 675, COIN_FLY = 825;  // things that go one after another leave STAGGER apart; a good flies GOOD_FLY, a coin COIN_FLY (owner 26 Nov: goods and coins a third slower)
@@ -593,7 +593,7 @@ function inCorner(A, P, B, r) {  // the middle of a circle of radius r that touc
 }
 const giftEdge = () => giftSpot(0)[0] - 1.5 * L().hw;  // the extra tile's place's corner toward his sticker (the left player's)
 function beeSpot(i) {  // owner 27 Nov: the bee between his sticker and the extra tile's place, in the middle of the room between them, level with the place
-  const r = BEE_R * UI(), x = (stickerFit(faceBox(0), false).reach + giftEdge()) / 2; return [i ? W - x : x, giftSpot(0)[1], r];
+  const r = BEE_R * UI(), a = G.animals[i], n = 'avatars/' + a + '-neutral', fit = stickerFit(faceBox(0), false, a), f = headAt(n), reach = fit.ax + (1 - f) * fit.h * pics[n].width / pics[n].height, x = (reach + giftEdge()) / 2;  /* between his resting sticker and the place */ return [i ? W - x : x, giftSpot(0)[1], r];
 }
 function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { return stock(i).placeAt(c, k); }  // where good number k of colour c stands in player i's stockpile: place k of column c
@@ -1218,13 +1218,15 @@ function headAt(name) {  // where a sticker picture's head is across it (0 left,
   for (let k = 3; k < d.length; k += 4) if (d[k] > 128) { sx += (k >> 2) % c.width; n++; }
   const f = n ? sx / n / c.width : 0.5; heads.set(name, f); return f;
 }
+const STICKER_GROW = 1.2, STICKER_SHIFT = [0.1, 0.25];  // owner 27 Nov: every sticker 20% bigger but the frog; its feet lower and a little toward the lake (shares of the box's sticker height)
 function stickerFit(b, flip, animal) {  // the stickers' one height, and where his feet and head go in the box b; flip: the pictures are mirrored
   const rest = Object.keys(pics).filter(n => n.startsWith('avatars/') && n.endsWith('-neutral') && picReady(n)), wide = Math.max(...rest.map(n => pics[n].width / pics[n].height));
   const ah = b.h / (1 + REST_STRETCH), h = Math.min(ah, b.w / wide), feet = b.y + b.h - (ah - h) / 2 * (1 + REST_STRETCH);  // room for the resting stretch
   const out = { h, feet, reach: b.x + (b.w + wide * h) / 2 };  // reach: where the widest resting sticker ends on the right
   if (!animal) return out;
-  const n = 'avatars/' + animal + '-neutral', w = h * pics[n].width / pics[n].height, f = flip ? 1 - headAt(n) : headAt(n);
-  return { ...out, ax: b.x + (b.w - w) / 2 + f * w };  // his resting sticker centred in the box: its head's x, where every other face's head goes
+  const n = 'avatars/' + animal + '-neutral', g = animal === 'frog' ? 1 : STICKER_GROW, H = h * g, w = H * pics[n].width / pics[n].height, f = flip ? 1 - headAt(n) : headAt(n);
+  const toLake = (flip ? -1 : 1) * STICKER_SHIFT[0] * h, down = STICKER_SHIFT[1] * h;  // owner 27 Nov: lower and a little toward the lake
+  return { ...out, h: H, feet: feet + down, ax: b.x + (b.w - w) / 2 + f * w + toLake };  // his resting sticker centred in the box (then moved): its head's x, where every other face's head goes
 }
 const REST_STRETCH = 0.035, REST_MS = 2400;  // the resting stretch: how much taller at most, and how long one breath takes
 function sticker(i, b, lit) {  // owner 27 Nov: a player is his animal's sticker, its face showing what just happened to him, as big as fits his box; on his turn in a strong, vivid glow of his colour
