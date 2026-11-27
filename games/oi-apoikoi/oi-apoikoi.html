@@ -816,10 +816,13 @@ const topOf = key => tops().find(b => b.key === key).top;
 function stonesOverWater() {  // owner 27 Nov: the stones in front of the pool cover its front edge: the moving water is cut away under their tops
   cx.save(); cx.globalCompositeOperation = 'destination-out'; for (const b of tops()) { shapePath(b.top, 0, 0, b.round); cx.fill(); } cx.restore();
 }
+const GROOVE = 3;  // owner 27 Nov: the slot a button sits in: a dark groove this wide round its base (at a 1920 x 1080 screen)
+function groove(b) { const w = GROOVE * UI(); cx.save(); shapePath(b.base, 0, 0, b.round); cx.strokeStyle = STONE.floor; cx.lineWidth = 2 * w; cx.stroke(); cx.restore(); }  // its outer half shows; the button covers the rest
 function stoneAreas() {  // back to front, the first layer then the second: each stone's shadow (second layer), faces and top (a higher top a little lighter); then the pool walls' joints
   const all = blocks();
   for (const b of all) {
     if (b.layer >= 2) { cx.save(); cx.shadowColor = STONE.shadow; cx.shadowBlur = 0; cx.shadowOffsetX = 0.35 * b.up; cx.shadowOffsetY = 0.35 * b.up; shapePath(b.base, 0, 0, b.round); cx.fillStyle = STONE.floor; cx.fill(); cx.restore(); }  // a contact shadow from its base, so it sits on the stone below
+    if (b.layer === 3) groove(b);
     drawSides(b); drawTop(b);
     if (b.layer >= 2) { cx.save(); shapePath(b.top, 0, 0, b.round); cx.fillStyle = STONE.lift; cx.fill(); cx.restore(); }
     if (b.key === 'plug') { const [x, y] = b.top[1]; cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x, H); cx.strokeStyle = STONE.seamDark; cx.lineWidth = 1.5; cx.stroke(); }  // owner 27 Nov: the stone under the pool in two halves, one per player: a joint down its middle

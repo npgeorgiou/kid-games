@@ -746,6 +746,14 @@ def f_button_hole_bevel(q):  # owner 27 Nov: a pressed button's top is level wit
         return q.evaluate(look, [b['x'] - e, b['y']]) - q.evaluate(look, [b['x'] + e, b['y']])
     up = sides(); b = [d for d in drawn(q, 'button') if d['kind'] == 'gear'][0]; q.mouse.move(b['x'], b['y']); q.mouse.down(); settle(q); down = sides(); q.mouse.up(); settle(q)
     report(up > 30 and down < -30, 'buttons: pressed, the bevel is lit like a hole\'s', 'left bevel minus right bevel (brightness): up %d, pressed %d' % (up, down))
+def f_button_groove(q):  # owner 27 Nov: a pressed button looked like one stone with the slab: a groove runs round it, as if it is slotted into the slab
+    table(q); look = "([x,y])=>{const c=document.getElementById('under'),d=c.width/innerWidth,p=c.getContext('2d').getImageData(Math.round(x*d),Math.round(y*d),1,1).data;return p[0]+p[1]+p[2]}"
+    b = [d for d in drawn(q, 'button') if d['kind'] == 'gear'][0]; q.mouse.move(b['x'], b['y']); q.mouse.down(); settle(q); b = [d for d in drawn(q, 'button') if d['kind'] == 'gear'][0]; u = b['ui']; seen = {}
+    for name, (dx, dy) in {'left': (-1, 0), 'right': (1, 0), 'top': (0, -1), 'bottom': (0, 1)}.items():
+        at = lambda k: [b['x'] + dx * (b['edge'] + k * u), b['y'] + dy * (b['edge'] + k * u)]
+        seen[name] = (q.evaluate(look, at(1)), q.evaluate(look, at(14)))
+    q.mouse.up(); settle(q)
+    report(all(g < s - 60 for g, s in seen.values()), 'buttons: pressed, a groove round it in the slab', 'per side (groove, slab beyond it) %s' % seen)
 def f_starts_face(q):  # owner 25 Nov: the start tiles face each other: the PC's is the kid's turned half a turn around the board's centre (each colour on its turned square)
     table(q, bag=[[3, 3]] * 4); D = [[1, 0], [0, 1], [-1, 0], [0, -1]]
     sq = lambda t: {(t[0], t[1]): t[3], (t[0] + D[t[2]][0], t[1] + D[t[2]][1]): t[4]}
