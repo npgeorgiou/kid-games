@@ -84,6 +84,9 @@ Do next, in this order (his words are in the Task list):
 
 ## Task list
 
+- Krita brushes (27 Nov):
+  - Wet brushes mix naturally (blue + yellow green, red + yellow orange), never mixing a bit and then covering with their own colour: waiting for his yes on the brush holding a load of paint (bucket level) that is used up and picks up what it passes over.
+  - Into the game: the premade brushes as extra brushes in each tool's popup, bucket level as strength, size on the size buttons and mouse wheel; after his look at the page.
 
 Numbers are his points of 23 Nov; pictures in `owner-shots/2026-11-23-*`. Acrylic and impasto references of 25 Nov: `owner-shots/2026-11-25-acrylic-*`, `owner-shots/2026-11-25-impasto-*`.
 

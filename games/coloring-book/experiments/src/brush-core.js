@@ -1,9 +1,9 @@
 // SECTION: BRUSH CORE -- Krita's brush engines, ported from Krita's source (GPL, see ../README.md) at the commit in tools/get_krita.sh.
-// Standard technique: Krita's own freehand tool (KisToolFreehandHelper, basic smoothing) and paint ops (KisBrushOp, KisColorSmudgeOp, KisSprayPaintOp).
+// Standard technique: Krita's own freehand tool (KisToolFreehandHelper, no smoothing) and paint ops (KisBrushOp, KisColorSmudgeOp, KisSprayPaintOp).
 // The model, in Krita's own parts:
 // 1. A preset is numbers: the tip and options whose value follows sensors (drawing angle, random, time) through curves. No pen: the pressure
 //    and tilt sensors are left out, so an option that only had those keeps its strength.
-// 2. The stroke: finger moves become Bezier pieces (basic smoothing), cut until flat; along them a dab goes where the spacing ellipse or the
+// 2. The stroke: straight lines from finger point to finger point (no smoothing); along them a dab goes where the spacing ellipse or the
 //    airbrush time is reached (KisDistanceInformation); with fan corners extra dabs turn the brush round sharp corners.
 // 3. A dab is the tip's 8-bit mask at its size, angle and sub-pixel place (reused while the precision allows, KisDabCache), times the paper
 //    texture, laid by the painting mode: build-up straight on the layer, or wash into a stroke layer (alpha darken) that goes on the layer at the
@@ -232,12 +232,13 @@ const KritaBrush = (() => {
     return { w, h, px: out };
   }
   function bilinear(img, u, v, out, o, clamp) {  // a sample at (u, v) in pixel units; outside the picture is empty unless clamped to the edge
-    const x = u - 0.5, y = v - 0.5, x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
-    for (let c = 0; c < 4; c++) out[o + c] = 0;
-    for (const [i0, j0, k] of [[x0, y0, (1 - fx) * (1 - fy)], [x0 + 1, y0, fx * (1 - fy)], [x0, y0 + 1, (1 - fx) * fy], [x0 + 1, y0 + 1, fx * fy]]) {
-      if (!k) continue; let i = i0, j = j0;
-      if (clamp) { i = Math.min(img.w - 1, Math.max(0, i)); j = Math.min(img.h - 1, Math.max(0, j)); } else if (i < 0 || j < 0 || i >= img.w || j >= img.h) continue;
-      const p = (j * img.w + i) * 4; for (let c = 0; c < 4; c++) out[o + c] += img.px[p + c] * k;
+    const x = u - 0.5, y = v - 0.5, x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0, W = img.w, H = img.h, px = img.px;
+    out[o] = out[o + 1] = out[o + 2] = out[o + 3] = 0;
+    for (let n = 0; n < 4; n++) {  // the four neighbours, without making arrays (this runs for every pixel of every picture dab)
+      const dx = n & 1, dy = n >> 1, k = (dx ? fx : 1 - fx) * (dy ? fy : 1 - fy); if (!k) continue;
+      let i = x0 + dx, j = y0 + dy;
+      if (clamp) { i = i < 0 ? 0 : i >= W ? W - 1 : i; j = j < 0 ? 0 : j >= H ? H - 1 : j; } else if (i < 0 || j < 0 || i >= W || j >= H) continue;
+      const p = (j * W + i) * 4; out[o] += px[p] * k; out[o + 1] += px[p + 1] * k; out[o + 2] += px[p + 2] * k; out[o + 3] += px[p + 3] * k;
     }
   }
   function pyramid(img) {  // KisQImagePyramid: levels from 8x down to a pixel, with the largest level not past 512 px
@@ -515,12 +516,6 @@ const KritaBrush = (() => {
     }
     poly(L[o], L[o + 1], L[o + 2], P3); for (let k = 0; k < 3; k++) L[o + 3 + k] = Math.min(1, Math.max(0, rgb[k])) - P3[k];
   }
-  const LA = new Float64Array(6), LB = new Float64Array(6);
-  function mixInto(dst, src, t) {  // mixbox_lerp: dst's colour (0..1) becomes t of the way to src's, as pigments mix
-    if (t <= 0) return; if (t >= 1 || !LUT) { for (let k = 0; k < 3; k++) dst[k] += (src[k] - dst[k]) * Math.min(1, t); return; }
-    toLatent(dst, LA, 0); toLatent(src, LB, 0); for (let i = 0; i < 6; i++) LA[i] += (LB[i] - LA[i]) * t;
-    poly(LA[0], LA[1], LA[2], P3); for (let k = 0; k < 3; k++) dst[k] = Math.min(1, Math.max(0, P3[k] + LA[3 + k]));
-  }
 
   // SECTION: PAINT OPS -- what one dab does: the brush op (KisBrushOp), the spray op (KisSprayPaintOp, SprayBrush), the colour smudge op (KisColorSmudgeOp, legacy mask strategy)
   function spacingOf(s, brush, scale, rot, info) {  // KisPaintOpPluginUtils::effectiveSpacing; the dab's ratio and turn do not count, the spacing's turn does
@@ -644,27 +639,40 @@ const KritaBrush = (() => {
     };
   }
   function smudgeOp(s, target, assets, stroke) {  // KisColorSmudgeOp with KisColorSmudgeStrategyMaskLegacy, worked in a precise (float) copy of the layer
+    // The precise copy holds each pixel as Mixbox's latent (its pigments, what they miss) and alpha, made the first time the stroke touches the pixel:
+    // every blend below is then a straight blend of latents, which is how Mixbox mixes, and a pixel goes back to 8-bit colour once per dab that changes it.
     const sm = s.smudge, brush = brushOf(s, assets), fetch = dabCache(s, brush, assets, stroke, !sm.dulling), W = target.W, H = target.H, D = target.data;
-    const P = stroke.precise ||= Float32Array.from(D, v => v / 255);  // KisOverlayPaintDeviceWrapper: the layer in a precise colour space for the stroke
-    const paint = target.color.map(v => v / 255);
+    const LP = stroke.latent ||= new Float32Array(W * H * 7), made = stroke.made ||= new Uint8Array(W * H);  // KisOverlayPaintDeviceWrapper: the layer in a precise colour space
+    const RGB = [0, 0, 0], latentOf = (rgb, a, out, o) => { toLatent(rgb, out, o); out[o + 6] = a; };
+    const PL = new Float32Array(7); latentOf(target.color.map(v => v / 255), 1, PL, 0);  // the paint colour
     let lastCenter = null;
-    const read = (X, Y, o) => { if (X < 0 || Y < 0 || X >= W || Y >= H) { o[0] = o[1] = o[2] = o[3] = 0; return o; } const i = (Y * W + X) * 4; o[0] = P[i]; o[1] = P[i + 1]; o[2] = P[i + 2]; o[3] = P[i + 3]; return o; };
-    const overF = (dst, src, sa) => { if (sa <= 0) return; const da = dst[3]; if (da >= 1) { mixInto(dst, src, sa); return; }
-      if (da <= 0) { dst[0] = src[0]; dst[1] = src[1]; dst[2] = src[2]; dst[3] = sa; return; } const na = da + (1 - da) * sa; dst[3] = na; mixInto(dst, src, sa / na); };
-    function dullingColor(rect, radius) {  // KisColorSmudgeSampleUtils::sampleColor with AveragedSampleWrapper (Halton points, until the colour settles)
+    const at = (X, Y) => {  // the pixel's place in the precise copy, made from the layer when first needed
+      const p = Y * W + X;
+      if (!made[p]) { made[p] = 1; const i = p * 4; RGB[0] = D[i] / 255; RGB[1] = D[i + 1] / 255; RGB[2] = D[i + 2] / 255; latentOf(RGB, D[i + 3] / 255, LP, p * 7); }
+      return p * 7;
+    };
+    const read = (X, Y, out, o) => { if (X < 0 || Y < 0 || X >= W || Y >= H) { out.fill(0, o, o + 7); return; } const q = at(X, Y); for (let k = 0; k < 7; k++) out[o + k] = LP[q + k]; };
+    const lerp = (A, a, B, b, t) => { for (let k = 0; k < 6; k++) A[a + k] += (B[b + k] - A[a + k]) * t; };
+    const overF = (A, a, B, b, sa) => {  // KoCompositeOpOver in float: B over A at sa
+      if (sa <= 0) return; const da = A[a + 6];
+      if (da >= 1) { lerp(A, a, B, b, sa); return; }
+      if (da <= 0) { for (let k = 0; k < 6; k++) A[a + k] = B[b + k]; A[a + 6] = sa; return; }
+      const na = da + (1 - da) * sa; lerp(A, a, B, b, sa / na); A[a + 6] = na;
+    };
+    function dullingColor(rect, radius, out) {  // KisColorSmudgeSampleUtils::sampleColor with AveragedSampleWrapper (Halton points, until the colour settles), averaged as pigments
       const cx = rect.x + ((rect.w - 1) >> 1), cy = rect.y + ((rect.h - 1) >> 1);
       let r = { x: cx, y: cy, w: 1, h: 1 };
       if (radius > 0) { const gw = Math.trunc(rect.w * 0.5 * (radius - 1)), gh = Math.trunc(rect.h * 0.5 * (radius - 1)), b = { x: rect.x - gw, y: rect.y - gh, w: rect.w + 2 * gw, h: rect.h + 2 * gh };
         if (b.w > 0 && b.h > 0) { const x0 = Math.min(b.x, cx), y0 = Math.min(b.y, cy), x1 = Math.max(b.x + b.w, cx + 1), y1 = Math.max(b.y + b.h, cy + 1); r = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }; } }
-      const n = r.w * r.h, hg = halton(2), vg = halton(3), sum = [0, 0, 0, 0], px = [0, 0, 0, 0]; let count = 0;
-      const sample = () => { read(r.x + hg(r.w - 1), r.y + vg(r.h - 1), px); for (let k = 0; k < 3; k++) sum[k] += px[k] * px[3]; sum[3] += px[3]; count++; };
-      const mixed = () => sum[3] > 0 ? [sum[0] / sum[3], sum[1] / sum[3], sum[2] / sum[3], sum[3] / count] : [0, 0, 0, 0];
+      const n = r.w * r.h, hg = halton(2), vg = halton(3), sum = new Float64Array(7), px = new Float32Array(7); let count = 0;
+      const sample = () => { read(r.x + hg(r.w - 1), r.y + vg(r.h - 1), px, 0); for (let k = 0; k < 6; k++) sum[k] += px[k] * px[6]; sum[6] += px[6]; count++; };
+      const mixed = () => { if (sum[6] > 0) { for (let k = 0; k < 6; k++) out[k] = sum[k] / sum[6]; out[6] = sum[6] / count; } else out.fill(0); };
       const minSamples = Math.min(n, Math.max(64, Math.round(0.02 * n)));
       for (let i = 0; i < minSamples; i++) sample();
-      let col = mixed(), left = n - minSamples;
-      while (left > 0) { const batch = Math.min(left, 16); for (let i = 0; i < batch; i++) sample(); const c2 = mixed(); const diff = Math.max(...c2.map((v, k) => Math.abs(v - col[k]))) * 255; col = c2; if (diff <= 2) break; left -= batch; }
-      return col;
+      mixed(); const prev = Float32Array.from(out); let left = n - minSamples;
+      while (left > 0) { const batch = Math.min(left, 16); for (let i = 0; i < batch; i++) sample(); mixed(); let diff = 0; for (let k = 0; k < 7; k++) { diff = Math.max(diff, Math.abs(out[k] - prev[k])); prev[k] = out[k]; } if (diff * 255 <= 2) break; left -= batch; }
     }
+    let blend = new Float32Array(0);
     return {
       spacing(info) { return spacingOf(s, brush, checked(s.size, info), rotationOf(s.rotation, info), info); },
       paintAt(info) {
@@ -678,31 +686,32 @@ const KritaBrush = (() => {
           else { const c = Math.cos(info.drawingAngle), sn = Math.sin(info.drawingAngle); pos = s.scatterX ? [pos[0] + c * j, pos[1] + sn * j] : [pos[0] - sn * j, pos[1] + c * j]; }
         }
         const radius = sm.radius.on ? sizeLike(sm.radius, info) : 0, spacing = spacingOf(s, brush, scale, rot, info);
-        const { x, y, dab } = fetch(d, pos, info, 1), center = [x + dab.w / 2, y + dab.h / 2];
+        const { x, y, dab } = fetch(d, pos, info, 1), center = [x + dab.w / 2, y + dab.h / 2], n = dab.w * dab.h;
         if (!lastCenter) { lastCenter = center; return spacing; }
         const src = { x: x + Math.round(lastCenter[0] - center[0]), y: y + Math.round(lastCenter[1] - center[1]) }; lastCenter = center;
         const colorRate = sm.colorRate.on ? sizeLike(sm.colorRate, info) : 0, smudgeRate = sm.rate.on ? sizeLike(sm.rate, info) : 1, maxSmudge = sm.rate.value, opacity = sizeLike(s.opacity, info);
         const crOpacity = Math.min(1, Math.max(0, Math.max(1 - maxSmudge, 0.2) * colorRate * opacity)), finalOpacity = Math.min(1, Math.max(0, smudgeRate * opacity));
-        const blend = new Float32Array(dab.w * dab.h * 4), px = [0, 0, 0, 0], paintPx = [...paint, 1];
+        if (blend.length < n * 7) blend = new Float32Array(n * 7);
         if (sm.dulling) {
-          const dc = dullingColor({ ...src, w: dab.w, h: dab.h }, radius);
-          if (crOpacity > 0) overF(dc, paintPx, crOpacity);  // fused: the paint colour mixed into the dulling colour first
-          for (let i = 0; i < dab.w * dab.h; i++) blend.set(dc, i * 4);
+          const dc = new Float32Array(7); dullingColor({ ...src, w: dab.w, h: dab.h }, radius, dc);
+          if (crOpacity > 0) overF(dc, 0, PL, 0, crOpacity);  // fused: the paint colour mixed into the dulling colour first
+          for (let i = 0; i < n; i++) blend.set(dc, i * 7);
         } else {
-          for (let j = 0; j < dab.h; j++) for (let i = 0; i < dab.w; i++) blend.set(read(src.x + i, src.y + j, px), (j * dab.w + i) * 4);
-          if (crOpacity > 0) for (let i = 0; i < dab.w * dab.h; i++) { const b = blend.subarray(i * 4, i * 4 + 4); overF(b, paintPx, crOpacity); }
+          for (let j = 0, i = 0; j < dab.h; j++) for (let k = 0; k < dab.w; k++, i++) read(src.x + k, src.y + j, blend, i * 7);
+          if (crOpacity > 0) for (let i = 0; i < n; i++) overF(blend, i * 7, PL, 0, crOpacity);
         }
         for (let j = 0; j < dab.h; j++) for (let i = 0; i < dab.w; i++) {  // the final painter: copy (smear alpha) or over, through the mask, at smudge rate times opacity
           const X = x + i, Y = y + j; if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
           const m = dab.a[j * dab.w + i] / 255 * finalOpacity; if (m <= 0) continue;
-          const o = (Y * W + X) * 4, b = blend.subarray((j * dab.w + i) * 4, (j * dab.w + i) * 4 + 4);
-          if (sm.smearAlpha) {  // KoCompositeOpCopy2
-            const da = P[o + 3], na = da + (b[3] - da) * m;
-            if (m >= 1) { P[o] = b[0]; P[o + 1] = b[1]; P[o + 2] = b[2]; P[o + 3] = b[3]; }
-            else if (na > 0) { const dst = P.subarray(o, o + 3); mixInto(dst, b, b[3] * m / na); P[o + 3] = na; }  // the premultiplied lerp's colour share, mixed as pigment
-            else P[o + 3] = 0;
-          } else { const dst = P.subarray(o, o + 4); overF(dst, b, b[3] * m); }
-          for (let k = 0; k < 4; k++) D[o + k] = Math.round(P[o + k] * 255);
+          const o = at(X, Y), b = (j * dab.w + i) * 7;
+          if (sm.smearAlpha) {  // KoCompositeOpCopy2: a premultiplied blend, its colour share taken as pigment
+            const da = LP[o + 6], ba = blend[b + 6], na = da + (ba - da) * m;
+            if (m >= 1) for (let k = 0; k < 7; k++) LP[o + k] = blend[b + k];
+            else if (na > 0) { lerp(LP, o, blend, b, ba * m / na); LP[o + 6] = na; }
+            else LP[o + 6] = 0;
+          } else overF(LP, o, blend, b, blend[b + 6] * m);
+          poly(LP[o], LP[o + 1], LP[o + 2], RGB); const p = (Y * W + X) * 4;  // back to the layer's 8-bit colour
+          for (let k = 0; k < 3; k++) D[p + k] = Math.round(255 * Math.min(1, Math.max(0, RGB[k] + LP[o + 3 + k]))); D[p + 3] = Math.round(255 * LP[o + 6]);
         }
         target.dirty(x, y, x + dab.w - 1, y + dab.h - 1);
         return spacing;
@@ -714,7 +723,7 @@ const KritaBrush = (() => {
     return max => { const x = d - n; if (x === 1) { n = 1; d *= base; } else { let y = Math.floor(d / base); while (x <= y) y = Math.floor(y / base); n = (base + 1) * y - x; } return Math.floor((n * max + Math.floor(d / 2)) / d); };
   }
 
-  // SECTION: STROKE -- KisToolFreehandHelper (basic smoothing, airbrush timer), KisPaintOp::paintBezierCurve, KisPaintOpUtils::paintLine and paintFan, KisDistanceInformation
+  // SECTION: STROKE -- KisToolFreehandHelper (no smoothing, airbrush timer), KisPaintOpUtils::paintLine and paintFan, KisDistanceInformation
   function painterOf(s, target, assets, stroke) {  // one paint op with its own distance information (KisFreehandStrokeInfo)
     const op = s.spray ? sprayOp(s, target, assets, stroke) : s.smudge ? smudgeOp(s, target, assets, stroke) : brushOp(s, target, assets, stroke);
     const dist = { last: null, lastAngle: 0, spacing: { enabled: true, x: 0, y: 0, rot: 0 }, timing: LONG_TIME, acc: [0, 0], accTime: 0,
@@ -770,56 +779,20 @@ const KritaBrush = (() => {
       if (dist.sinceSpacing >= dist.spacingInterval) { dist.spacing = op.spacing({ ...pi2, drawingAngle: direction(dist.last, pi2.pos, dist.lastAngle) }); dist.sinceSpacing = 0; }
       if (dist.sinceTiming >= dist.timingInterval) { dist.timing = timingOf(s, pi2); dist.sinceTiming = 0; }
     }
-    function bezier(pi1, c1, c2, pi2) {  // KisPaintOp::paintBezierCurve: midpoint subdivision until both controls are within half a pixel of the line
-      const [x1, y1] = pi1.pos, [x2, y2] = pi2.pos, len = Math.hypot(x2 - x1, y2 - y1);
-      const dl = p => Math.abs((y2 - y1) * p[0] - (x2 - x1) * p[1] + x2 * y1 - y2 * x1) / len;
-      const d1 = dl(c1), d2 = dl(c2);
-      if ((d1 < 0.5 && d2 < 0.5) || Number.isNaN(d1) || Number.isNaN(d2)) return paintLine(pi1, pi2);
-      const m = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], l2 = m(pi1.pos, c1), h = m(c1, c2), l3 = m(l2, h), r3 = m(c2, pi2.pos), r2 = m(h, r3), l4 = m(l3, r2);
-      const mid = { ...mix(0.5, pi1, pi2), pos: l4 };
-      bezier(pi1, l2, l3, mid); bezier(mid, r2, r3, pi2);
-    }
-    return { paintAt, paintLine, bezier, startAngle: a => { dist.lastAngle = a; } , begin: pi => { dist.last = pi.pos; } };
-  }
-  function segmentControls(pi1, pi2, t1, t2) {  // KisToolFreehandHelper::paintBezierSegment: the two control points of a curve piece
-    if (!(t1[0] || t1[1]) || !(t2[0] || t2[1])) return null;
-    const p1 = pi1.pos, p2 = pi2.pos, d1 = [p1[0] + t1[0], p1[1] + t1[1]], d2 = [p2[0] - t2[0], p2[1] - t2[1]];
-    const cross = (a, b, c, e) => {  // QLineF::intersects: the point and whether it lies on both segments
-      const ax = b[0] - a[0], ay = b[1] - a[1], bx = e[0] - c[0], by = e[1] - c[1], den = ay * bx - ax * by;
-      if (!den || !Number.isFinite(den)) return null;
-      const cx = a[0] - c[0], cy = a[1] - c[1], na = (by * cx - bx * cy) / den, nb = (ax * cy - ay * cx) / den;
-      return { p: [a[0] + ax * na, a[1] + ay * na], bounded: na >= 0 && na <= 1 && nb >= 0 && nb <= 1 };
-    };
-    let k1, k2;
-    const x34 = cross(d1, d2, p1, p2);
-    if (x34 && x34.bounded) {
-      const L = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / 2, at = (p, q) => { const l = Math.hypot(q[0] - p[0], q[1] - p[1]); return l ? [p[0] + (q[0] - p[0]) * L / l, p[1] + (q[1] - p[1]) * L / l] : p; };
-      k1 = at(p1, d1); k2 = at(p2, d2);
-    } else {
-      const x12 = cross(p1, d1, p2, d2); let p = x12 && x12.p;
-      if (!p || Math.abs(p[0]) + Math.abs(p[1]) > 1e6) p = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
-      k1 = k2 = p;
-    }
-    let coeff = 0.8, v1 = Math.hypot(...t1), v2 = Math.hypot(...t2);
-    if (v1 === 0 || v2 === 0) v1 = v2 = 1e-6;
-    let sim = Math.max(Math.min(v1 / v2, v2 / v1), 0.5); coeff *= 1 - Math.max(0, sim - 0.8);
-    let c1, c2;
-    const toward = (p, q, c) => [p[0] * (1 - c) + c * q[0], p[1] * (1 - c) + c * q[1]];
-    if (v1 > v2) { c1 = toward(p1, k1, coeff); coeff *= sim; c2 = toward(p2, k2, coeff); } else { c2 = toward(p2, k2, coeff); coeff *= sim; c1 = toward(p1, k1, coeff); }
-    return [c1, c2];
+    return { paintAt, paintLine, startAngle: a => { dist.lastAngle = a; } , begin: pi => { dist.last = pi.pos; } };
   }
   // A stroke: layer is the paper's ImageData; s the brush; color [r, g, b]; assets the decoded tips and textures; pressure 0..1 for the whole stroke.
   // down(x, y, t, from) starts it (from: where the mouse hovered before, for the first dab's angle), move(x, y, t) for each finger move,
-  // tick(t) each frame (the airbrush and the 100 ms pause that ends a curve), shown(view) draws what changed, end() finishes it.
+  // tick(t) each frame (the airbrush), shown(view) draws what changed, end() finishes it.
   function stroke(layer, s, color, assets, pressure = 1) {
     const W = layer.width, H = layer.height, L = layer.data, dirty = [W, H, -1, -1];
     const markDirty = (x0, y0, x1, y1) => { dirty[0] = Math.min(dirty[0], x0); dirty[1] = Math.min(dirty[1], y0); dirty[2] = Math.max(dirty[2], x1); dirty[3] = Math.max(dirty[3], y1); };
-    const shared = { random: {}, texOff: [], precise: null, pressure };
+    const shared = { random: {}, texOff: [], latent: null, made: null, pressure };
     const wash = s.wash && !s.spray;  // a wash stroke paints on a stroke layer first (indirect painting); spray and smudge paint on the layer
     const strokeLayer = wash ? new Uint8ClampedArray(W * H * 4) : null, maskLayer = wash && s.masking ? new Uint8ClampedArray(W * H * 4) : null;
     const painters = [painterOf(s, { data: wash ? strokeLayer : L, W, H, color, mode: wash ? 'wash' : s.compositeOp, indirect: wash, dirty: markDirty }, assets, shared)];
     if (maskLayer) {  // the masking brush: its own preset, white dabs in wash mode on the mask, sized from the main brush (createMaskingSettings)
-      const ms = s.masking.settings, mshared = { random: {}, texOff: [], precise: null, pressure };
+      const ms = s.masking.settings, mshared = { random: {}, texOff: [], latent: null, made: null, pressure };
       if (s.masking.useMasterSize) {
         const main = s.tip.type === 'auto_brush' ? s.tip.gen.diameter : (assets[s.tip.file].gih ? assets[s.tip.file].gih.cells[0].w : (assets[s.tip.file].gbr || assets[s.tip.file].image).w) * s.tip.scale;
         const size = Math.min(1000, s.masking.coeff * main);
@@ -828,27 +801,10 @@ const KritaBrush = (() => {
       painters.push(painterOf({ ...ms, wash: true }, { data: maskLayer, W, H, color: [255, 255, 255], mode: 'wash', indirect: false, dirty: markDirty }, assets, mshared));
     }
     const each = fn => painters.forEach(fn);
-    // KisToolFreehandHelper, basic smoothing
-    let t0 = null, previous = null, older = null, prevTangent = null, haveTangent = false, paintedOnce = false, timeoutAt = Infinity, lastTime = 0;
-    const tangent = (a, b) => { const dt = Math.max(1, b.time - a.time); return [(b.pos[0] - a.pos[0]) / dt, (b.pos[1] - a.pos[1]) / dt]; };
-    const isNull = v => !v || (v[0] === 0 && v[1] === 0);
-    function segment(a, b, ta, tb) { const c = segmentControls(a, b, ta, tb); if (!c) return; paintedOnce = true; each(p => p.bezier(a, c[0], c[1], b)); }
-    function paint(info) {  // KisToolFreehandHelper::paint, SIMPLE_SMOOTHING
-      if (!haveTangent) { haveTangent = true; prevTangent = tangent(previous, info); }
-      else {
-        const nt = tangent(older, info);
-        if (isNull(nt) || isNull(prevTangent)) { paintedOnce = true; each(p => p.paintLine(previous, info)); }
-        else segment(older, previous, prevTangent, nt);
-        prevTangent = nt;
-      }
-      older = previous;
-      if (!s.airbrush) timeoutAt = info.time + 100;  // the stroke timeout that finishes the curve after a pause
-      previous = info;
-    }
-    function finish() {  // KisToolFreehandHelper::finishStroke
-      if (!haveTangent) return;
-      haveTangent = false; segment(older, previous, prevTangent, tangent(older, previous));
-    }
+    // KisToolFreehandHelper with no smoothing (owner 26 Nov: basic smoothing bent the line off where his finger went when its moves came close together):
+    // a straight line from each finger point to the next
+    let t0 = null, previous = null, paintedOnce = false, lastTime = 0;
+    function paint(info) { paintedOnce = true; each(p => p.paintLine(previous, info)); previous = info; }  // KisToolFreehandHelper::paint, NO_SMOOTHING
     return {
       down(x, y, t, from) {
         t0 = t; lastTime = 0; previous = { pos: [x, y], time: 0, stroke: shared };
@@ -861,7 +817,6 @@ const KritaBrush = (() => {
       },
       tick(t) {
         const now = t - t0;
-        if (now >= timeoutAt) { timeoutAt = Infinity; finish(); }
         if (s.airbrush && previous && now > lastTime) { lastTime = now; paint({ pos: previous.pos, time: now, stroke: shared }); }  // doAirbrushing
       },
       shown(view) {  // what the paper shows in the box changed since last time: the layer with the stroke layer on it; returns the box
@@ -874,7 +829,6 @@ const KritaBrush = (() => {
       },
       end() {
         if (!paintedOnce) each(p => p.paintAt(previous));  // a tap: one dab where the finger was
-        else finish();
         if (wash) for (let i = 0; i < W * H * 4; i += 4) mergePixel(L, i);
       },
     };
@@ -884,5 +838,8 @@ const KritaBrush = (() => {
       if (a) layOn(D, i, [strokeLayer[i], strokeLayer[i + 1], strokeLayer[i + 2]], a, u8(s.opacity.value), s.compositeOp);
     }
   }
-  return { fromPreset, stroke, readGbr, readGih, useMixbox };
+  function prepare(s, assets) {  // makes the brush's picture pyramids now (when the brush is chosen), not in the middle of its first stroke
+    for (const b of [s, s.masking && s.masking.settings]) if (b) { const tip = brushOf(b, assets); if (tip.cells) for (const c of tip.cells) c.pyr ||= pyramid(c.img); }
+  }
+  return { fromPreset, stroke, prepare, readGbr, readGih, useMixbox };
 })();

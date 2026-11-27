@@ -33,20 +33,22 @@ Order: Eraser, Markers, Pencils, Chalk/Pastel, Dry Painting, Dry Textured, Stamp
 
 | Path | What it is |
 |---|---|
-| `brushes.html` | **The brushes page.** Built by `build.py`; never edit it by hand. A button per family, then its presets; Krita's picture of the chosen preset, a paper to paint on (grey or white), colours, and the everyday settings with "Like the picture". |
+| `brushes.html` | **The brushes page.** Built by `build.py`; never edit it by hand. Premade brushes for the game's tools (a button each sets a preset and its sliders), then every Krita family and preset; Krita's picture of the chosen preset; a paper as big as the window allows; the picture's colours and colours to mix; the everyday settings with "Like the picture"; picture, grey or white paper. |
 | `build.py` | Inlines the core, each family's presets, its Krita picture (where each preset's strip is in it) and the tips and textures the presets name into `brushes.html`. The game's `build.py` runs it. |
-| `src/brush-core.js` | The shared core, ported from Krita's code: the freehand tool's basic smoothing, dab spacing and airbrush timing, fan corners, the pixel brush (Krita's mask generators and image pyramid, sub-pixel dabs and the dab cache's precision, sensors and curves, rotation, ratio, scatter, mirror, softness, textures, build-up and wash with average opacity, erase, masking brush), the colour smudge engine (legacy mask strategy, its colours mixed as pigment through Mixbox instead of Krita's RGB) and the spray engine (its distributions). |
+| `src/brush-core.js` | The shared core, ported from Krita's code: the freehand tool (no smoothing: straight from finger point to finger point; basic smoothing bent lines off the finger's path on a touchscreen), dab spacing and airbrush timing, fan corners, the pixel brush (Krita's mask generators and image pyramid, sub-pixel dabs and the dab cache's precision, sensors and curves, rotation, ratio, scatter, mirror, softness, textures, build-up and wash with average opacity, erase, masking brush), the colour smudge engine (legacy mask strategy, its colours mixed as pigment through Mixbox instead of Krita's RGB) and the spray engine (its distributions). |
 | `src/brushes.html` | The brushes page's source. |
 | `krita/presets/` | Every preset of the families above, read from Krita's bundle: one setting per line (`name = value`; pressure curves on one line as `x,y;` points). |
 | `krita/tips/` | The brush tips the presets name (Krita `.gbr`, `.gih` animated tips, `.png`, `.svg`). |
 | `krita/picture-strength.txt` | The strength (pen pressure) each preset opens at: what its picture shows, chosen by eye. |
+| `krita/picture-palettes.txt` | Each preset's colours in its strip of Krita's picture, the paper first; made by `tools/picture_palettes.py`. |
 | `krita/patterns/` | The paper textures the presets name (taken out of the presets, where Krita keeps them). |
 | `references/krita/` | The pictures of each family from the Krita manual page (docs.krita.org, Krita 4 Preset Bundle Overview; GNU FDL 1.3+). |
 | `vendor/spectral/` | Spectral.js and its shader (`LICENSE`: MIT). |
+| `tools/picture_palettes.py` | Makes `krita/picture-palettes.txt` from Krita's pictures (needs Pillow). |
 | `tools/kpp.py` | Reads Krita presets (`.kpp`) into `krita/presets/`, `krita/tips/`, `krita/patterns/`. |
 | `tools/get_krita.sh` | Fetches Krita's source (GPL) for the brush engines and the preset bundle, at the commit these presets come from, into the temp folder. |
 
-Tests: the `kb_` flows in `../tools/flows.py` (section KRITA BRUSHES): presets' numbers, eraser strokes, settings, wet mixing, long strokes with every brush (time and memory).
+Tests: the `kb_` flows in `../tools/flows.py` (section KRITA BRUSHES): presets' numbers, eraser strokes, settings, premade brushes and the page's room, wet mixing, long strokes (time and memory), lines only where the finger went (moves as his touchscreen sends them), the painting time of a frame.
 
 To read the presets again: `sh tools/get_krita.sh`, unzip `krita/data/bundles/Krita_4_Default_Resources.bundle` from it into a folder, then `python3 tools/kpp.py <folder>/paintoppresets/<presets>.kpp --out krita/presets --bundle <folder>`.
 

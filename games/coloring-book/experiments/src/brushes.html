@@ -1,26 +1,41 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>Krita brushes</title>
 <style>
-body{margin:0;font:14px system-ui,sans-serif;background:#ddd;color:#222;padding:8px;user-select:none}
-#left{width:880px}
-#presets button{font:inherit;padding:5px 9px;margin:0 4px 5px 0;border:1px solid #888;border-radius:6px;background:#f4f4f4}
-#presets button.on{background:#335;color:#fff} #families button{font:inherit;padding:5px 9px;margin:0 4px 5px 0;border:0;border-radius:6px;background:#bbb} #families button.on{background:#557;color:#fff}
-#ref{width:880px;height:150px;background-repeat:no-repeat}
-#paper{display:block;margin-top:8px;touch-action:none;background:repeating-conic-gradient(#fff 0 25%,#ccc 0 50%) 0 0/20px 20px}
-#settings{margin-top:6px} #settings label{display:inline-block;margin:4px 14px 0 0} #settings input{width:130px;vertical-align:middle} #settings span{display:inline-block;width:42px}
-#palette button{width:30px;height:30px;border:2px solid #fff;border-radius:50%;margin:4px 3px 0 0;vertical-align:middle} #palette button.on{border-color:#222;outline:2px solid #222}
+body{margin:0;font:14px system-ui,sans-serif;background:#d6d6d6;color:#222;padding:6px 8px;user-select:none}
+button{font:inherit;cursor:pointer}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:4px}
+.row b{width:110px;font-weight:600}
+#tools button{padding:4px 10px;border:0;border-radius:6px;background:#bbb} #tools button.on{background:#264;color:#fff}
+#premades button{padding:4px 9px;border:1px solid #777;border-radius:14px;background:#fff}
+#premades button.on{background:#264;color:#fff;border-color:#264}
+#families button{padding:4px 9px;border:0;border-radius:6px;background:#bbb} #families button.on{background:#557;color:#fff}
+#presets button{padding:3px 8px;border:1px solid #888;border-radius:6px;background:#f4f4f4} #presets button.on{background:#335;color:#fff}
+#work{display:flex;gap:8px;align-items:flex-start}
+#ref{height:150px;background-repeat:no-repeat;margin-bottom:6px;border-radius:4px}
+#paper{display:block;touch-action:none;border-radius:4px;background:repeating-conic-gradient(#fff 0 25%,#ccc 0 50%) 0 0/20px 20px}
+#side{width:250px;flex:none}
+#side h4{margin:8px 0 3px;font-size:13px}
+#palette button,#mixing button{width:30px;height:30px;border:2px solid #fff;border-radius:50%;margin:0 3px 4px 0} #side .on{border-color:#222;outline:2px solid #222}
+#settings label{display:block;margin:3px 0} #settings input{width:120px;vertical-align:middle} #settings label>span:first-child{display:inline-block;width:62px} #settings span{display:inline-block;width:42px}
+#side .wide{display:block;width:100%;margin:3px 0;padding:5px;border:1px solid #777;border-radius:6px;background:#f4f4f4}
 </style></head><body>
-<div id="left">
-  <div id="families"></div>
-  <div id="presets"></div>
-  <div id="ref"></div>
-  <canvas id="paper" width="880" height="300"></canvas>
-  <div><button id="fill">Grey paper</button> <button id="clear">White paper</button> <span id="palette"></span></div>
-  <div id="settings"><button id="like">Like the picture</button></div>
+<div class="row" id="tools"><b>Game brushes</b></div>
+<div class="row" id="premades"></div>
+<div class="row" id="families"><b>Krita presets</b></div>
+<div class="row" id="presets"></div>
+<div id="work">
+  <div id="main"><div id="ref"></div><canvas id="paper"></canvas></div>
+  <div id="side">
+    <h4>Colours of its picture</h4><div id="palette"></div>
+    <h4>Colours to mix</h4><div id="mixing"></div>
+    <h4>Settings</h4><div id="settings"><button id="like" class="wide">Like the picture</button></div>
+    <h4>Paper</h4><button id="paperpic" class="wide">Paper of the picture</button><button id="fill" class="wide">Grey paper</button><button id="clear" class="wide">White paper</button>
+  </div>
 </div>
 <script>
 /*%BRUSH_CORE%*/
-// SECTION: PAGE -- Krita's presets beside Krita's picture; a paper to paint on, colours, the everyday settings (owner 26 Nov, experiments/README.md)
+// SECTION: PAGE -- Krita's presets beside Krita's picture; a paper as big as the window allows, the picture's colours, the everyday settings,
+// and premade brushes for the game's tools (owner 26 and 27 Nov, experiments/README.md)
 const FAMILIES = /*%FAMILIES%*/[];
 const ASSETS = /*%ASSETS%*/{};
 const MIXBOX_LUT = /*%MIXBOX_LUT%*/'';  // Mixbox's table as RGB bytes, gzipped (../lib/mixbox, CC BY-NC 4.0)  // tips and textures the presets name: file name -> data URL
@@ -41,6 +56,10 @@ async function loadAssets() {
 }
 
 // SECTION: PAPER -- the layer painted on, and what is shown
+function sizePaper() {  // the room the window leaves under the buttons and the picture strip, beside the side column; made once, at least 880 x 300
+  cv.width = Math.max(880, innerWidth - 250 - 30); cv.height = Math.max(300, innerHeight - cv.getBoundingClientRect().top - 8);
+  document.getElementById('ref').style.width = cv.width + 'px';
+}
 function fill(rgba) {
   layer = g.createImageData(cv.width, cv.height); view = g.createImageData(cv.width, cv.height);
   for (let i = 0; i < layer.data.length; i += 4) layer.data.set(rgba, i);
@@ -48,8 +67,11 @@ function fill(rgba) {
 }
 
 function choose(p) {  // the preset with its own numbers, at the strength its picture shows
-  chosen = p; brush = KritaBrush.fromPreset(p.text); strength = p.strength; showSettings();
+  chosen = p; brush = KritaBrush.fromPreset(p.text); KritaBrush.prepare(brush, assets); strength = p.strength; showSettings();
   for (const b of document.querySelectorAll('#presets button')) b.classList.toggle('on', b.id === 'p-' + p.id);
+  for (const b of document.querySelectorAll('#premades button')) b.classList.remove('on');
+  const sat = c => { const v = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)); return Math.max(...v) - Math.min(...v); };
+  colours('palette', p.palette, p.palette.slice(1).reduce((a, c) => sat(c) > sat(a) ? c : a, p.palette[p.palette.length > 1 ? 1 : 0]));  // its liveliest colour to start
   const ref = document.getElementById('ref'), fam = FAMILIES.find(f => f.presets.includes(p));
   ref.style.backgroundImage = 'url(' + fam.picture + ')'; ref.style.backgroundSize = fam.width * fam.zoom + 'px auto'; ref.style.backgroundPosition = `-${p.row[0]}px -${p.row[1]}px`;
 }
@@ -71,7 +93,7 @@ const SETTINGS = [
 ];
 for (const o of SETTINGS) {
   const l = document.createElement('label'), r = document.createElement('input'), n = document.createElement('span');
-  r.type = 'range'; r.id = 's-' + o.id; r.min = o.min; r.max = o.max; l.append(o.label + ' ', r, n); document.getElementById('settings').appendChild(l);
+  r.type = 'range'; r.id = 's-' + o.id; r.min = o.min; r.max = o.max; const t = document.createElement('span'); t.textContent = o.label; l.append(t, r, n); document.getElementById('settings').appendChild(l);
   r.oninput = () => { o.set(+r.value); n.textContent = r.value + o.unit; };
   o.show = () => { const on = !o.on || o.on(); r.disabled = !on; l.style.opacity = on ? 1 : 0.4; if (!on) { n.textContent = ''; return; }
     const v = Math.round(o.get()); r.max = Math.max(o.max, v); r.value = v; n.textContent = v + o.unit; };
@@ -79,15 +101,53 @@ for (const o of SETTINGS) {
 function showSettings() { for (const o of SETTINGS) o.show(); }
 document.getElementById('like').onclick = () => choose(chosen);
 
+// SECTION: PREMADE BRUSHES -- the brushes proposed for the game's tools (owner 27 Nov): a Krita preset with its settings set, as a button there would hold them;
+// size stays free (the game's size buttons and mouse wheel), strength stands for the bucket level. Numbers chosen by eye beside Krita's pictures.
+const PREMADES = [
+  ['Acrylic', [['Flat, wet', 'Wet_Bristles', { strength: 60 }], ['Flat, dry brush', 'Bristles-2_Flat_Rough', { strength: 60 }], ['Flat, glaze', 'Bristles-4_Glaze', { strength: 50, opacity: 50 }],
+    ['Round, wet', 'Wet_Paint', { strength: 75 }], ['Round, dry brush', 'Dry_Bristles', { strength: 70 }], ['Round, glaze', 'Bristles-1_Details', { strength: 75, opacity: 45 }],
+    ['Knife, wet', 'Wet_Knife', { strength: 60 }], ['Knife, smear', 'Wet_Smear', { strength: 65 }]]],
+  ['Watercolour', [['Soft wash', 'Waterpaint_Soft_Edges', { strength: 50 }], ['Soft wash, light', 'Waterpaint_Soft_Edges', { strength: 30 }], ['Hard wash', 'Waterpaint_Hard_Edges', { strength: 50 }],
+    ['Hard wash, light', 'Waterpaint_Hard_Edges', { strength: 30 }], ['Fringe', 'Watercolor_Fringe', { strength: 40 }], ['Texture', 'Watercolor_Texture', { strength: 50 }]]],
+  ['Oil pastel', [['Grainy, light', 'Chalk_Grainy', { strength: 40 }], ['Grainy, heavy', 'Chalk_Grainy', { strength: 85 }], ['Soft, light', 'Chalk_Soft', { strength: 35 }],
+    ['Soft, heavy', 'Chalk_Soft', { strength: 80 }], ['Detail', 'Chalk_Details', { strength: 60 }]]],
+  ['Pencil', [['Hard, light', 'Pencil-1_Hard', { strength: 30 }], ['Hard, dark', 'Pencil-1_Hard', { strength: 80 }], ['Soft, light', 'Pencil-4_Soft', { strength: 35 }], ['Soft, dark', 'Pencil-4_Soft', { strength: 80 }],
+    ['Side shade, light', 'Pencil-6_Quick_Shade', { strength: 40 }], ['Side shade, dark', 'Pencil-6_Quick_Shade', { strength: 85 }], ['Charcoal', 'Charcoal_Pencil_Medium', { strength: 60 }]]],
+  ['Marker', [['Bullet', 'Marker_Details', { strength: 75 }], ['Chisel', 'Marker_Chisel_Smooth', { strength: 50 }], ['Dry', 'Marker_Dry', { strength: 90 }]]],
+  ['Stickers', [['Leaves', 'Stamp_Leaves', { strength: 100 }], ['Grass', 'Stamp_Grass', { strength: 100 }], ['Hearts', 'Stamp_Hearts', { strength: 100 }], ['Sparkles', 'Stamp_Sparkles', { strength: 100 }], ['Bokeh', 'Stamp_Bokeh', { strength: 75 }]]],
+  ['Eraser', [['Hard', 'Eraser_Circle', { strength: 100 }], ['Soft', 'Eraser_Soft', { strength: 75 }]]],
+];
+function premades() {  // a button per tool; the chosen tool's brushes beside it
+  for (const [tool, list] of PREMADES) {
+    const t = document.createElement('button'); t.id = 't-' + tool.replace(/\W+/g, '_'); t.textContent = tool; document.getElementById('tools').appendChild(t);
+    t.onclick = () => {
+      for (const x of document.querySelectorAll('#tools button')) x.classList.toggle('on', x === t);
+      const box = document.getElementById('premades'); box.innerHTML = '';
+      for (const [name, id, set] of list) {
+        const b = document.createElement('button'); b.id = 'm-' + (tool + '_' + name).replace(/\W+/g, '_'); b.textContent = name; box.appendChild(b);
+        b.onclick = () => {  // its preset, then its settings, as the sliders would set them
+          const f = FAMILIES.find(f => f.presets.some(p => p.id === id)); family(f, f.presets.find(p => p.id === id));
+          for (const o of SETTINGS) if (o.id in set) o.set(set[o.id]);
+          showSettings(); b.classList.add('on');
+        };
+      }
+    };
+  }
+  document.getElementById('tools').querySelector('button').onclick();
+}
+
 // SECTION: PAINTING -- one finger or the mouse paints a stroke with the chosen brush
 let stroke = null;
-const PALETTE = ['#202020', '#ffffff', '#e53935', '#fb8c00', '#fdd835', '#43a047', '#00897b', '#1e88e5', '#3949ab', '#8e24aa', '#d81b60', '#6d4c41', '#9e9e9e'];
-let colour = PALETTE[0];
-for (const c of PALETTE) {  // the colour a stroke paints with
-  const b = document.createElement('button'); b.style.background = c; b.id = 'c-' + c.slice(1);
-  b.onclick = () => { colour = c; for (const x of document.querySelectorAll('#palette button')) x.classList.toggle('on', x === b); };
-  document.getElementById('palette').appendChild(b); if (c === colour) b.classList.add('on');
+let colour = '#202020';
+function colours(where, list, pick) {  // a row of colour buttons; a tap picks the colour a stroke paints with
+  const box = document.getElementById(where); box.innerHTML = '';
+  for (const c of list) {
+    const b = document.createElement('button'); b.style.background = c; b.id = 'c-' + c.slice(1); b.title = c;
+    b.onclick = () => { colour = c; for (const x of document.querySelectorAll('#palette button, #mixing button')) x.classList.toggle('on', x === b); };
+    box.appendChild(b); if (c === pick) b.onclick();
+  }
 }
+const MIXING = ['#1e88e5', '#fdd835', '#e53935', '#ffffff', '#202020'];  // blue, yellow, red, white, black: to see how wet paints mix
 const hex = () => [1, 3, 5].map(i => parseInt(colour.slice(i, i + 2), 16));
 const at = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
 function show() { const box = stroke.shown(view); if (box) g.putImageData(view, 0, 0, ...box); }
@@ -113,20 +173,21 @@ cv.onpointermove = e => {
 };
 cv.onpointerup = cv.onpointercancel = e => { if (!stroke || e.pointerId !== stroke.id) return; stroke.end(); stroke = null; g.putImageData(layer, 0, 0); };
 
-function family(f) {
+function family(f, p = f.presets[0]) {
   const box = document.getElementById('presets'); box.innerHTML = '';
   for (const b of document.querySelectorAll('#families button')) b.classList.toggle('on', b.textContent === f.name);
   for (const p of f.presets) { const b = document.createElement('button'); b.id = 'p-' + p.id; b.textContent = p.id.replace(/_/g, ' '); b.onclick = () => choose(p); box.appendChild(b); }
-  choose(f.presets[0]);
+  choose(p);
 }
 document.getElementById('fill').onclick = () => fill([...LAYER_GREY, 255]);
+document.getElementById('paperpic').onclick = () => fill([...[1, 3, 5].map(i => parseInt(chosen.palette[0].slice(i, i + 2), 16)), 255]);
 document.getElementById('clear').onclick = () => fill([255, 255, 255, 255]);
 loadAssets().then(() => {  // the paper is kept when another brush is chosen, so one brush can paint and another smudge or erase it
-  fill([255, 255, 255, 255]);
+  colours('mixing', MIXING);
   for (const f of FAMILIES) {  // a button per family; the chosen family's presets below
     const b = document.createElement('button'); b.id = 'f-' + f.name.replace(/\W+/g, '_'); b.textContent = f.name; b.onclick = () => family(f); document.getElementById('families').appendChild(b);
   }
-  family(FAMILIES[0]);
+  family(FAMILIES[0]); premades(); sizePaper(); fill([255, 255, 255, 255]);
   window.__kb.ready = true;
 });
 
@@ -135,7 +196,7 @@ const centre = el => { const r = el.getBoundingClientRect(); return [r.left + r.
 window.__kb = {
   ready: false, btn: id => centre(document.getElementById(id)), refShown: () => chosen.id,
   value: k => ({ diameter: brush.tip.gen.diameter, ratio: brush.tip.gen.ratio, hfade: brush.tip.gen.hfade, vfade: brush.tip.gen.vfade, spacing: brush.tip.spacing,
-    autoSpacingCoeff: brush.tip.autoSpacingCoeff, opacity: brush.opacity.value, flow: brush.flow.value, strength, pictureStrength: chosen.strength })[k],
+    autoSpacingCoeff: brush.tip.autoSpacingCoeff, opacity: brush.opacity.value, flow: brush.flow.value, strength, pictureStrength: chosen.strength, randomReach: brush.scatter.on && (brush.scatterX || brush.scatterY) || (g => !!g && g.cells.length > 1 && g.selection === 'random')(assets[brush.tip.file]?.gih) || brush.tip.density < 1 || brush.tip.randomness > 0 })[k],  // scatter, a tip of several pictures picked at random, or a tip of random pixels
   box: id => { const r = document.getElementById(id).getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; },
   curve: n => brush[n].raw[0].curve.split(';').filter(Boolean).map(p => p.split(',').map(Number)),
   screenOf: (x, y) => { const r = cv.getBoundingClientRect(); return [r.left + x, r.top + y]; },

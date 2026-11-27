@@ -3,7 +3,7 @@
 # PAPER names the size and where that part starts (ox, oy), and the page gives it that part's canvas grain; flows keep full-paper coordinates and the helpers shift them. Speed and undo-room flows keep the full paper.
 # Colours are picked by their place in the Basic palette: 0 white, 1 black, 2 red, 3 orange, 4 yellow, 5 green, 6 blue, 7 purple, 8 pink, 9 brown (owner 21 Nov: every palette 10 colours).
 # Each flow starts from a fresh page with no saved pictures and prints PASS or FAIL, its name, and what was seen.
-import colorsys, time, json, pathlib, math, re
+import colorsys, time, json, pathlib, math, random, re
 from playwright.sync_api import sync_playwright
 GAME = pathlib.Path(__file__).resolve().parent.parent / 'coloring-book.html'  # this copy's own build, so old and new code can be tested at once
 
@@ -1189,14 +1189,17 @@ def f_kb_eraser_strokes(q):  # owner 26 Nov: Krita's erasers: Circle erases its 
 FLOWS['kb_eraser_strokes'] = f_kb_eraser_strokes
 
 def kb_presets(q): return q.evaluate("()=>FAMILIES.map(f=>['f-'+f.name.replace(/\\W+/g,'_'), f.presets.map(p=>'p-'+p.id)])")
+def kb_cdp(q):  # one session to the page's input for the whole run
+    if not hasattr(q, 'kb_cdp'): q.kb_cdp = q.context.new_cdp_session(q)
+    return q.kb_cdp
 def kb_stroke(q, pts, dt=0.008):  # a stroke with the times his screen gives each move (dt seconds apart, a pair given as (x, y, dt) keeps its own gap); returns the slowest move in ms
-    cdp = q.context.new_cdp_session(q); ox, oy = q.evaluate("()=>__kb.screenOf(0,0)"); t, worst = time.time(), 0
+    cdp = kb_cdp(q); ox, oy = q.evaluate("()=>__kb.screenOf(0,0)"); t, worst = time.time(), 0
     for k, pt in enumerate(pts):
         t += pt[2] if len(pt) > 2 else dt; a = time.time()
         cdp.send('Input.dispatchMouseEvent', {'type': 'mousePressed' if k == 0 else 'mouseMoved', 'x': ox + pt[0], 'y': oy + pt[1], 'button': 'left', 'buttons': 1, 'clickCount': 1, 'timestamp': t})
         worst = max(worst, time.time() - a)
     cdp.send('Input.dispatchMouseEvent', {'type': 'mouseReleased', 'x': ox + pts[-1][0], 'y': oy + pts[-1][1], 'button': 'left', 'buttons': 0, 'clickCount': 1, 'timestamp': t + dt})
-    q.evaluate("()=>new Promise(r=>requestAnimationFrame(()=>r()))"); cdp.detach(); return worst * 1000
+    q.evaluate("()=>new Promise(r=>requestAnimationFrame(()=>r()))"); return worst * 1000
 def kb_heap(q):  # the page's memory in MB (objects and the pixel arrays they hold), after the browser has thrown away what nothing holds
     cdp = q.context.new_cdp_session(q); cdp.send('HeapProfiler.collectGarbage'); h = cdp.send('Runtime.getHeapUsage'); cdp.detach()
     return (h['usedSize'] + h['backingStorageSize']) / 1e6
@@ -1242,7 +1245,54 @@ def f_kb_wet_mixing(q):  # owner 26 Nov: "wet painting brushes do not mix colour
     report(all(n >= 30 for n in greens.values()), 'kb_wet_mixing every wet brush mixes yellow into blue as green', 'green pixels where yellow crossed blue: %s' % greens)
 FLOWS['kb_wet_mixing'] = f_kb_wet_mixing
 
-KB_FLOWS = {'kb_eraser_presets', 'kb_eraser_strokes', 'kb_long_strokes', 'kb_settings', 'kb_wet_mixing'}
+def f_kb_finger_lines(q):  # owner 26 Nov: "markers make lines I didn't draw; pencils make the tab crash and make lines I didn't draw; wet brush makes my tab freeze":
+    rnd = random.Random(1); path = [(200 + k * 1.2 + rnd.uniform(-1.5, 1.5), 150 + 30 * math.sin(k / 40) + rnd.uniform(-1.5, 1.5)) for k in range(150)]  # his touchscreen: many moves
+    off, slow = {}, {}                                                                                                                                   # half a ms apart, a finger a little shaky
+    FAR = "()=>{let m=0;for(let y=0;y<300;y+=2)for(let x=0;x<880;x+=2){const c=__kb.color(x,y);if(Math.min(...c)<240)m=Math.max(m,__dist[(y>>1)*440+(x>>1)])}return m}"  # the farthest paint from the line
+    q.evaluate("""(P)=>{window.__dist=new Float32Array(440*150);for(let j=0;j<150;j++)for(let i=0;i<440;i++){let d=1e9;for(const p of P)d=Math.min(d,Math.hypot(2*i-p[0],2*j-p[1]));__dist[j*440+i]=d}}""", path)  # how far each paper point is from the finger's path
+    for fam, presets in kb_presets(q):
+        kb_tap(q, fam)
+        for pid in presets:
+            kb_tap(q, pid); kb_slide(q, 'strength', 1); kb_tap(q, 'clear')  # full strength, so the wet brushes lay paint on the white paper
+            for x, y in path[::12]: kb_stroke(q, [(x, y), (x + 6, y)])  # short dabs along the line: how far the brush itself reaches from where it touches (size, shape, scatter)
+            tapped = q.evaluate(FAR); kb_tap(q, 'clear'); worst = kb_stroke(q, path, 0.0005); drawn = q.evaluate(FAR)  # then the line as his screen sends it
+            if drawn > tapped * 1.15 + 4 and not q.evaluate("()=>__kb.value('randomReach')"): off[pid[2:]] = (round(tapped), round(drawn))  # scatter, tips picked at random or tips of random pixels reach a random distance
+            if worst > 1000: slow[pid[2:]] = round(worst)
+    report(not off, 'kb_finger_lines every brush paints only where the finger went (brushes with random dabs reach a random distance)', 'farthest paint from the line, short dabs vs the line (px): %s' % (off or 'none'))
+    report(not slow, 'kb_finger_lines no finger move takes over 1 s', 'slowest moves (ms): %s' % (slow or 'none'))
+FLOWS['kb_finger_lines'] = f_kb_finger_lines
+
+def f_kb_frame_time(q):  # owner 27 Nov: "at least the wet paint is slow, laggy": every brush paints a frame of finger moves in a fraction of the frame
+    cdp = q.context.new_cdp_session(q); cdp.send('Performance.enable'); busy = {}
+    script = lambda: {m['name']: m['value'] for m in cdp.send('Performance.getMetrics')['metrics']}['ScriptDuration']
+    moves = [(100 + (k * 2.4) % 600, 150 + 60 * math.sin(k / 30)) for k in range(100)]  # a finger at 0.6 px a ms, four moves a 16 ms frame
+    for fam, presets in kb_presets(q):
+        kb_tap(q, fam)
+        for pid in presets:
+            kb_tap(q, pid); kb_tap(q, 'fill'); t = script(); kb_stroke(q, moves, 0.004); ms = (script() - t) * 1000 / (len(moves) / 4)
+            if ms > 8: busy[pid[2:]] = round(ms, 1)
+    cdp.detach()
+    report(not busy, 'kb_frame_time every brush paints a frame of moves in under 8 ms', 'ms of painting a frame: %s' % (busy or 'none over 8'))
+FLOWS['kb_frame_time'] = f_kb_frame_time
+
+def f_kb_premades(q):  # owner 27 Nov: "a button for each premade brush, that when I click it sets the sliders where they should be", "the palette of the reference image",
+    # "make that ui a bit better, and give me more space to draw"
+    room = q.evaluate("()=>{const r=cv.getBoundingClientRect();return [r.width, r.height, innerWidth, innerHeight - r.bottom]}")
+    report(room[0] >= room[2] - 300 and room[3] < 20, 'kb_premades the paper fills the window beside the side column and down to its bottom', 'paper %dx%d in a %d wide window, %d px left below' % tuple(room))
+    palettes = dict(l.split(' = ') for l in (KB.parent / 'krita' / 'picture-palettes.txt').read_text().splitlines() if ' = ' in l and not l.startswith('#'))
+    wrong = []
+    for tool, brushes in q.evaluate("()=>PREMADES.map(([t, l]) => ['t-' + t.replace(/\\W+/g, '_'), l.map(([n, id, set]) => ['m-' + (t + '_' + n).replace(/\\W+/g, '_'), id, set])])"):
+        kb_tap(q, tool)
+        for bid, pid, want in brushes:
+            kb_tap(q, bid)
+            shown = q.evaluate("(ks)=>Object.fromEntries(ks.map(k=>[k, +document.getElementById('s-' + k).value]))", list(want))
+            fam = q.evaluate("()=>FAMILIES.find(f=>f.presets.some(p=>p.id===__kb.refShown())).presets.find(p=>p.id===__kb.refShown()).file")
+            cols = q.evaluate("()=>[...document.querySelectorAll('#palette button')].map(b=>b.title)")
+            if q.evaluate("()=>__kb.refShown()") != pid or shown != want or cols != palettes[fam].split(): wrong.append((bid, pid, shown, want))
+    report(not wrong, 'kb_premades each premade brush chooses its preset, sets its sliders and shows its picture\'s colours', 'wrong: %s' % (wrong or 'none'))
+FLOWS['kb_premades'] = f_kb_premades
+
+KB_FLOWS = {'kb_eraser_presets', 'kb_eraser_strokes', 'kb_long_strokes', 'kb_settings', 'kb_wet_mixing', 'kb_finger_lines', 'kb_frame_time', 'kb_premades'}
 
 # SECTION: WHOLE GAME -- one run in the order the child meets the game: painting, drawing tools, brush popup, buckets, palettes, picker, undo, stickers, guide, canvas, gallery, delete
 # Every other flow is a short separate test of how a tool looks or behaves, each on its own fresh paper, run at the same time as this one (owner 25 Nov).
