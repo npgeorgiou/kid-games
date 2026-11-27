@@ -740,7 +740,7 @@ function blocks() {  // the stones, back to front in each layer: base, top, side
   const first = [{ pts: [[0, 0], [W, 0], [W, dl], ...R0.slice(2, -1).reverse(), ...L0.slice(2, -1), [0, dl]] },
     ...[0, 1].flatMap(i => { const m = ([x, y]) => [i ? W - x : x, y]; return [{ pts: ar[i].face, key: 'face' + i }, { pts: [[0, Y], [X - a, Y], [X, Y + c], [X, H], [0, H]].map(m), key: 'bottom' + i }]; })];
   const u = UI(), step = LEVEL_UP * u, v1 = [0, POOL_DOWN * STONE_LEVEL.first * step], v2 = [SIDE[0] * (STONE_LEVEL.second - STONE_LEVEL.first) * step, SIDE[1] * (STONE_LEVEL.second - STONE_LEVEL.first) * step];
-  const squares = buttonSpots().map(({ x, y, half }) => { const [vx, vy] = [v2[0] / 2, v2[1] / 2], h = half + STONE_ROOM / 2 * u, by = [x + vx, y + vy + v1[1]]; return { layer: 3, pts: [[by[0] - h, by[1] - h], [by[0] + h, by[1] - h], [by[0] + h, by[1] + h], [by[0] - h, by[1] + h]] }; });  // owner 27 Nov: each button on its own small square stone, half as high, standing on the buttons' stone
+  const squares = buttonSpots().map(({ x, y, half, kind }) => { const [vx, vy] = [v2[0] / 2, v2[1] / 2], h = half + STONE_ROOM / 2 * u, by = [x + vx, y + vy + v1[1]]; return { layer: 3, pts: [[by[0] - h, by[1] - h], [by[0] + h, by[1] - h], [by[0] + h, by[1] + h], [by[0] - h, by[1] + h]], down: kind === pressedBtn }; });  // owner 27 Nov: each button on its own small square stone, half as high, standing on the buttons' stone
   const second = [ar[0].deck, ar[1].deck, { pts: ar[0].materials, key: 'materials0' }, { pts: ar[1].materials, key: 'materials1' }, { pts: [ar[0].deadLow[0], ar[0].deadLow[1], ar[1].deadLow[0], ar[1].deadLow[3], ar[0].deadLow[3]], key: 'plug' }].map(p => Array.isArray(p) ? { pts: p } : p);
   const edge = ([x, y]) => x < 1 || x > W - 1 || y < 1 || y > H - 1, tone = faceTone;  // the sun at the top left (more from the left): a face turned away from it darker
   const lowest = pts => Math.max(...pts.map(q => q[1]));
@@ -749,7 +749,7 @@ function blocks() {  // the stones, back to front in each layer: base, top, side
     const o = pts.reduce((s, [x, y], k) => s + x * pts[(k + 1) % N][1] - pts[(k + 1) % N][0] * y, 0) > 0 ? 1 : -1, outer = pts.map((p, k) => edge(p) && edge(pts[(k + 1) % N]));
     const norm = pts.map((p, k) => { const q = pts[(k + 1) % N], l = Math.hypot(q[0] - p[0], q[1] - p[1]); return [o * (q[1] - p[1]) / l, -o * (q[0] - p[0]) / l]; });
     const onWater = ([x, y]) => Math.abs(Math.abs(x - X) / a + Math.abs(y - Y) / c - 1) < 0.002, wet = pts.map((p, k) => onWater(p) && onWater(pts[(k + 1) % N]));
-    const lift = by => pts.map((p, k) => outer[k] ? [0, 0] : [-by[0], -by[1]]), v = layer === 1 ? v1 : layer === 3 ? [v2[0] / 2, v2[1] / 2] : v2;
+    const lift = by => pts.map((p, k) => outer[k] ? [0, 0] : [-by[0], -by[1]]), v = b.down ? [0, 0] : layer === 1 ? v1 : layer === 3 ? [v2[0] / 2, v2[1] / 2] : v2;  // owner 27 Nov: a pressed button's stone is down, level with its base
     const area = layer === 1 ? insetSides(pts, outer.map((e, k) => e || wet[k] ? 0 : STONE_JOINT * u), o) : shiftSides(pts, lift(v1));  // the first layer's stones meet at joints; the second stands on the first's top
     const base = area, top = shiftSides(base, lift(v)), M = N;
     const round = pts.map((p, k) => edge(p) || (layer === 1 && (wet[k] || wet[(k + N - 1) % N])) ? 0 : SLAB_ROUND * u);  // a first-layer stone square where it meets the pool (closed); owner 27 Nov: the second layer's corners all rounded
@@ -811,7 +811,7 @@ function drawSides(b) {  // each side: its strip filled by the top swept down to
   }
 }
 let stoneTops = null;
-function tops() { const mark = [W, H].join(); if (!stoneTops || stoneTops.mark !== mark) { stoneTops = blocks().map(b => ({ key: b.key, top: b.top, round: b.round })); stoneTops.mark = mark; } return stoneTops; }  // the stones' tops, made once per screen size
+function tops() { const mark = [W, H, pressedBtn].join(); if (!stoneTops || stoneTops.mark !== mark) { stoneTops = blocks().map(b => ({ key: b.key, top: b.top, round: b.round })); stoneTops.mark = mark; } return stoneTops; }  // the stones' tops, made once per screen size
 const topOf = key => tops().find(b => b.key === key).top;
 function stonesOverWater() {  // owner 27 Nov: the stones in front of the pool cover its front edge: the moving water is cut away under their tops
   cx.save(); cx.globalCompositeOperation = 'destination-out'; for (const b of tops()) { shapePath(b.top, 0, 0, b.round); cx.fill(); } cx.restore();
@@ -1062,7 +1062,7 @@ function drawScene() {  // the band and both areas (one picture for each turn) a
   cx.clearRect(0, 0, W, H);  // a clear first: the browser then drops earlier frames it has not drawn yet (a full-screen fill does not)
   const full = { x: 0, y: 0, w: W, h: H }, open = openSea();  // the areas and the sea: one picture for each turn; the band on top
   const step = waterStep(), now = step * WATER_STEP;  // the water moves under the land (the land is one still picture over it)
-  const areas = layer('areas' + G.turn, [G.turn, open && open.mark, picReady('things/stone-slab-1') && picReady('things/stone-slab-2')].join(), full, () => { floor(); if (open) cx.drawImage(open, 0, 0, W, H); stoneAreas(); const out = [...areaShapes(0), ...areaShapes(1)]; return [{ k: 'sea', ready: !!open }, ...out]; });
+  const areas = layer('areas' + G.turn, [G.turn, pressedBtn, open && open.mark, picReady('things/stone-slab-1') && picReady('things/stone-slab-2')].join(), full, () => { floor(); if (open) cx.drawImage(open, 0, 0, W, H); stoneAreas(); const out = [...areaShapes(0), ...areaShapes(1)]; return [{ k: 'sea', ready: !!open }, ...out]; });
   const alive = !fast && [...G.cells.values()].some(c => ['plains', 'wheat', 'forest'].includes(LANDS[c.c])), bands = !!(wait && wait.kind === 'place'), board = layer('board', [G.board, ...skip, alive ? step : 0, bands].join(), boardBox(), () => landShapes(skip, bands));  // sheep and wind: drawn again each step
   const onPlane = (k, mark, draw) => {  // draw on plane k only when its mark changed; its records kept for the frames between
     if (planeMark[k] === mark) return planes[k].records; const c = planes[k], e = k === 'water' ? WATER_DPR() : (devicePixelRatio || 1), main = cx;
@@ -1089,10 +1089,10 @@ function drawScene() {  // the band and both areas (one picture for each turn) a
 function drawDraft() {
   const { hw, hh, T } = L(), who = wait ? wait.who : G.turn;  // greyed: what the player whose turn it is can't take (owner 25 Nov)
   drawn.push({ k: 'market', o: G.turn });  // no tray (owner 25 Nov)
-  buttonSpots().forEach(({ x, y: by, half, kind }) => { const u = UI() * 1.4; rrect(x - half, by - half, 2 * half, 2 * half, 8 * u, '#ffffff'); rrect(x - half + 3 * u, by - half + 3 * u, 2 * half - 6 * u, 2 * half - 6 * u, 6 * u, '#e9dfc9'); cx.strokeStyle = '#6b5a44'; cx.lineWidth = 4 * u; cx.lineCap = 'round'; cx.beginPath();  // owner 27 Nov: square buttons
+  buttonSpots().forEach(({ x, y: by0, half, kind }) => { const down = kind === pressedBtn, [dx, dy] = down ? buttonLift() : [0, 0], u = UI() * 1.4; x += dx; const by = by0 + dy;  /* owner 27 Nov: pressed, its face goes down with its stone */ rrect(x - half, by - half, 2 * half, 2 * half, 8 * u, '#ffffff'); rrect(x - half + 3 * u, by - half + 3 * u, 2 * half - 6 * u, 2 * half - 6 * u, 6 * u, '#e9dfc9'); cx.strokeStyle = '#6b5a44'; cx.lineWidth = 4 * u; cx.lineCap = 'round'; cx.beginPath();  // owner 27 Nov: square buttons
     if (kind === 'gear') { cx.arc(x, by, 9 * u, 0, 7); for (let a = 0; a < 8; a++) { cx.moveTo(x + Math.cos(a * Math.PI / 4) * 11 * u, by + Math.sin(a * Math.PI / 4) * 11 * u); cx.lineTo(x + Math.cos(a * Math.PI / 4) * 15 * u, by + Math.sin(a * Math.PI / 4) * 15 * u); } }
     else { cx.rect(x - 9 * u, by - 12 * u, 13 * u, 24 * u); cx.moveTo(x + 2 * u, by); cx.lineTo(x + 14 * u, by); cx.moveTo(x + 9 * u, by - 5 * u); cx.lineTo(x + 14 * u, by); cx.lineTo(x + 9 * u, by + 5 * u); }
-    cx.stroke(); cx.lineCap = 'butt'; drawn.push({ k: 'button', kind }); });
+    cx.stroke(); cx.lineCap = 'butt'; drawn.push({ k: 'button', kind, x, y: by, shadow: !down }); });
   G.draft.forEach((t, k) => {
     const [x, y] = draftSlot(k);
     if (!t) return;
@@ -1122,6 +1122,8 @@ function goodRoom() {  // a material's radius and the step between places: as bi
   const rp = Math.min(fit, (goodsEdge() - 2 * STONE_ROOM - sideIn()) / LANDS.length); return { r: (rp - 6) / 2, rp };  // and inside his area's width
 }
 const EDGE_CLEAR = 0.5;  // owner 25 Nov: the market's tiles stay this many half-square heights clear of the board's upper edges, so what stands on the land there is never hidden; owner 26 Nov: closer to the board
+function buttonLift() { const step = LEVEL_UP * UI(), d = STONE_LEVEL.second - STONE_LEVEL.first; return [SIDE[0] * d * step / 2, SIDE[1] * d * step / 2]; }  // how high a button's stone stands over the stone under it
+let pressedBtn = null;  // owner 27 Nov: the button held down (its stone down, no shadow) until the finger lifts
 function buttonSpots() {  // settings and exit, top right (owner 25 Nov): shown, not working yet; centred where the pile is from its edge; owner 27 Nov: square, side by side
   const u = UI() * 1.4, y = pileLayerY(0) - PILE_HIGH / 2, x = W - cornerX(), half = 26 * u, gap = 2 * half + STONE_ROOM * UI() + 8 * u;
   return [{ x: x - gap / 2, y, half, kind: 'gear' }, { x: x + gap / 2, y, half, kind: 'exit' }];
@@ -1443,6 +1445,7 @@ function drops(at) { const t0 = performance.now(); for (let k = 0; k < 12; k++) 
 const human = () => (wait && G.players[wait.who].human) || G.over;  // after the game his play button works
 cv.addEventListener('pointerdown', e => {
   if (!e.isPrimary) return;  // a stray second finger does nothing
+  const hit = buttonSpots().find(b => Math.abs(e.clientX - b.x) <= b.half && Math.abs(e.clientY - b.y) <= b.half); if (hit) { pressedBtn = hit.kind; return; }  // the buttons work at any time (they do nothing yet)
   if (human()) for (let k = buttons.length - 1; k >= 0; k--) { const b = buttons[k]; if (e.clientX >= b.x && e.clientX <= b.x + b.w && e.clientY >= b.y && e.clientY <= b.y + b.h) { b.fn(e); return; } }
   if (!clearOfBoard(e.clientX, e.clientY, 0)) tapBoard(e.clientX, e.clientY);
 });
@@ -1451,6 +1454,7 @@ cv.addEventListener('pointermove', e => {
   if (!press.moved && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 12) press.moved = true;
   if (press.moved) carry(wait, [e.clientX + press.dx, e.clientY + press.dy]);
 });
+addEventListener('pointerup', () => { pressedBtn = null; }); addEventListener('pointercancel', () => { pressedBtn = null; });
 cv.addEventListener('pointerup', () => {
   if (!press || !human() || wait.kind !== 'place') { press = null; return; }
   const { moved, taking } = press; press = null;

@@ -706,6 +706,14 @@ def f_stockpile(q):  # owner 27 Nov: materials stockpile: the side places' gaps 
         seen[o] = (round(lo - f['x0']), round(f['x1'] - hi), order, round(w.get(5, 0) / w.get(0, 1), 3))
     ok = all(abs(v[0] - v[1]) <= 1 and v[0] > 0 and v[2] == [0, 1, 4, 3, 2, 5] and abs(v[3] - 1.075) < 0.005 for v in seen.values())
     report(ok, 'materials: even gaps, grapes and stone swapped, statue wider', 'per player (gap at the screen side, gap at the stone side, columns from the edge, statue icon to others) %s' % seen)
+def f_buttons_press(q):  # owner 27 Nov: the buttons (3D stones) are tappable with a pressed state: pressed, a button loses its shadow and goes down; let go, it comes back up
+    table(q); seen = {}
+    for kind in ('gear', 'exit'):
+        b = [d for d in drawn(q, 'button') if d['kind'] == kind][0]; q.mouse.move(b['x'], b['y']); q.mouse.down(); settle(q)
+        d = [d for d in drawn(q, 'button') if d['kind'] == kind][0]; q.mouse.up(); settle(q); u = [d for d in drawn(q, 'button') if d['kind'] == kind][0]
+        seen[kind] = (b['shadow'], round(d['y'] - b['y'], 1), d['shadow'], round(u['y'] - b['y'], 1), u['shadow'])
+    ok = all(v[0] and v[1] > 2 and not v[2] and v[3] == 0 and v[4] for v in seen.values())
+    report(ok, 'buttons: pressed, a button goes down and loses its shadow', 'per button (shadow up, how far down when pressed, shadow pressed, after letting go, shadow) %s' % seen)
 def f_starts_face(q):  # owner 25 Nov: the start tiles face each other: the PC's is the kid's turned half a turn around the board's centre (each colour on its turned square)
     table(q, bag=[[3, 3]] * 4); D = [[1, 0], [0, 1], [-1, 0], [0, -1]]
     sq = lambda t: {(t[0], t[1]): t[3], (t[0] + D[t[2]][0], t[1] + D[t[2]][1]): t[4]}
