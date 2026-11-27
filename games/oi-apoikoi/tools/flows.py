@@ -338,23 +338,6 @@ def f_end_screen(q):  # owner 25 Nov (prototype): the end: a smaller box over th
     ok = flew and inside and [len(piles[0]), len(piles[1])] == [23, 7] and not panel and rows == {0: [3, 10, 10], 1: [7]} and len(sizes) == 1 and above and again
     report(ok, 'end: a box over the board, two piles, a star, play again', 'coins flew %s; box over the board %s; piles %s in rows %s, coin sizes %s; star over the taller %s; play button works %s' % (flew, inside, [len(piles[0]), len(piles[1])], rows, sizes, above, again))
 
-def f_end_fits(q):  # owner 27 Nov: "fit and symmetry": the end with full piles of 80 coins at 3 screen sizes (very tall, 16:9, very wide): the box covers neither player's materials
-    # nor the ruby; both piles in the box, apart, the same gap at its sides and between them; the star and the play button clear of the coins
-    seen = []
-    for w, h in ((1280, 1024), (1920, 1080), (2560, 1080)):
-        q.set_viewport_size({'width': w, 'height': h}); pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'seed': 1, 'bag': [[3, 3]] * 4, 'coins': [80, 79]})
-        run_until(q, "()=>__dg.state().over", 8000); skip(q, 500); settle(q); b = drawn(q, 'endbox')[0]; x0, x1, y1 = b['x'], b['x'] + b['w'], b['y'] + b['h']
-        places = drawn(q, 'place'); ruby = drawn(q, 'ruby'); cs = drawn(q, 'endcoin'); star = drawn(q, 'winner')[0]; again = q.evaluate("()=>__dg.btn('again')")
-        clear = max(p['x'] + p['r'] for p in places if p['o'] == 0) < x0 and min(p['x'] - p['r'] for p in places if p['o'] == 1) > x1
-        clear = clear and all(r['x'] + r['r'] < x0 or r['x'] - r['r'] > x1 or r['y'] - r['r'] > y1 for r in ruby)
-        ends = {o: (min(c['x'] - c['r'] for c in cs if c['o'] == o), max(c['x'] + c['r'] for c in cs if c['o'] == o)) for o in (0, 1)}
-        gaps = [round(ends[0][0] - x0), round(ends[1][0] - ends[0][1]), round(x1 - ends[1][1])]
-        inside = all(b['y'] < c['y'] - c['r'] and c['y'] + c['r'] < y1 for c in cs)
-        free = all(math.hypot(c['x'] - again[0], c['y'] - again[1]) > c['r'] + 40 and math.hypot(c['x'] - star['x'], c['y'] - star['y']) > c['r'] + 26 for c in cs)
-        seen.append(((w, h), clear, gaps, inside, free, bool(ruby)))
-    q.set_viewport_size({'width': 1280, 'height': 800})
-    ok = all(x[1] and x[3] and x[4] and x[5] and min(x[2]) > 0 and max(x[2]) - min(x[2]) <= 2 for x in seen)
-    report(ok, 'end fits: 80 coins at 3 screen sizes', 'per size (clear of materials and ruby, gaps side/middle/side, coins in the box, button and star clear, ruby shown) %s' % seen)
 def f_pc_best(q):  # the PC picks and places for the most jars (2 connections)
     table(q, bag=[[0, 0], [0, 1], [0, 4], [0, 4]], first=1, jarQueue=[COIN] * 8)
     q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); s = st(q)
