@@ -718,16 +718,16 @@ function blocks() {  // the stones, back to front in each layer: base, top, side
   const first = [{ pts: [[0, 0], [W, 0], [W, dl], ...R0.slice(2, -1).reverse(), ...L0.slice(2, -1), [0, dl]] },
     ...[0, 1].flatMap(i => { const m = ([x, y]) => [i ? W - x : x, y]; return [{ pts: ar[i].face }, { pts: [[0, Y], [X - a, Y], [X, Y + c], [X, H], [0, H]].map(m) }]; })];
   const u = UI(), step = LEVEL_UP * u, v1 = [0, POOL_DOWN * STONE_LEVEL.first * step], v2 = [SIDE[0] * (STONE_LEVEL.second - STONE_LEVEL.first) * step, SIDE[1] * (STONE_LEVEL.second - STONE_LEVEL.first) * step];
-  const squares = buttonSpots().map(({ x, y, half }) => { const [vx, vy] = [v2[0] / 2, v2[1] / 2], h = half + STONE_ROOM / 2 * u; return { half: true, pts: [[x + vx - h, y + vy - h], [x + vx + h, y + vy - h], [x + vx + h, y + vy + h], [x + vx - h, y + vy + h]].map(([px, py]) => [px, py + v1[1]]) }; });  // owner 27 Nov: each button on its own small square stone, half as high
-  const second = [ar[0].deck, ...squares, ar[0].materials, ar[1].materials, [ar[0].deadLow[0], ar[0].deadLow[1], ar[1].deadLow[0], ar[1].deadLow[3], ar[0].deadLow[3]]].map(p => Array.isArray(p) ? { pts: p } : p);
+  const squares = buttonSpots().map(({ x, y, half }) => { const [vx, vy] = [v2[0] / 2, v2[1] / 2], h = half + STONE_ROOM / 2 * u, by = [x + vx, y + vy + v1[1]]; return { layer: 3, pts: [[by[0] - h, by[1] - h], [by[0] + h, by[1] - h], [by[0] + h, by[1] + h], [by[0] - h, by[1] + h]] }; });  // owner 27 Nov: each button on its own small square stone, half as high, standing on the buttons' stone
+  const second = [ar[0].deck, ar[1].deck, ar[0].materials, ar[1].materials, [ar[0].deadLow[0], ar[0].deadLow[1], ar[1].deadLow[0], ar[1].deadLow[3], ar[0].deadLow[3]]].map(p => Array.isArray(p) ? { pts: p } : p);
   const edge = ([x, y]) => x < 1 || x > W - 1 || y < 1 || y > H - 1, tone = faceTone;  // the sun at the top left (more from the left): a face turned away from it darker
   const lowest = pts => Math.max(...pts.map(q => q[1]));
-  const make = (b, n, layer, half) => {
+  const make = (b, n, layer) => {
     const pts = b.pts.filter((q, k, p) => { const m = p[(k + 1) % p.length]; return Math.hypot(m[0] - q[0], m[1] - q[1]) > 0.5; }).map(([x, y]) => [x < 1 ? -W : x > W - 1 ? 2 * W : x, y < 1 ? -H : y > H - 1 ? 2 * H : y]), N = pts.length;  // owner 27 Nov: stones go on past the screen's edges: no faces, corners or shadows there
     const o = pts.reduce((s, [x, y], k) => s + x * pts[(k + 1) % N][1] - pts[(k + 1) % N][0] * y, 0) > 0 ? 1 : -1, outer = pts.map((p, k) => edge(p) && edge(pts[(k + 1) % N]));
     const norm = pts.map((p, k) => { const q = pts[(k + 1) % N], l = Math.hypot(q[0] - p[0], q[1] - p[1]); return [o * (q[1] - p[1]) / l, -o * (q[0] - p[0]) / l]; });
     const onWater = ([x, y]) => Math.abs(Math.abs(x - X) / a + Math.abs(y - Y) / c - 1) < 0.002, wet = pts.map((p, k) => onWater(p) && onWater(pts[(k + 1) % N]));
-    const lift = by => pts.map((p, k) => outer[k] ? [0, 0] : [-by[0], -by[1]]), v = layer === 1 ? v1 : half ? [v2[0] / 2, v2[1] / 2] : v2;
+    const lift = by => pts.map((p, k) => outer[k] ? [0, 0] : [-by[0], -by[1]]), v = layer === 1 ? v1 : layer === 3 ? [v2[0] / 2, v2[1] / 2] : v2;
     const area = layer === 1 ? insetSides(pts, outer.map((e, k) => e || wet[k] ? 0 : STONE_JOINT * u), o) : shiftSides(pts, lift(v1));  // the first layer's stones meet at joints; the second stands on the first's top
     const base = area, top = shiftSides(base, lift(v)), M = N;
     const round = pts.map((p, k) => edge(p) || (layer === 1 && (wet[k] || wet[(k + N - 1) % N])) ? 0 : SLAB_ROUND * u);  // a first-layer stone square where it meets the pool (closed); owner 27 Nov: the second layer's corners all rounded
@@ -736,7 +736,7 @@ function blocks() {  // the stones, back to front in each layer: base, top, side
       return { strip: [e0, e1, foot(e1), foot(e0)], vx: v[0], vy: v[1], tone: tone(norm[k]) }; }).filter(Boolean);
     return { n, layer, up: v[1], base, top, sides, round, o, outer, low: lowest(base) };
   };
-  return [...first.map((b, n) => make(b, n, 1)), ...second.map((b, n) => make(b, first.length + n, 2, b.half))].sort((p, q) => p.layer - q.layer || p.low - q.low);
+  return [...first.map((b, n) => make(b, n, 1)), ...second.map((b, n) => make(b, first.length + n, 2)), ...squares.map((b, n) => make(b, first.length + second.length + n, 3))].sort((p, q) => p.layer - q.layer || p.low - q.low);
 }
 function roundedEdge(pts, round, o, step) {  // points along a shape's outline, its corners rounded as shapePath rounds them, each with its outward normal
   const n = pts.length, out = [], nrm = k => { const [p, q] = [pts[k], pts[(k + 1) % n]], l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [o * (q[1] - p[1]) / l, -o * (q[0] - p[0]) / l]; };
@@ -796,9 +796,9 @@ function stonesOverWater() {  // owner 27 Nov: the stones in front of the pool c
 function stoneAreas() {  // back to front, the first layer then the second: each stone's shadow (second layer), faces and top (a higher top a little lighter); then the pool walls' joints
   const all = blocks();
   for (const b of all) {
-    if (b.layer === 2) { cx.save(); cx.shadowColor = STONE.shadow; cx.shadowBlur = 0; cx.shadowOffsetX = 0.35 * b.up; cx.shadowOffsetY = 0.35 * b.up; shapePath(b.base, 0, 0, b.round); cx.fillStyle = STONE.floor; cx.fill(); cx.restore(); }  // a contact shadow from its base, so it sits on the stone below
+    if (b.layer >= 2) { cx.save(); cx.shadowColor = STONE.shadow; cx.shadowBlur = 0; cx.shadowOffsetX = 0.35 * b.up; cx.shadowOffsetY = 0.35 * b.up; shapePath(b.base, 0, 0, b.round); cx.fillStyle = STONE.floor; cx.fill(); cx.restore(); }  // a contact shadow from its base, so it sits on the stone below
     drawSides(b); drawTop(b);
-    if (b.layer === 2) { cx.save(); shapePath(b.top, 0, 0, b.round); cx.fillStyle = STONE.lift; cx.fill(); cx.restore(); }
+    if (b.layer >= 2) { cx.save(); shapePath(b.top, 0, 0, b.round); cx.fillStyle = STONE.lift; cx.fill(); cx.restore(); }
   }
   const walls = all.filter(b => b.layer === 1).flatMap(b => b.sides.map(q => q.strip));  // owner 27 Nov: where two walls meet, the left one's dark edge touches the right one's light edge, airtight
   for (const w of walls) for (const z of walls) { if (w === z) continue; const [, a1, a2] = w, [b0] = z; if (Math.hypot(a1[0] - b0[0], a1[1] - b0[1]) > 1) continue;
@@ -849,7 +849,7 @@ function turnShown(w) { if (fast || w.turnT0 == null) return w.r; const u = Math
 function tileShape(x, y, z, cs, r = 0, look, id) {  // a loose tile centred at (x, y), z times its board size: its two land squares; look: 'grey' (can't be taken), 'ghost' (where it will snap), 'wet' (landing in the water); a blank tile: its lands not shown yet
   const { hw, hh } = L(), [dx, dy] = turnDir(r), b = tileBox(x, y, z, r), grey = look === 'grey';
   drawn.push({ k: 'tile', id: id || null, cs: cs.slice(), look: look || null, w: b.w, h: b.h });
-  cx.save(); if (look === 'ghost') cx.globalAlpha = 0.55;  // owner 26 Nov: 10% more solid
+  cx.save(); if (look === 'ghost' || look === 'ghost-market') cx.globalAlpha = 0.55;  // owner 26 Nov: 10% more solid
   const outline = () => {};  // owner 25 Nov: no line around a loose tile
   const halves = [-0.5, 0.5].map((k, h) => [x + (dx - dy) * k * hw * z, y + (dx + dy) * k * hh * z, cs[h]]).sort((p, q) => p[1] - q[1]);  // the back square first
   halves.forEach(([sx, sy, c]) => groundAt(c, sx, sy, z, grey, look === 'wet' || look === 'ghost')); outline(); halves.forEach(([sx, sy, c]) => thingsAt(c, sx, sy, z, grey));
@@ -1111,6 +1111,9 @@ const DECK_LINE = 3.2;  // the deck line: this many half-square heights under th
 const deckLine = () => marketY() + DECK_LINE * L().hh + wallIn(STONE_LEVEL.first);  // owner 27 Nov: a stone's base fills its area, so the base line lies the first layer's height under the joint seen
 const deckEdge = () => W / 2 - marketReach().end;  // where the deck's area ends and the market's begins (left side)
 function waterX(y) { const { cx: X, cy: Y, a, c } = boardDiamond(); return X - a * (1 - Math.abs(y - Y) / c); }  // the water's left edge at height y
+function goodsTop(i) {  // player i's materials stone's top: its base (his materials' area) raised by its height, up and to the left; along the screen's edge it goes on
+  const g = goodsBox(), s = sideIn(), y0 = g.top - liftOf(2); return i ? { x0: W - g.right - s, x1: W, y0 } : { x0: 0, x1: g.right - s, y0 };
+}
 function goodsBox() { const { rp } = goodRoom(); return { right: 2 * STONE_ROOM + sideIn() + LANDS.length * rp, top: H - LOW - (JAR_GOODS + 1.6) * rp - STONE_ROOM + liftOf(2) }; }  // his materials' area: its places and their icons
 function areas(i) {  // player i's areas: the left side's shapes, turned to his side
   const { cx: X, cy: Y, a, c } = boardDiamond(), dl = deckLine(), de = deckEdge(), g = goodsBox(), { end } = coinRoom(), yLow = x => Y + c * (1 - (X - x) / a);
@@ -1131,7 +1134,8 @@ function coinRoom() {  // owner 26 Nov: COIN_SLOTS full stacks of COIN_STACK fit
 function stock(i) {  // player i's things in his area: materials in a row of JAR_GOODS places per colour, from the top, beside the screen edge (owner 25 Nov: rows, not columns);
   // coins: stacks in his grey bottom tip (below)
   const { T, hh } = L(), p = G.players[i], { r, rp } = goodRoom(), out = k => i ? W - k : k;
-  const placeAt = (c, k) => [out(STONE_ROOM + rp * (c + 0.5)), H - LOW - rp * (k + 0.5)];  // a column of JAR_GOODS per colour, from the bottom (owner 25 Nov: columns, at the bottom with the coins)
+  const t = goodsTop(i), xc = (t.x0 + t.x1) / 2, hc = (JAR_GOODS - 1 + ICON_UP + 0.9) * rp, yb = (t.y0 + H) / 2 + hc / 2 - 0.5 * rp;  // owner 27 Nov: the icons and places centred on the stone's top
+  const placeAt = (c, k) => [xc + (i ? -1 : 1) * rp * (c - (LANDS.length - 1) / 2), yb - rp * k];  // a column of JAR_GOODS per colour, from the bottom (owner 25 Nov: columns, at the bottom with the coins)
   // coins (owner 26 Nov): COIN_SLOTS places in a line along the bottom of his coins' area (coinRoom); the place nearest the screen's edge fills first,
   // COIN_STACK coins high, then the next (100 simulated games: 66 coins at most); past COIN_SLOTS * COIN_STACK the stacks grow on from the first place
   const { a0: a, sp } = coinRoom(), cr = COIN_R * sp, th = COIN_TH * cr, base = H - LOW - 0.6 * cr;  // between places, a coin's radius and thickness
@@ -1158,7 +1162,7 @@ function drawPanel(i) {
 function drawHeld() {  // the tile in hand where it lies, and the place it will snap to
   const sp = snapSpot(), [x, y] = wait.pos, b = tileBox(x, y, 1, wait.r), cs = wait.tile;
   const ms = sp ? null : marketSpot(), lying = ms != null && Math.hypot(x - draftSlot(ms)[0], y - draftSlot(ms)[1]) < 1, ghost = lying ? null : sp ? [...tileCentre(sp.x, sp.y, sp.r), sp.r] : ms != null ? [...draftSlot(ms), marketLie(turnShown(wait), ms).r1] : null;  // owner 26 Nov: no preview of the place it already lies on (just taken)  // owner 26 Nov: an empty market place shows the same preview as the board
-  if (ghost) { const [gx, gy, gr] = ghost; tileShape(gx, gy, 1, cs, gr, 'ghost'); cx.setLineDash([8, 6]); cx.lineCap = 'round'; tilePath(gx, gy + (sp ? waterDrop() : wallHigh()), 1.08, gr); cx.strokeStyle = '#ffffff'; cx.lineWidth = 4; cx.stroke(); cx.setLineDash([]); cx.lineCap = 'butt'; drawn.push({ k: 'preview', where: sp ? 'board' : 'market' }); }  // owner 27 Nov: the outline marks where the tile's base will stand (on the water, or in its market place)
+  if (ghost) { const [gx, gy, gr] = ghost; tileShape(gx, gy, 1, cs, gr, sp ? 'ghost' : 'ghost-market');  /* owner 27 Nov: in a market place the preview looks as the tile lying there */ cx.setLineDash([8, 6]); cx.lineCap = 'round'; tilePath(gx, gy + (sp ? waterDrop() : wallHigh()), 1.08, gr); cx.strokeStyle = '#ffffff'; cx.lineWidth = 4; cx.stroke(); cx.setLineDash([]); cx.lineCap = 'butt'; drawn.push({ k: 'preview', where: sp ? 'board' : 'market' }); }  // owner 27 Nov: the outline marks where the tile's base will stand (on the water, or in its market place)
   const tilt = tiltNow(wait); cx.save(); cx.translate(x, y); cx.rotate(tilt * Math.PI / 180); cx.translate(-x, -y);
   const tr = turnShown(wait); tilePath(x + 3, y + 7, 1, tr); cx.fillStyle = '#00000033'; cx.fill(); tileShape(x, y, 1.06, cs, tr, null, 'held');  // a plain offset shadow: a blurred one costs a lot to draw every frame
   cx.restore(); drawn.push({ k: 'heldmark', o: wait.who, tilt });  // owner 25 Nov: no colour around a held tile, either player's
