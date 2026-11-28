@@ -450,7 +450,8 @@ function paintWorth(i, x, y, c) {  // what the changer gives on square (x, y) tu
   const g = G.players[i].goods.map((n, k) => n + G.players[i].coming[k]); lit.forEach(([k]) => g[k]++);
   return { jars: edges.length + g.reduce((a, n) => a + Math.floor(n / JAR_GOODS), 0), lit: lit.length };
 }
-function bestPaint(i) { let best = null; for (const sq of G.cells.values()) for (const c of COLOUR_IDS) if (c !== sq.c) { const w = paintWorth(i, sq.x, sq.y, c); if (!best || better(w, best.worth)) best = { x: sq.x, y: sq.y, c, worth: w }; } return best; }
+const paintable = (i, sq, c) => sq.c !== c && G.tiles.get(sq.t).o === i;  // owner 28 Nov: the changer turns a square of his own land (a tile he placed) to another land
+function bestPaint(i) { let best = null; for (const sq of G.cells.values()) for (const c of COLOUR_IDS) if (paintable(i, sq, c)) { const w = paintWorth(i, sq.x, sq.y, c); if (!best || better(w, best.worth)) best = { x: sq.x, y: sq.y, c, worth: w }; } return best; }
 async function pcPaint(sp) {  // the PC's hand taps the changer to the land it wants, then grabs it, drags it onto the square and lets go
   const my = G, w = wait, live = () => G === my && wait === w, ch = G.players[w.who].changer;
   while (live() && ch.c !== sp.c) { await handTap(w.pos[0], w.pos[1]); if (live()) cycleChanger(w.who); await pause(200); }
@@ -463,10 +464,10 @@ async function pcPaint(sp) {  // the PC's hand taps the changer to the land it w
   w.pos = [gx, gy]; await pause(150); if (!live()) return;
   my.hand.g = 'open'; drop(); await pause(250); my.hand.g = 'point';
 }
-function paintSpot() {  // the land square the changer in hand would change: the nearest one of another land, close to it
+function paintSpot() {  // the land square the changer in hand would change: the nearest one of his own land turned another way, close to it
   if (!wait || wait.kind !== 'paint') return null; const c = G.players[wait.who].changer.c; if (c < 0) return null;
   let best = null, bd = 1.5 * L().hw;  // as a tile, it shows its place from a little way off
-  for (const sq of G.cells.values()) if (sq.c !== c) { const [x, y] = squareCentre(sq.x, sq.y), d = Math.hypot(x - wait.pos[0], y - wait.pos[1]); if (d < bd) { bd = d; best = { x: sq.x, y: sq.y }; } }
+  for (const sq of G.cells.values()) if (paintable(wait.who, sq, c)) { const [x, y] = squareCentre(sq.x, sq.y), d = Math.hypot(x - wait.pos[0], y - wait.pos[1]); if (d < bd) { bd = d; best = { x: sq.x, y: sq.y }; } }
   return best;
 }
 function extraSpot() {  // the empty extra place the extra tile in hand lies on, if any

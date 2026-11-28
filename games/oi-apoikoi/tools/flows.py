@@ -792,6 +792,16 @@ def f_changer_back(q):  # owner 28 Nov: the changer changes only a square of ano
     run_until(q, "()=>__dg.state().players[0].changer!==null", 2000); s = st(q); heard = q.evaluate("()=>__dg.sounds()")
     ok = s['players'][0]['changer'] == 0 and 'changerback' in heard and [t[3:5] for t in s['tiles'] if t[:2] == [4, 10]] == [[0, 1]]
     report(ok, 'land changer: dropped on the water it goes back, nothing changes', 'changer %s, back sound %s' % (s['players'][0]['changer'], 'changerback' in heard))
+def f_changer_own_land(q):  # owner 28 Nov: "each player can change only his own land with the land changer" (the PC changed the kid's)
+    table(q, bag=[[0, 4]] * 4); pc = [t for t in st(q)['tiles'] if t[5] == 1][0]
+    while st(q)['players'][0]['changer'] in (-1, pc[3]): tap(q, 'changer'); waiting(q, 'pick')
+    path(q, q.evaluate("()=>__dg.btn('changer')"), q.evaluate("(t)=>__dg.square(t[0],t[1])", pc))
+    run_until(q, "()=>__dg.state().players[0].changer!==null", 2000); s = st(q)
+    kid_ok = s['players'][0]['changer'] is not None and [t for t in s['tiles'] if t[6] == pc[6]][0][3:5] == pc[3:5] and 'changerback' in q.evaluate("()=>__dg.sounds()")
+    table(q, seed=5, first=1, changer=[None, -1]); kids = {t[6]: t[3:5] for t in st(q)['tiles'] if t[5] == 0}
+    s = kid_plays(q, lambda s: s['round'] >= 3 or s['over'], 300); used = 'changerdrop' in q.evaluate("()=>__dg.sounds()")
+    pc_ok = used and all(t[3:5] == kids[t[6]] for t in s['tiles'] if t[6] in kids)
+    report(kid_ok and pc_ok, 'land changer: only his own land', 'his changer on the PC\'s land went back %s; the PC used its changer %s and left his land alone %s' % (kid_ok, used, pc_ok))
 def f_changer_jar(q):  # owner 28 Nov: "it will be able to be refreshed by a jar (same glowing as the extra tiles, but only when given from a jar), it is NOT given from jars when you have it already, then its percentage goes to the coin"
     get_jar(q, [{'k': 'changer'}], changer=[None, None]); waiting(q, 'pick'); s = st(q); ch = [d for d in drawn(q, 'changer') if d['z'] == 1]
     table(q, bag=[[0, 4]] * 4, seed=11); n = 4000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n); table(q); plain = [d for d in drawn(q, 'changer') if d['z'] == 1]
