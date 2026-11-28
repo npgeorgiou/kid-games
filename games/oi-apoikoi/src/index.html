@@ -159,14 +159,12 @@ async function choose(kind, who, extra, pcMoves) {  // a human answers by tappin
   if (!G.players[who].human) { G.hand.pace = kind === 'jar' ? JAR_PACE : 1; await pause(kind === 'jar' ? 80 / JAR_PACE : BEAT_MS); if (G === my) await pcMoves(); }  // owner 25 Nov: the PC opens jars and moves faster
   return chosen;
 }
+// The PC's hand is a tween (the standard one, as a flight): it is where its move says at this moment, so it needs no frames to move (owner 28 Nov: tests jump the clock)
+function newHand([x, y]) { return { from: [x, y], to: [x, y], t0: 0, T: 0, down: false, g: 'point', get x() { return handAt(this)[0]; }, get y() { return handAt(this)[1]; } }; }
+function handAt(h) { const k = h.T ? Math.min(1, Math.max(0, (performance.now() - h.t0) / h.T)) : 1, e = k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k); return [h.from[0] + (h.to[0] - h.from[0]) * e, h.from[1] + (h.to[1] - h.from[1]) * e]; }
 function handTo(x, y, ms) {  // the hand glides to a point (eased), slow enough to follow
-  const h = G.hand, d = Math.hypot(x - h.x, y - h.y);
-  if (fast || d < 1) { h.x = x; h.y = y; return Promise.resolve(); }
-  const t0 = performance.now(), x0 = h.x, y0 = h.y, T = (ms || Math.max(350, d / HAND_SPEED * 1000)) / (h.pace || 1);  // pace: how much faster this move is
-  return lasts(new Promise(res => {
-    const my = G, step = () => { if (G !== my) return; const k = Math.min(1, (performance.now() - t0) / T), e = k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k); h.x = x0 + (x - x0) * e; h.y = y0 + (y - y0) * e; k < 1 ? requestAnimationFrame(step) : res(); };
-    requestAnimationFrame(step);
-  }));
+  const h = G.hand, at = handAt(h), d = Math.hypot(x - at[0], y - at[1]), T = fast || d < 1 ? 0 : (ms || Math.max(350, d / HAND_SPEED * 1000)) / (h.pace || 1);  // pace: how much faster this move is
+  Object.assign(h, { from: at, to: [x, y], t0: performance.now(), T }); return lasts(pause(T));
 }
 function handHome() { G.hand.g = 'point'; const p = homeSpot(); if (G.hand.x !== p[0] || G.hand.y !== p[1]) handTo(p[0], p[1]); }
 async function handTap(x, y) { G.hand.g = 'point'; await handTo(x, y); G.hand.down = true; await pause(140 / (G.hand.pace || 1)); G.hand.down = false; }
@@ -186,10 +184,9 @@ async function pcPlace(sp) {  // tap the tile where it lies to turn it, then gra
   while (live() && w.r !== sp.r) { await handTap(w.pos[0], w.pos[1]); if (live()) turnTile(w); await pause(200); }
   if (!live()) return;
   await handTo(w.pos[0], w.pos[1]); my.hand.g = 'grab'; await pause(150);
-  const [gx, gy] = tileCentre(sp.x, sp.y, sp.r), h = my.hand;
+  const [gx, gy] = tileCentre(sp.x, sp.y, sp.r);
   my.dragging = true; const follow = handTo(gx, gy, fast ? 0 : 800);
-  const track = () => { if (live() && my.dragging) { carry(w, [h.x, h.y]); requestAnimationFrame(track); } };
-  if (!fast) requestAnimationFrame(track); await follow;
+  await follow;
   my.dragging = false; if (!live()) return;
   w.pos = [gx, gy]; await pause(150);
   if (!live()) return;
@@ -458,9 +455,8 @@ async function pcPaint(sp) {  // the PC's hand taps the changer to the land it w
   while (live() && ch.c !== sp.c) { await handTap(w.pos[0], w.pos[1]); if (live()) cycleChanger(w.who); await pause(200); }
   if (!live()) return;
   await handTo(w.pos[0], w.pos[1]); my.hand.g = 'grab'; await pause(150);
-  const [gx, gy] = squareCentre(sp.x, sp.y), h = my.hand; my.dragging = true; const follow = handTo(gx, gy, fast ? 0 : 800);
-  const track = () => { if (live() && my.dragging) { carry(w, [h.x, h.y]); requestAnimationFrame(track); } };
-  if (!fast) requestAnimationFrame(track); await follow;
+  const [gx, gy] = squareCentre(sp.x, sp.y); my.dragging = true; const follow = handTo(gx, gy, fast ? 0 : 800);
+  await follow;
   my.dragging = false; if (!live()) return;
   w.pos = [gx, gy]; await pause(150); if (!live()) return;
   my.hand.g = 'open'; drop(); await pause(250); my.hand.g = 'point';
@@ -543,14 +539,14 @@ function restart(o = {}) {
   stillWater = o.stillWater ?? params.has('fast');  // a page opened for tests keeps its water still unless the table asks: each new picture of it costs the test run (WARNINGS)
   rnd = o.seed != null ? seeded(o.seed) : Math.random;
   jarQueue.length = 0; (o.jarQueue || []).forEach(j => jarQueue.push(j));
-  spotMemo.clear(); heard = []; flights = []; specks = []; G = { moving: new Set(), fromNowhere: 0, board: 0, round: 0, phase: 'round', first: o.first ?? 0, bee: o.first ?? 0, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], over: false, overAt: null, ending: null, piled: null, winner: null, turn: null, animals: o.animals || pickAnimals(), moods: [null, null], ruby: null, shown: [], pops: [], shines: [], splashes: [], jarWho: null, parked: false, parking: false, burst: null, dawn: null, passing: null, dragging: false, hand: { x: 0, y: 0, down: false, g: 'point' } };
+  spotMemo.clear(); heard = []; flights = []; specks = []; G = { moving: new Set(), fromNowhere: 0, board: 0, round: 0, phase: 'round', first: o.first ?? 0, bee: o.first ?? 0, players: [newPlayer(true), newPlayer(false)], tiles: new Map(), cells: new Map(), draft: [], over: false, overAt: null, ending: null, piled: null, winner: null, turn: null, animals: o.animals || pickAnimals(), moods: [null, null], ruby: null, shown: [], pops: [], shines: [], splashes: [], jarWho: null, parked: false, parking: false, burst: null, dawn: null, passing: null, dragging: false, hand: newHand([0, 0]) };
   STARTS.forEach(([x, y, r], k) => put({ id: 's' + k, cs: [0, 1], x, y, r, o: k, start: true }));
   (o.tiles || []).forEach(([x, y, r, a, b, own]) => put({ id: 't' + (tileNo++), cs: [a, b], x, y, r, o: own }));
   G.players.forEach((p, k) => { p.coins = (o.coins || [0, 0])[k]; if (o.goods) p.goods = o.goods[k].slice();  // a saved game: each player's coins and goods, his extra tiles and his land changer (null: none; -1: striped)
     if (o.extras) p.extras = o.extras[k].map(cs => cs && { cs: cs.slice(), here: true }); if (o.changer) p.changer = o.changer[k] == null ? null : { c: o.changer[k], here: true }; });
   const [c0, c1] = G.players.map(p => p.coins), lead = c0 > c1 ? 0 : c1 > c0 ? 1 : null; G.ruby = { from: lead, to: lead, t0: 0 };  // a saved game's ruby is where it was: no forming
-  G.bag = o.bag ? o.bag.map(t => t.slice()) : makeBag();
-  [G.hand.x, G.hand.y] = homeSpot();
+  G.bag = o.bag ? o.bag.map(t => t.slice()) : makeBag().slice(0, o.deck ?? undefined);  // deck: how many tiles the pile holds (a test setting: a short game; all of them when not given)
+  G.hand = newHand(homeSpot());
   play();
 }
 
@@ -627,7 +623,7 @@ function inCorner(A, P, B, r) {  // the middle of a circle of radius r that touc
 }
 const giftEdge = () => giftHome()[0] - 1.5 * L().hw;  // the extra tile's place's corner toward his sticker (the left player's)
 function beeSpot(i) {  // owner 27 Nov: the bee between his sticker and the extra tile's place, in the middle of the room between them, level with the place
-  const r = BEE_R * UI(), a = G.animals[i], n = 'avatars/' + a + '-neutral', fit = stickerFit(faceBox(0), false, a), reach = picReady(n) ? fit.ax + (1 - headAt(n)) * fit.h * pics[n].width / pics[n].height : fit.reach, x = (reach + giftEdge()) / 2;  /* between his resting sticker and the place */ return [i ? W - x : x, giftHome()[1], r];
+  const r = BEE_R * UI(), a = G.animals[i], n = 'avatars/' + a + '-neutral', fit = stickerFit(faceBox(0), false, a), reach = picReady(n) ? fit.ax + (1 - headAt(n)) * fit.h * pics[n].width / pics[n].height : fit.reach, x = Math.max((reach + giftEdge()) / 2, reach + 1.15 * r);  /* between his resting sticker and the place, never over the sticker (owner 27 Nov: clear of it) */ return [i ? W - x : x, giftHome()[1], r];
 }
 function coinSpot(i, k) { return stock(i).coinAt(k); }
 function slotPos(i, c, k) { return stock(i).placeAt(c, k); }  // where good number k of colour c stands in player i's stockpile: place k of column c
@@ -1528,10 +1524,11 @@ function drawFlights() {  // everything on its way, at its point on its curve
     else if (L0.k === 'bee') bee(x, y, BEE_R * UI() * z);
     else if (L0.k === 'changer') changerShape(x, y, z, L0.c);
     else if (L0.k === 'tile') (L0.gift ? giftTile : tileShape)(x, y, z, L0.cs, L0.r1 == null ? L0.r || 0 : L0.r + (L0.r1 - L0.r) * easeInOut(Math.min(1, Math.max(0, (now - f.t0) / f.ms))));  // r1: it turns on its way
-    drawn.push({ k: 'flight', look: L0.k, c: L0.c, x, y, fx: f.from[0], fy: f.from[1], tx: f.to[0], ty: f.to[1], rim: L0.rim || null, r: L0.k === 'good' ? stock(L0.o).r : null, trail: f.trail || null });
+    drawn.push({ k: 'flight', end: f.t0 + f.ms, look: L0.k, c: L0.c, x, y, fx: f.from[0], fy: f.from[1], tx: f.to[0], ty: f.to[1], rim: L0.rim || null, r: L0.k === 'good' ? stock(L0.o).r : null, trail: f.trail || null });
   }
 }
 function render() {  // one picture of the game; it also lays out the buttons the taps (and the PC's hand) press
+  if (G.dragging && wait && wait.pos) carry(wait, [G.hand.x, G.hand.y]);  // the tile the PC's hand carries is where the hand is
   buttons = []; drawn = [];
   if (!G) { cx.clearRect(0, 0, W, H); return; }
   drawScene(); drawPanel(0); drawPanel(1); drawRuby(); drawDraft();  // the market's tiles lie in the market's area, over the areas  // the scene covers the whole screen
@@ -1542,7 +1539,7 @@ function render() {  // one picture of the game; it also lays out the buttons th
   if (G.ending) drawEnd();
   drawFlights(); drawSpecks(); hand(G.hand);
 }
-function frame() { render(); requestAnimationFrame(frame); }
+function frame() { render(); if (!params.has('fast')) requestAnimationFrame(frame); }  // the test page draws only when a test looks (settle): its clock then jumps through timers alone
 
 // SECTION: INPUT -- taps press buttons at once; the tile in hand turns on a tap, moves on a drag, and stays where it is left
 function tapBoard(x, y) {  // the board answers any other tap: water splashes with rings and drops (owner 27 Nov: as in the architects game), land throws up dust with a soft knock
@@ -1597,7 +1594,7 @@ window.__dg = {
       spots: wait && wait.kind === 'place' ? [0, 1, 2, 3].flatMap(r => spots(wait.tile, r, wait.who)) : [], snap: (s => s && { x: s.x, y: s.y, r: s.r })(snapSpot()),
       halves: COLOUR_IDS.map(c => G.bag.concat(G.draft.filter(t => t)).flat().filter(v => v === c).length), left: G.bag.length + G.draft.filter(t => t).length, fromNowhere: G.fromNowhere, leftFits: G.bag.concat(G.draft.filter(t => t)).some(t => fits(t, 0) || fits(t, 1)),
       tiles: [...G.tiles.values()].map(t => [t.x, t.y, t.r, t.cs[0], t.cs[1], t.o, t.id]), passes: G.players.map(p => p.passes),
-      hand: { x: G.hand.x, y: G.hand.y, g: G.hand.g }, handDrag: G.dragging,
+      hand: { x: G.hand.x, y: G.hand.y, g: G.hand.g, end: G.hand.t0 + G.hand.T }, handDrag: G.dragging,
       players: G.players.map(p => ({ goods: p.goods.slice(), coins: p.coins, jars: p.jars, got: p.got, opened: { ...p.opened }, gotFrom: { ...p.gotFrom }, extras: p.extras.map(e => e && e.here ? e.cs.slice() : null), changer: p.changer && p.changer.here ? p.changer.c : null })),
     };
   },

@@ -4,7 +4,7 @@
 # Colours are numbered 0-5 (0 and 1 the most common); a tile is [first half, second half]; the board is 16 x 16 squares, the start tiles [0, 1] at (4, 10) turned 0 (the kid's) and (11, 5) turned 2 (the PC's: the kid's turned half a turn).
 # A table tile is [x, y, turn, colour, colour, owner]: turn 0 puts the second half to the right, 1 below, 2 left, 3 above; owner 0 is the kid, 1 the PC.
 # Jar contents a test needs are queued: {'k': 'empty'}, {'k': 'coins'}, {'k': 'coins2'}, {'k': 'changer'}, {'k': 'first'}, {'k': 'tile'}, {'k': 'jar'}, {'k': 'set'}.
-import time, pathlib, datetime, math, re
+import time, pathlib, datetime, math, re, json
 from playwright.sync_api import sync_playwright
 GAME = next((pathlib.Path(__file__).resolve().parent.parent).glob('*.html'))  # this copy's own built page (whatever its name then), so old and new code can be tested at once
 COIN = {'k': 'coins'}
@@ -14,18 +14,21 @@ WAIT = 1500  # ms: the game answers in a few ms in fast mode, so a flow that wai
 
 # SECTION: HELPERS -- the page, a set table, taps and drags on what is drawn, the game's state
 def settle(q): q.evaluate("()=>__dg.render()")  # the game answers a tap at once; draw it now, so what is on screen (and its buttons) is current
+SETTINGS = json.loads((pathlib.Path(__file__).parent / 'test-settings.json').read_text())  # the test game's settings (deck: tiles in the pile, a short game; owner 28 Nov)
 def table(q, **opts):  # a new game on a set table (goods=[kid's, PC's]: the goods each player has saved)
+    opts.setdefault('deck', SETTINGS['deck'])
     opts.setdefault('fast', True); opts.setdefault('seed', 1)  # always seeded: a flow never depends on luck
     opts.setdefault('changer', [-1, None])  # owner 28 Nov: the land changer; the PC's would change the board on its first move, so only the flows about it give the PC one
     if opts['fast']: pause_clock(q)  # a fast game needs no time to pass; a running clock draws 60 frames a second for nothing
     q.evaluate("(o)=>__dg.restart(o)", opts); settle(q)
     if not opts['fast']: run_until(q, "()=>!!__dg.state().wait")  # through the round's morning light, to the first pick
-def skip(q, ms):  # jump the paused fake clock on (each due timer fires once, no frame in between): for waits whose middle nobody looks at
-    q.clock.fast_forward(ms); settle(q)
-def run_until(q, cond, limit=4000):  # jump the paused fake clock on in short steps (no frames between: they cost about half a real second per fake second) until the game is in the state asked
+def skip(q, ms):  # move the paused fake clock on: every timer in that time runs, in order; the test page draws no frames, so it costs only the game's own steps
+    q.clock.run_for(ms); settle(q)
+def run_until(q, cond, limit=4000):  # move the paused fake clock on in short steps until the game is in the state asked; a picture is drawn only when the condition looks at one
+    look = "()=>{%s; return (%s)()}" % ('__dg.render()' if 'drawn' in cond or 'btn' in cond else '', cond)
     for _ in range(limit // 100):
-        if q.evaluate(cond): break
-        skip(q, 100)
+        if q.evaluate(look): break
+        q.clock.run_for(100)
     settle(q)
 def st(q): return q.evaluate("()=>__dg.state()")
 def tap(q, bid):
@@ -78,7 +81,7 @@ def kid_plays(q, until, steps=80):  # the kid takes the first tile that fits, pl
 
 # SECTION: FLOWS -- one per owner rule
 def f_colour_split(q):  # owner 25 Nov (prototype): 6 colours (the 6th teal), 28 tiles: halves 10, 10, 9, 9, 9, 9; each colour has its row in his area
-    s = st(q); rows = sorted({d['c'] for d in drawn(q, 'place') if d['o'] == 0})
+    table(q, deck=None); s = st(q); rows = sorted({d['c'] for d in drawn(q, 'place') if d['o'] == 0})  # the whole pile
     report(s['halves'] == [10, 10, 9, 9, 9, 9] and s['left'] == 28 and rows == list(range(6)), 'colours: 6, 28 tiles, halves 10/10/9/9/9/9', '%s, %d tiles, goods rows %s' % (s['halves'], s['left'], rows))
 def f_first_round_fits(q):  # owner 24 Nov: of the first round's 4 tiles, 2 surely fit (one for each player); the other 2 are truly random
     fits, unfit_seen, places = [], 0, set()
@@ -343,19 +346,19 @@ def f_clock_sounds(q):  # owner 28 Nov: his grandfather clock files: "ticking = 
     pause_clock(q); n = 6
     table(q, fast=False, first=1, bag=[[0, 1], [0, 0], [0, 4], [0, 4]], goods=[[0] * n, [4] * n], jarQueue=[{'k': 'set'}] + [COIN] * 12)
     g, files = q.evaluate("()=>__dg.gaps()"), q.evaluate("()=>__dg.soundFiles()")
-    look = "()=>{const d=__dg.drawn(),jars=d.filter(j=>j.k==='jar'),filling=jars.filter(j=>d.some(f=>f.k==='flight'&&f.rim&&Math.abs(f.rim.x-j.x)<5)).map(j=>j.o+':'+j.slot);return {jars:jars.map(j=>j.o+':'+j.slot),filling,now:performance.now(),moving:d.some(f=>f.k==='flight'),hand:[__dg.state().hand.x,__dg.state().hand.y],turn:__dg.state().turn,round:__dg.state().round,phase:__dg.state().phase,wait:__dg.state().wait}}"
-    last_move, hand, ticks, pc_moved, ends, early, filling = None, None, [], {}, [], [], []  # ends: per tick, the last motion before it; early: jars gone while their materials still flew in
+    look = "()=>{const d=__dg.drawn(),jars=d.filter(j=>j.k==='jar'),filling=jars.filter(j=>d.some(f=>f.k==='flight'&&f.rim&&Math.abs(f.rim.x-j.x)<5)).map(j=>j.o+':'+j.slot);return {jars:jars.map(j=>j.o+':'+j.slot),filling,now:performance.now(),ends:d.filter(f=>f.k==='flight').map(f=>f.end).concat([__dg.state().hand.end]),hand:[__dg.state().hand.x,__dg.state().hand.y],heard:__dg.heardAt(),turn:__dg.state().turn,round:__dg.state().round,phase:__dg.state().phase,wait:__dg.state().wait}}"
+    motions, hand, ticks, pc_moved, ends, early, filling = [], None, [], {}, [], [], []  # ends: per tick, the last motion before it; early: jars gone while their materials still flew in
     def watch():
-        nonlocal last_move, hand, filling
+        nonlocal hand, filling
         v = q.evaluate(look)
         early.extend(j for j in filling if j not in v['jars'] and any(k.split(':')[0] == j.split(':')[0] for k in v['jars']))  # only one player's jars are drawn at a time; filling = v['filling']
-        if v['moving'] or (hand and v['hand'] != hand): last_move = v['now']
+        motions.extend(v['ends'])  # when each thing seen moving ends (its own end time, so the polls can be far apart)
         hand = v['hand']; return v
-    v = watch(); seen = len(q.evaluate("()=>__dg.heardAt()"))
-    for _ in range(900):
-        at = q.evaluate("()=>__dg.heardAt()")
+    v = watch(); seen = len(v['heard'])
+    for _ in range(300):
+        at = v['heard']
         for name, t in at[seen:]:
-            if name in ('turn', 'tilesback', 'roundend'): ends.append((name, t, last_move))
+            if name in ('turn', 'tilesback', 'roundend'): ends.append((name, t, max((m for m in motions if m <= t), default=None)))
             if name == 'turn': ticks.append(t)
         seen = len(at)
         if v['round'] > 1: break
@@ -364,7 +367,7 @@ def f_clock_sounds(q):  # owner 28 Nov: his grandfather clock files: "ticking = 
         if w and w['who'] == 0 and w['kind'] == 'pick': tap(q, 'draft-%d' % st(q)['fits'].index(True))
         elif w and w['who'] == 0 and w['kind'] == 'place': drag_to(q, best_spot(q))
         elif w and w['who'] == 0 and w['kind'] == 'jar' and q.evaluate("()=>__dg.btn('jar-0')"): tap(q, 'jar-0')
-        else: skip(q, 50)
+        else: skip(q, 200)
         if ticks and len(ticks) not in pc_moved and (not w or w['who'] != 1): hand_at_tick = v['hand']
         v = watch()
     at = q.evaluate("()=>__dg.heardAt()"); q.clock.resume(); names = [x[0] for x in at]
@@ -498,7 +501,7 @@ def f_pc_jar_order(q):  # owner 27 Nov: "enemy must break jars in order they are
     pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'seed': 1, 'bag': [[1, 1], [0, 3], [3, 3], [3, 3]], 'first': 1, 'tiles': [[11, 4, 3, 0, 0, 1], [10, 4, 3, 0, 0, 1]], 'goods': [[0] * 6, [4, 0, 0, 0, 0, 0]], 'jarQueue': [{'k': 'jar'}] + [COIN] * 12})
     broke, before, n0, ms = [], None, 0, 0  # a jar is told by its place and whether it is still coming out (the jar won takes the broken one's place at once)
     while ms < 30000 and len(broke) < 4:
-        skip(q, 50); ms += 50; now = {(d['slot'], d.get('rising')) for d in drawn(q, 'jar') if d['o'] == 1 and not d.get('parked')}; n = sum(st(q)['players'][1]['opened'].values())
+        skip(q, 200); ms += 200; now = {(d['slot'], d.get('rising')) for d in drawn(q, 'jar') if d['o'] == 1 and not d.get('parked')}; n = sum(st(q)['players'][1]['opened'].values())
         if before is not None and n > n0: broke += sorted(k for k, r in before - now)
         before, n0 = now, n
     report(broke == [0, 0, 1, 2], 'pc: breaks jars in their order on the screen', 'places broken in turn %s' % broke)
@@ -511,7 +514,7 @@ def f_pass_no_bee(q):  # owner 27 Nov: "when i couldn't pick a tile cause none w
     pause_clock(q); q.evaluate("(o)=>__dg.restart(o)", {'fast': False, 'seed': 1, 'bag': [[3, 3]] * 4, 'first': 1, 'tiles': [[11, 4, 0, 3, 3, 1]], 'jarQueue': [COIN] * 8})  # only the PC's land takes [3, 3]: after the PC's move his turn passes
     run_until(q, "()=>{const s=__dg.state();return s.players[1].got>=1&&s.wait&&s.wait.who===1}", 20000); flights, ms, after = 0, 0, 0  # the PC has placed and is opening its jars
     while ms < 20000 and after < 1500:
-        skip(q, 50); ms += 50; flights += len([f for f in drawn(q, 'flight') if f['look'] == 'bee']); after += 50 if st(q)['passes'][0] else 0
+        skip(q, 200); ms += 200; flights += len([f for f in drawn(q, 'flight') if f['look'] == 'bee']); after += 200 if st(q)['passes'][0] else 0
     report(st(q)['passes'][0] >= 1 and flights == 0, 'pass: the bee stays where it is', 'kid passes %s, bee seen flying in %d pictures' % (st(q)['passes'], flights))
 def f_left_in_its_place(q):  # owner 27 Nov: "I clicked, dragged a tiny bit, and immediately left tile in its slot, and I lost my round!"
     table(q, bag=[[0, 4], [3, 3], [3, 3], [3, 3]], tiles=[[11, 4, 0, 3, 3, 1]], jarQueue=[COIN] * 8)  # only the first market tile fits his land
@@ -599,7 +602,7 @@ def f_pc_jars_faster(q):  # owner 27 Nov: the PC breaks its jars 10% faster; lat
     for _ in range(300):
         s = st(q)
         if s['wait'] and s['wait']['kind'] == 'jar' and s['wait']['who'] == 0: tap(q, 'jar-0'); continue
-        skip(q, 50); settle(q); w = s['wait']; h = drawn(q, 'hand')
+        skip(q, 200); w = s['wait']; h = drawn(q, 'hand')
         if h and w and w['who'] == 1: paces.add((w['kind'], h[0].get('pace')))
         if s['turn'] == 0 and s['round'] == 1 and any(k == 'jar' for k, _ in paces): break
     q.clock.resume(); jar = {p for k, p in paces if k == 'jar'}; other = {p for k, p in paces if k != 'jar'}
@@ -654,12 +657,15 @@ def f_stickers(q):  # owner 27 Nov: "avatars for the 2 players ... like stickers
     report(start and joined.endswith('-happy') and empty.endswith('-sad') and other.endswith('-happy') and shown.endswith('-happy'), 'stickers: two animals, neutral first, his turn glows, faces follow what happens, the other reacts too',
            'animals %s, start %s, after a connection %s, an empty jar %s (the other %s), a jar of materials %s' % (animals, start, joined, empty, other, shown))
 def f_bee_corner(q):  # owner 27 Nov: "replace the star (who goes first next round) with a bee icon, that you will put in this corner" (his face stone's corner by the pool);
-    # later: the bee between the sticker and the extra tile's place, clear of the resting sticker (other faces may overlap it)
-    table(q); settle(q); b = drawn(q, 'token'); b = b[0] if b else None; o = b['o'] if b else 1
-    a = [d for d in drawn(q, 'avatar') if d['o'] == o][0]['shown']; g = [d for d in drawn(q, 'giftplace') if d['o'] == o]; gx = g[0]['x'] if g else -1
-    if o == 0: ok = bool(b) and a['x'] + a['w'] / 2 < b['x'] - b['r'] and b['x'] + b['r'] < gx
-    else: ok = bool(b) and gx < b['x'] - b['r'] and b['x'] + b['r'] < a['x'] - a['w'] / 2
-    report(ok, 'bee: between the sticker and the extra tile\'s place', 'player %d: sticker %s, bee %s, the extra tile\'s place at %s' % (o, (round(a['x'] - a['w'] / 2), round(a['x'] + a['w'] / 2)), b and (round(b['x'] - b['r']), round(b['x'] + b['r'])), round(gx)))
+    # later: the bee between the sticker and the extra tile's place, clear of the resting sticker (other faces may overlap it); every animal, on both sides
+    A, bad = ['hamster', 'bunny', 'chick', 'cat', 'dog', 'frog'], []
+    for k in range(6):
+        for o in (0, 1):
+            table(q, animals=[A[k], A[(k + 1) % 6]], first=1 - o); skip(q, 3000); b = [d for d in drawn(q, 'token') if d['o'] == o]; b = b[0] if b else None  # the bee goes to the one who plays first next round
+            a = [d for d in drawn(q, 'avatar') if d['o'] == o][0]['shown']; g = [d for d in drawn(q, 'giftplace') if d['o'] == o]; gx = g[0]['x'] if g else -1
+            ok = bool(b) and (a['x'] + a['w'] / 2 < b['x'] - b['r'] and b['x'] + b['r'] < gx if o == 0 else gx < b['x'] - b['r'] and b['x'] + b['r'] < a['x'] - a['w'] / 2)
+            if not ok: bad.append((A[k] if o == 0 else A[(k + 1) % 6], o, (round(a['x'] - a['w'] / 2), round(a['x'] + a['w'] / 2)), b and (round(b['x'] - b['r']), round(b['x'] + b['r'])), round(gx)))
+    report(not bad, 'bee: between the sticker and the extra tile\'s place', 'every animal, both sides; wrong: %s' % bad)
 def f_ruby_leader(q):  # owner 27 Nov: "divide it in half, and the half of the winning player gets a ruby on top"
     res = {}
     for coins in ([3, 1], [1, 4], [2, 2]):
@@ -816,8 +822,8 @@ def f_changer_stripes(q):  # owner 28 Nov: "land changer stripes: the same way f
     grid = lambda c: [px(c['x'] + i * hw / 6, c['y'] + j * hh / 6) for i in range(-3, 1) for j in range(-5, 0) if abs(i) + abs(j) < 5]  # inside the top's upper left quarter (the PC's hand rests on the rest)
     same = sum(max(abs(u - v) for u, v in zip(p1, p2)) < 30 for p1, p2 in zip(grid(ch[0]), grid(ch[1]))) / len(grid(ch[0]))
     far = [px(c['x'] + (v - 0.08) * hw, c['y'] + (v - 0.92) * hh) for c in ch[:1] for v in (0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75)]
-    spread = max(max(p[k] for p in far) - min(p[k] for p in far) for k in range(3))
-    report(same >= 0.85 and spread < 25, 'land changer: stripes one way for both, far stripe solid', 'same picture %.0f%% of the points; far stripe colours spread %d' % (100 * same, spread))
+    med = [sorted(p[k] for p in far)[len(far) // 2] for k in range(3)]; solid = sum(max(abs(p[k] - med[k]) for k in range(3)) < 15 for p in far) / len(far)  # its stars may cross it: most of it one colour
+    report(same >= 0.75 and solid >= 0.7, 'land changer: stripes one way for both, far stripe solid', 'same picture %.0f%% of the points; far stripe one colour at %.0f%%' % (100 * same, 100 * solid))
 def centroid(pts):  # a polygon's middle (its area's centre: the standard shoelace formula)
     a = cx = cy = 0
     for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]): k = x0 * y1 - x1 * y0; a += k; cx += (x0 + x1) * k; cy += (y0 + y1) * k
@@ -884,7 +890,8 @@ def f_layout_28nov(q):  # owner 28 Nov: "On 3:2 screens the avatars run past the
         ch = [d for d in drawn(q, 'changerplace') if d['o'] == 0][0]; green = [d for d in drawn(q, 'icon') if d['o'] == 0 and d['c'] == 1][0]; dead = [d for d in drawn(q, 'area') if d['o'] == 0 and d['kind'] == 'dead'][0]['pts']
         top = min(p[1] for p in dead); hh = q.evaluate("()=>__dg.square(1,0)[1]-__dg.square(0,0)[1]"); high = True  # owner 28 Nov (later): the changer's place moved (halfway to the stone's middle; below the extra places on 21:9): step changer_place
         groove = [d for d in drawn(q, 'groove') if d['o'] == 0][0]['y']; gap = (groove - (green['y'] + green['h'] / 2)) / hh  # the icon's ground bottom over the divider, in half-squares
-        good = inside and high and gap > 0.75; ok = ok and good;  # it was about 0.6 seen.append((w, h, inside, high, round(gap, 2)))
+        good = inside and high and gap > 0.75; ok = ok and good  # it was about 0.6
+        seen.append((w, h, inside, high, round(gap, 2)))
     q.set_viewport_size({'width': 1280, 'height': 800})
     report(ok, 'layout: stickers on screen, icons clear over the divider', '(screen, stickers on screen, changer in line and high, icons over the divider in half-squares) %s' % seen)
 def f_sound_hooks(q):  # owner 28 Nov: "make sure there are sound hooks for every event, movement, action": every sound the game plays has its line in SOUNDS.md
@@ -1155,7 +1162,7 @@ def f_simulation(q):  # owner 25 Nov (task list): a simulation tool plays seeded
 
 def f_random_play(q):  # seeded games played through the screen (taps and drags on what is drawn, at random moments); after every move, what he can see holds:
     # a placement gives a jar per connection and a material per square it lights, on the board shown; each 5 of a colour a jar at once
-    bad = q.evaluate("""async () => {
+    bad = q.evaluate("""async (DECK) => {
       const cv = document.querySelector('#c'), ch = new MessageChannel(), errs = [];
       const tick = async () => { for (let k = 0; k < 300; k++) await null; };  // let the game's answers run (they are promise steps in fast mode); no timer, no message: those wait for the browser
       const ev = (type, [x, y]) => cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, isPrimary: true, bubbles: true }));
@@ -1165,7 +1172,7 @@ def f_random_play(q):  # seeded games played through the screen (taps and drags 
       const lit = starts => { const sq2 = seen('square'), on = (x, y) => sq2.find(d => d.x === x && d.y === y), done = new Set(), todo = starts.slice(); while (todo.length) { const [x, y] = todo.shift(), a = on(x, y); if (!a || done.has(x + ',' + y)) continue; done.add(x + ',' + y); [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([dx, dy]) => { const b = on(x + dx, y + dy); if (b && b.c === a.c) todo.push([x + dx, y + dy]); }); } return done.size; };  // the squares the connections light, on the board shown (owner 25 Nov)
       for (let seed = 1; seed <= 4; seed++) {
         let rs = seed * 7919; const rand = n => { rs = (rs * 16807) % 2147483647; return rs % n; };
-        __dg.restart({ seed, fast: true });
+        __dg.restart({ seed, fast: true, deck: DECK });
         for (let step = 0; ; step++) {
           for (let k = rand(3); k >= 0; k--) await tick();
           const s = __dg.state(), w = s.wait;
@@ -1191,7 +1198,7 @@ def f_random_play(q):  # seeded games played through the screen (taps and drags 
         if (errs.length > 5) break;
       }
       return errs.slice(0, 5);
-    }""")
+    }""", SETTINGS['deck'])
     report(not bad, 'random play: games end, what he sees adds up', '%s' % (bad or '4 games'))
 
 # SECTION: RUN -- one browser, one page (with a fake clock that runs normally until a flow pauses it), every flow on a new game

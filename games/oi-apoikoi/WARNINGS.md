@@ -6,9 +6,9 @@
 - In-page test loops wait with promise steps (await null), not timers or messages: those wait for the browser and made random play many times slower.
 - Never draw an SVG picture on the canvas every frame: draw it once onto its own canvas and draw that.
 - Time passes only for the current game: pause and hand moves never end for an old game, so old jars, moves and turns stop and never touch a new game. Never read the game state across an await without that.
-- The page's fake clock is paused with a date, not a number (a number after an earlier pause is refused); every fake second of real-speed play costs about half a real second.
+- The page's fake clock is paused with a date, not a number (a number after an earlier pause is refused).
 - Sounds at test speed are only noted (`__dg.sounds()`), never played: playing hundreds at once in random play cost about half a second.
-- Flows that only need the end of a wait jump the fake clock (skip: fast_forward, each due timer once); run_for steps every frame and costs about half a real second per fake second.
+- The test page draws no frames by itself (only settle draws): run_for then moves the fake clock through every timer cheaply; any game logic that waits on frames (requestAnimationFrame) stalls the tests: make it a timed tween (the PC's hand is one).
 - Build (run the harness) before staging: the committed page must be built from the committed source; a page staged before the build goes in stale.
 - A flow that samples the game's randomness is seeded (table(seed=...)): unseeded shares wander out of any tight band now and then, and the run fails at random.
 - At test speed timings are 0: never divide by a duration without guarding it (a reel with 0 ms gave NaN, drew an unknown face and stopped the PC's turn).
@@ -29,3 +29,4 @@
 - A canvas ignores a globalAlpha outside 0..1 and keeps the last one: clamp every computed alpha (a ruby fading below 0 flickered at full strength).
 - In-page test loops draw (render) before every tap: the buttons are where the last picture put them, and a stale one answers the new wait (a press on the held land changer hit its old place's button).
 - Every new timed look (a flight, a glow, rings, specks, the ruby) must be kept with lasts()/lastsMs(): the turn passes only when settled() finds nothing moving, and a look not kept lets the tick come during it.
+- Stickers differ by animal and face: a layout check loops over every animal with resting faces; one random pair made a check pass or fail by chance.
