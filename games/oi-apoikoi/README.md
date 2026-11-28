@@ -58,5 +58,19 @@ A playable game against the PC on one shared board in the new look (sea board of
 
 - Update the flow tests to the design phase so the commit check passes again.
 - Deck: built as a layer per round, each a tile's ground high, base on its stone; a full pile runs past the screen's top: owner to check and choose.
-- Owner to choose: let him use extra tiles and the land changer at other moments (while breaking jars, or when he must pass).
-- On 21:9 screens the free stone is too thin for the land changer (it overlaps the materials' icons): owner to choose its place there.
+- Let him use extra tiles and the land changer at other moments (while breaking jars, or when he must pass): owner to choose.
+- Land changer's place: halfway between its first place (middle of the free stone) and now; on 21:9 screens a third slot right below the two extra places, along the pool's edge like them.
+- Land changer stripes: the same way for both players (the right player's way now); the far yellow stripe solid, no brown line.
+- Each player can change only his own land with the land changer (the PC changed the kid's).
+- Sticker black outline: remake it (no blur) so its inner and outer edges are clean, one pixel steps, not blocky corners.
+- Extra tile and land changer: the same effect: a little more glow than now (less than before), stars in a smaller area and a third fewer, centred on the middle of the whole 3D tile (ground and height), not its top.
+- Materials into a jar still touch the rim: fix for good.
+- Jar mix: bee 3, extra tile 3, land changer 3, the 7 freed to the single coin.
+- 5-materials prize: its materials go into the stockpile one by one from the symbol, not vanishing and appearing from nowhere.
+- PC hand: wait before breaking a new jar until it has fallen and rests.
+- Tiles on the pool's edge squares are hidden behind the pool walls, never drawn over them.
+- All material flights (land to stockpile, stockpile to jar) one smooth motion profile (speed, trail), not steps along a path.
+- Stockpile overflow: waiting materials fly one by one as places free up, smoothly, never waiting and then all at once.
+- Bee: a bit more glow (it can't be seen now).
+- Sounds: the owner's ticking file = turn change, chime file = round change (files not received yet: ask him to attach them); half a second's pause before a round turns and before the PC acts.
+- End of game: no popup; two stone slabs (from the stone pictures, stood up tall), one per player, take his coins and the ruby; after counting and the victory, a smaller rectangular stone (two buttons wide) appears with the play again button, working like the top right buttons.
