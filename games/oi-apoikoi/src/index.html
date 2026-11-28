@@ -1202,14 +1202,15 @@ function drawDraft() {
     });
   });
   G.players.forEach((p, i) => {  // owner 28 Nov: what each player keeps, in its places; on his turn, before he picks, he can take it
-    const mine = wait && wait.kind === 'pick' && wait.who === i;
+    const mine = wait && wait.kind === 'pick' && wait.who === i, ch0 = p.changer, chHere = ch0 && ch0.here && !(wait && wait.kind === 'paint' && wait.who === i);
+    keptGlows([...p.extras.map((e, n) => e && e.here && fits(e.cs, i) ? [...giftSpot(i, n), e.cs, i ? 0 : 1, 1] : null).filter(v => v), ...(chHere ? [[...changerSpot(i), [ch0.c], 0, 1]] : [])]);  // what he keeps glows as one light
     p.extras.forEach((e, n) => { if (!e || !e.here) return; const [x, y] = giftSpot(i, n), ok = fits(e.cs, i), b = tileBox(x, y, 1, 0);
-      if (ok) giftTile(x, y, 1, e.cs, i ? 0 : 1); else tileShape(x, y, 1, e.cs, i ? 0 : 1, 'grey');
+      if (ok) giftTile(x, y, 1, e.cs, i ? 0 : 1, false); else tileShape(x, y, 1, e.cs, i ? 0 : 1, 'grey');
       drawn.push({ k: 'extra', o: i, n, x, y, cs: e.cs.slice(), ok });
       if (ok && mine) btn('extra-' + n, b.x - 12, b.y - 12, b.w + 24, b.h + 24, ev => { if (ev) press = { x: ev.clientX, y: ev.clientY, dx: x - ev.clientX, dy: y - ev.clientY, moved: false, taking: true }; answer({ extra: n }); });
     });
     const ch = p.changer; if (!ch || !ch.here || (wait && wait.kind === 'paint' && wait.who === i)) return;
-    const [x, y] = changerSpot(i), { hw, hh } = L(); changerShape(x, y, 1, ch.c);
+    const [x, y] = changerSpot(i), { hw, hh } = L(); changerShape(x, y, 1, ch.c, false, true);
     if (mine) btn('changer', x - hw - 12, y - 2 * hh - 12, 2 * hw + 24, 3 * hh + wallHigh() + 24, ev => { if (ev) press = { x: ev.clientX, y: ev.clientY, dx: x - ev.clientX, dy: y - ev.clientY, moved: false, taking: true }; answer({ changer: true }); });
   });
   const layers = pileLayers(G.bag.length), step = PILE_LAYER_H(), [px, top] = pileTop(), bottom = pileBase(), box = { x: px - 1.5 * hw - 2, y: top - 1.5 * hh - 2, w: 3 * hw + 4, h: bottom - top + 3 * hh + 4 };
@@ -1377,11 +1378,16 @@ function extraGlowOf(cs, r) {  // the tile's whole shape (ground and what stands
   const c = document.createElement('canvas'); c.width = one.width; c.height = one.height; const q = c.getContext('2d'); q.filter = `blur(${g * d / 2}px)`; for (let n = 0; n < 4; n++) q.drawImage(one, 0, 0);
   Object.assign(c, { ox, oy, cw: w, ch: h }); extraGlows.set(k, c); return c;
 }
-const EXTRA_STARS = 20, EXTRA_GLOW = '#ffe27a', EXTRA_SHINE = 1, EXTRA_GLOW_ALPHA = 0.55;  // owner 27 Nov: the glow brighter: a lighter gold, laid on adding light, EXTRA_SHINE times; more stars; owner 28 Nov: glowing less (once, fainter); then a little more, and a third fewer stars in a smaller area round the middle of the whole tile
-function extraGlow(x, y, cs, r, z) {  // owner 27 Nov: a bright golden glow all round the extra tile (as the stickers' glow), breathing, and small stars popping up here and there round it; z: the tile's size, as drawn (1.06 in hand)
-  const now = fast ? 0 : performance.now(), c = extraGlowOf(cs, Math.round(r) % 4), k = z / 1.06;
-  const alpha = EXTRA_GLOW_ALPHA + 0.1 * Math.sin(now / 300); cx.globalAlpha = alpha; cx.globalCompositeOperation = 'lighten';  // owner 28 Nov: where two glows meet the brighter one shows, they do not add up (adding light blew out)
-  for (let n = 0; n < EXTRA_SHINE; n++) cx.drawImage(c, x - c.ox * k, y - c.oy * k, c.cw * k, c.ch * k); cx.globalCompositeOperation = 'source-over'; cx.globalAlpha = 1; drawn.push({ k: 'extraglow', x, y, col: EXTRA_GLOW, mode: 'lighter', shine: EXTRA_SHINE, alpha: EXTRA_GLOW_ALPHA + 0.1 });
+const EXTRA_STARS = 20, EXTRA_GLOW = '#ffc23a', EXTRA_SHINE = 1, EXTRA_GLOW_ALPHA = 0.8;  // owner 27 Nov: the glow brighter: a lighter gold, laid on adding light, EXTRA_SHINE times; more stars; owner 28 Nov: glowing less (once, fainter); then a little more; then plainly seen on the light stone (a deeper gold laid over it, as the stickers' glow), and a third fewer stars in a smaller area round the middle of the whole tile
+let glowPad = null;  // the shared layer the glows are laid into
+function extraGlow(...one) { keptGlows([one]); }  // one glow: x, y, cs, r, z
+function keptGlows(list) {  // owner 27 Nov: a golden glow all round each extra tile and the land changer (as the stickers' glow), breathing; each item [x, y, cs, r, z] (z: its size as drawn, 1.06 in hand)
+  // owner 28 Nov: where glows meet the brighter one shows (they are laid into one layer keeping the brightest); the layer is laid over what is under it, as the stickers' glow, so it is plainly seen
+  const now = fast ? 0 : performance.now(), d = devicePixelRatio || 1, alpha = EXTRA_GLOW_ALPHA + 0.1 * Math.sin(now / 300);
+  if (!glowPad) glowPad = document.createElement('canvas'); if (glowPad.width !== Math.ceil(W * d) || glowPad.height !== Math.ceil(H * d)) { glowPad.width = Math.ceil(W * d); glowPad.height = Math.ceil(H * d); }
+  const g = glowPad.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, W, H); g.globalCompositeOperation = 'lighten';
+  list.forEach(([x, y, cs, r, z]) => { const c = extraGlowOf(cs, Math.round(r) % 4), k = z / 1.06; g.drawImage(c, x - c.ox * k, y - c.oy * k, c.cw * k, c.ch * k); drawn.push({ k: 'extraglow', x, y, col: EXTRA_GLOW, mode: 'over', shine: EXTRA_SHINE, alpha: EXTRA_GLOW_ALPHA + 0.1 }); });
+  cx.save(); cx.setTransform(1, 0, 0, 1, 0, 0); cx.globalAlpha = alpha; cx.drawImage(glowPad, 0, 0); cx.restore();
 }
 function extraStars(x, y, z, r = 0, halves = 2) {  // owner 28 Nov: the stars' oval lies on the tile, its long side along it (halves: 2 a tile, 1 the changer's square); the same stars for both
   const { hw, hh } = L(), [dx, dy] = turnDir(r), a = (halves === 2 ? 1.2 : 0.8) * z, b = 0.8 * z, u = [(dx - dy) * hw * a, (dx + dy) * hh * a], v = [(-dy - dx) * hw * b, (dx - dy) * hh * b];
@@ -1397,7 +1403,7 @@ function sparkles(mx, my, o) {  // small stars popping up evenly round an oval (
   cx.globalAlpha = 1;
   drawn.push({ k: o.kind, x: mx, y: my, n: list.length, size: o.size, rx: o.rx, ry: o.ry, u: o.u, halves: o.halves, mean: list.length ? [list.reduce((v, p) => v + p[0], 0) / list.length, list.reduce((v, p) => v + p[1], 0) / list.length] : null });
 }
-function changerShape(x, y, z, c, glow = true) {  // owner 28 Nov: it always shines as the extra tile does (glow false: its bare shape, for the glow's own picture)
+function changerShape(x, y, z, c, glow = true, stars = glow) {  // owner 28 Nov: it always shines as the extra tile does (glow false: its bare shape, for the glow's own picture)
   // owner 28 Nov: the land changer, one square: first a stripe of each land's ground (top and earth, nothing standing on it), then the land it is turned to
   // the stripes run along the board's upper right edge, the same way for both players (owner 28 Nov)
   if (glow) extraGlow(x, y, [c], 0, z);
@@ -1408,10 +1414,10 @@ function changerShape(x, y, z, c, glow = true) {  // owner 28 Nov: it always shi
       cx.clip(); groundAt(l, x, y, z); cx.restore(); });
     const far = order[0], [p0, p1, p2, p3] = [P(0, 0), P(1 / n, 0), P(1 / n, 1), P(0, 1)];  // owner 28 Nov: the far stripe's top solid, no lines on it
     if (topColour(far)) { cx.beginPath(); cx.moveTo(...p0); [p1, p2, p3].forEach(q => cx.lineTo(...q)); cx.closePath(); cx.fillStyle = topColour(far); cx.fill(); } }
-  if (glow) extraStars(x, y, z, 0, 1);
+  if (stars) extraStars(x, y, z, 0, 1);
   drawn.push({ k: 'changer', x, y, z, c, glow: !!glow });
 }
-function giftTile(x, y, z, cs, r) { extraGlow(x, y, cs, r, z); tileShape(x, y, z, cs, r); extraStars(x, y, z, r); }  // owner 27 Nov: the extra tile shines from the moment it comes out of its jar
+function giftTile(x, y, z, cs, r, glow = true) { if (glow) extraGlow(x, y, cs, r, z); tileShape(x, y, z, cs, r); extraStars(x, y, z, r); }  // glow false: its glow is laid with others (glows)  // owner 27 Nov: the extra tile shines from the moment it comes out of its jar
 function drawPaint() {  // owner 28 Nov: the land changer in hand, and the square it will change: its new land shown faded, its outline dashed in white (as a tile's place)
   const sp = paintSpot(), [x, y] = wait.pos, ch = G.players[wait.who].changer;
   if (sp) { const [gx, gy] = squareCentre(sp.x, sp.y); cx.save(); cx.globalAlpha = 0.55; groundAt(ch.c, gx, gy, 1); thingsAt(ch.c, gx, gy, 1); cx.restore();
