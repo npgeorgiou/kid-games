@@ -97,7 +97,7 @@ function sound(name, times) {
 
 // SECTION: MODEL -- the shared board, tiles, matches, goods and sets
 let G = null, tileNo = 1;
-function newPlayer(human) { return { human, hold: 0, goods: noGoods(), coming: noGoods(), coins: 0, jarList: [], reserved: new Set(), planned: [], get jars() { return this.jarList.filter(j => !j.filling).length; }, opened: {}, got: 0, passes: 0, extras: [null, null], changer: { c: -1, here: true }, gotFrom: {} }; }  // jarList: each waiting jar {slot, fresh, parked}; reserved: places of jars on their way; opened: what his jars held, by kind
+function newPlayer(human) { return { human, hold: 0, goods: noGoods(), coming: noGoods(), toJar: noGoods(), coins: 0, jarList: [], reserved: new Set(), planned: [], get jars() { return this.jarList.filter(j => !j.filling).length; }, opened: {}, got: 0, passes: 0, extras: [null, null], changer: { c: -1, here: true }, gotFrom: {} }; }  // jarList: each waiting jar {slot, fresh, parked}; reserved: places of jars on their way; opened: what his jars held, by kind
 const key = (x, y) => x + ',' + y;
 function halves(x, y, r) { const d = DIRS[r]; return [[x, y], [x + d[0], y + d[1]]]; }
 const cellMark = (x, y, c, o) => Math.imul((((x * 31 + y) * 7 + c) * 2 + o) + 1, 2654435761) ^ (x * 0x9E3779B1 + y);  // a number per square, colour and owner
@@ -280,7 +280,7 @@ async function gain(i, list, gap) {  // list: [colour, from, sound, step, square
   list.forEach(([, , , step, sq]) => { if (sq) pause(step * gap).then(() => { if (G === my) { G.pops.push({ sq, t0: performance.now() }); lastsMs(POP_MS); } }); });  // the ripple keeps its own time: a jar being made never holds it up (owner 25 Nov: all motion fluid)
   await Promise.all(list.map(([c, from, noise, step, sq], k) => (line[c] = Promise.all([line[c], pause((step ?? k) * gap)]).then(async () => {
     if (G !== my) return;
-    const fills = p.goods[c] + p.coming[c] + 1 >= JAR_GOODS, f = goodFrom(i, c, from, noise); going.push(f);
+    const fills = p.goods[c] + p.coming[c] - p.toJar[c] + 1 >= JAR_GOODS, f = goodFrom(i, c, from, noise); going.push(f); if (fills) p.toJar[c] += JAR_GOODS;  // goods a jar already waits for are not counted again (two prizes at once made 3 jars of one row, and it went below 0)
     if (fills) { going.push(...await makeJar(i, c, f)); await pause(JAR_GOODS * STAGGER); }  // by then the last of the row has left
   }))));
   await Promise.all(going);
@@ -380,7 +380,7 @@ async function makeJar(i, c, landing) {  // a full row of colour c: its jar drop
   // it keeps its size and goes out of sight below the rim
   const r = stock(i).r, h = JAR_SIZE() * JAR_TALL, rim = { x: at[0], y: at[1] - h * 0.47, w: h * JAR_ASPECT, h: h * 0.97 }, mouth = [at[0], rim.y + 1.3 * r], via = g0 => [mouth[0], Math.min(g0[1], rim.y) - JAR_SIZE() * INTO_HIGH];
   const goods = [...Array(JAR_GOODS).keys()].map(g => pause(g * STAGGER).then(() => {
-    if (G !== my) return; const from = slotPos(i, c, p.goods[c] - 1); p.goods[c]--; sound('into');
+    if (G !== my) return; const from = slotPos(i, c, p.goods[c] - 1); p.goods[c]--; p.toJar[c]--; sound('into');
     return fly({ k: 'good', c, o: i, rim }, from, mouth, INTO_MS, { via: via(from), ease: u => u }).then(() => G === my && g === JAR_GOODS - 1 && sound('made'));
   }));
   return [Promise.all(goods).then(() => { if (G === my) { p.jarList.find(j => j.slot === slot).filling = false; jarReady(p); } })];  // owner 28 Nov: a jar can be broken only once all its materials are in

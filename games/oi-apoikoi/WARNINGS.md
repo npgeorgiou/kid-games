@@ -30,3 +30,5 @@
 - In-page test loops draw (render) before every tap: the buttons are where the last picture put them, and a stale one answers the new wait (a press on the held land changer hit its old place's button).
 - Every new timed look (a flight, a glow, rings, specks, the ruby) must be kept with lasts()/lastsMs(): the turn passes only when settled() finds nothing moving, and a look not kept lets the tick come during it.
 - Stickers differ by animal and face: a layout check loops over every animal with resting faces; one random pair made a check pass or fail by chance.
+- In-page test taps wait a tick between pointerdown and pointerup: the game answers a press asynchronously, and a lift before it lands is lost (the land changer stayed in hand).
+- Two harvests or prizes of one colour at once can each think they fill the row: goods a jar already waits for (toJar) are never counted again.

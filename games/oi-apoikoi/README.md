@@ -31,7 +31,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `art/sounds/watertap.mp3`: the water tap sound, taken from the architects game (`map-tap-water`, at its volume).
 - `art/sounds/turn.mp3`, `dawn.mp3`: the owner's grandfather clock ticking (a turn changes) and chime (a round changes, with the morning light).
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
-- `tools/flows.py`: flow tests, one per owner rule and bug report, a main test playing a whole fixed game, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 18 s on a 2-core machine).
+- `tools/flows.py`: the tests (only the rules he plays by): one whole-game run on the short deck with set seeds for the tiles and the jars, checking every rule after every move, then short tests for rules that need a set start or many samples, and seeded random play; `tools/harness.py` builds and runs them (two browsers side by side, about 15 s on a 2-core machine).
 - `tools/test_page.py`: a test copy of the built game with other jar odds, to try a rule by hand (`python3 tools/test_page.py out.html coins=50 tile=50`).
 - `tools/sim.py`: the simulation: plays seeded games through the screen and reports, per player, jars and where they came from, coins (lowest, highest, mean) and what the jars held (`python3 tools/sim.py [games] [random|best]`, the kid playing at random or for the most connections). Run it before every rule change and tell the owner the numbers.
 - `tools/test-settings.json`: the test games' settings (`deck`: how many tiles the pile holds, a short game).
@@ -51,14 +51,12 @@ A playable game against the PC on one shared board in the new look (sea board of
 
 - The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` section 6.
-- Design phase: 20 old flow steps are commented out (owner 28 Nov) and the full run takes about 62 s (limit 30 s), so the commit check refuses changes; work goes in with the check off at the owner's order.
 - Players are animal stickers (a random pair per game) whose faces follow what happens to them and to the other; the bee shows who plays first next round; the coin leader has a ruby on his bottom stone.
 - Stone look (owner close to happy, 27 Nov): rules in the project doc `claude/oi-apoikoi-stone-rules.md`.
 - Extra tiles and the land changer are used only on his turn before he picks; with no market tile he can take, his turn passes even if an extra tile fits.
 
 ## Task list
 
-- Tests snappy (full run within 30 s, now about 62 s): one whole-game run with set seeds for the tiles and the jars, on a short deck from the test settings file (2 or 3 rounds), that plays every scenario and checks every owner rule at its place; no tests that wait for states; then the 20 commented-out old steps go into it.
 - Deck: built as a layer per round, each a tile's ground high, base on its stone; a full pile runs past the screen's top: owner to check and choose.
 - Let him use extra tiles and the land changer at other moments (while breaking jars, or when he must pass): owner to choose.
 - Sticker black outline: remake it (no blur) so its inner and outer edges are clean, one pixel steps, not blocky corners.
