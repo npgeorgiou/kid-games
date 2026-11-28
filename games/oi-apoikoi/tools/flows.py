@@ -191,12 +191,14 @@ def f_connections(q):  # owner 25 Nov (prototype): each connection (matching edg
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2})  # the 0 half meets the start tile's 0: one connection
     land = [(3, 10), (4, 10), (4, 11), (5, 11), (6, 11), (7, 11)]; at = {tuple(round(v) for v in q.evaluate("([x,y])=>__dg.square(x,y)", sq)): sq for sq in land}
     order, drops, glows, ms = [], 0, 0, 0
+    quiet = 0
     while ms < 6000:
         skip(q, 50); ms += 50; d = drawn(q, 'flight'); glows = max(glows, len(drawn(q, 'edgeglow')))
         order += [at[(round(x['fx']), round(x['fy']))] for x in d if x['look'] == 'good' and (round(x['fx']), round(x['fy'])) in at and at[(round(x['fx']), round(x['fy']))] not in order]
         drops = max(drops, sum(1 for x in d if x['look'] == 'jar' and x['fy'] < 0))
         w = st(q)['wait']
-        if w and w['kind'] == 'jar': break
+        quiet = quiet + 50 if w and w['kind'] == 'jar' and not drawn(q, 'flight') else 0
+        if quiet >= 1000: break  # all in: nothing has moved for a second (owner 28 Nov: he may break full jars while the rest still come)
     p = st(q)['players'][0]; q.clock.resume()
     ok = glows == 1 and order == land and p['goods'][0] == 1 and p['jars'] == 2 and drops >= 1
     report(ok, 'connections: a jar each; the connected land lights up', 'edges glowing %d; materials from %s; goods %s; jars %d; jars dropping from the top at once %d' % (glows, order, p['goods'], p['jars'], drops))
@@ -254,11 +256,13 @@ def f_goods_into_neck(q):  # owner 27 Nov: "the goods that go into jars now, don
 def f_row_never_overflows(q):  # owner 24 Nov: a row never needs more than 5 places: a tile giving 2 goods to a row of 4 fills it, the 5 fly into a jar, and the 6th good takes the first place
     pause_clock(q); table(q, fast=False, bag=[[0, 0]] * 4, tiles=[[4, 11, 0, 0, 0, 0]], goods=[[4, 0, 0, 0, 0, 0], [0] * 6], jarQueue=[COIN] * 8)
     xs = sorted(x['x'] for x in drawn(q, 'place') if x['o'] == 0 and x['c'] == 0); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 1}); most, targets, ms = 0, set(), 0  # 2 connections lighting 5 squares of colour 0: 4 + 5 goods
+    quiet = 0
     while ms < 5000:
         skip(q, 50); ms += 50; most = max(most, sum(1 for x in drawn(q, 'good') if x['o'] == 0 and x['c'] == 0))
         targets |= {round(x['tx']) for x in drawn(q, 'flight') if x['look'] == 'good' and x['fx'] > xs[-1] + 40}  # goods flying from the board to the stockpile
         w = st(q)['wait']
-        if w and w['kind'] == 'jar': break
+        quiet = quiet + 50 if w and w['kind'] == 'jar' and not drawn(q, 'flight') else 0
+        if quiet >= 1000: break  # all in: nothing has moved for a second (owner 28 Nov: he may break full jars while the rest still come)
     g = st(q)['players'][0]; q.clock.resume()
     ok = most <= 5 and targets <= {round(v) for v in xs} and g['goods'][0] == 4 and g['jars'] == 3  # 2 connection jars and 1 of 5 goods
     report(ok, 'stockpile: a full row becomes a jar before the next good', 'most goods in the row %d, goods flew to places %s (row %s), left %d, jars %d' % (most, sorted(targets), [round(v) for v in xs], g['goods'][0], g['jars']))
@@ -869,6 +873,28 @@ def f_square_jumps(q):  # owner 28 Nov (later): "half tiles that jump on harvest
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2})
     run_until(q, "()=>__dg.drawn().some(d=>d.k==='square'&&d.up>0)", 3000); up = [d for d in drawn(q, 'square') if d.get('up', 0) > 0]; copies = drawn(q, 'pop'); q.clock.resume()
     report(bool(up) and not copies, 'harvest: the square itself jumps', 'squares lifted %d; copies drawn over them %d' % (len(up), len(copies)))
+def f_jar_never_vanishes(q):  # owner 28 Nov (later): "falling jars momentarily disappear"
+    pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, goods=[[4] * 6, [0] * 6], jarQueue=[{'k': 'set'}] + [COIN] * 12)  # a connection's jar, then jars made from materials
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); seen, gaps, ms = 0, [], 0
+    while ms < 8000:
+        q.clock.run_for(20); ms += 20; v = q.evaluate("()=>{__dg.render(); const d=__dg.drawn(); return [d.filter(x=>x.k==='flight'&&x.look==='jar').length, d.filter(x=>x.k==='jar'&&x.o===0).length]}")
+        n = v[0] + v[1]
+        if n < seen: gaps.append((ms, seen, n))
+        seen = n
+        w = st(q)['wait']
+        if w and w['kind'] == 'jar' and w['who'] == 0: break
+    q.clock.resume()
+    report(not gaps, 'jars: a falling jar never vanishes', 'moments a jar went missing (ms, before, after): %s' % gaps[:5])
+def f_break_ready_jars(q):  # owner 28 Nov (later): "i must be able to break jars that dont wait for any more materials"
+    pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, goods=[[4] * 6, [0] * 6], jarQueue=[COIN] * 12)  # a connection's jar is full at once; its lit land's materials still fly and fill more jars
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); ms, flying = 0, None
+    while ms < 8000 and flying is None:
+        q.clock.run_for(50); ms += 50; v = q.evaluate("()=>{__dg.render(); const s=__dg.state(); return [!!(s.wait&&s.wait.kind==='jar'&&s.wait.who===0&&__dg.buttons().some(b=>b.startsWith('jar-'))), __dg.buttons().find(b=>b.startsWith('jar-')), __dg.drawn().some(x=>x.k==='flight'&&(x.look==='good'||x.look==='jar'))]}")
+        if v[0]: flying, jar = v[2], v[1]
+    if flying: tap(q, jar); broke = 'jar' in q.evaluate("()=>__dg.sounds()")
+    else: broke = False
+    q.clock.resume()
+    report(bool(flying) and broke, 'jars: a full jar breaks while materials still fly', 'he could break one while materials or jars still came %s; it broke %s' % (flying, broke))
 def f_changer_jar(q):  # owner 28 Nov: "it will be able to be refreshed by a jar (same glowing as the extra tiles, but only when given from a jar), it is NOT given from jars when you have it already, then its percentage goes to the coin"
     get_jar(q, [{'k': 'changer'}], changer=[None, None]); waiting(q, 'pick'); s = st(q); lit = lambda: [d for d in drawn(q, 'changer') if d['z'] == 1 and any(abs(g['x'] - d['x']) < 1 and abs(g['y'] - d['y']) < 1 for g in drawn(q, 'extraglow'))]; ch = lit()  # a glow laid where it is
     table(q, bag=[[0, 4]] * 4, seed=11); n = 4000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n); table(q); plain = lit()

@@ -294,7 +294,7 @@ async function dropJar(i, from, slot = G.players[i].planned.shift() ?? freeSlot(
   // the place is asked each frame, so it lands on it even if its line re-centres meanwhile
   const my = G, p = G.players[i]; G.jarWho = i; p.reserved.add(slot); const target = () => jarSpot(slot, places(p)), start = from || [target()[0], -JAR_SIZE()];
   await fly({ k: 'jar' }, start, target(), DROP_MS, { arc: 0, target, source: from ? undefined : () => [target()[0], -JAR_SIZE()], ease: fall }); if (G !== my) return target();
-  p.reserved.delete(slot); p.jarList.push({ slot, fresh: true, filling }); sound('jarland'); return jarSpot(slot, places(p));
+  p.reserved.delete(slot); p.jarList.push({ slot, fresh: true, filling }); if (!filling) jarReady(p); sound('jarland'); return jarSpot(slot, places(p));
 }
 // A connection's jar (owner 26 Nov; the source shows itself, then the thing comes out of it), one motion: 1. the edge glows; 2. the jar grows out of the edge, its foot on it,
 // over EDGE_GROW_MS (eased out); 3. once it has grown EDGE_IN_PLACE of the way (EDGE_GO_MS), it flies straight to its place over EDGE_GLIDE_MS (eased in and out), growing the rest on the way.
@@ -304,7 +304,7 @@ async function edgeJar(i, at, slot) {
   const path = u => { const z = 0.1 + 0.9 * easeOut(Math.min(1, u * EDGE_JAR_MS / EDGE_GROW_MS)), foot = [at[0], at[1] - JAR_SIZE() * JAR_TALL / 2 * z], v = Math.max(0, (u * EDGE_JAR_MS - EDGE_GO_MS) / EDGE_GLIDE_MS), e = easeInOut(v), t = target();
     return [foot[0] + (t[0] - foot[0]) * e, foot[1] + (t[1] - foot[1]) * e, z]; };
   await fly({ k: 'jar' }, at, target(), EDGE_JAR_MS, { path, target }); if (G !== my) return;
-  p.reserved.delete(slot); p.jarList.push({ slot, fresh: true }); counted(p, 'edge'); sound('jarland');
+  p.reserved.delete(slot); p.jarList.push({ slot, fresh: true }); jarReady(p); counted(p, 'edge'); sound('jarland');
 }
 async function dawn() { G.dawn = performance.now(); sound('dawn'); await pause(DAWN_MS); }  // a round's start is its own moment: morning light sweeps over (land makes no goods, owner 24 Nov)
 
@@ -382,7 +382,7 @@ async function makeJar(i, c, landing) {  // a full row of colour c: its jar drop
     if (G !== my) return; const from = slotPos(i, c, p.goods[c] - 1); p.goods[c]--; sound('into');
     return fly({ k: 'good', c, o: i, rim }, from, mouth, INTO_MS, { via: via(from), ease: u => u }).then(() => G === my && g === JAR_GOODS - 1 && sound('made'));
   }));
-  return [Promise.all(goods).then(() => { if (G === my) p.jarList.find(j => j.slot === slot).filling = false; })];  // owner 28 Nov: a jar can be broken only once all its materials are in
+  return [Promise.all(goods).then(() => { if (G === my) { p.jarList.find(j => j.slot === slot).filling = false; jarReady(p); } })];  // owner 28 Nov: a jar can be broken only once all its materials are in
 }
 async function pass(i) { G.players[i].passes++; sound('pass'); feel(i, 'sad'); G.passing = i; if (!G.players[i].human) G.hand.g = 'raised'; await pause(1200); G.passing = null; G.hand.g = 'point'; }  // a skipped turn: only its sound (owner 25 Nov); the PC raises its hand
 const pickable = (k, i) => fits(G.draft[k], i);  // fits his land
@@ -417,9 +417,8 @@ async function harvest(i, edges) {  // what new connections give (a placed tile'
   // owner 26 Nov: every jar this placing gives gets its place first (its connections' jars and the jars its full columns make), so the lines never re-centre while they fly
   const lit = litLand(edges), P = G.players[i], fills = COLOUR_IDS.reduce((n, c) => n + Math.floor((P.goods[c] + P.coming[c] + lit.filter(l => l[0] === c).length) / JAR_GOODS), 0), keep = () => { const k = freeSlot(P); P.reserved.add(k); return k; };
   const edgeSlots = edges.map(keep); P.planned.push(...Array.from({ length: fills }, keep));
-  await Promise.all([gain(i, lit, RIPPLE_STEP), ...edges.map((e, k) => edgeJar(i, edgePoint(e.x, e.y, e.d), edgeSlots[k]))]); P.planned.splice(0).forEach(k => P.reserved.delete(k));  // a jar for each connection drops in while its land's materials fly; a place kept for a jar that never came is free again
-  if (G !== my) return false;
-  await openJars(i); return true;
+  const coming = Promise.all([gain(i, lit, RIPPLE_STEP), ...edges.map((e, k) => edgeJar(i, edgePoint(e.x, e.y, e.d), edgeSlots[k]))]).then(() => P.planned.splice(0).forEach(k => P.reserved.delete(k)));  // a jar for each connection drops in while its land's materials fly; a place kept for a jar that never came is free again
+  await openJars(i, coming); return G === my;  // owner 28 Nov: he breaks each jar as soon as it is full, while the rest still come
 }
 // What he keeps (owner 28 Nov), used for free on his turn before he picks:
 // 1. an extra tile: taken from its place it is in hand as a market tile is (tap to turn, drag, leave anywhere); it is placed when it snaps, or left on an empty extra place it goes back there;
@@ -485,11 +484,12 @@ function drawJar() {
   let u = rnd() * all; for (const [k, v] of mix) { u -= v; if (u < 0) return { k }; }
   return { k: 'coins' };
 }
-async function openJars(i) {  // tap jars as fast as he likes (owner 25 Nov): each breaks at once where it stands, leaving its place empty; what it held pops up above it,
+const jarReady = p => { const w = p.wake; p.wake = null; if (w) w(); };  // a jar can now be broken: wake the one waiting for it
+async function openJars(i, coming = Promise.resolve()) {  // coming: what is still on its way (jars, materials filling jars)  // tap jars as fast as he likes (owner 25 Nov): each breaks at once where it stands, leaving its place empty; what it held pops up above it,
   // stays a moment, then flies to its place
-  const p = G.players[i], my = G, open = new Set(); G.jarWho = i;
-  while (G === my && (p.jars > 0 || open.size)) {
-    if (!p.jars) { await Promise.race(open); continue; }  // a prize still on its way may bring more jars
+  const p = G.players[i], my = G, open = new Set(); let done = false; coming.then(() => { done = true; jarReady(p); }); G.jarWho = i;
+  while (G === my && (p.jars > 0 || open.size || !done)) {
+    if (!p.jars) { await Promise.race([...open, new Promise(r => { p.wake = r; })]); continue; }  // a prize, or the harvest, may still bring jars
     const k = await choose('jar', i, {}, async () => { const jar = p.jarList[firstJar(p)]; await jar.rests; if (G === my) await pcTap('jar-' + p.jarList.indexOf(jar)); }) || 0;  // the PC's hand waits for a new jar to rest if (G !== my) return;
     const jar = p.jarList[k], at = jarAt(jar, p), j = rollJar(i); p.hold = places(p); p.jarList.splice(k, 1); p.opened[j.k] = (p.opened[j.k] || 0) + 1;
     if (j.k === 'tile') { j.cs = freeTile(i); if (j.cs) { j.n = p.extras.indexOf(null); p.extras[j.n] = { cs: j.cs, here: false }; } }  // the gift tile is known when the jar breaks, so the jar shows it; its place is kept
@@ -508,7 +508,7 @@ async function openJars(i) {  // tap jars as fast as he likes (owner 25 Nov): ea
 // A jar in a jar (owner 27 Nov: "you should be able to break an extra jar even at its freeze state"): it is a jar from the moment it comes out, so he can break it at any time:
 // 1. it jumps out of the broken jar and grows (RISE_MS); 2. it hangs there (SHOW_MS); 3. it drops into the broken jar's place (DROP_MS, owner 26 Nov: just drop). Where it is drawn: jarRise.
 function jarInJar(i, nj) {  // rests: when it has fallen into its place (the PC breaks it only then, owner 28 Nov)
-  const my = G, p = G.players[i], live = () => G === my && p.jarList.includes(nj); p.jarList.push(nj); counted(p, 'jar');
+  const my = G, p = G.players[i], live = () => G === my && p.jarList.includes(nj); p.jarList.push(nj); jarReady(p); counted(p, 'jar');
   return nj.rests = (async () => {
     await pause(RISE_MS); if (!live()) return; sound('reveal'); feel(i, JAR_FEELS.jar);
     await pause(SHOW_MS + DROP_MS); if (!live()) return; delete nj.born; sound('jarland');
@@ -1541,7 +1541,7 @@ function render() {  // one picture of the game; it also lays out the buttons th
   if (G.dawn != null) drawDawn();
   if (wait && wait.kind === 'place') drawHeld();
   if (wait && wait.kind === 'paint') drawPaint();
-  if ((wait && wait.kind === 'jar') || G.shown.length || (G.jarWho != null && G.players[G.jarWho].jars)) drawJars();  // jars waiting to be opened are always drawn
+  if ((wait && wait.kind === 'jar') || G.shown.length || (G.jarWho != null && G.players[G.jarWho].jarList.length)) drawJars();  // every jar is always drawn, those still being filled too
   if (G.ending) drawEnd();
   drawFlights(); drawSpecks(); hand(G.hand);
 }
