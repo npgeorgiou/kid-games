@@ -27,7 +27,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `art/things/stone-slab-1.png`, `stone-slab-2.png`: the owner's two stone slab pictures (free to use, he says), cut from their background (`tools/cut_pictures.py`); every area's stone top is one of them.
 - `art/things/apple.png`: the owner's bitten apple (his 28 Nov transparent file, trimmed by `tools/cut_pictures.py`): a jar with nothing.
 - `art/things/bee.png`: the first-player bee, the owner's picture (cut from its background); `art/things/ruby.png`: the owner's ruby (his transparent file, trimmed), on the bottom stone of whoever has the most coins, beside his materials.
-- `art/avatars/<animal>-<face>.png`: the players' stickers, 6 animals x 5 faces (neutral, happy, excited, surprised, sad), cut from the owner's two sheets by `tools/cut_stickers.py` (soft black edge; all look right, toward the pool).
+- `art/avatars/<animal>-<face>.png`: the players' stickers, 6 animals x 5 faces (neutral, happy, excited, surprised, sad), cut from the owner's two sheets by `tools/cut_stickers.py` (a clean black edge, no blur; `--edges` remakes only the edge; all look right, toward the pool).
 - `art/sounds/watertap.mp3`: the water tap sound, taken from the architects game (`map-tap-water`, at its volume).
 - `art/sounds/turn.mp3`, `dawn.mp3`: the owner's grandfather clock ticking (a turn changes) and chime (a round changes, with the morning light).
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
@@ -59,5 +59,4 @@ A playable game against the PC on one shared board in the new look (sea board of
 
 - Deck: built as a layer per round, each a tile's ground high, base on its stone; a full pile runs past the screen's top: owner to check and choose.
 - Let him use extra tiles and the land changer at other moments (while breaking jars, or when he must pass): owner to choose.
-- Sticker black outline: remake it (no blur) so its inner and outer edges are clean, one pixel steps, not blocky corners.
 - End of game: no popup; two stone slabs (from the stone pictures, stood up tall), one per player, take his coins and the ruby; after counting and the victory, a smaller rectangular stone (two buttons wide) appears with the play again button, working like the top right buttons.
