@@ -58,7 +58,7 @@ A playable game against the PC on one shared board in the new look (sea board of
 
 ## Task list
 
-- Tests: make the full run fit its 30 s limit (now about 62 s): one seeded whole game on the short deck checking every owner rule at its place, a few short checks from set tables, no polling loops; then update the 20 commented-out old steps into it.
+- Tests snappy (full run within 30 s, now about 62 s): one whole-game run with set seeds for the tiles and the jars, on a short deck from the test settings file (2 or 3 rounds), that plays every scenario and checks every owner rule at its place; no tests that wait for states; then the 20 commented-out old steps go into it.
 - Deck: built as a layer per round, each a tile's ground high, base on its stone; a full pile runs past the screen's top: owner to check and choose.
 - Let him use extra tiles and the land changer at other moments (while breaking jars, or when he must pass): owner to choose.
 - Sticker black outline: remake it (no blur) so its inner and outer edges are clean, one pixel steps, not blocky corners.
