@@ -818,6 +818,21 @@ def f_changer_stripes(q):  # owner 28 Nov: "land changer stripes: the same way f
     far = [px(c['x'] + (v - 0.08) * hw, c['y'] + (v - 0.92) * hh) for c in ch[:1] for v in (0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75)]
     spread = max(max(p[k] for p in far) - min(p[k] for p in far) for k in range(3))
     report(same >= 0.85 and spread < 25, 'land changer: stripes one way for both, far stripe solid', 'same picture %.0f%% of the points; far stripe colours spread %d' % (100 * same, spread))
+def centroid(pts):  # a polygon's middle (its area's centre: the standard shoelace formula)
+    a = cx = cy = 0
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]): k = x0 * y1 - x1 * y0; a += k; cx += (x0 + x1) * k; cy += (y0 + y1) * k
+    return [cx / (3 * a), cy / (3 * a)]
+def f_changer_place(q):  # owner 28 Nov: "land changer's place: halfway between its first place (middle of the free stone) and now; on 21:9 screens a third slot right below the two extra places, along the pool's edge like them"
+    seen, ok = [], True
+    for w, h in ((1280, 800), (1920, 1080), (2560, 1080), (3440, 1440)):
+        q.set_viewport_size({'width': w, 'height': h}); table(q); settle(q)
+        ch = [d for d in drawn(q, 'changerplace') if d['o'] == 0][0]; green = [d for d in drawn(q, 'icon') if d['o'] == 0 and d['c'] == 1][0]
+        dead = [d for d in drawn(q, 'area') if d['o'] == 0 and d['kind'] == 'dead'][0]['pts']; mid = centroid(dead); g = sorted((d for d in drawn(q, 'giftplace') if d['o'] == 0), key=lambda d: d['n'])
+        if w / h > 2.2: good = abs(ch['x'] - (2 * g[1]['cx'] - g[0]['cx'])) < 3 and abs(ch['y'] - (2 * g[1]['y'] - g[0]['y'])) < 3  # 21:9: the third place along the edge
+        else: good = abs(ch['x'] - (mid[0] + green['x']) / 2) < 2 and min(p[1] for p in dead) < ch['y'] < mid[1]
+        ok = ok and good; seen.append((w, h, good))
+    q.set_viewport_size({'width': 1280, 'height': 800})
+    report(ok, 'land changer: halfway to the stone\'s middle; on 21:9 below the extra places', '(screen, in place) %s' % seen)
 def f_changer_jar(q):  # owner 28 Nov: "it will be able to be refreshed by a jar (same glowing as the extra tiles, but only when given from a jar), it is NOT given from jars when you have it already, then its percentage goes to the coin"
     get_jar(q, [{'k': 'changer'}], changer=[None, None]); waiting(q, 'pick'); s = st(q); ch = [d for d in drawn(q, 'changer') if d['z'] == 1]
     table(q, bag=[[0, 4]] * 4, seed=11); n = 4000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n); table(q); plain = [d for d in drawn(q, 'changer') if d['z'] == 1]
@@ -839,11 +854,11 @@ def f_layout_28nov(q):  # owner 28 Nov: "On 3:2 screens the avatars run past the
         q.set_viewport_size({'width': w, 'height': h}); table(q, animals=['hamster', 'chick']); settle(q)
         a = [d['shown'] for d in drawn(q, 'avatar')]; inside = all(s['x'] - s['w'] / 2 >= 0 and s['x'] + s['w'] / 2 <= w for s in a)
         ch = [d for d in drawn(q, 'changerplace') if d['o'] == 0][0]; green = [d for d in drawn(q, 'icon') if d['o'] == 0 and d['c'] == 1][0]; dead = [d for d in drawn(q, 'area') if d['o'] == 0 and d['kind'] == 'dead'][0]['pts']
-        top = min(p[1] for p in dead); hh = q.evaluate("()=>__dg.square(1,0)[1]-__dg.square(0,0)[1]"); high = abs(ch['x'] - green['x']) < 1 and ch['y'] < (top + max(p[1] for p in dead)) / 2
+        top = min(p[1] for p in dead); hh = q.evaluate("()=>__dg.square(1,0)[1]-__dg.square(0,0)[1]"); high = True  # owner 28 Nov (later): the changer's place moved (halfway to the stone's middle; below the extra places on 21:9): step changer_place
         groove = [d for d in drawn(q, 'groove') if d['o'] == 0][0]['y']; gap = (groove - (green['y'] + green['h'] / 2)) / hh  # the icon's ground bottom over the divider, in half-squares
         good = inside and high and gap > 0.75; ok = ok and good;  # it was about 0.6 seen.append((w, h, inside, high, round(gap, 2)))
     q.set_viewport_size({'width': 1280, 'height': 800})
-    report(ok, 'layout: stickers on screen, the changer under the green icon and high, icons clear over the divider', '(screen, stickers on screen, changer in line and high, icons over the divider in half-squares) %s' % seen)
+    report(ok, 'layout: stickers on screen, icons clear over the divider', '(screen, stickers on screen, changer in line and high, icons over the divider in half-squares) %s' % seen)
 def f_sound_hooks(q):  # owner 28 Nov: "make sure there are sound hooks for every event, movement, action": every sound the game plays has its line in SOUNDS.md
     names = set(q.evaluate("()=>__dg.soundNames()")); doc = set(re.findall(r'^\| `([a-z]+)` \|', (GAME.parent / 'SOUNDS.md').read_text(), re.M))
     report(names == doc, 'sounds: every one has its hook in SOUNDS.md', 'missing in SOUNDS.md %s, listed but not in the game %s' % (sorted(names - doc), sorted(doc - names)))

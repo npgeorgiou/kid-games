@@ -673,11 +673,14 @@ function giftSpot(i = 0, n = 0) {  // owner 28 Nov: two extra tile places on his
   const { hh } = L(), y0 = deckLine() + STONE_ROOM * UI() + 1.5 * hh - wallHigh(), y = y0 + n * (2 + EXTRA_GAP) * hh, x = alongEdge(y);
   return [i ? W - x : x, y];
 }
-function changerSpot(i = 0) {  // owner 28 Nov: the land changer's place on his free stone (between his face stone and his materials): its corners in line with the green land's icon,
-  // as high as the stone's top allows, its base STONE_ROOM under it
+const WIDE = 2.2;  // a screen wider than this to 1 is a 21:9 screen (16:9 is 1.78, 21:9 2.33)
+function changerSpot(i = 0) {  // owner 28 Nov: the land changer's place: on a 21:9 screen a third place right below his two extra places, along the board's edge as they are;
+  // else on his free stone (between his face stone and his materials), halfway between the stone's middle and the high place in line with the green land's icon (its base STONE_ROOM under the stone's top)
+  if (W / H > WIDE) return giftSpot(i, 2);
   const t = areas(0).find(a => a.kind === 'dead').pts, x = stock(0).placeAt(1, JAR_GOODS - 1)[0], top = Math.min(...t.map((a, k) => [a, t[(k + 1) % t.length]]).filter(([a, b]) => (a[0] - x) * (b[0] - x) <= 0 && a[0] !== b[0]).map(([a, b]) => a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0])));
-  const y = top + STONE_ROOM * UI() + L().hh - wallHigh(); return [i ? W - x : x, y];
-}  // owner 25 Nov: a bonus tile's place: on from the market's outer tile, down along the board's edge, as far from it, on his side  // a bonus tile's place: just right of the market's 4 tiles
+  const high = [x, top + STONE_ROOM * UI() + L().hh - wallHigh()], mid = centroid(t), at = [(high[0] + mid[0]) / 2, (high[1] + mid[1]) / 2]; return [i ? W - at[0] : at[0], at[1]];
+}
+function centroid(pts) { let a = 0, x = 0, y = 0; pts.forEach(([x0, y0], k) => { const [x1, y1] = pts[(k + 1) % pts.length], c = x0 * y1 - x1 * y0; a += c; x += (x0 + x1) * c; y += (y0 + y1) * c; }); return [x / (3 * a), y / (3 * a)]; }  // a polygon's middle (the shoelace formula)  // owner 25 Nov: a bonus tile's place: on from the market's outer tile, down along the board's edge, as far from it, on his side  // a bonus tile's place: just right of the market's 4 tiles
 function homeSpot() { const { T, hh } = L(); return [W - 64, T + ROWS * hh + 16]; }  // the PC's hand rests at the board's right corner, all of it on screen
 function snapSpot() {  // the nearest place the tile in hand fits, if it lies close to it
   if (!wait || wait.kind !== 'place') return null;
