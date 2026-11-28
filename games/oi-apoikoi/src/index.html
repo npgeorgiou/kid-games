@@ -377,8 +377,8 @@ async function sendBee(to, from) {  // the one owner of where the bee is: it fli
 async function makeJar(i, c, landing) {  // a full row of colour c: its jar drops from the top to its place while the 5th good still flies; then the 5 fly into it on curves, one after another
   const my = G, p = G.players[i]; counted(p, 'goods'); const slot = p.planned.shift() ?? freeSlot(p), [at] = await Promise.all([dropJar(i, undefined, slot, true), landing.then(() => { if (G !== my) return; G.shines.push({ o: i, c, t0: performance.now() }); sound('shine'); return pause(SHINE_MS); })]); if (G !== my) return [];  // owner 26 Nov: the full column shines like the harvest for SHINE_MS, then its goods leave
   // owner 26 Nov: each good jumps into the jar's top opening: a thrown thing's path (a quadratic Bezier at an even pace is a parabola), up over the jar and straight down into the mouth;
-  // it keeps its size and goes out of sight below the rim
-  const r = stock(i).r, h = JAR_SIZE() * JAR_TALL, rim = { x: at[0], y: at[1] - h * 0.47, w: h * JAR_ASPECT, h: h * 0.97 }, mouth = [at[0], rim.y + 1.3 * r], via = g0 => [mouth[0], Math.min(g0[1], rim.y) - JAR_SIZE() * INTO_HIGH];
+  // it keeps its size and goes out of sight at the top of the jar's lip (owner 28 Nov: cut lower, below the lip's top, it was drawn over the lip: it touched the rim)
+  const r = stock(i).r, h = JAR_SIZE() * JAR_TALL, rim = { x: at[0], y: at[1] - h * 0.5, w: h * JAR_ASPECT, h }, mouth = [at[0], rim.y + 1.3 * r], via = g0 => [mouth[0], Math.min(g0[1], rim.y) - JAR_SIZE() * INTO_HIGH];
   const goods = [...Array(JAR_GOODS).keys()].map(g => pause(g * STAGGER).then(() => {
     if (G !== my) return; const from = slotPos(i, c, p.goods[c] - 1); p.goods[c]--; p.toJar[c]--; sound('into');
     return fly({ k: 'good', c, o: i, rim }, from, mouth, INTO_MS, { via: via(from), ease: u => u }).then(() => G === my && g === JAR_GOODS - 1 && sound('made'));
@@ -908,6 +908,10 @@ const topOf = key => tops().find(b => b.key === key).top;
 function stonesOverWater() {  // owner 27 Nov: the stones in front of the pool cover its front edge: the moving water is cut away under their tops
   cx.save(); cx.globalCompositeOperation = 'destination-out'; for (const b of tops()) { shapePath(b.top, 0, 0, b.round); cx.fill(); } cx.restore();
 }
+function landBehindStones() {  // owner 28 Nov: tiles on the pool's front edge squares are hidden behind the stones in front of the pool, never drawn over them: the land is cut away under their tops below the pool's front edges
+  const { cx: X, cy: Y, a } = boardDiamond(), c = boardDiamond().c; cx.save(); cx.beginPath(); [[0, Y], [X - a, Y], [X, Y + c], [X + a, Y], [W, Y], [W, H], [0, H]].forEach(q => cx.lineTo(...q)); cx.closePath(); cx.clip();
+  cx.globalCompositeOperation = 'destination-out'; for (const b of tops()) { shapePath(b.top, 0, 0, b.round); cx.fill(); } cx.restore();
+}
 const GROOVE = 3;  // owner 27 Nov: the slot a button sits in: a dark groove this wide round its base (at a 1920 x 1080 screen)
 function groove(b) { const w = GROOVE * UI(); cx.save(); shapePath(b.base, 0, 0, b.round); cx.strokeStyle = STONE.floor; cx.lineWidth = 2 * w; cx.stroke(); cx.restore(); }  // its outer half shows; the button covers the rest
 function stoneAreas() {  // back to front, the first layer then the second: each stone's shadow (second layer), faces and top (a higher top a little lighter); then the pool walls' joints
@@ -1167,7 +1171,7 @@ function drawScene() {  // the band and both areas (one picture for each turn) a
   };
   drawn.push(...onPlane('under', areas.mark, () => { cx.drawImage(areas, areas.box.x, areas.box.y, areas.box.w, areas.box.h); return areas.records; }));
   drawn.push(...onPlane('water', [step, G.board, W, H, G.splashes.length].join(), () => { ripples(now); shorePulse(now); const rings = splashRings(performance.now()), out = [...rings, ...waterShapes(now)]; stonesOverWater(); return out; }));
-  drawn.push(...onPlane('land', board.mark, () => { cx.drawImage(board, board.box.x, board.box.y, board.box.w, board.box.h); return board.records; }));
+  drawn.push(...onPlane('land', board.mark, () => { cx.drawImage(board, board.box.x, board.box.y, board.box.w, board.box.h); landBehindStones(); return board.records; }));
   drawn.push({ k: 'boardarea', x: W / 2 - COLS * hw, y: T, w: (COLS + ROWS) * hw, h: (COLS + ROWS) * hh, cols: COLS, rows: ROWS });
   for (const c of G.cells.values()) drawn.push({ k: 'square', up: lifted.has(key(c.x, c.y)) ? Math.sin(Math.PI * (at - lifted.get(key(c.x, c.y)).t0) / POP_MS) * hh * 0.6 : 0, shows: waterDrop(), ground: wallHigh(), x: c.x, y: c.y, c: c.c, o: c.o, pic: 'lands/' + LANDS[c.c], ready: picReady(groundPic(c.c)) && picReady(thingsPic(c.c)) });  // what the board shows, for the checks
   for (const t of landing) { const k = bounce(t); drawn.push({ k: 'bounce', id: t.id, scale: k }); tileShape(...tileCentre(t.x, t.y, t.r), k, t.cs, t.r, 'wet', t.id); }
