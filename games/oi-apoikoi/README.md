@@ -50,14 +50,14 @@ A playable game against the PC on one shared board in the new look (sea board of
 
 - The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` section 6.
-- Design phase: old flow steps (about 20) still fail and the full run takes about 70 s (limit 30 s), so the commit check refuses changes; work goes in by pull requests with the check off for that commit.
+- Design phase: 20 old flow steps are commented out (owner 28 Nov) and the full run takes about 120 s (limit 30 s), so the commit check refuses changes; work goes in with the check off at the owner's order.
 - Players are animal stickers (a random pair per game) whose faces follow what happens to them and to the other; the bee shows who plays first next round; the coin leader has a ruby on his bottom stone.
 - Stone look (owner close to happy, 27 Nov): rules in the project doc `claude/oi-apoikoi-stone-rules.md`.
 - Extra tiles and the land changer are used only on his turn before he picks; with no market tile he can take, his turn passes even if an extra tile fits.
 
 ## Task list
 
-- Update the flow tests to the design phase so the commit check passes again.
+- Update the 20 commented-out flow steps to the design phase and turn them back on; make the full run fit its 30 s limit (now about 120 s; clock_sounds 38 s, random_play 23 s); bee_corner and carried_tilts fail now and then in the full run.
 - Deck: built as a layer per round, each a tile's ground high, base on its stone; a full pile runs past the screen's top: owner to check and choose.
 - Let him use extra tiles and the land changer at other moments (while breaking jars, or when he must pass): owner to choose.
 - Sticker black outline: remake it (no blur) so its inner and outer edges are clean, one pixel steps, not blocky corners.
