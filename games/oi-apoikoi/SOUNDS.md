@@ -4,13 +4,13 @@ Every sound the game makes has a name. Each one plays a soft built-in sound for 
 
 | Name | When it plays |
 |---|---|
-| `dawn` | A round starts (morning light sweeps over). |
+| `dawn` | A round starts (morning light sweeps over); the owner's grandfather clock chime, in `art/sounds/dawn.mp3`. |
 | `deal` | A tile is dealt from the pile to a market place. |
-| `turn` | The turn passes to the other player (his area lights up). |
+| `turn` | The turn passes to the other player (his area lights up); the owner's grandfather clock ticking, in `art/sounds/turn.mp3`. |
 | `pick` | A player takes a tile from the market. |
 | `rotate` | A tile in hand is turned (a tap on it). |
 | `back` | A tile in hand is put back on an empty market place. |
-| `snap` | A tile snaps into its place on the board. |
+| `snap` | A tile snaps into its place on the board (soft marimba notes). |
 | `splash` | The same moment: the tile drops onto the water (rings spread on the sea) |
 | `edge` | A matching edge glows and its land lights up. |
 | `good` | A material flies from a lit square to the player's area. |
@@ -22,11 +22,19 @@ Every sound the game makes has a name. Each one plays a soft built-in sound for 
 | `reveal` | What the jar held pops up above it. |
 | `coin` | A coin lands in the player's coin stacks. |
 | `token` | The first-player star lands beside the player's face. |
-| `spin` | The slot machine's lever is pulled. |
-| `roll` | The slot wheels tick as their pictures pass. |
-| `stop` | A slot wheel stops. |
-| `clamp` | A clamp goes on or comes off a slot wheel. |
-| `win` | The slot machine's prize is taken. |
+| `extrain` | An extra tile from a jar lands in its place. |
+| `extratake` | A player takes an extra tile from its place. |
+| `extraback` | An extra tile is left on an empty extra place and stays there. |
+| `changerin` | A land changer from a jar lands in its place. |
+| `changerturn` | A tap turns the land changer to its next land. |
+| `changerback` | The land changer, left anywhere but on a square of another land, flies back to its place. |
+| `changerdrop` | The land changer lands on a square and turns it to its land. |
+| `leave` | A tile in hand is let go somewhere it does not fit (it stays there). |
+| `beefly` | The bee takes off toward its next holder. |
+| `tilesback` | At a round's end, the tiles nobody took fly back under the pile. |
+| `endcoin` | At the end, a coin lands in a player's pile. |
+| `again` | The play again button is tapped. |
+| `button` | The settings or exit button is pressed. |
 | `pass` | A player has no tile he can place and passes. |
 | `roundend` | A round ends. |
 | `victory` | The game's winner is announced (a fanfare). |
