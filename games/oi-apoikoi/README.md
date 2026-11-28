@@ -34,6 +34,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `tools/flows.py`: flow tests, one per owner rule and bug report, a main test playing a whole fixed game, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 18 s on a 2-core machine).
 - `tools/test_page.py`: a test copy of the built game with other jar odds, to try a rule by hand (`python3 tools/test_page.py out.html coins=50 tile=50`).
 - `tools/sim.py`: the simulation: plays seeded games through the screen and reports, per player, jars and where they came from, coins (lowest, highest, mean) and what the jars held (`python3 tools/sim.py [games] [random|best]`, the kid playing at random or for the most connections). Run it before every rule change and tell the owner the numbers.
+- `tools/test-settings.json`: the test games' settings (`deck`: how many tiles the pile holds, a short game).
 - `tools/time-limit.txt`: the most seconds the full test run may take (owner 25 Nov: 30).
 - `tools/ci-checks.txt`: the list of every check of the game, run on GitHub when a push or pull request changes this game or something shared.
 - `tools/backdoors.txt`: what a flow may never contain (moves through the game's insides); the commit check refuses it.
@@ -50,14 +51,14 @@ A playable game against the PC on one shared board in the new look (sea board of
 
 - The owner's own sound files, when they come, replace the built-in sounds.
 - See also `design.md` section 6.
-- Design phase: 20 old flow steps are commented out (owner 28 Nov) and the full run takes about 120 s (limit 30 s), so the commit check refuses changes; work goes in with the check off at the owner's order.
+- Design phase: 20 old flow steps are commented out (owner 28 Nov) and the full run takes about 62 s (limit 30 s), so the commit check refuses changes; work goes in with the check off at the owner's order.
 - Players are animal stickers (a random pair per game) whose faces follow what happens to them and to the other; the bee shows who plays first next round; the coin leader has a ruby on his bottom stone.
 - Stone look (owner close to happy, 27 Nov): rules in the project doc `claude/oi-apoikoi-stone-rules.md`.
 - Extra tiles and the land changer are used only on his turn before he picks; with no market tile he can take, his turn passes even if an extra tile fits.
 
 ## Task list
 
-- Update the 20 commented-out flow steps to the design phase and turn them back on; make the full run fit its 30 s limit (now about 120 s; clock_sounds 38 s, random_play 23 s); bee_corner and carried_tilts fail now and then in the full run.
+- Tests: make the full run fit its 30 s limit (now about 62 s): one seeded whole game on the short deck checking every owner rule at its place, a few short checks from set tables, no polling loops; then update the 20 commented-out old steps into it.
 - Deck: built as a layer per round, each a tile's ground high, base on its stone; a full pile runs past the screen's top: owner to check and choose.
 - Let him use extra tiles and the land changer at other moments (while breaking jars, or when he must pass): owner to choose.
 - Sticker black outline: remake it (no blur) so its inner and outer edges are clean, one pixel steps, not blocky corners.
