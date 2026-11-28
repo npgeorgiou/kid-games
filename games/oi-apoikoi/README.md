@@ -60,6 +60,4 @@ A playable game against the PC on one shared board in the new look (sea board of
 - Deck: built as a layer per round, each a tile's ground high, base on its stone; a full pile runs past the screen's top: owner to check and choose.
 - Let him use extra tiles and the land changer at other moments (while breaking jars, or when he must pass): owner to choose.
 - Sticker black outline: remake it (no blur) so its inner and outer edges are clean, one pixel steps, not blocky corners.
-- All material flights (land to stockpile, stockpile to jar) one smooth motion profile (speed, trail), not steps along a path.
-- Stockpile overflow: waiting materials fly one by one as places free up, smoothly, never waiting and then all at once.
 - End of game: no popup; two stone slabs (from the stone pictures, stood up tall), one per player, take his coins and the ruby; after counting and the victory, a smaller rectangular stone (two buttons wide) appears with the play again button, working like the top right buttons.

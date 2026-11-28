@@ -44,7 +44,7 @@ const EDGE_GROW_MS = 1755, EDGE_IN_PLACE = 0.7, EDGE_GO_MS = EDGE_GROW_MS * (1 -
 const STAGGER = 120, COIN_FLY = 825, GOOD_FLY = COIN_FLY;  // things that go one after another leave STAGGER apart; a good flies GOOD_FLY, a coin COIN_FLY (owner 26 Nov: goods and coins a third slower; owner 27 Nov: goods as slow as coins)
 const RISE_MS = 500, SHOW_MS = 900,  /* owner 26 Nov: 10% shorter */ GLIDE_MS = 300, REWARD_MS = 550;  // a jar opened: what it held rises out of it, shows, and its reward flies to its place; the other jars close up
 const INTO_HIGH = 3.6;  // owner 27 Nov: a good's curve into a jar rises this many jar sizes over the rim (it clipped the neck at 1.2; owner 28 Nov: still a tiny bit at 2.6)
-const DEAL_MS = 260, DROP_MS = 600, INTO_MS = 900, SPECK_MS = 700;  // a market tile dealt from the pile; a jar dropping from the top; each good flying into it; a broken jar's specks fading
+const DEAL_MS = 260, DROP_MS = 600, SPECK_MS = 700;  // a market tile dealt from the pile; a jar dropping from the top; a broken jar's specks fading
 const BEAT_MS = 500;  // owner 28 Nov: half a second's pause before a round turns and before the PC acts
 const ROUND_END_MS = 1600, DAWN_MS = 1500, DAWN_LIGHT = 0.75, DAWN_BAND = 0.3, DAWN_CORE = 0.4;  // a round's end, its own moment; morning light sweeping over at a round's start (owner 27 Nov: stronger, longer; then a narrow stripe, DAWN_BAND of the screen wide, less bright)
 const GLOW_MS = 1800, RIPPLE_STEP = 300, POP_MS = 420, SHINE_MS = 500;  // a connection's edge glows GLOW_MS; its lit land ripples out a square each RIPPLE_STEP, each square lighting and jumping POP_MS (owner 25 Nov)
@@ -267,21 +267,21 @@ function flightAt(f, now) {
   return [f.from[0] + (f.to[0] - f.from[0]) * e, f.from[1] + (f.to[1] - f.from[1]) * e - Math.sin(Math.PI * u) * f.arc, z];
 }
 async function goodFrom(i, c, from, noise = 'good') {  // one good leaves where it is made and flies to its place in player i's stockpile, with a sound
-  const p = G.players[i], my = G, to = slotPos(i, c, p.goods[c] + p.coming[c]); p.coming[c]++;
+  const p = G.players[i], my = G, to = slotPos(i, c, p.goods[c] + p.coming[c] - p.toJar[c]); p.coming[c]++;  // the first place free once the goods a jar waits for have left
   if (typeof from === 'function') from = from();  // where it leaves is known only as it leaves
   sound(noise); await fly({ k: 'good', c, o: i }, from, to, GOOD_FLY); if (G !== my) return;
   p.coming[c]--; p.goods[c]++;
 }
 // Goods coming in (the one way goods arrive, owner 25 Nov): 1. they leave gap apart, each colour in its own line, so a colour never waits for another;
-// 2. a good that fills its row starts its jar at once, dropping while it flies; the next good of that colour leaves only when the row's goods have left for the jar,
-// so a row never needs more than JAR_GOODS places.
+// 2. a good that fills its row starts its jar at once, dropping while it flies; the next good of that colour leaves as the row's goods start leaving for the jar and flies
+// to the first place they free, each one gap after the one before (owner 28 Nov: never waiting and then all at once), so a row never needs more than JAR_GOODS places.
 async function gain(i, list, gap) {  // list: [colour, from, sound, step, square] per good; it leaves at its step (else its place in the list) times gap; a square giving it pops
   const p = G.players[i], my = G, line = {}, going = [];
   list.forEach(([, , , step, sq]) => { if (sq) pause(step * gap).then(() => { if (G === my) { G.pops.push({ sq, t0: performance.now() }); lastsMs(POP_MS); } }); });  // the ripple keeps its own time: a jar being made never holds it up (owner 25 Nov: all motion fluid)
-  await Promise.all(list.map(([c, from, noise, step, sq], k) => (line[c] = Promise.all([line[c], pause((step ?? k) * gap)]).then(async () => {
+  await Promise.all(list.map(([c, from, noise, step, sq], k) => (line[c] = Promise.all([line[c] && line[c].then(() => pause(gap)), pause((step ?? k) * gap)]).then(async () => {  // owner 28 Nov: one by one, gap apart, never waiting and then all at once
     if (G !== my) return;
     const fills = p.goods[c] + p.coming[c] - p.toJar[c] + 1 >= JAR_GOODS, f = goodFrom(i, c, from, noise); going.push(f); if (fills) p.toJar[c] += JAR_GOODS;  // goods a jar already waits for are not counted again (two prizes at once made 3 jars of one row, and it went below 0)
-    if (fills) { going.push(...await makeJar(i, c, f)); await pause(JAR_GOODS * STAGGER); }  // by then the last of the row has left
+    if (fills) going.push(...await makeJar(i, c, f));  // the next leaves as the row's goods start leaving for the jar: it flies to the place they free
   }))));
   await Promise.all(going);
 }
@@ -381,7 +381,7 @@ async function makeJar(i, c, landing) {  // a full row of colour c: its jar drop
   const r = stock(i).r, h = JAR_SIZE() * JAR_TALL, rim = { x: at[0], y: at[1] - h * 0.5, w: h * JAR_ASPECT, h }, mouth = [at[0], rim.y + 1.3 * r], via = g0 => [mouth[0], Math.min(g0[1], rim.y) - JAR_SIZE() * INTO_HIGH];
   const goods = [...Array(JAR_GOODS).keys()].map(g => pause(g * STAGGER).then(() => {
     if (G !== my) return; const from = slotPos(i, c, p.goods[c] - 1); p.goods[c]--; p.toJar[c]--; sound('into');
-    return fly({ k: 'good', c, o: i, rim }, from, mouth, INTO_MS, { via: via(from), ease: u => u }).then(() => G === my && g === JAR_GOODS - 1 && sound('made'));
+    return fly({ k: 'good', c, o: i, rim }, from, mouth, GOOD_FLY, { via: via(from) })  // owner 28 Nov: every material flight one motion: a good's time and sine ease (and trail).then(() => G === my && g === JAR_GOODS - 1 && sound('made'));
   }));
   return [Promise.all(goods).then(() => { if (G === my) { p.jarList.find(j => j.slot === slot).filling = false; jarReady(p); } })];  // owner 28 Nov: a jar can be broken only once all its materials are in
 }
