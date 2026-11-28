@@ -802,6 +802,12 @@ def f_changer_own_land(q):  # owner 28 Nov: "each player can change only his own
     s = kid_plays(q, lambda s: s['round'] >= 3 or s['over'], 300); used = 'changerdrop' in q.evaluate("()=>__dg.sounds()")
     pc_ok = used and all(t[3:5] == kids[t[6]] for t in s['tiles'] if t[6] in kids)
     report(kid_ok and pc_ok, 'land changer: only his own land', 'his changer on the PC\'s land went back %s; the PC used its changer %s and left his land alone %s' % (kid_ok, used, pc_ok))
+def f_pc_waits_new_jar(q):  # owner 28 Nov: "PC hand: wait before breaking a new jar until it has fallen and rests"
+    pause_clock(q); table(q, fast=False, first=1, bag=[[0, 1], [0, 0], [0, 4], [0, 4]], jarQueue=[{'k': 'jar'}] + [COIN] * 12)
+    run_until(q, "()=>{const s=__dg.state();return s.turn===0&&s.wait&&s.wait.kind==='pick'}", 30000)
+    names = [n for n, _ in q.evaluate("()=>__dg.heardAt()")]; q.clock.resume()
+    first = names.index('jar'); land = names.index('jarland', first) if 'jarland' in names[first:] else len(names); between = names[first + 1:land].count('jar')  # broken before it landed: it never lands
+    report(between == 0, 'pc: a new jar is broken only once it rests', 'jars broken while the new one rose and fell: %d' % between)
 def f_changer_jar(q):  # owner 28 Nov: "it will be able to be refreshed by a jar (same glowing as the extra tiles, but only when given from a jar), it is NOT given from jars when you have it already, then its percentage goes to the coin"
     get_jar(q, [{'k': 'changer'}], changer=[None, None]); waiting(q, 'pick'); s = st(q); ch = [d for d in drawn(q, 'changer') if d['z'] == 1]
     table(q, bag=[[0, 4]] * 4, seed=11); n = 4000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n); table(q); plain = [d for d in drawn(q, 'changer') if d['z'] == 1]

@@ -493,7 +493,7 @@ async function openJars(i) {  // tap jars as fast as he likes (owner 25 Nov): ea
   const p = G.players[i], my = G, open = new Set(); G.jarWho = i;
   while (G === my && (p.jars > 0 || open.size)) {
     if (!p.jars) { await Promise.race(open); continue; }  // a prize still on its way may bring more jars
-    const k = await choose('jar', i, {}, () => pcTap('jar-' + firstJar(p))) || 0; if (G !== my) return;
+    const k = await choose('jar', i, {}, async () => { const jar = p.jarList[firstJar(p)]; await jar.rests; if (G === my) await pcTap('jar-' + p.jarList.indexOf(jar)); }) || 0;  // the PC's hand waits for a new jar to rest if (G !== my) return;
     const jar = p.jarList[k], at = jarAt(jar, p), j = rollJar(i); p.hold = places(p); p.jarList.splice(k, 1); p.opened[j.k] = (p.opened[j.k] || 0) + 1;
     if (j.k === 'tile') { j.cs = freeTile(i); if (j.cs) { j.n = p.extras.indexOf(null); p.extras[j.n] = { cs: j.cs, here: false }; } }  // the gift tile is known when the jar breaks, so the jar shows it; its place is kept
     if (j.k === 'changer') p.changer = { c: -1, here: false, glow: true };  // owner 28 Nov: one from a jar shines as the extra tile does
@@ -510,10 +510,12 @@ async function openJars(i) {  // tap jars as fast as he likes (owner 25 Nov): ea
 }
 // A jar in a jar (owner 27 Nov: "you should be able to break an extra jar even at its freeze state"): it is a jar from the moment it comes out, so he can break it at any time:
 // 1. it jumps out of the broken jar and grows (RISE_MS); 2. it hangs there (SHOW_MS); 3. it drops into the broken jar's place (DROP_MS, owner 26 Nov: just drop). Where it is drawn: jarRise.
-async function jarInJar(i, nj) {
+function jarInJar(i, nj) {  // rests: when it has fallen into its place (the PC breaks it only then, owner 28 Nov)
   const my = G, p = G.players[i], live = () => G === my && p.jarList.includes(nj); p.jarList.push(nj); counted(p, 'jar');
-  await pause(RISE_MS); if (!live()) return; sound('reveal'); feel(i, JAR_FEELS.jar);
-  await pause(SHOW_MS + DROP_MS); if (!live()) return; delete nj.born; sound('jarland');
+  return nj.rests = (async () => {
+    await pause(RISE_MS); if (!live()) return; sound('reveal'); feel(i, JAR_FEELS.jar);
+    await pause(SHOW_MS + DROP_MS); if (!live()) return; delete nj.born; sound('jarland');
+  })();
 }
 function jarRise(j, target) {  // where a jar in a jar is, and how big, at this moment
   const t = fast ? Infinity : performance.now() - j.born, [sx, sy] = j.show;
