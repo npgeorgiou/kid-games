@@ -304,7 +304,8 @@ def f_random_play(q):  # seeded games played through the screen (taps and drags 
     }""", SETTINGS['deck'])
     report(not bad, 'random play: games end, what he sees adds up', '%s' % (bad or '4 games'))
 
-def f_glow_light(q):  # owner 28 Nov: "you have forgotten to give glow to the changer tile"; "make the changer and extra tile glow less yellow, more 'light' (as in the light the element)"
+def lightness(col): return (max(int(col[k:k + 2], 16) for k in (1, 3, 5)) + min(int(col[k:k + 2], 16) for k in (1, 3, 5))) / 510
+def f_glow_light(q):  # owner 28 Nov: "you have forgotten to give glow to the changer tile"; "make the changer and extra tile glow less yellow, more 'light' (as in the light the element)"; later: "make the glow a bit golden too"
     table(q, extras=[[[0, 4], None], [None, None]], changer=[-1, None]); settle(q)
     a, b = q.evaluate("()=>[__dg.square(0,0), __dg.square(1,0)]"); hw, hh = abs(b[0] - a[0]), abs(b[1] - a[1])
     def halo(x, y):  # just outside the piece, round its lower half, against the same stone further out
@@ -314,7 +315,8 @@ def f_glow_light(q):  # owner 28 Nov: "you have forgotten to give glow to the ch
         return round(sum(lum(n) - lum(f) for n, f in zip(near, far)) / 5), round(sum(yel(n) - yel(f) for n, f in zip(near, far)) / 5)
     e = [d for d in drawn(q, 'extra') if d['o'] == 0][0]; c = [d for d in drawn(q, 'changer') if d['z'] == 1 and d['x'] < 640][0]
     he, hc = halo(e['x'], e['y']), halo(c['x'], c['y'])
-    report(he[0] >= 20 and hc[0] >= 20 and he[1] <= 10 and hc[1] <= 10, 'glow: the extra tile and the land changer both glow, a light, not yellow', 'brighter than the stone round it, and more yellow than it: extra tile %s, land changer %s' % (he, hc))
+    col = drawn(q, 'extraglow')[0]['col']; rgb = [int(col[k:k + 2], 16) for k in (1, 3, 5)]  # a light (light, not deep), a bit golden (red over green over blue)
+    report(he[0] >= 20 and hc[0] >= 20 and lightness(col) >= 0.8 and rgb[0] > rgb[1] > rgb[2] + 30, 'glow: the extra tile and the land changer both glow, a light, a bit golden', 'brighter than the stone round it (and more yellow): extra tile %s, land changer %s; colour %s (lightness %.2f)' % (he, hc, col, lightness(col)))
 
 # SECTION: RUN -- one browser, one page (with a fake clock that runs normally until a flow pauses it), every flow on a new game
 # The browser does not wait for the screen's refresh: each step of a finger drag otherwise waits a whole frame (16 ms); the game's own time is the fake clock either way.

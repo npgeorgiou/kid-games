@@ -908,8 +908,8 @@ function stonesOverWater() {  // owner 27 Nov: the stones in front of the pool c
   cx.save(); cx.globalCompositeOperation = 'destination-out'; for (const b of tops()) { shapePath(b.top, 0, 0, b.round); cx.fill(); } cx.restore();
 }
 function landBehindStones() {  // owner 28 Nov: tiles on the pool's front edge squares are hidden behind the stones in front of the pool, never drawn over them: the land is cut away under their tops below the pool's front edges
-  const { cx: X, cy: Y, a } = boardDiamond(), c = boardDiamond().c; cx.save(); cx.beginPath(); [[0, Y], [X - a, Y], [X, Y + c], [X + a, Y], [W, Y], [W, H], [0, H]].forEach(q => cx.lineTo(...q)); cx.closePath(); cx.clip();
-  cx.globalCompositeOperation = 'destination-out'; for (const b of tops()) { shapePath(b.top, 0, 0, b.round); cx.fill(); } cx.restore();
+  const { cx: X, a, c } = boardDiamond(), Y = boardDiamond().cy - poolWall(); cx.save(); cx.beginPath();  // the front edges at the stones' top (the pool's wall stands above the water) [[0, Y], [X - a, Y], [X, Y + c], [X + a, Y], [W, Y], [W, H], [0, H]].forEach(q => cx.lineTo(...q)); cx.closePath(); cx.clip();
+  cx.globalCompositeOperation = 'destination-out'; for (const b of blocks()) { shapePath(b.top, 0, 0, b.round); cx.fill(); for (const q of b.sides) { shapePath(q.strip); cx.fill(); } } cx.restore();  // owner 28 Nov: its bevel and its wall toward the pool too
 }
 const GROOVE = 3;  // owner 27 Nov: the slot a button sits in: a dark groove this wide round its base (at a 1920 x 1080 screen)
 function groove(b) { const w = GROOVE * UI(); cx.save(); shapePath(b.base, 0, 0, b.round); cx.strokeStyle = STONE.floor; cx.lineWidth = 2 * w; cx.stroke(); cx.restore(); }  // its outer half shows; the button covers the rest
@@ -1392,7 +1392,7 @@ function extraGlowOf(cs, r) {  // the tile's whole shape (ground and what stands
   const c = document.createElement('canvas'); c.width = one.width; c.height = one.height; const q = c.getContext('2d'); q.filter = `blur(${g * d / 2}px)`; for (let n = 0; n < 4; n++) q.drawImage(one, 0, 0);
   Object.assign(c, { ox, oy, cw: w, ch: h }); extraGlows.set(k, c); return c;
 }
-const EXTRA_STARS = 20, EXTRA_GLOW = '#fffbf0', EXTRA_SHINE = 1, EXTRA_GLOW_ALPHA = 0.8;  // owner 27 Nov: the glow brighter: a lighter gold, laid on adding light, EXTRA_SHINE times; more stars; owner 28 Nov: glowing less (once, fainter); then a little more; then plainly seen on the light stone (laid over it, as the stickers' glow); later: less yellow, a light (the element), and a third fewer stars in a smaller area round the middle of the whole tile
+const EXTRA_STARS = 20, EXTRA_GLOW = '#ffeab0', EXTRA_SHINE = 1, EXTRA_GLOW_ALPHA = 0.8;  // owner 27 Nov: the glow brighter: a lighter gold, laid on adding light, EXTRA_SHINE times; more stars; owner 28 Nov: glowing less (once, fainter); then a little more; then plainly seen on the light stone (laid over it, as the stickers' glow); later: less yellow, a light (the element), then a bit golden, and a third fewer stars in a smaller area round the middle of the whole tile
 let glowPad = null;  // the shared layer the glows are laid into
 function extraGlow(...one) { keptGlows([one]); }  // one glow: x, y, cs, r, z
 function keptGlows(list) {  // owner 27 Nov: a golden glow all round each extra tile and the land changer (as the stickers' glow), breathing; each item [x, y, cs, r, z] (z: its size as drawn, 1.06 in hand)
