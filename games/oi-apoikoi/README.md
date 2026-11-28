@@ -62,7 +62,6 @@ A playable game against the PC on one shared board in the new look (sea board of
 - Let him use extra tiles and the land changer at other moments (while breaking jars, or when he must pass): owner to choose.
 - Sticker black outline: remake it (no blur) so its inner and outer edges are clean, one pixel steps, not blocky corners.
 - Materials into a jar still touch the rim: fix for good.
-- 5-materials prize: its materials go into the stockpile one by one from the symbol, not vanishing and appearing from nowhere.
 - Tiles on the pool's edge squares are hidden behind the pool walls, never drawn over them.
 - All material flights (land to stockpile, stockpile to jar) one smooth motion profile (speed, trail), not steps along a path.
 - Stockpile overflow: waiting materials fly one by one as places free up, smoothly, never waiting and then all at once.

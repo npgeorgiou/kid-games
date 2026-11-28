@@ -833,6 +833,17 @@ def f_changer_place(q):  # owner 28 Nov: "land changer's place: halfway between 
         ok = ok and good; seen.append((w, h, good))
     q.set_viewport_size({'width': 1280, 'height': 800})
     report(ok, 'land changer: halfway to the stone\'s middle; on 21:9 below the extra places', '(screen, in place) %s' % seen)
+def f_set_from_symbol(q):  # owner 28 Nov: "5-materials prize: its materials go into the stockpile one by one from the symbol, not vanishing and appearing from nowhere"
+    pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[{'k': 'set'}] + [COIN] * 8)
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 8000); tap(q, 'jar-0')
+    run_until(q, "()=>__dg.sounds().includes('reveal')", 3000); sym = [d for d in drawn(q, 'shown') if d['j'] == 'set'][-1]; starts, both, ms = set(), 0, 0
+    while ms < 4000:
+        skip(q, 50); ms += 50; d = q.evaluate("()=>__dg.drawn().filter(d=>d.k==='shown'||(d.k==='flight'&&d.look==='good'))")
+        out = [f for f in d if f['k'] == 'flight' and abs(f['fx'] - sym['x']) < 60 and abs(f['fy'] - sym['y']) < 60]; starts |= {(round(f['fx']), round(f['fy'])) for f in out}
+        if out and any(x['k'] == 'shown' for x in out + d): both += 1
+        if len(starts) >= 6 and not out: break
+    q.clock.resume()
+    report(len(starts) == 6 and both > 0, 'set prize: its materials leave the symbol one by one', 'materials left from %d places of the symbol; symbol still there while they left %s' % (len(starts), both > 0))
 def f_changer_jar(q):  # owner 28 Nov: "it will be able to be refreshed by a jar (same glowing as the extra tiles, but only when given from a jar), it is NOT given from jars when you have it already, then its percentage goes to the coin"
     get_jar(q, [{'k': 'changer'}], changer=[None, None]); waiting(q, 'pick'); s = st(q); ch = [d for d in drawn(q, 'changer') if d['z'] == 1]
     table(q, bag=[[0, 4]] * 4, seed=11); n = 4000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n); table(q); plain = [d for d in drawn(q, 'changer') if d['z'] == 1]

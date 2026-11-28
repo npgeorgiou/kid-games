@@ -271,6 +271,7 @@ function flightAt(f, now) {
 }
 async function goodFrom(i, c, from, noise = 'good') {  // one good leaves where it is made and flies to its place in player i's stockpile, with a sound
   const p = G.players[i], my = G, to = slotPos(i, c, p.goods[c] + p.coming[c]); p.coming[c]++;
+  if (typeof from === 'function') from = from();  // where it leaves is known only as it leaves
   sound(noise); await fly({ k: 'good', c, o: i }, from, to, GOOD_FLY); if (G !== my) return;
   p.coming[c]--; p.goods[c]++;
 }
@@ -501,8 +502,8 @@ async function openJars(i) {  // tap jars as fast as he likes (owner 25 Nov): ea
     const show = { who: i, j, at: [at[0], at[1] - JAR_SIZE() * 1.2] };
     const run = j.k === 'jar' ? jarInJar(i, { slot: jar.slot, fresh: true, born: performance.now(), from: at, show: show.at }) : (async () => {
       await fly({ k: 'shown', j, o: i }, at, show.at, RISE_MS, { arc: JAR_SIZE() * 0.6, z0: 0.3 }); if (G !== my) return;  // it jumps out of the jar (owner 25 Nov)
-      G.shown.push(show); sound('reveal'); feel(i, j.k === 'tile' && !j.cs ? 'sad' : JAR_FEELS[j.k] || 'happy'); await pause(SHOW_MS); G.shown = G.shown.filter(x => x !== show); if (G !== my) return;  // a jar with nothing in it makes him sad
-      await bonus(i, j, show.at); rubyCheck();  // the ruby goes where the coins say once the whole prize is in
+      G.shown.push(show); sound('reveal'); feel(i, j.k === 'tile' && !j.cs ? 'sad' : JAR_FEELS[j.k] || 'happy'); await pause(SHOW_MS); if (j.k !== 'set') G.shown = G.shown.filter(x => x !== show); if (G !== my) return;  // the set's symbol stays until its last material has left it  // a jar with nothing in it makes him sad
+      await bonus(i, j, show.at); G.shown = G.shown.filter(x => x !== show); rubyCheck();  // the ruby goes where the coins say once the whole prize is in
     })();
     open.add(run); run.then(() => open.delete(run));
   }
@@ -530,7 +531,7 @@ async function bonus(i, j, from) {  // the reward flies from where the jar showe
     await Promise.all(list.map(([at, k], c) => fly({ k: 'coin', r: k * S }, at, coinSpot(i, p.coins + c), COIN_FLY, { delay: c * COIN_FLY, z1: stock(i).cr / (k * S) }).then(() => { if (G !== my) return; p.coins++; sound('coin'); })));
   }
   else if (j.k === 'first') { G.first = i; await sendBee(i, from); if (G !== my) return; sound('token'); }  // owner 27 Nov: the bee flies from the jar to its winner
-  else if (j.k === 'set') await gain(i, COLOUR_IDS.map(c => [c, from, 'good']), STAGGER);
+  else if (j.k === 'set') { j.left = new Set(SET_ORDER); await gain(i, SET_ORDER.map((c, k) => [c, () => { j.left.delete(c); return setAt(from[0], from[1], SHOWN * 0.26, k); }, 'good']), STAGGER); }  // owner 28 Nov: each leaves the symbol from its place in it, one by one
   else if (j.k === 'tile') { if (j.cs) { await fly({ k: 'tile', cs: j.cs, r: i ? 0 : 1, gift: true }, from, giftSpot(i, j.n), REWARD_MS); if (G !== my) return; p.extras[j.n].here = true; sound('extrain'); } }  // owner 28 Nov: it waits in its place until he uses it  // the free tile flies blank to its place beside the market, marked as his, and shows its colours there (owner 25 Nov)
   else if (j.k === 'changer') { await fly({ k: 'changer', c: -1, glow: true, o: i }, from, changerSpot(i), REWARD_MS); if (G !== my) return; p.changer.here = true; sound('changerin'); }
 }
@@ -981,7 +982,8 @@ function jarShape(x, y, s) { const h = s * JAR_TALL, w = h * JAR_ASPECT; picture
 const JAR_ASPECT = 271 / 460;  // the picture's width to its height
 const JAR_TALL = 1.45;
 const SET_ORDER = [0, 4, 1, 5, 2, 3];  // owner 26 Nov: round the ring grain, stone, meat, statue, grapes, timber: the white statue and the grey stone never side by side
-function setShape(x, y, r) { SET_ORDER.forEach((c, k) => { const a = -Math.PI / 2 + k * 2 * Math.PI / SET_ORDER.length; goodShape(c, x + Math.cos(a) * r * 0.85, y + Math.sin(a) * r * 0.85, r * 0.34); }); }  // owner 26 Nov: apart, none over another  // a set: one of each material
+const setAt = (x, y, r, k) => { const a = -Math.PI / 2 + k * 2 * Math.PI / SET_ORDER.length; return [x + Math.cos(a) * r * 0.85, y + Math.sin(a) * r * 0.85]; };  // where material k of the set's ring is
+function setShape(x, y, r, left) { SET_ORDER.forEach((c, k) => { if (!left || left.has(c)) goodShape(c, ...setAt(x, y, r, k), r * 0.34); }); }  // left: the materials still in it  // owner 26 Nov: apart, none over another  // a set: one of each material
 function nothing(x, y, r) { const c = pics['things/apple'], h = 2.4 * r, w = c ? h * c.width / c.height : h; picture('things/apple', x - w / 2, y - h / 2, w, h); drawn.push({ k: 'nothing', pic: 'apple', x, y, w, h }); }  // owner 27 Nov: nothing is his bitten apple (it was a red X)
 const BEE_STARS = 5, BEE_GLOW = 0.5;  // owner 28 Nov: a few small stars round the bee, dimmer than the extra tile's, and a glow (later: a bit more, it could not be seen)
 function bee(x, y, r) {  // the bee picture with its faint glow and few stars
@@ -999,7 +1001,7 @@ function content(j, x, y, s, who = 0) {  // what a jar held, player who's
   else if (j.k === 'first') bee(x, y, s * 0.27);
   else if (j.k === 'tile') j.cs ? giftTile(x, y, s * 0.55 / (3 * L().hw), j.cs, 0) : nothing(x, y, s * 0.2);  // owner 26 Nov: the very tile he gets; nothing when none fits
   else if (j.k === 'jar') jarShape(x, y, JAR_SIZE());  // owner 26 Nov: full size, as it will stand in its place
-  else if (j.k === 'set') setShape(x, y, s * 0.26);
+  else if (j.k === 'set') setShape(x, y, s * 0.26, j.left);
 }
 const HANDS = /*HANDS*/{};  // the hand pictures, put in by build.py
 const GESTURES = {  // picture and its active point (of 32): point to tap and to hold a tile (owner 24 Nov), open to let go, raised to pass
