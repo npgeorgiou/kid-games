@@ -23,8 +23,8 @@
 - Two functions must never share a name: a second `function puff` silently replaced the dust puff (JS keeps the last one).
 - Never put a `//` comment in the middle of a line that has code after it (it happened three times; an edit that appends a comment to the first part of a one-line function swallows its `return`): an edit that added one swallowed `cx.restore()`, and the coins' clip then hid the pile and the market.
 - Push every sketch or picture shown to the owner into this folder at once: a sketch only shown in a chat is lost with the chat.
-- On narrow screens (4:3) the board's top corner lies under the deck line: every area shape must hold for both cases, or the pool opens.
 - What is drawn on a cached plane (the water) records itself in the records its draw returns, never with drawn.push: pushed records vanish on the frames between (a splash looked missing to the tests).
 - The page draws before its pictures are in: anything measured from a picture (sizes, a sticker's head) must check picReady first, or the game stops at load (it did, and the flows did not see it).
 - A tile going back to a market place is not in the market until its glide ends: anything that reads the market (can he pick? must he pass?) waits for that glide first.
 - A canvas ignores a globalAlpha outside 0..1 and keeps the last one: clamp every computed alpha (a ruby fading below 0 flickered at full strength).
+- In-page test loops draw (render) before every tap: the buttons are where the last picture put them, and a stale one answers the new wait (a press on the held land changer hit its old place's button).

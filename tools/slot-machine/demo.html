@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Slot machine demo</title>
+<style>html,body{margin:0;height:100%;background:#2b3a2e}canvas{display:block;touch-action:none}</style></head>
+<body><canvas id="c"></canvas>
+<script src="slot-machine.js"></script>
+<script>
+// A working demo of the slot machine: 3 wheels of 4 faces (coin, star, heart, nothing), three of a kind wins 3 of it; a spin costs 1 coin.
+const cv = document.getElementById('c'), cx = cv.getContext('2d'); let coins = 5, areas = [], live = true;
+const drawFace = (g, f, x, y, r) => { g.font = `${r * 1.6}px serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText({ coin: '🪙', star: '⭐', heart: '❤️', none: '🍎' }[f], x, y); };
+const newMachine = () => { const m = SlotMachine.create({ faces: ['coin', 'star', 'heart', 'none'], wins: f => f.every(x => x === f[0]) && f[0] !== 'none', prize: () => 3, drawFace, cost: 1 }); m.roll([0, 1, 2]); return m; };
+let m = newMachine();
+function frame() {
+  cv.width = innerWidth; cv.height = innerHeight; cx.fillStyle = '#2b3a2e'; cx.fillRect(0, 0, cv.width, cv.height);
+  areas = m.draw(cx, cv.width / 2, cv.height / 2, Math.min(1, cv.height / 520, cv.width / 680), live && !m.rolling(), coins);
+  cx.fillStyle = '#fff'; cx.font = '24px sans-serif'; cx.textAlign = 'left'; cx.fillText('coins ' + coins, 20, 36);
+  requestAnimationFrame(frame);
+}
+cv.addEventListener('pointerdown', async e => {
+  const a = areas.find(a => e.clientX >= a.x && e.clientX <= a.x + a.w && e.clientY >= a.y && e.clientY <= a.y + a.h); if (!a) return;
+  if (a.id.startsWith('wheel-')) m.toggleKeep(+a.id.slice(6));
+  else if (a.id === 'lever') { coins--; await m.pull(); }
+  else if (a.id === 'tray') { coins += m.prize(); m = newMachine(); }
+});
+frame();
+</script></body></html>

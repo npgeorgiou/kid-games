@@ -49,4 +49,4 @@ def trimmed(im):  # a picture he gave already transparent: stray faint pixels aw
     a = np.array(im.convert('RGBA')); solid = a[..., 3] > 128; lab, n = ndimage.label(solid); body = lab == 1 + np.argmax(ndimage.sum(solid, lab, range(1, n + 1)))
     a[..., 3] = np.where(ndimage.binary_dilation(ndimage.binary_fill_holes(body), iterations=4), a[..., 3], 0); out = Image.fromarray(a); return out.crop(out.getbbox())
 ruby = trimmed(Image.open(U + 'b14da686-image.png')); ruby.save(OUT + 'things/ruby.png')  # owner 27 Nov: his ruby, given transparent (no shadow of its own)
-apple = trimmed(Image.open(U + '7efb9d06-image.png')); apple.thumbnail((300, 300)); apple.save(OUT + 'things/apple.png')  # owner 27 Nov: his bitten apple, given transparent: a jar or a slot face with nothing
+apple = trimmed(Image.open(U + '7efb9d06-image.png')); apple.thumbnail((300, 300)); apple.save(OUT + 'things/apple.png')  # owner 27 Nov: his bitten apple, given transparent: a jar with nothing; owner 28 Nov: his new apple

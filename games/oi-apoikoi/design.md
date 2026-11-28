@@ -4,13 +4,13 @@ Status: draft, not approved. Base: the board game Dragomino (owner's choice); ja
 
 ## 1. The game in short (draft)
 
-Two players each build their own land from tiles with two terrain halves, on one shared board. Each round, 4 tiles are dealt from the pile and players take them in turn. Each connection a placed tile makes (a matching edge) gives a jar, and lights up the connected land of that colour; every lit square gives one material, and 5 materials of a colour make another jar. The child opens jars by tapping them. Jars hold nothing, gold coins (the points) or bonuses: a slot machine, the first-player token, another jar, one of each material, or a random tile. When no tile can be placed, the taller pile of coins wins.
+Two players each build their own land from tiles with two terrain halves, on one shared board. Each round, 4 tiles are dealt from the pile and players take them in turn. Each connection a placed tile makes (a matching edge) gives a jar, and lights up the connected land of that colour; every lit square gives one material, and 5 materials of a colour make another jar. The child opens jars by tapping them. Jars hold nothing, gold coins (the points) or bonuses: the first-player token, another jar, one of each material, a land changer, or a random tile. When no tile can be placed, the taller pile of coins wins.
 
 ## 2. Rules
 
 ### Players
 - 2 players. By default you play against the PC; another human can play instead.
-- the PC always does what is mathematically optimal, in every choice (pick, place, jars, slot machine). For now: the best expected result for this turn, not planning whole rounds ahead. To improve later.
+- the PC always does what is mathematically optimal, in every choice (pick, place, jars, extra tiles, the land changer). For now: the best expected result for this turn, not planning whole rounds ahead. To improve later.
 - every PC (or second player) action is fully visible, done slowly by a moving hand, as if a person were doing it.
 - whose turn it is is obvious: that player's area is lit and the other's dimmed, with a sound when the turn passes.
 
@@ -49,21 +49,18 @@ Two players each build their own land from tiles with two terrain halves, on one
 - the child opens jars by tapping big jars lined up on screen. Opening one yourself is the fun.
 - a jar's benefit is immediate. Nothing carries to a "next" round.
 - jars stand in lines of up to 6, each line centred on its jars; a new jar takes the first free place (the others slide to keep the line centred); a broken jar leaves its place empty. No glow. Jars waiting are always drawn; while a tile is being placed they step aside over the market and come back.
-- jars break at once, as fast as he taps; what a jar held pops up above it as a picture (no words; an empty jar is the bitten apple), stays a moment, then flies to its place. Only the slot machine and a tile to place wait (for the other prizes to land, then for him).
-- Contents, per 100 jars: 45 one gold coin, 10 empty, 10 two coins, 10 one of each material, 8 another jar, 8 the first-player token (a coin for the player who already has the bee, owner 27 Nov), 5 the slot machine, 4 a random tile.
-- the random tile has random colours and always fits his land; it flies to its place beside the market's 4 tiles, marked as his, and shows its colours only there; he drags it from there.
+- jars break at once, as fast as he taps; what a jar held pops up above it as a picture (no words; an empty jar is the bitten apple), stays a moment, then flies to its place. No prize waits for him (owner 28 Nov).
+- Contents, per 104 jars (owner 28 Nov: no slot machine, its 5 to the single coin; the land changer as many as the tile): 50 one gold coin, 10 empty, 10 two coins, 10 one of each material, 8 another jar, 8 the first-player token (a coin for the player who already has the bee, owner 27 Nov), 4 a random tile (a coin when both his extra places are full), 4 the land changer (a coin when he has it).
+- the random tile has random colours and always fits his land when it comes; it flies to the first empty of his two extra places (on his face stone, end to end along the pool's edge) and waits there, shining. On his turn, before he picks, he can use it for free: taken, it is in hand as a market tile; placed, its connections give jars; left on an empty extra place it goes back there (owner 28 Nov).
+- the land changer (owner 28 Nov): one square in its own place on his free stone, striped with the 6 lands' ground, nothing on it; each player starts with one. On his turn, before he picks, a tap turns it to the next land; dragged onto a land square of another land it turns that square to its land, and each edge of that square with the same land is a connection (jars, lit land); anywhere else it goes back. A jar gives a new one (shining) only when his place is empty.
 - the bee (the first-player token) shows who plays first next round: the human player starts round 1 with it; when the round's first player starts his first turn it flies to the other, so the first player alternates by round; a jar that gives it sends it to its winner (owner 27 Nov).
 
-### Slot machine (a jar bonus)
-- 3 wheels; every wheel has the same 4 faces in its own order: 2 coins, 2 jars, 2 of each material, and a blank (the bitten apple).
-- only three of a kind wins, and you win what you see (3 faces of 2: 6 coins, 6 jars or 6 of each material); anything else wins nothing. It spins once; then you pay 1 coin to spin the wheels you don't keep, as many times as you want, and stop when you like.
-- Worth in coins used by the PC: 1 coin = 1; a jar = what jars hold in coins on average, counting another jar as worth the same again; one of each material = 6/5 of a jar.
-- the wheels roll fast, then slow down and stop, by their order among the wheels rolling, at 1.8, 2.6 and 3.5 s, with sounds; the tray under the wheels shows the prize only after they stop.
-- each wheel looks like a turning many-sided drum, shaded, the wheels apart; only the face it lands on shows. Tap a wheel to keep it (a clamp drops on it), pull a lever on the machine's side to pay a coin and spin the others, tap the tray under the wheels to take the prizes. No text.
+### Slot machine
+- removed from the game (owner 28 Nov); kept, generalised, in `tools/slot-machine/` at the repo's root.
 
 ### Points and winning
 - points are gold coins drawn one by one, with no numbers. They stand in the 5 material columns, in a tray under the materials, rows of 5 from the top.
-- coins come from jars and from the slot machine, and a slot spin costs 1 coin.
+- coins come from jars.
 - the game ends when no tile left can be placed by either player (so also when the tiles run out). Most coins wins.
 - the end is a smaller box over the board; each player's coins fly into his pile (face up, in columns of 10, the same coin size for both); the ruby (no shadow) stands over the taller pile; under the piles a green play button starts again; once the coins are counted the winner's sticker jumps up and down, excited, with a fanfare and a burst of ribbons.
 - Coins past 80 stack again from the first place.

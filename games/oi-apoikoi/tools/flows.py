@@ -3,8 +3,8 @@
 # and prints PASS or FAIL, [its flow name], what it checks, and what was seen. Waits are on the game's state, never on a fixed sleep.
 # Colours are numbered 0-5 (0 and 1 the most common); a tile is [first half, second half]; the board is 16 x 16 squares, the start tiles [0, 1] at (4, 10) turned 0 (the kid's) and (11, 5) turned 2 (the PC's: the kid's turned half a turn).
 # A table tile is [x, y, turn, colour, colour, owner]: turn 0 puts the second half to the right, 1 below, 2 left, 3 above; owner 0 is the kid, 1 the PC.
-# Jar contents a test needs are queued: {'k': 'empty'}, {'k': 'coins'}, {'k': 'coins2'}, {'k': 'slot'}, {'k': 'first'}, {'k': 'tile'}, {'k': 'jar'}, {'k': 'set'}.
-import time, pathlib, datetime, math
+# Jar contents a test needs are queued: {'k': 'empty'}, {'k': 'coins'}, {'k': 'coins2'}, {'k': 'changer'}, {'k': 'first'}, {'k': 'tile'}, {'k': 'jar'}, {'k': 'set'}.
+import time, pathlib, datetime, math, re
 from playwright.sync_api import sync_playwright
 GAME = next((pathlib.Path(__file__).resolve().parent.parent).glob('*.html'))  # this copy's own built page (whatever its name then), so old and new code can be tested at once
 COIN = {'k': 'coins'}
@@ -16,6 +16,7 @@ WAIT = 1500  # ms: the game answers in a few ms in fast mode, so a flow that wai
 def settle(q): q.evaluate("()=>__dg.render()")  # the game answers a tap at once; draw it now, so what is on screen (and its buttons) is current
 def table(q, **opts):  # a new game on a set table (goods=[kid's, PC's]: the goods each player has saved)
     opts.setdefault('fast', True); opts.setdefault('seed', 1)  # always seeded: a flow never depends on luck
+    opts.setdefault('changer', [-1, None])  # owner 28 Nov: the land changer; the PC's would change the board on its first move, so only the flows about it give the PC one
     if opts['fast']: pause_clock(q)  # a fast game needs no time to pass; a running clock draws 60 frames a second for nothing
     q.evaluate("(o)=>__dg.restart(o)", opts); settle(q)
     if not opts['fast']: run_until(q, "()=>!!__dg.state().wait")  # through the round's morning light, to the first pick
@@ -53,10 +54,15 @@ def off_board(dm, x, y, r):  # a round thing at (x, y) clears the board's diamon
     cx, cy, a, c = dm; return (abs(x - cx) * c + abs(y - cy) * a - a * c) / (a * a + c * c) ** 0.5 >= r - 0.5
 def min_gap(items):  # the smallest gap between any two round things
     return min((((a['x'] - b['x']) ** 2 + (a['y'] - b['y']) ** 2) ** 0.5 - a['r'] - b['r'] for i, a in enumerate(items) for b in items[i + 1:]), default=99)
-FACES = [['coin', 'jar', 'set', 'blank']] * 3  # a slot machine's faces, wheel by wheel: 2 coins, 2 jars, 2 of each material, a blank (owner 25 Nov)
 K3 = [[3, 0, 0, 0, 0, 0], [0] * 6]  # the kid has 3 goods of colour 0: a [0, 4] tile left of the start tile lights 2 more, and the 5 make a jar
-def get_jar(q, contents, coins=0, slots=(), faces=FACES):  # place a tile with one connection: its jar; open it (slots: the face each spin lands on)
-    table(q, bag=[[0, 4]] * 4, coins=[coins, 0], jarQueue=contents + [COIN] * 8, slotQueue=list(slots), slotFaces=faces)
+def open_jars(q, who=0):  # he breaks every jar waiting, one after another, until it is his turn to pick again
+    for _ in range(40):
+        s = st(q)['wait']
+        if s and s['kind'] == 'pick' and s['who'] == who: return
+        if s and s['kind'] == 'jar' and s['who'] == who: tap(q, 'jar-0')
+        else: skip(q, 100)
+def get_jar(q, contents, coins=0, **more):  # place a tile with one connection: its jar; open it
+    table(q, bag=[[0, 4]] * 4, coins=[coins, 0], jarQueue=contents + [COIN] * 8, **more)
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')
 def kid_plays(q, until, steps=80):  # the kid takes the first tile that fits, places it where it earns most, opens his jars
     for _ in range(steps):
@@ -255,11 +261,10 @@ def f_put_back(q):  # owner 24 Nov: a picked tile can be put back on its market 
     report(ok, 'put back: returns to the market', 'back on its place %s, tiles taken %d' % (s['draft'][0], s['players'][0]['got']))
 
 def f_sounds(q):  # owner 24 Nov: "add some sounds, it's hard to follow what happens": each thing that happens has its sound, in the order it happens
-    get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot'); tap(q, 'wheel-0'); tap(q, 'wheel-1'); tap(q, 'lever')
-    q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); a = [n for n in q.evaluate("()=>__dg.sounds()") if n not in ('dawn', 'deal', 'turn', 'into')]  # the morning, the deal, the turn sound and the goods going into a jar have their own flows
-    want = ['pick', 'snap', 'edge', 'edge', 'jar', 'roll', 'roll', 'roll', 'spin', 'stop', 'stop', 'stop', 'clamp', 'clamp', 'roll', 'spin', 'stop', 'win']  # each wheel ticks as it rolls (owner 24 Nov)
+    get_jar(q, [{'k': 'tile'}]); waiting(q, 'pick'); a = [n for n in q.evaluate("()=>__dg.sounds()") if n not in ('dawn', 'deal', 'turn', 'into', 'beefly')]  # the morning, the deal, the turn, the goods going into a jar and the bee have their own flows
+    want = ['pick', 'rotate', 'snap', 'splash', 'edge', 'jarland', 'edge', 'jar', 'reveal', 'extrain']  # owner 28 Nov: the extra tile lands in its place
     ok = a[:len(want)] == want
-    report(ok, 'sounds: one for each thing, in order', 'slot jar: %s, heard %s' % (a[:len(want)], sorted(set(a))))
+    report(ok, 'sounds: one for each thing, in order', 'tile jar: %s, heard %s' % (a[:len(want)], sorted(set(a))))
 
 def f_sound_kinds(q):  # owner 24 Nov: "a weird blip when I tap a piece"; "jars must make a breaking sound": a tap knocks like wood, a jar breaks like clay, a coin clinks; no beeps anywhere
     get_jar(q, [COIN]); settle(q); h = [k for n, k in zip(q.evaluate("()=>__dg.sounds()"), q.evaluate("()=>__dg.heardKinds()")) if n not in ('dawn', 'deal', 'turn', 'into', 'made')]  # the morning, the deal, the turn sound and the jar being made have their own flows
@@ -269,11 +274,11 @@ def f_sound_kinds(q):  # owner 24 Nov: "a weird blip when I tap a piece"; "jars 
 
 def f_many_jars_rows(q):  # owner 24 Nov: "when a lot of jars exist, make more rows, 6 jars per row; don't reduce their size"
     table(q, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); waiting(q, 'jar'); one = drawn(q, 'jar')[0]['size']  # one jar alone: its size
-    table(q, bag=[[0, 1]] * 4, jarQueue=[{'k': 'slot'}] + [COIN] * 20, slotQueue=[0, 0, 0], slotFaces=[['jar', 'coin', 'set', 'blank']] * 3)
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 11, 'r': 0}); waiting(q, 'jar'); tap(q, 'jar-0'); waiting(q, 'jar'); jars = drawn(q, 'jar')  # 2 jars; the first's slot machine shows three jars: 6 more
+    table(q, bag=[[0, 1]] * 4, tiles=[[3, 11, 1, 0, 0, 0], [6, 11, 1, 1, 1, 0], [4, 12, 0, 0, 1, 0]], jarQueue=[COIN] * 20)  # owner 28 Nov: no slot machine: a tile meeting 6 edges lights 5 squares of each colour: 8 jars
+    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 11, 'r': 0}); waiting(q, 'jar'); jars = drawn(q, 'jar')
     rows = {}; [rows.setdefault(j['row'], []).append(j) for j in jars]
     W, H = q.evaluate("()=>[innerWidth, innerHeight]")
-    ok = len(jars) == 7 and max(len(r) for r in rows.values()) == 6 and all(abs(j['size'] - one) < 0.5 for j in jars) and all(0 < j['y'] - j['size'] / 2 and j['y'] + j['size'] / 2 < H for j in jars)
+    ok = len(jars) == 8 and max(len(r) for r in rows.values()) == 6 and all(abs(j['size'] - one) < 0.5 for j in jars) and all(0 < j['y'] - j['size'] / 2 and j['y'] + j['size'] / 2 < H for j in jars)
     report(ok, 'jars: 6 to a row, more rows, same size', '%d jars in rows of %s, sizes %s (one alone %.0f)' % (len(jars), [len(r) for r in rows.values()], sorted({round(j['size']) for j in jars}), one))
 
 def f_many_coins(q):  # owner 24 Nov: "make sure more coins than you predicted can fit"; coins easy to count and apart; owner 25 Nov (design 3): rows of at most 8 from the bottom of
@@ -296,14 +301,12 @@ def f_jar_lines(q):  # owner 25 Nov (prototype): jars stand in lines of up to 6,
     # a new jar takes the first free place and the others slide to keep the line centred
     W = q.evaluate("()=>innerWidth"); centred = lambda xs: abs((min(xs) + max(xs)) / 2 - W / 2) < 1
     def two_jars(first):  # a tile meeting 2 edges: 2 jars; the first one opened holds first
-        table(q, bag=[[0, 1]] * 4, jarQueue=[{'k': first}] + [COIN] * 20, slotQueue=[0, 0, 0], slotFaces=[['jar', 'coin', 'set', 'blank']] * 3)
+        table(q, bag=[[0, 1]] * 4, jarQueue=[{'k': first}] + [COIN] * 20)
         tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 11, 'r': 0}); waiting(q, 'jar'); settle(q); return sorted((d['x'], d['slot']) for d in drawn(q, 'jar'))
     two = two_jars('empty'); tap(q, 'jar-0'); waiting(q, 'jar'); settle(q); left = [(d['x'], d['slot']) for d in drawn(q, 'jar')]
-    two_jars('slot'); tap(q, 'jar-0'); waiting(q, 'jar'); settle(q); jars = drawn(q, 'jar'); row0 = sorted((d['x'], d['slot']) for d in jars if d['row'] == 0)
-    waited = next(x for x, k in row0 if k == 1)
-    ok = [k for _, k in two] == [0, 1] and centred([x for x, _ in two]) and left == [two[1]] and [k for _, k in row0] == list(range(6)) and centred([x for x, _ in row0]) \
-        and len(jars) == 7 and abs(waited - two[1][0]) > 1
-    report(ok, 'jars: lines of 6, centred; broken leaves its place; new takes the first free one', 'two jars %s; after breaking the first %s; with 6 more, row 0 %s, %d jars' % ([(round(x), k) for x, k in two], [(round(x), k) for x, k in left], [(round(x), k) for x, k in row0], len(jars)))
+    two_jars('jar'); tap(q, 'jar-0'); waiting(q, 'jar'); run_until(q, "()=>!__dg.drawn().some(d=>d.rising)"); settle(q); jars = sorted((d['x'], d['slot']) for d in drawn(q, 'jar'))  # owner 28 Nov: no slot machine: a jar in a jar takes the first free place
+    ok = [k for _, k in two] == [0, 1] and centred([x for x, _ in two]) and left == [two[1]] and [k for _, k in jars] == [0, 1] and centred([x for x, _ in jars])
+    report(ok, 'jars: lines centred; broken leaves its place; new takes the first free one', 'two jars %s; after breaking the first %s; after a jar in a jar %s' % ([(round(x), k) for x, k in two], [(round(x), k) for x, k in left], [(round(x), k) for x, k in jars]))
 def f_round_end_shown(q):  # owner 24 Nov: the round's end is its own moment, seen and heard, before anything else happens in it; leftover market tiles fly back to the pile
     # owner 27 Nov: "remove night animation, but strengthen the day animation": no evening any more (it fell from the top with a moon and stars)
     pause_clock(q); table(q, fast=False, bag=[[2, 2], [3, 3]], tiles=[[4, 11, 0, 2, 2, 0], [4, 12, 0, 2, 2, 0]], jarQueue=[COIN] * 8)  # [3, 3] fits nobody: both pass, it is left in the market
@@ -446,7 +449,7 @@ def f_goods_smooth(q):  # owner 27 Nov: "try to make materials flight path more 
     report(seen > 10 and max(gaps) <= 1, 'goods: fly as one smooth streak (its copies overlap)', '%d goods seen, widest gap between copies %.2f of a good\'s size' % (seen, max(gaps or [9])))
 def f_stickers_centred(q):  # owner 27 Nov: "make them all 10% bigger, move them a bit more down their slab ... make sure that in every major screen dimension the avatars are kind of centered in their slab, not way too much up or down, or down and out"
     seen, ok = [], True
-    for w, h in ((1920, 1080), (1440, 900), (1024, 768), (2560, 1080), (1280, 800)):
+    for w, h in ((1920, 1080), (1440, 900), (2560, 1080), (1280, 800)):  # owner 28 Nov: no 4:3 screen
         q.set_viewport_size({'width': w, 'height': h}); table(q, animals=['hamster', 'chick']); a = [d for d in drawn(q, 'avatar') if d['o'] == 0][0]; s = a['shown']
         f = [x for x in drawn(q, 'area') if x['o'] == 0 and x['kind'] == 'face'][0]['pts']; y0, y1 = min(p[1] for p in f), max(p[1] for p in f); cy = s['feet'] - s['h0'] / 2; cx = s['x']
         mid = (cy - y0) / (y1 - y0); good = 0.3 <= mid <= 0.7 and s['feet'] <= y1 and abs(s['grow'] - 1.2 * 1.1) < 0.01; ok = ok and good; seen.append((w, h, round(mid, 2), round(s['grow'], 2), round(s['feet']), round(y1)))  # the hamster was 1.2 times the box's fit; 10% more
@@ -476,15 +479,12 @@ def f_left_in_its_place(q):  # owner 27 Nov: "I clicked, dragged a tiny bit, and
     table(q, bag=[[0, 4], [3, 3], [3, 3], [3, 3]], tiles=[[11, 4, 0, 3, 3, 1]], jarQueue=[COIN] * 8)  # only the first market tile fits his land
     tap(q, 'draft-0'); waiting(q, 'place'); h = held(q); path(q, h, [h[0] + 20, h[1] + 4]); s = st(q)
     report(s['wait'] and s['wait']['kind'] == 'pick' and s['wait']['who'] == 0 and s['passes'][0] == 0, 'tile: left on its own place, he picks again', 'wait %s, passes %s' % (s['wait'] and (s['wait']['kind'], s['wait']['who']), s['passes']))
-def f_pc_slot(q):  # the PC takes the best expected result on the slot machine too (here: two coins showing, chasing the third is worth it: it keeps both, pays 1 and wins 6)
-    table(q, bag=[[0, 4]] * 4, first=1, coins=[0, 5], jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 0, 1, 0], slotFaces=FACES)  # coin, coin, jar; the respin of the third wheel lands on coin
-    q.wait_for_function("()=>{const s=__dg.state();return s.wait&&s.wait.who===0}", timeout=WAIT, polling=5); c = st(q)['players'][1]['coins']
-    report(c == 5 - 1 + 6, 'pc: slot machine played for the most', 'pc coins %d (5, paid 1 to chase the third coin, won 3 faces of 2 coins)' % c)
 def f_jar_mix(q):  # owner 25 Nov, per 100 jars: "1 coin about 45%, Empty about 10%, 2 coins about 10%, One of each material about 10%, Another jar about 8%, First player about 8%, Slot machine about 5%, Tile about 4%"; no stealing
-    table(q, bag=[[0, 4]] * 4, seed=11)  # seeded: an unseeded sample missed the 1.5% band about once in 15 runs
+    # owner 28 Nov: "remove the slot machine ... Give its jar percentage to the single coin"; the land changer "gets the same as the extra piece" (shares now per 104)
+    table(q, bag=[[0, 4]] * 4, seed=11, changer=[None, None])  # seeded: an unseeded sample missed the 1.5% band about once in 15 runs; without a changer, so one can come
     n = 8000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)
-    want = {'empty': 10, 'coins': 45, 'coins2': 10, 'tile': 4, 'slot': 5, 'first': 8, 'jar': 8, 'set': 10}
-    ok = set(m) == set(want) and all(abs(100 * m[k] / n - v) < 1.5 for k, v in want.items())  # the shares are per 100 jars
+    want = {'empty': 10, 'coins': 50, 'coins2': 10, 'tile': 4, 'changer': 4, 'first': 8, 'jar': 8, 'set': 10}
+    ok = set(m) == set(want) and all(abs(100 * m[k] / n - 100 * v / 104) < 1.5 for k, v in want.items())  # the shares are per 104 jars
     report(ok, 'jars: the owner\'s mix, no stealing', ', '.join('%s %.1f%%' % (k, 100 * m.get(k, 0) / n) for k in sorted(set(want) | set(m))))
 def f_empty_jar(q):  # owner 24 Nov: some jars hold nothing: it breaks, shows it is empty, and nothing is gained
     get_jar(q, [{'k': 'empty'}])
@@ -513,15 +513,15 @@ def f_jar_breaks(q):  # owner 24 Nov: "jars should visually break and the reveal
     report(broke and came_out and coin_flew and star_flew, 'jars: break where tapped, the bonus comes out, rewards fly to their place', 'broke where tapped %s, bonus out of it %s, coin flew to his coins %s, star flew to its place %s' % (broke, came_out, coin_flew, star_flew))
 
 def f_jars_at_once(q):  # owner 25 Nov (prototype): jars break at once, as fast as he taps; each prize (a picture) pops up above its own jar, stays a moment, then flies to its place;
-    # only the slot machine and a tile to place wait (for the other prizes to land, then for him)
-    pause_clock(q); table(q, fast=False, bag=[[0, 1]] * 4, jarQueue=[COIN, {'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 1, 3], slotFaces=FACES)
+    # owner 28 Nov: no prize waits for him now (no slot machine; an extra tile waits in its place)
+    pause_clock(q); table(q, fast=False, bag=[[0, 1]] * 4, jarQueue=[COIN, {'k': 'tile'}] + [COIN] * 8)
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 11, 'r': 0}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 8000)  # 2 connections: 2 jars
     jars = sorted((d['x'], d['y'], d['size']) for d in drawn(q, 'jar')); tap(q, 'jar-0'); again = (st(q)['wait'] or {}).get('kind') == 'jar'; tap(q, 'jar-0'); left = st(q)['players'][0]['jars']
     run_until(q, "()=>{const d=__dg.drawn();return d.filter(x=>x.k==='shown').length===2&&!d.some(x=>x.k==='flight'&&x.look==='shown')}", 2000); cards = sorted((d['x'], d['y']) for d in drawn(q, 'shown'))
     above = len(cards) == 2 and all(abs(c[0] - j[0]) < 5 and c[1] < j[1] - j[2] / 2 for c, j in zip(cards, jars))  # risen out of it, above it
-    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='slot'}", 8000); coins = st(q)['players'][0]['coins']; tap(q, 'tray'); q.clock.resume()
-    ok = again and left == 0 and above and coins == 1
-    report(ok, 'jars: break at once; prize above its jar; the slot machine waits', 'next tap taken at once %s, jars left %d, prizes above their jars %s (%s over %s), coin landed before the machine %s' % (again, left, above, [(round(x), round(y)) for x, y in cards], [(round(x), round(y)) for x, y, _ in jars], coins == 1))
+    run_until(q, "()=>{const p=__dg.state().players[0];return p.extras[0]!==null&&p.coins===1}", 8000); s = st(q)['players'][0]; q.clock.resume()
+    ok = again and left == 0 and above and s['coins'] == 1 and s['extras'][0] is not None
+    report(ok, 'jars: break at once; prize above its jar; each flies to its place', 'next tap taken at once %s, jars left %d, prizes above their jars %s (%s over %s), coin %d, extra tile in its place %s' % (again, left, above, [(round(x), round(y)) for x, y in cards], [(round(x), round(y)) for x, y, _ in jars], s['coins'], s['extras'][0]))
 
 def f_jars_step_aside(q):  # owner 24 Nov: "the extra tile bonus makes the jars I was opening disappear; it should temporarily fly them to some free area"
     pause_clock(q); table(q, fast=False, bag=[[0, 1]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8)  # 2 jars; the first holds a tile
@@ -550,60 +550,6 @@ def f_coins2(q):  # the 2 coins bonus
     get_jar(q, [{'k': 'coins2'}]); c = st(q)['players'][0]['coins']
     report(c == 2, 'jar: 2 coins', 'coins %d' % c)
 
-def f_slot_rolls(q):  # owner 24 Nov: the wheels roll fast, then slow down and stop one after another (first, second, third), ticking as they pass and knocking as they stop;
-    # owner 25 Nov: rolling wheels stop by their order among the rolling ones (one wheel spun alone stops when the first did); the tray shows the prize only after they stop
-    pause_clock(q)
-    table(q, bag=[[0, 4]] * 4, fast=False, coins=[3, 0], jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 0, 1, 0], slotFaces=FACES)
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-0')
-    def watch(wheels):  # game time from now until each of these wheels stops; the prize in the tray while any rolls
-        stops, start, ms, at, early = {k: None for k in wheels}, None, 0, [], []  # times from the first frame any wheel rolls
-        while ms < 5000 and None in stops.values():
-            skip(q, 100); ms += 100
-            ws = {d['n']: d for d in drawn(q, 'wheel')}
-            if 0 in wheels and ws and ws[0]['rolling']: at.append(ws[0]['at'])
-            if any(w['rolling'] for w in ws.values()): early += [d['faces'] for d in drawn(q, 'pic') if d['for'] == 'tray' and d['faces']]
-            if start is None and any(w['rolling'] for w in ws.values()): start = ms
-            for k in wheels:
-                if k in ws and not ws[k]['rolling'] and stops[k] is None and start is not None: stops[k] = ms - start
-        return [stops[k] for k in wheels], at, early
-    stops, at, early = watch([0, 1, 2]); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='slot'}")
-    tap(q, 'wheel-0'); tap(q, 'wheel-1'); tap(q, 'lever'); alone, _, early2 = watch([2]); settle(q); after = [d['faces'] for d in drawn(q, 'pic') if d['for'] == 'tray']
-    q.clock.resume(); h = q.evaluate("()=>__dg.sounds()")
-    steps = [b - a for a, b in zip(at, at[1:])]; slows = len(steps) >= 4 and steps[0] > 3 * steps[-1] > 0
-    ok = None not in stops and stops[0] < stops[1] < stops[2] and stops[0] >= 500 and slows and h.count('roll') == 4 and h.count('stop') == 4 and alone[0] is not None and abs(alone[0] - stops[0]) <= 100 \
-        and not early and not early2 and after == [['coin'] * 3]
-    report(ok, 'slot: wheels roll, slow down, stop one by one; prize after', 'stops at %s ms, one wheel alone at %s; first wheel moves %s per 100 ms; roll sounds %d, stop sounds %d; prize while rolling %s, after %s' % (stops, alone, [round(x, 1) for x in steps], h.count('roll'), h.count('stop'), early + early2, after))
-def f_slot_says_price(q):  # owner 24 Nov: "I can't even see what I pay", and then "no text; the slot machine should have none": price, prize and coins are pictures; owner 25 Nov: a blank face is an X; owner 27 Nov: the apple instead
-    get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 1, 3]); waiting(q, 'slot'); settle(q)
-    pics = {d['for']: d for d in drawn(q, 'pic')}; texts = drawn(q, 'label'); blank = [f for f in drawn(q, 'drumface') if f['n'] == 2]
-    ok = not texts and pics.get('lever', {}).get('coins') == 1 and pics.get('tray', {}).get('faces') == [] and pics.get('coins', {}).get('n') == 3 and [f['f'] for f in blank] == ['blank'] and [d for d in drawn(q, 'nothing') if d.get('pic') == 'apple']
-    report(ok, 'slot: price, prize and coins as pictures, no text', 'texts %s, pictures %s, third wheel %s, apples drawn %d' % ([t['text'] for t in texts], pics, [f['f'] for f in blank], len(drawn(q, 'nothing'))))
-def f_slot_three(q):  # owner 24 Nov: keep wheels, pull the lever to pay 1 coin and spin the others; owner 25 Nov: three of a kind wins what you see: 3 faces of 2 coins
-    get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 0, 1, 0]); waiting(q, 'slot')
-    tap(q, 'wheel-0'); tap(q, 'wheel-1'); tap(q, 'lever'); q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); p = st(q)['players'][0]
-    report(p['coins'] == 3 - 1 + 6, 'slot: respin costs a coin, three of a kind wins what you see', 'coins %d (3, paid 1, three faces of 2 coins)' % p['coins'])
-def f_slot_two(q):  # owner 25 Nov (prototype): only three of a kind wins; you can stop at any time, and anything else gives nothing
-    get_jar(q, [{'k': 'slot'}], coins=0, slots=[0, 2, 3]); waiting(q, 'slot'); g0 = st(q)['players'][0]['goods']
-    tap(q, 'tray'); q.wait_for_function("()=>!__dg.state().slot", timeout=WAIT, polling=5); p = st(q)['players'][0]
-    report(p['coins'] == 0 and p['goods'] == g0 and p['jars'] == 0, 'slot: only three of a kind wins', 'coins %d, goods %s (before %s), jars %d' % (p['coins'], p['goods'], g0, p['jars']))
-def f_slot_drums(q):  # owner 24 Nov (said twice): each wheel a shaded drum showing only the face it lands on, the wheels apart; tap a wheel to keep it (a clamp drops on it), tap again to free it;
-    # a lever on the machine's side pays a coin and spins the others; tap the tray under the wheels to take the prizes; no circular arrow
-    get_jar(q, [{'k': 'slot'}], coins=3, slots=[0, 1, 3]); waiting(q, 'slot'); settle(q)
-    ws = sorted(drawn(q, 'wheel'), key=lambda d: d['n']); faces = [sum(1 for f in drawn(q, 'drumface') if f['n'] == k) for k in range(3)]
-    apart = min(b['x'] - a['x'] - a['w'] for a, b in zip(ws, ws[1:])); boxes = {b: q.evaluate("(b)=>__dg.btnBox(b)", b) for b in ('lever', 'tray')}
-    under = boxes['tray'] and boxes['tray']['y'] > max(w['y'] + w['h'] for w in ws); side = boxes['lever'] and boxes['lever']['x'] > max(w['x'] + w['w'] for w in ws)
-    tap(q, 'wheel-1'); kept = st(q)['slot']['kept']; clamps = [c['n'] for c in drawn(q, 'clamp')]; tap(q, 'wheel-1'); freed = st(q)['slot']['kept']
-    ok = len(ws) == 3 and all(w['shaded'] for w in ws) and faces == [1, 1, 1] and apart >= 24 and all(b and b['w'] >= 75 and b['h'] >= 75 for b in boxes.values()) and under and side \
-        and kept == [False, True, False] and clamps == [1] and freed == [False] * 3 and not drawn(q, 'roundarrow')
-    report(ok, 'slot: drums, clamps, a lever and a tray', 'wheels %d shaded %s, faces showing %s, %d px apart; lever %s at the side %s, tray %s under the wheels %s; kept %s with clamps %s, freed %s; circular arrow %s' % (len(ws), all(w['shaded'] for w in ws), faces, apart, boxes['lever'], side, boxes['tray'], under, kept, clamps, freed, bool(drawn(q, 'roundarrow'))))
-
-def f_slot_faces(q):  # owner 25 Nov (prototype): each wheel has the same 4 faces, 2 coins, 2 jars, 2 of each material and a blank, each wheel in its own order
-    seen, same = set(), True
-    for seed in range(1, 13):  # the first spin is set to show three different places, so the machine waits for him (three of a kind ends it at once)
-        table(q, seed=seed, bag=[[0, 4]] * 4, jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 1, 2]); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')
-        if not st(q)['slot']: continue
-        f = st(q)['slot']['faces']; seen.add(tuple(map(tuple, f))); same = same and all(sorted(w) == ['blank', 'coin', 'jar', 'set'] for w in f)
-    report(len(seen) > 6 and same, 'slot: the same 4 faces on every wheel, own order', '%d different machines in 12, every wheel coin, jar, materials, blank %s' % (len(seen), same))
 def f_first_token(q):  # the first-player token comes from a jar
     get_jar(q, [{'k': 'first'}]); report(st(q)['first'] == 0, 'first: token comes to you', 'first %s' % st(q)['first'])
 
@@ -705,15 +651,11 @@ def f_ruby_shadow(q):  # owner 27 Nov: "ruby shadow does not agree with the dire
 def f_ruby_smaller(q):  # owner 27 Nov: the ruby and its animation 10% smaller (it was 44 px across its middle at a 1920 x 1080 screen)
     q.set_viewport_size({'width': 1920, 'height': 1080}); table(q, coins=[3, 1]); r = drawn(q, 'ruby'); u = drawn(q, 'button')[0]['ui']; q.set_viewport_size({'width': 1280, 'height': 800})
     report(bool(r) and abs(r[0]['r'] - 0.9 * 44 * u) < 0.5, 'ruby: 10% smaller', 'ruby %s, was %.1f' % (r and round(r[0]['r'], 1), 44 * u))
-def f_extra_glow(q):  # owner 27 Nov: "the extra tile should have something like golden glow and sparkling small stars too, to draw attention to it"
-    table(q, bag=[[0, 4]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); market = drawn(q, 'extraglow')
-    drag_to(q, {'x': 3, 'y': 10, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0')
-    for _ in range(40):
-        s = st(q)
-        if s['wait'] and s['wait']['kind'] == 'place' and s['fromNowhere']: break
-        skip(q, 300)
-    g, h = drawn(q, 'extraglow'), held(q)
-    report(not market and bool(g) and abs(g[0]['x'] - h[0]) < 2 and abs(g[0]['y'] - h[1]) < 2, 'extra tile: a golden glow and stars, a market tile none', 'market tile glow %s, extra tile glow %s at %s' % (bool(market), bool(g), h))
+def f_extra_glow(q):  # owner 27 Nov: "the extra tile should have something like golden glow and sparkling small stars too, to draw attention to it" (owner 28 Nov: in its place too)
+    table(q, bag=[[0, 4]] * 4, extras=[[[0, 4], None], [None, None]]); market = [g for g in drawn(q, 'extraglow') if g['y'] < drawn(q, 'extra')[0]['y'] - 40]
+    g, e = drawn(q, 'extraglow'), drawn(q, 'extra')[0]; tap(q, 'extra-0'); waiting(q, 'place'); g2, h = drawn(q, 'extraglow'), held(q)
+    ok = not market and any(abs(x['x'] - e['x']) < 2 and abs(x['y'] - e['y']) < 2 for x in g) and any(abs(x['x'] - h[0]) < 2 and abs(x['y'] - h[1]) < 2 for x in g2)
+    report(ok, 'extra tile: a golden glow and stars, in its place and in hand; a market tile none', 'market tile glow %s, in its place %s, in hand %s' % (bool(market), bool(g), bool(g2)))
 
 def f_sticker_box(q):  # owner 27 Nov: "make the avatars bigger and contain them in this box" (his red box on the face stone, beside the extra tile's place)
     table(q); tap(q, 'draft-0'); waiting(q, 'place'); ok, seen = True, []
@@ -735,9 +677,7 @@ def f_water_tap(q):  # owner 27 Nov: "make the click on the water make the splas
 def f_ruby_moves(q):  # owner 27 Nov: "when it's equal coins dissolve it in many particles, dissolve it, and the opposite when it appears again or for the first time; add proper sound hooks"
     table(q, coins=[1, 0]); a, h = drawn(q, 'ruby'), q.evaluate("()=>__dg.sounds()"); table(q, coins=[0, 2]); b = drawn(q, 'ruby')
     report(bool(a) and a[0]['o'] == 0 and bool(b) and b[0]['o'] == 1, 'ruby: on the leader\'s half', 'kid ahead %s, PC ahead %s' % (a and a[0]['o'], b and b[0]['o']))
-    table(q, fast=False, coins=[1, 0], bag=[[0, 4]] * 4, jarQueue=[{'k': 'slot'}] + [COIN] * 8, slotQueue=[0, 1, 2], slotFaces=FACES); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2})
-    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 15000); tap(q, 'jar-0'); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='slot'}", 8000); tap(q, 'lever')
-    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='slot'}", 8000); tap(q, 'tray'); run_until(q, "()=>__dg.sounds().includes('rubyout')", 8000); outs = []
+    pause_clock(q); table(q, fast=False, coins=[1, 0], first=1, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); run_until(q, "()=>__dg.sounds().includes('rubyout')", 15000); outs = []  # the PC's coin levels them (owner 28 Nov: no slot machine to pay from)
     for _ in range(80):  # owner 27 Nov: "when ruby disappears, it should have the opposite animation from appearing. also, now it flickers on disappearance."
         skip(q, 50); r = drawn(q, 'ruby')
         if not r: break
@@ -773,27 +713,68 @@ def f_tile_excites(q):  # owner 27 Nov: an extra tile from a jar makes him excit
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-0')
     run_until(q, "()=>__dg.sounds().some(x=>(x.n||x)==='reveal')", 3000); settle(q); face = [d['pic'] for d in drawn(q, 'avatar') if d['o'] == 0]; q.clock.resume()
     report(bool(face) and face[0].endswith('-excited'), 'faces: an extra tile makes him excited', 'his face %s' % face)
-def f_free_tile(q):  # owner 25 Nov (prototype): a jar's free tile is a random tile, no wild tile; its colours are not shown until it lies beside the market; it always fits; it is his ("marked as yours", 24 Nov)
-    pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8)
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-0')
-    run_until(q, "()=>__dg.drawn().some(d=>d.k==='flight'&&d.look==='tile')", 3000); flying = [d['cs'] for d in drawn(q, 'tile') if d['id'] is None]
-    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='place'}", 3000); h = held(q); m = drawn(q, 'market')[0]; shown = [d['cs'] for d in drawn(q, 'tile') if d['id'] == 'held']
-    mark = [x['o'] for x in drawn(q, 'heldmark')]; fits = len(st(q)['spots']) > 0; q.clock.resume(); n0 = tile_count(q, 0); drag_to(q, best_spot(q))
-    ok = flying == [None] and len(shown) == 1 and shown[0] and len(shown[0]) == 2 and m['x'] + m['w'] < h[0] and mark == [0] and fits and tile_count(q, 0) == n0 + 1
-    report(ok, 'tile: random, colours hidden until beside the market, fits', 'flying %s, beside the market %s with colours %s, his %s, fits %s, placed %s' % (flying, m['x'] + m['w'] < h[0], shown, mark, fits, tile_count(q, 0) == n0 + 1))
+def f_free_tile(q):  # owner 25 Nov (prototype): a jar's free tile is a random tile, no wild tile; it always fits; it is his ("marked as yours", 24 Nov)
+    # owner 28 Nov: "the extra slot does not have to be immediately placed but can be placed anytime as a free action": it waits in its place; on his turn he places it and picks after
+    get_jar(q, [{'k': 'tile'}]); waiting(q, 'pick'); s = st(q); e = drawn(q, 'extra'); got, n0 = s['players'][0]['got'], tile_count(q, 0)
+    kept = len(e) == 1 and e[0]['o'] == 0 and e[0]['n'] == 0 and e[0]['ok'] and s['players'][0]['extras'][0] == e[0]['cs']
+    tap(q, 'extra-0'); waiting(q, 'place'); fits = len(st(q)['spots']) > 0; drag_to(q, best_spot(q)); open_jars(q); s2 = st(q)
+    free = s2['wait']['who'] == 0 and s2['players'][0]['got'] == got and tile_count(q, 0) == n0 + 1 and s2['players'][0]['extras'] == [None, None]
+    report(kept and fits and free, 'extra tile: waits in its place; placed for free on his turn, then he picks', 'kept in its place %s, fits %s, placed and still his turn to pick %s' % (kept, fits, free))
 
 def f_extra_shine(q):  # owner 27 Nov: "extra tile should shine brighter, have a bit more stars, stars shouldn't be wrongly centered as now, and make sure it also shines from the beginning, not only when at its slot"
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8)
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}"); tap(q, 'jar-0')
     run_until(q, "()=>__dg.drawn().some(d=>d.k==='shown')", 3000); shown = len(drawn(q, 'extraglow'))
-    run_until(q, "()=>__dg.drawn().some(d=>d.k==='flight'&&d.look==='tile')", 3000); flying = len(drawn(q, 'extraglow'))
-    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='place'}", 3000); q.clock.resume(); table(q, bag=[[0, 4]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8)
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); waiting(q, 'jar'); tap(q, 'jar-0'); waiting(q, 'place')
-    t = [d for d in drawn(q, 'tile') if d['id'] == 'held'][0]; s = drawn(q, 'extrastars'); g = drawn(q, 'extraglow'); m = s and s[0]['mean']
-    centred = bool(m) and abs(m[0] - t['x']) < 0.1 * t['w'] and t['y'] - t['h'] / 2 < m[1] < t['y']
+    run_until(q, "()=>__dg.drawn().some(d=>d.k==='flight'&&d.look==='tile')", 3000); flying = len(drawn(q, 'extraglow')); q.clock.resume()
+    table(q, extras=[[[0, 4], None], [None, None]]); t = drawn(q, 'extra')[0]; s = drawn(q, 'extrastars'); g = drawn(q, 'extraglow'); m = s and s[0]['mean']
+    w, h = [(d['w'], d['h']) for d in drawn(q, 'tile') if abs(d['x'] - t['x']) < 1 and abs(d['y'] - t['y']) < 1][0]
+    centred = bool(m) and abs(m[0] - t['x']) < 0.1 * w and t['y'] - h / 2 < m[1] < t['y']
     ok = shown >= 1 and flying >= 1 and g and g[0]['shine'] >= 2 and s and s[0]['n'] >= 24 and centred
     report(ok, 'extra tile: shines from the jar on, brighter, more stars round its middle', 'glow while shown %d, flying %d; shine %s; stars %s round %s, tile at %s' % (shown, flying, g and g[0]['shine'], s and s[0]['n'], m and [round(v) for v in m], [round(t['x']), round(t['y'])]))
 
+def f_extra_back(q):  # owner 28 Nov: an extra tile "can be taken and then returned to the slot, like the other normal drawn tiles"
+    table(q, bag=[[0, 4]] * 4, extras=[[[0, 4], None], [None, None]]); tap(q, 'extra-0'); waiting(q, 'place')
+    p1 = [d for d in drawn(q, 'giftplace') if d['o'] == 0 and d['n'] == 1][0]; path(q, held(q), [p1['cx'], p1['y']]); waiting(q, 'pick'); run_until(q, "()=>__dg.state().players[0].extras[1]!==null", 2000)
+    s = st(q); heard = q.evaluate("()=>__dg.sounds()")
+    ok = s['players'][0]['extras'][0] is None and sorted(s['players'][0]['extras'][1] or []) == [0, 4] and s['players'][0]['got'] == 0 and 'extratake' in heard and 'extraback' in heard
+    report(ok, 'extra tile: left on an empty extra place it goes back there, his turn goes on', 'extras %s, tiles taken %d, sounds %s' % (s['players'][0]['extras'], s['players'][0]['got'], [x for x in heard if x.startswith('extra')]))
+def f_extras_two(q):  # owner 28 Nov: "you can have max 2 extra tiles, if you have 2, then the jars dont give you more until you again have an empty extra tile slot ... their percentage goes to single coins";
+    # "move the extra tile slot a bit more up (parallel to the pool edge still), so you can fit 2 of these slots on the slab"
+    table(q, bag=[[0, 4]] * 4, seed=11, extras=[[[0, 4], [1, 1]], [None, None]]); n = 4000; full = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)
+    table(q, bag=[[0, 4]] * 4, seed=11, extras=[[[0, 4], None], [None, None]]); one = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)
+    pl = sorted([d for d in drawn(q, 'giftplace') if d['o'] == 0], key=lambda d: d['n']); a, b = q.evaluate("()=>[__dg.square(0,0), __dg.square(0,1)]")
+    along = math.atan2(pl[1]['y'] - pl[0]['y'], pl[1]['cx'] - pl[0]['cx']) - math.atan2(b[1] - a[1], b[0] - a[0]); face = [x for x in drawn(q, 'area') if x['o'] == 0 and x['kind'] == 'face'][0]['pts']
+    ok = 'tile' not in full and abs(100 * full.get('coins', 0) / n - 100 * 58 / 104) < 2 and 'tile' in one and abs(along) < 0.01 and pl[0]['y'] < pl[1]['y'] and all(inside_poly(face, d['cx'], d['y']) for d in pl)
+    report(ok, 'extra tiles: two places along the pool\'s edge; with both full a tile jar is a coin', 'both full: tile %s, coin %.1f%%; one full: tile %s; places %s, off the edge\'s line %.3f' % ('tile' in full, 100 * full.get('coins', 0) / n, 'tile' in one, [(round(d['cx']), round(d['y'])) for d in pl], along))
+def f_changer(q):  # owner 28 Nov: "a single half tile ... 6 stripes of top and sub layer of the 6 different lands ... you can tap it, and it then changes from its original form, and it rotates through the 6 lands.
+    # you can drag it and drop it ON AN EXISTING HALF TILE ... to make the half tile below it change land. it triggers a new edge/harvesting occurrence. the placement preview should follow the rules of the normal
+    # placement preview, with the land below that gets the white dashed border, and shown as fade preview of the new land"
+    table(q, bag=[[1, 4]] * 4, jarQueue=[COIN] * 8); first = [d for d in drawn(q, 'changer') if d['z'] == 1]; striped = len(first) == 1 and first[0]['c'] == -1  # [1, 4] still fits his land once its 0 square is 1
+    tap(q, 'changer'); waiting(q, 'pick'); c1 = st(q)['players'][0]['changer']; tap(q, 'changer'); waiting(q, 'pick'); c2 = st(q)['players'][0]['changer']  # the first land, then the next
+    sq = q.evaluate("()=>__dg.square(4,10)"); path(q, q.evaluate("()=>__dg.btn('changer')"), sq, up=False); pv = [d for d in drawn(q, 'preview') if d['where'] == 'square']
+    q.mouse.up(); settle(q); waiting(q, 'jar'); s = st(q); start = [t for t in s['tiles'] if t[:2] == [4, 10]][0]
+    open_jars(q); s2 = st(q); heard = q.evaluate("()=>__dg.sounds()")
+    ok = striped and (c1, c2) == (0, 1) and pv and (pv[0]['x'], pv[0]['y'], pv[0]['c']) == (4, 10, 1) and start[3:5] == [1, 1] and s['players'][0]['jars'] == 1 and s2['players'][0]['changer'] is None and s2['wait']['who'] == 0 \
+        and all(x in heard for x in ('changerturn', 'changerdrop'))
+    report(ok, 'land changer: striped, a tap turns its land, dropped on a square it changes it; its new edge gives a jar; his turn goes on', 'striped %s, lands after taps %s, preview %s, the square now %s, jars %d, changer after %s, his turn %s' % (striped, (c1, c2), pv and pv[0], start[3:5], s['players'][0]['jars'], s2['players'][0]['changer'], s2['wait']['who'] == 0))
+def f_changer_back(q):  # owner 28 Nov: the changer changes only a square of another land; dropped anywhere else it goes back to its place
+    table(q, bag=[[0, 4]] * 4); tap(q, 'changer'); waiting(q, 'pick'); path(q, q.evaluate("()=>__dg.btn('changer')"), q.evaluate("()=>__dg.square(8,8)")); waiting(q, 'pick')
+    run_until(q, "()=>__dg.state().players[0].changer!==null", 2000); s = st(q); heard = q.evaluate("()=>__dg.sounds()")
+    ok = s['players'][0]['changer'] == 0 and 'changerback' in heard and [t[3:5] for t in s['tiles'] if t[:2] == [4, 10]] == [[0, 1]]
+    report(ok, 'land changer: dropped on the water it goes back, nothing changes', 'changer %s, back sound %s' % (s['players'][0]['changer'], 'changerback' in heard))
+def f_changer_jar(q):  # owner 28 Nov: "it will be able to be refreshed by a jar (same glowing as the extra tiles, but only when given from a jar), it is NOT given from jars when you have it already, then its percentage goes to the coin"
+    get_jar(q, [{'k': 'changer'}], changer=[None, None]); waiting(q, 'pick'); s = st(q); ch = [d for d in drawn(q, 'changer') if d['z'] == 1]
+    table(q, bag=[[0, 4]] * 4, seed=11); n = 4000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n); table(q); plain = [d for d in drawn(q, 'changer') if d['z'] == 1]
+    ok = s['players'][0]['changer'] == -1 and len(ch) == 1 and ch[0]['glow'] and 'changer' not in m and abs(100 * m.get('coins', 0) / n - 100 * 54 / 104) < 2 and plain and not plain[0]['glow']
+    report(ok, 'land changer: a jar gives a new one, shining; none while he has one (a coin instead); the first one does not shine', 'from a jar %s shining %s; with one: changer %s, coin %.1f%%; the first shines %s' % (s['players'][0]['changer'], ch and ch[0]['glow'], 'changer' in m, 100 * m.get('coins', 0) / n, plain and plain[0]['glow']))
+def f_pc_uses_spares(q):  # owner 28 Nov: what a player keeps is used for free; the PC does what is best for this turn: its extra tile first, its land changer when it makes a jar
+    table(q, bag=[[0, 4]] * 4, first=1, changer=[-1, -1], extras=[[None, None], [[0, 4], None]], jarQueue=[COIN] * 20); waiting(q, 'pick'); s = st(q)
+    pc = [t for t in s['tiles'] if t[5] == 1 and t[6] != 's1']; heard = q.evaluate("()=>__dg.sounds()")
+    ok = s['players'][1]['extras'] == [None, None] and s['players'][1]['changer'] is None and len(pc) == 2 and 'changerdrop' in heard
+    report(ok, 'pc: uses its extra tile and its land changer, then picks', 'pc extras %s, changer %s, tiles placed %d' % (s['players'][1]['extras'], s['players'][1]['changer'], len(pc)))
+def f_sound_hooks(q):  # owner 28 Nov: "make sure there are sound hooks for every event, movement, action": every sound the game plays has its line in SOUNDS.md
+    names = set(q.evaluate("()=>__dg.soundNames()")); doc = set(re.findall(r'^\| `([a-z]+)` \|', (GAME.parent / 'SOUNDS.md').read_text(), re.M))
+    report(names == doc, 'sounds: every one has its hook in SOUNDS.md', 'missing in SOUNDS.md %s, listed but not in the game %s' % (sorted(names - doc), sorted(doc - names)))
 def f_screen_sizes(q):  # owner 25 Nov (design 3, the new look): the board is sea, 16 x 16 squares seen in true isometric view (a diamond 1.73 times as wide as high), as tall as the screen
     # under the market band allows; a tile the same size everywhere; tiles he can't take: a light grey wash, their pictures clear (owner 25 Nov, prototype)
     table(q, bag=[[0, 3], [3, 3], [0, 4], [0, 4]]); H = q.evaluate("()=>innerHeight"); b = drawn(q, 'boardarea')[0]; band = drawn(q, 'band')[0]
@@ -863,7 +844,7 @@ def f_player_areas(q):  # owner 25 Nov (design 3, the new look): each player's a
     report(ok, 'areas: grey empty tips, material rows, coin rows', '%s, pile %s' % (out, pile))
 def f_no_sets(q):  # owner 25 Nov (prototype): no wild tiles, no sets to tap: one of each colour lights nothing; only the market's tiles can be tapped
     table(q, bag=[[0, 4]] * 4, goods=[[2] * 6, [0] * 6]); b = q.evaluate("()=>__dg.buttons()"); marks = drawn(q, 'setrow') + drawn(q, 'setsign')
-    b = [x for x in b if not x.startswith('avatar-')]  # owner 27 Nov: the stickers answer a tap
+    b = [x for x in b if not x.startswith('avatar-') and x != 'changer']  # owner 27 Nov: the stickers answer a tap; owner 28 Nov: so does his land changer
     report(sorted(b) == ['draft-%d' % k for k in range(4)] and not marks, 'no sets, no wild tile', 'buttons %s, set marks %d' % (b, len(marks)))
 def f_another_jar(q):  # another jar, which you open yourself
     get_jar(q, [{'k': 'jar'}, {'k': 'coins2'}]); waiting(q, 'jar'); c0 = st(q)['players'][0]['coins']
@@ -954,19 +935,17 @@ def f_starts_face(q):  # owner 25 Nov: the start tiles face each other: the PC's
     kid, pc = [sq(t) for o in (0, 1) for t in st(q)['tiles'] if t[5] == o]
     turned = {(15 - x, 15 - y): c for (x, y), c in kid.items()}
     report(pc == turned, 'starts: the tiles face each other', 'kid %s, pc %s' % (kid, pc))
-def f_scales(q):  # owner 25 Nov: "make sure your ui is adoptable to all laptop and pc screen sizes": what has its own size (faces, the hand, the slot machine) grows with the board, and stays on screen
-    seen, small_hh = [], 0
+def f_scales(q):  # owner 25 Nov: "make sure your ui is adoptable to all laptop and pc screen sizes": what has its own size (faces, the hand) grows with the board, and stays on screen (owner 28 Nov: no slot machine)
+    seen = []
     for w, h in ((1366, 768), (1920, 1080), (2560, 1440)):
-        q.set_viewport_size({'width': w, 'height': h}); get_jar(q, [{'k': 'slot'}], coins=3); waiting(q, 'slot'); settle(q)
+        q.set_viewport_size({'width': w, 'height': h}); table(q); settle(q)
         a, c = q.evaluate("()=>[__dg.square(0,0), __dg.square(1,0)]"); hh = c[1] - a[1]
-        face = [x for x in drawn(q, 'avatar') if x['o'] == 0][0]; m = drawn(q, 'machine')[0]; hand = drawn(q, 'hand')[0]; lever = q.evaluate("()=>__dg.btn('lever')")
-        inside = m['x'] >= 0 and m['y'] >= 0 and m['x'] + m['w'] <= w and m['y'] + m['h'] <= h and m['x'] <= lever[0] <= m['x'] + m['w'] * 1.3 and m['y'] <= lever[1] <= m['y'] + m['h']
+        face = [x for x in drawn(q, 'avatar') if x['o'] == 0][0]; hand = drawn(q, 'hand')[0]
         fills = round(face['shown']['h0'] / hh, 2)  # owner 27 Nov changed the size rule (was: as big as its box): the sticker as big as its stone allows on each screen (sticker_heights), so only shown here
-        seen.append((fills, round(m['w'] / hh, 2), round(hand['z'] / hh, 2), inside)); small_hh = small_hh if seen[1:] else hh
+        seen.append((fills, round(hand['z'] / hh, 2)))
     q.set_viewport_size({'width': 1280, 'height': 800})
-    same = all(abs(x[k] - seen[1][k]) <= 0.02 * seen[1][k] for x in seen[1:] for k in (1, 2)) and abs(seen[0][2] - seen[1][2]) <= 0.02 * seen[1][2] 
-    small = seen[0][1] * small_hh >= 540 - 1  # on a small screen the machine keeps its made size (its buttons stay big enough to touch), as long as it fits
-    report(same and small and all(x[3] for x in seen), 'scales: sizes grow with the screen, on screen', 'per size (the sticker height, machine width and hand in half-square heights, on screen) %s' % seen)
+    same = all(abs(x[1] - seen[1][1]) <= 0.02 * seen[1][1] for x in seen)
+    report(same, 'scales: sizes grow with the screen', 'per size (the sticker height and hand in half-square heights) %s' % seen)
 def f_thick_land(q):  # owner 25 Nov: land squares are blocks with some thickness: walls of earth under the top's front edges, the sea below them
     table(q, bag=[[0, 4]] * 4); a, c = q.evaluate("()=>[__dg.square(0,0), __dg.square(1,0)]"); hh = c[1] - a[1]
     x, y = q.evaluate("()=>__dg.square(5,10)"); px = lambda dy: q.evaluate("([x,y])=>__dg.pixel(x,y)", [x, y + hh + dy * hh])[:3]  # under the start tile's front corner
@@ -983,10 +962,10 @@ def f_borders(q):  # each player's land has a border all around: green for the k
     seam = q.evaluate("()=>__dg.edge(4,10,0)"); mid = q.evaluate("(p)=>__dg.pixel(p[0],p[1]+4)", seam)[:3]
     ok = kid == 6 and pc == 6 and not mid[2] > mid[0] + 30
     report(ok, 'borders: all around each land, halves joined', 'kid edges %d, pc edges %d, seam %s' % (kid, pc, mid))
-MAIN_SEED, MAIN_JARS = 3, ['coins', 'empty', 'slot', 'first', 'jar', 'tile', 'coins2', 'set']  # the main game's fixed pile (made by this seed) and the jar contents queued, in order
+MAIN_SEED, MAIN_JARS = 3, ['coins', 'empty', 'first', 'jar', 'tile', 'coins2', 'set']  # the main game's fixed pile (made by this seed) and the jar contents queued, in order
 def f_main_game(q):  # owner 24 Nov: one main test plays a whole game with a fixed pile and fixed jar contents, so every situation happens in order; at each situation it checks that situation's rules, and after every move what he sees adds up
     out = q.evaluate("""async ([seed, kinds]) => {
-      const cv = document.querySelector('canvas'), errs = [], did = {}, err = m => errs.push(m);
+      const cv = document.querySelector('#c'), errs = [], did = {}, err = m => errs.push(m);
       const tick = async () => { for (let k = 0; k < 300; k++) await null; };
       const ev = (type, [x, y]) => cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, isPrimary: true, bubbles: true }));
       const tap = async p => { if (!p) { err('nothing to tap at ' + JSON.stringify(__dg.state().wait)); return; } __dg.render(); ev('pointerdown', p); ev('pointerup', p); await tick(); };
@@ -994,7 +973,7 @@ def f_main_game(q):  # owner 24 Nov: one main test plays a whole game with a fix
       const seen = kind => __dg.drawn().filter(d => d.k === kind), btn = id => { __dg.render(); return __dg.btn(id); };  // buttons are where the last picture put them: draw first
       const sum = a => a.reduce((x, y) => x + y, 0), DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
       const lit = starts => { const sq2 = seen('square'), on = (x, y) => sq2.find(d => d.x === x && d.y === y), done = new Set(), todo = starts.slice(); while (todo.length) { const [x, y] = todo.shift(), a = on(x, y); if (!a || done.has(x + ',' + y)) continue; done.add(x + ',' + y); [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([dx, dy]) => { const b = on(x + dx, y + dy); if (b && b.c === a.c) todo.push([x + dx, y + dy]); }); } return done.size; };  // the squares the connections light, on the board shown (owner 25 Nov)
-      __dg.restart({ seed, fast: true, jarQueue: kinds.map(k => ({ k })), slotQueue: [0, 0, 1, 0] }); await tick();
+      __dg.restart({ seed, fast: true, jarQueue: kinds.map(k => ({ k })) }); await tick();
       { const s = __dg.state(), starts = s.tiles.map(t => t.slice(0, 5).join()).sort();  // the start: the same start tile for both, the two most common colours, at the centres of the board's halves; nobody has the token; the kid picks first
         if (starts.join('|') !== '11,5,2,0,1|4,10,0,0,1' || s.draft.length !== 4 || !s.wait || s.wait.kind !== 'pick' || s.wait.who !== 0 || s.first !== null) err('start: ' + JSON.stringify([starts, s.wait, s.first])); }
       let putBack = false, picked = -1, prev = __dg.state(), afterPass = 0; const total = prev.left;  // every tile of the pile
@@ -1020,6 +999,10 @@ def f_main_game(q):  # owner 24 Nov: one main test plays a whole game with a fix
           s.fits.forEach((f, k) => { if (f || !s.draft[k]) return; const d = seen('tile').find(t => t.id === 'draft-' + k);  // a tile he can't pick: greyed, its colours kept, not tappable
             did.unusable = true;
             if (!d || d.look !== 'grey' || d.cs.join() !== s.draft[k].join() || __dg.btn('draft-' + k)) err('greyed: tile ' + k + ' ' + JSON.stringify(d)); });
+          const spare = [0, 1].find(n => btn('extra-' + n)); if (spare != null) { picked = -1; await tap(btn('extra-' + spare)); continue; }  // owner 28 Nov: an extra tile is used for free, before he picks
+          if (s.round >= 2 && !did.changer && btn('changer')) {  // owner 28 Nov: the land changer: a tap turns it to the first land, a drag onto a square of another land turns that square
+            await tap(btn('changer')); await tap(__dg.held()); await tap(btn('changer'));  // taken, then a tap on it in hand turns it to the first land; taken again
+            const sq = seen('square').find(d => d.c !== 0 && d.o === 0); if (sq) { await drag(__dg.held(), __dg.square(sq.x, sq.y)); __dg.render(); did.changer = seen('square').some(d => d.x === sq.x && d.y === sq.y && d.c === 0) && !btn('changer'); } continue; }
           const k = s.fits.indexOf(true); picked = k; await tap(btn('draft-' + k));
           if (!putBack && s.round >= 2 && __dg.state().wait && __dg.state().wait.kind === 'place') { await drag(__dg.held(), [innerWidth - 60, 400]); await drag(__dg.held(), __dg.slot(k)); putBack = did.putBack = __dg.state().draft[k] !== null && __dg.state().wait.kind === 'pick'; }
         }
@@ -1035,11 +1018,10 @@ def f_main_game(q):  # owner 24 Nov: one main test plays a whole game with a fix
           if (five < 0 || g + 5 * five !== g0 + n || t.players[0].goods.some(x => x >= 5)) err('round ' + s.round + ': ' + edges + ' connections lighting ' + n + ' squares, goods ' + g0 + ' -> ' + g + ' and ' + (five + edges) + ' jars');
         }
         else if (w.kind === 'jar') { const n = s.players[0].jars; await tap(btn('jar-0')); if (__dg.state().players[0].jars >= n) did.moreJars = true; }  // a jar that brings another jar, or goods that make one
-        else if (w.kind === 'slot') { did.slot = true; if (s.players[0].coins && !did.reroll) { did.reroll = true; await tap(btn('wheel-0')); await tap(btn('wheel-1')); await tap(btn('lever')); } else await tap(btn('tray')); }  // once: keep two wheels and pull the lever
       }
       return { errs: errs.slice(0, 5), did, left: __dg.state().queued };
     }""", [MAIN_SEED, MAIN_JARS])
-    want = ['unusable', 'pass', 'putBack', 'bonusTile', 'slot', 'reroll', 'moreJars', 'end']
+    want = ['unusable', 'pass', 'putBack', 'bonusTile', 'changer', 'moreJars', 'end']
     missing = [k for k in want if not out['did'].get(k)]
     report(not out['errs'] and not missing and out['left'] == 0, 'main game: every situation, what he sees adds up', 'missing %s, errors %s, jar contents left %s' % (missing, out['errs'], out['left']))
 
@@ -1052,7 +1034,7 @@ def f_simulation(q):  # owner 25 Nov (task list): a simulation tool plays seeded
 def f_random_play(q):  # seeded games played through the screen (taps and drags on what is drawn, at random moments); after every move, what he can see holds:
     # a placement gives a jar per connection and a material per square it lights, on the board shown; each 5 of a colour a jar at once
     bad = q.evaluate("""async () => {
-      const cv = document.querySelector('canvas'), ch = new MessageChannel(), errs = [];
+      const cv = document.querySelector('#c'), ch = new MessageChannel(), errs = [];
       const tick = async () => { for (let k = 0; k < 300; k++) await null; };  // let the game's answers run (they are promise steps in fast mode); no timer, no message: those wait for the browser
       const ev = (type, [x, y]) => cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, isPrimary: true, bubbles: true }));
       const tap = async p => { ev('pointerdown', p); ev('pointerup', p); await tick(); };  // the game answers after the event: wait for it
@@ -1083,7 +1065,6 @@ def f_random_play(q):  # seeded games played through the screen (taps and drags 
             if (five < 0 || g + 5 * five !== g0 + n) errs.push('seed ' + seed + ': ' + edges + ' connections lighting ' + n + ' squares, goods ' + g0 + ' -> ' + g + ' and ' + (five + edges) + ' jars');
           }
           else if (w.kind === 'jar') await tap(btn('jar-0'));
-          else if (w.kind === 'slot') await tap(btn('tray'));
         }
         if (errs.length > 5) break;
       }

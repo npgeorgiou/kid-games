@@ -22,11 +22,21 @@ Every sound the game makes has a name. Each one plays a soft built-in sound for 
 | `reveal` | What the jar held pops up above it. |
 | `coin` | A coin lands in the player's coin stacks. |
 | `token` | The first-player star lands beside the player's face. |
-| `spin` | The slot machine's lever is pulled. |
-| `roll` | The slot wheels tick as their pictures pass. |
-| `stop` | A slot wheel stops. |
-| `clamp` | A clamp goes on or comes off a slot wheel. |
-| `win` | The slot machine's prize is taken. |
+| `extrain` | An extra tile from a jar lands in its place. |
+| `extratake` | A player takes an extra tile from its place. |
+| `extraback` | An extra tile is left on an empty extra place and stays there. |
+| `changerin` | A land changer from a jar lands in its place. |
+| `changerturn` | A tap turns the land changer to its next land. |
+| `changerback` | The land changer, left anywhere but on a square of another land, flies back to its place. |
+| `changerdrop` | The land changer lands on a square and turns it to its land. |
+| `leave` | A tile in hand is let go somewhere it does not fit (it stays there). |
+| `beefly` | The bee takes off toward its next holder. |
+| `aside` | Waiting jars step aside. |
+| `jarsback` | Stepped-aside jars come back to their places. |
+| `tilesback` | At a round's end, the tiles nobody took fly back under the pile. |
+| `endcoin` | At the end, a coin lands in a player's pile. |
+| `again` | The play again button is tapped. |
+| `button` | The settings or exit button is pressed. |
 | `pass` | A player has no tile he can place and passes. |
 | `roundend` | A round ends. |
 | `victory` | The game's winner is announced (a fanfare). |
