@@ -4,7 +4,7 @@ New brushes for the coloring book are built here first, one at a time, copying K
 
 ## Brushes we make (owner, 26 Nov)
 
-The Krita families below, each with its own presets. Blender, Basics, Inking and the rest are out.
+The Krita families below, each with its own presets. Blender and the rest are out; Basic and Ink come in if he says yes to the game brush set (Where we are).
 
 | Family | Krita presets (`krita/presets/`) | Krita engine | Reference picture |
 |---|---|---|---|
@@ -19,6 +19,15 @@ The Krita families below, each with its own presets. Blender, Basics, Inking and
 | Stamps | `z)_Stamp_*` (13) | pixel brush (11), spray (2) | `references/krita/z-stamps.png` (shrunk; the page's picture is 900x2210) |
 
 Order: Eraser, Markers, Pencils, Chalk/Pastel, Dry Painting, Dry Textured, Stamps, Wet painting, Watercolors.
+
+## Where we are (28 Nov)
+
+- **Done on the page** (branch `krita-brushes-port`, pull request 48, not merged: GitHub has run no checks on any branch since 26 Nov 14:31 UTC, so the merge waits; nothing to fix in the repo for it found yet):
+  all nine families on ported code; a stroke goes straight from finger point to finger point (Krita's no smoothing; basic smoothing painted lines off the finger's path on his touchscreen); each preset owns its tip pictures (memory no longer grows); painting fast (wet brushes blend Mixbox latents in a float copy of the layer, tip pyramids made when a brush is chosen); everyday settings and strength (pen pressure, opens at the picture's strength); wet brushes carry a load of paint (Paint slider = bucket) that empties and takes up the paint that was under the brush before the stroke; premade brushes per game tool (buttons that set a preset and its sliders); each preset's picture palette; paper = empty layer over its colour.
+- **Waiting for him:** (1) yes to the game brush set below; (2) which two markers darken where a stroke goes back over itself at lower opacity in his Krita (Chisel Smooth, Details or Dry). Krita's code as ported (wash mode: opacity applied when the stroke is merged, alpha darken within the stroke) does that only where flow is below 1; nobody here can run Krita.
+- **Proposed game brush set** (his idea, 27-28 Nov): brush = tip and texture; bucket = strength (paint amount for wet brushes); each tool's popup has a strong row and a soft row with the same tips (soft: lower opacity and flow, softer edge on round tips, thinner paint on wet ones); softness only through the soft row; size on the game's size buttons and mouse wheel. Strong rows: acrylic flat wet, round wet, knife, flat dry, textured dry, thick / impasto; watercolour soft wash, hard wash, fringe, texture; oil pastel grainy, soft, detail; pencil hard, soft, side shade, charcoal; marker bullet, chisel, dry; simple = Krita Basic; ink = Krita Ink; stickers leaves, grass, hearts, sparkles, bokeh. The eraser goes unless the game gets one. Needs porting: Krita's Basic and Ink families (`Krita_4_Default_Resources.bundle`), and Thick paint / Impasto (`krita/data/bundles/RGBA_brushes.bundle` in Krita's source: `Basic_Wet_Thick_Paint_Brush.kpp` and friends; they use Krita's paint-thickness / lightness part, not ported yet).
+- **Strokes not like their pictures** (from `tools/beside_pictures.py`): Pencil-3 Large 4B has fine grain where the picture's is coarse (texture `10_drawed_dotted.png` at scale 0.1, brightness 0.3: check the texture scale and brightness port); Marker Dry lays solid paint where the picture is streaky (rect tip, density 0.8, masking off). The rest look close at their picture strengths.
+- **Not seen here:** his tab freezing and crashing with wet brushes and pencils; the stray lines were the likely cause (one move painted thousands of dabs). Ask him whether it still happens.
 
 ## How we work
 
@@ -45,6 +54,7 @@ Order: Eraser, Markers, Pencils, Chalk/Pastel, Dry Painting, Dry Textured, Stamp
 | `references/krita/` | The pictures of each family from the Krita manual page (docs.krita.org, Krita 4 Preset Bundle Overview; GNU FDL 1.3+). |
 | `vendor/spectral/` | Spectral.js and its shader (`LICENSE`: MIT). |
 | `tools/picture_palettes.py` | Makes `krita/picture-palettes.txt` from Krita's pictures (needs Pillow). |
+| `tools/beside_pictures.py` | Paints every preset of a family in its picture's colours under its strip of Krita's picture, into one image to judge by eye (`python3 tools/beside_pictures.py "Wet painting" out.png [strength]`). |
 | `tools/kpp.py` | Reads Krita presets (`.kpp`) into `krita/presets/`, `krita/tips/`, `krita/patterns/`. |
 | `tools/get_krita.sh` | Fetches Krita's source (GPL) for the brush engines and the preset bundle, at the commit these presets come from, into the temp folder. |
 

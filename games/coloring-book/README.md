@@ -79,7 +79,7 @@ Sandbox paper, paint engine on the graphics card, aiming at Rebelle's look. Word
 ## Open
 
 Do next, in this order (his words are in the Task list):
-- Brushes copied from Krita's presets (his choice, 26 Nov), in `experiments/` (core `src/brush-core.js`, page `brushes.html`): all nine families on code ported from Krita, wet brushes mixing like pigment (Mixbox), everyday settings and a strength each preset opens at (its picture's, by eye); waiting for his look. Tests: the `kb_` flows.
+- Krita brushes page (`experiments/`, its README's "Where we are" says what is done, what waits for him and what is next): get his yes to the game brush set and his answer on the markers; port Basic, Ink and thick paint / impasto; fix Pencil-3's grain and Marker Dry's streaks; then bring the brushes into the game. Pull request 48 waits for GitHub to run checks again (none since 26 Nov 14:31 UTC).
 - Watercolour brush library and look (his 25 Nov pages), then 17-21; crayon (22); marker (23); spray other shapes; slow separate tests; drying times; outline pictures later.
 
 ## Task list
@@ -88,6 +88,7 @@ Do next, in this order (his words are in the Task list):
   - Game brush set per tool (strong row, soft row with the same tips; bucket = strength, or paint for wet brushes): waiting for his yes on the proposed set; then port Krita's Basic and Ink families and the thick paint / impasto presets (RGBA bundle, paint thickness).
   - Strokes against the pictures: Pencil-3 Large 4B shows fine grain where the picture is coarse; Marker Dry lays solid paint where the picture is streaky.
   - Markers: in Krita two of the three, at lower opacity, darken where a stroke goes back over itself; here none does.
+  - Ask him whether wet brushes and pencils still freeze or crash his tab (never seen here).
   - Into the game: the premade brushes as extra brushes in each tool's popup, bucket level as strength, size on the size buttons and mouse wheel; after his look at the page.
 
 Numbers are his points of 23 Nov; pictures in `owner-shots/2026-11-23-*`. Acrylic and impasto references of 25 Nov: `owner-shots/2026-11-25-acrylic-*`, `owner-shots/2026-11-25-impasto-*`.

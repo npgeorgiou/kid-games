@@ -57,3 +57,6 @@
 - Krita brushes page: test strokes as his touchscreen sends them (moves half a ms apart, a little shaky); tidy mouse moves 8 ms apart hid lines painted off the finger's path.
 - Krita brushes page: CDP mouse moves wait for a frame each (16.7 ms), so time painting with the page's script time (Performance.getMetrics ScriptDuration), never with how long a move call took.
 - Krita brushes page: the paper is an empty layer over the paper's colour; painted white paper would be taken up by wet brushes as white paint and turn every colour pastel.
+- Krita brushes page: headless Chrome does not move a range slider on a click; drag its knob (kb_slide). Its strength slider runs 0..100, not 0..1.
+- Krita brushes page: tapping a family, preset or tool can change the rows above the paper and so move the paper: read its place again (__kb.screenOf) after every such tap.
+- Krita brushes page: a check of how far paint lands from the line cannot hold for brushes with random dabs (scatter, tips picked at random, tips of random pixels); kb_finger_lines leaves those out by reading the brush's own settings.
