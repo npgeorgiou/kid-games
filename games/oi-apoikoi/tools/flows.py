@@ -214,6 +214,7 @@ def f_no_bidding(q):  # owner 24 Nov: no bidding (too slow: every pick triggered
     ok = w['kind'] == 'place' and w['who'] == 0 and s['players'][1]['goods'] == [1] * 5 and not drawn(q, 'bidcard') and 'bid' not in q.evaluate("()=>__dg.sounds()")
     report(ok, 'pick: the tile is yours, no bid', 'after the pick: %s, PC goods %s, bid card %s' % (w, s['players'][1]['goods'], bool(drawn(q, 'bidcard'))))
 
+NECK = 0.02  # owner 28 Nov: below the rim's top a good goes straight down: at most this share of the jar's width off the neck's middle
 def f_goods_into_neck(q):  # owner 27 Nov: "the goods that go into jars now, dont drop in correctly, they drop in while kind of colliding with the neck of the jar. their fly curve must be higher."
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, goods=K3, jarQueue=[COIN] * 8)
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); hits, seen, ms = [], 0, 0
@@ -222,8 +223,8 @@ def f_goods_into_neck(q):  # owner 27 Nov: "the goods that go into jars now, don
         for d in drawn(q, 'flight'):
             if d['look'] != 'good' or not d['rim']: continue
             m = d['rim']; seen += 1; low = d['y'] + d['r'] > m['y']  # its bottom is below the rim's top
-            if low and 0.12 * m['w'] < abs(d['x'] - d['tx']) < 0.6 * m['w']: hits.append((round(d['x'] - d['tx']), round(d['y'] + d['r'] - m['y'])))  # yet over the jar beside the neck's opening
-    report(seen > 5 and not hits, 'goods: drop into the jar\'s neck from above, clear of it', '%d positions seen, beside the neck below its top %s' % (seen, hits[:6]))
+            if low and NECK * m['w'] < abs(d['x'] - d['tx']) < 0.6 * m['w']: hits.append((round(d['x'] - d['tx']), round(d['y'] + d['r'] - m['y'])))  # owner 28 Nov: "still A TINY BIT hitting its rim": below the rim's top it falls straight in
+    report(seen > 5 and not hits, 'goods: drop into the jar\'s neck from above, clear of it', '%d positions seen, past the neck\'s opening below its top %s' % (seen, hits[:6]))
 def f_material_lines(q):  # owner 25 Nov (prototype): materials come in a line per colour, so a colour never waits for another's jar; a full row's jar drops while its 5th flies; lit squares light 120 ms apart
     pause_clock(q); table(q, fast=False, bag=[[0, 1]] * 4, goods=[[4, 0, 0, 0, 0, 0], [0] * 6], jarQueue=[COIN] * 8); gap = q.evaluate("()=>__dg.gaps().lit")
     tap(q, 'draft-0'); waiting(q, 'place'); P = stock_edge(q); drag_to(q, {'x': 4, 'y': 11, 'r': 0})  # 2 connections: colour 0 lights 2 squares (4 + 2: a jar), colour 1 lights 2
@@ -420,20 +421,6 @@ def f_no_jar_shade(q):  # owner 27 Nov: "remove jar opening darker overlay, it m
     run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 8000); dark = len(drawn(q, 'shade')); tap(q, 'jar-0'); n = 0
     for _ in range(10): skip(q, 100); dark += len(drawn(q, 'shade')); n += 1
     q.clock.resume(); report(dark == 0, 'jars: no darkening while they open', 'darkened in %d of %d pictures' % (dark, n + 1))
-def f_parked_jars(q):  # owner 27 Nov: "make jars that move aside while an extra tile is placed ... 1/3 bigger, and change their placement to now be this: standing on top of the materials slab, 4 at a row,
-    # in alternating rows, each higher row hidden up to its half from the row under it, so the row under it is visually in front of it"
-    pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[{'k': 'slot'}, {'k': 'tile'}] + [COIN] * 12, slotQueue=[1, 1, 1], slotFaces=FACES)  # the slot machine lands on three jars: 6 jars; the next holds a tile
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 8000); big = [d['size'] for d in drawn(q, 'jar') if d['o'] == 0][0]; tap(q, 'jar-0')
-    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'&&s.players[0].jars>=6}", 15000); tap(q, 'jar-0'); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='place'}", 8000)
-    run_until(q, "()=>__dg.drawn().filter(d=>d.k==='jar'&&d.parked).length>0&&!__dg.drawn().some(d=>d.k==='flight'&&d.look==='jar')", 4000)
-    j = [d for d in drawn(q, 'jar') if d.get('parked')]; q.clock.resume(); q.screenshot(path=str(GAME.parent / 'shots' / 'jars-aside.png'))
-    # owner 27 Nov later: "jars should sit on the upper top of that slab ... like standing on a shelf"; then: "they should be standing here on the black line (the stone's top edge), and the other rows should be BEHIND THEM, NOT IN FRONT OF THEM"
-    rows = sorted({round(d['feet']) for d in j}); per = [len([d for d in j if round(d['feet']) == y]) for y in rows]; xs = lambda y: sorted(d['x'] for d in j if round(d['feet']) == y)
-    shifted = len(rows) < 2 or abs((xs(rows[-2])[0] - xs(rows[-1])[0]) - (xs(rows[-1])[1] - xs(rows[-1])[0]) / 2) < 2  # the row behind starts half a place further in
-    half = len(rows) < 2 or abs((rows[-1] - rows[-2]) - j[0]['h'] / 2) < 2; top = j[0]['shelf'] if j else 0; on = bool(j) and abs(rows[-1] - top) < 1  # the front row's feet on the stone's top edge, as drawn
-    ok = len(j) >= 5 and all(abs(d['size'] / big - 0.4) < 0.01 for d in j) and max(per) <= 4 and per[-1] == 4 and shifted and half and on and [d['feet'] for d in j] == sorted(d['feet'] for d in j)
-    report(ok, 'jars: stepped aside 1/3 bigger, the front row on the materials stone\'s top edge, rows of 4 behind it, each half hidden', '%d jars at %s, size %s of a jar, rows (feet) %s with %s, shifted %s, half behind %s, on the stone (top %d) %s, back first %s' % (
-        len(j), [(round(d['x']), round(d['feet'])) for d in j], sorted({round(d['size'] / big, 2) for d in j}), rows, per, shifted, half, top, on, [d['feet'] for d in j] == sorted(d['feet'] for d in j)))
 def f_pile_layers(q):  # owner 27 Nov: "make it so the deck is not this random brown color, but each layer has the same texture as the substratum of the tiles, in order of materials in the material stockpile, loop them as they are 6 and we have 8 layers"
     table(q); p = drawn(q, 'pile')[0]; cols = {d['c']: d['x'] for d in drawn(q, 'place') if d['o'] == 0}; order = sorted(cols, key=cols.get)  # the materials' columns from left to right, as he sees them
     want = [order[k % len(order)] for k in range(p['layers'])]
@@ -483,8 +470,8 @@ def f_jar_mix(q):  # owner 25 Nov, per 100 jars: "1 coin about 45%, Empty about 
     # owner 28 Nov: "remove the slot machine ... Give its jar percentage to the single coin"; the land changer "gets the same as the extra piece" (shares now per 104)
     table(q, bag=[[0, 4]] * 4, seed=11, changer=[None, None])  # seeded: an unseeded sample missed the 1.5% band about once in 15 runs; without a changer, so one can come
     n = 8000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)
-    want = {'empty': 10, 'coins': 50, 'coins2': 10, 'tile': 4, 'changer': 4, 'first': 8, 'jar': 8, 'set': 10}
-    ok = set(m) == set(want) and all(abs(100 * m[k] / n - 100 * v / 104) < 1.5 for k, v in want.items())  # the shares are per 104 jars
+    want = {'empty': 10, 'coins': 46, 'coins2': 10, 'tile': 4, 'changer': 4, 'first': 8, 'jar': 8, 'set': 10}  # owner 28 Nov: back to 100 ("we have to readjust others"): the changer's 4 from the single coin
+    ok = set(m) == set(want) and all(abs(100 * m[k] / n - v) < 1.5 for k, v in want.items())  # the shares are per 100 jars
     report(ok, 'jars: the owner\'s mix, no stealing', ', '.join('%s %.1f%%' % (k, 100 * m.get(k, 0) / n) for k in sorted(set(want) | set(m))))
 def f_empty_jar(q):  # owner 24 Nov: some jars hold nothing: it breaks, shows it is empty, and nothing is gained
     get_jar(q, [{'k': 'empty'}])
@@ -522,16 +509,6 @@ def f_jars_at_once(q):  # owner 25 Nov (prototype): jars break at once, as fast 
     run_until(q, "()=>{const p=__dg.state().players[0];return p.extras[0]!==null&&p.coins===1}", 8000); s = st(q)['players'][0]; q.clock.resume()
     ok = again and left == 0 and above and s['coins'] == 1 and s['extras'][0] is not None
     report(ok, 'jars: break at once; prize above its jar; each flies to its place', 'next tap taken at once %s, jars left %d, prizes above their jars %s (%s over %s), coin %d, extra tile in its place %s' % (again, left, above, [(round(x), round(y)) for x, y in cards], [(round(x), round(y)) for x, y, _ in jars], s['coins'], s['extras'][0]))
-
-def f_jars_step_aside(q):  # owner 24 Nov: "the extra tile bonus makes the jars I was opening disappear; it should temporarily fly them to some free area"
-    pause_clock(q); table(q, fast=False, bag=[[0, 1]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8)  # 2 jars; the first holds a tile
-    tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 4, 'y': 11, 'r': 0}); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 8000); tap(q, 'jar-1')
-    run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='place'}", 3000); q.clock.run_for(600); settle(q)
-    T = q.evaluate("()=>innerHeight*0.16"); away = [j for j in drawn(q, 'jar') if j['o'] == 0]
-    aside = len(away) == 1 and away[0]['y'] < T + 20
-    drag_to(q, best_spot(q)); run_until(q, "()=>{const s=__dg.state();return s.wait&&s.wait.kind==='jar'}", 8000); back = [j for j in drawn(q, 'jar') if j['o'] == 0 and not j.get('new')]; q.clock.resume()
-    ok = aside and len(back) == 1 and back[0]['y'] > T + 100
-    report(ok, 'jars: step aside during a bonus tile, then come back', 'waiting jar seen aside while placing %s (%s), back in the row after %s' % (aside, [(round(j['x']), round(j['y'])) for j in away], [(round(j['x']), round(j['y'])) for j in back]))
 
 def f_jar_picture(q):  # owner 25 Nov (prototype): what a jar held is a picture, no words (the 24 Nov labels are gone); an empty jar shows an X; owner 27 Nov: "replace the red X for nothing (jars/slot machine) with this apple"
     pause_clock(q); table(q, bag=[[0, 4]] * 4, fast=False, jarQueue=[{'k': 'empty'}] + [COIN] * 8)
@@ -729,8 +706,8 @@ def f_extra_shine(q):  # owner 27 Nov: "extra tile should shine brighter, have a
     table(q, extras=[[[0, 4], None], [None, None]]); t = drawn(q, 'extra')[0]; s = drawn(q, 'extrastars'); g = drawn(q, 'extraglow'); m = s and s[0]['mean']
     w, h = [(d['w'], d['h']) for d in drawn(q, 'tile') if abs(d['x'] - t['x']) < 1 and abs(d['y'] - t['y']) < 1][0]
     centred = bool(m) and abs(m[0] - t['x']) < 0.1 * w and t['y'] - h / 2 < m[1] < t['y']
-    ok = shown >= 1 and flying >= 1 and g and g[0]['shine'] >= 2 and s and s[0]['n'] >= 24 and centred
-    report(ok, 'extra tile: shines from the jar on, brighter, more stars round its middle', 'glow while shown %d, flying %d; shine %s; stars %s round %s, tile at %s' % (shown, flying, g and g[0]['shine'], s and s[0]['n'], m and [round(v) for v in m], [round(t['x']), round(t['y'])]))
+    ok = shown >= 1 and flying >= 1 and g and g[0]['shine'] == 1 and g[0]['alpha'] <= 0.55 and s and s[0]['n'] >= 24 and centred  # owner 28 Nov: "make the extra tile glow less. now that they stay in the screen"
+    report(ok, 'extra tile: shines from the jar on, softly, many stars round its middle', 'glow while shown %d, flying %d; shine %s, strength %s; stars %s round %s, tile at %s' % (shown, flying, g and g[0]['shine'], g and g[0]['alpha'], s and s[0]['n'], m and [round(v) for v in m], [round(t['x']), round(t['y'])]))
 
 def f_extra_back(q):  # owner 28 Nov: an extra tile "can be taken and then returned to the slot, like the other normal drawn tiles"
     table(q, bag=[[0, 4]] * 4, extras=[[[0, 4], None], [None, None]]); tap(q, 'extra-0'); waiting(q, 'place')
@@ -744,7 +721,7 @@ def f_extras_two(q):  # owner 28 Nov: "you can have max 2 extra tiles, if you ha
     table(q, bag=[[0, 4]] * 4, seed=11, extras=[[[0, 4], None], [None, None]]); one = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)
     pl = sorted([d for d in drawn(q, 'giftplace') if d['o'] == 0], key=lambda d: d['n']); a, b = q.evaluate("()=>[__dg.square(0,0), __dg.square(0,1)]")
     along = math.atan2(pl[1]['y'] - pl[0]['y'], pl[1]['cx'] - pl[0]['cx']) - math.atan2(b[1] - a[1], b[0] - a[0]); face = [x for x in drawn(q, 'area') if x['o'] == 0 and x['kind'] == 'face'][0]['pts']
-    ok = 'tile' not in full and abs(100 * full.get('coins', 0) / n - 100 * 58 / 104) < 2 and 'tile' in one and abs(along) < 0.01 and pl[0]['y'] < pl[1]['y'] and all(inside_poly(face, d['cx'], d['y']) for d in pl)
+    ok = 'tile' not in full and abs(100 * full.get('coins', 0) / n - 54) < 2 and 'tile' in one and abs(along) < 0.01 and pl[0]['y'] < pl[1]['y'] and all(inside_poly(face, d['cx'], d['y']) for d in pl)
     report(ok, 'extra tiles: two places along the pool\'s edge; with both full a tile jar is a coin', 'both full: tile %s, coin %.1f%%; one full: tile %s; places %s, off the edge\'s line %.3f' % ('tile' in full, 100 * full.get('coins', 0) / n, 'tile' in one, [(round(d['cx']), round(d['y'])) for d in pl], along))
 def f_changer(q):  # owner 28 Nov: "a single half tile ... 6 stripes of top and sub layer of the 6 different lands ... you can tap it, and it then changes from its original form, and it rotates through the 6 lands.
     # you can drag it and drop it ON AN EXISTING HALF TILE ... to make the half tile below it change land. it triggers a new edge/harvesting occurrence. the placement preview should follow the rules of the normal
@@ -765,13 +742,29 @@ def f_changer_back(q):  # owner 28 Nov: the changer changes only a square of ano
 def f_changer_jar(q):  # owner 28 Nov: "it will be able to be refreshed by a jar (same glowing as the extra tiles, but only when given from a jar), it is NOT given from jars when you have it already, then its percentage goes to the coin"
     get_jar(q, [{'k': 'changer'}], changer=[None, None]); waiting(q, 'pick'); s = st(q); ch = [d for d in drawn(q, 'changer') if d['z'] == 1]
     table(q, bag=[[0, 4]] * 4, seed=11); n = 4000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n); table(q); plain = [d for d in drawn(q, 'changer') if d['z'] == 1]
-    ok = s['players'][0]['changer'] == -1 and len(ch) == 1 and ch[0]['glow'] and 'changer' not in m and abs(100 * m.get('coins', 0) / n - 100 * 54 / 104) < 2 and plain and not plain[0]['glow']
+    ok = s['players'][0]['changer'] == -1 and len(ch) == 1 and ch[0]['glow'] and 'changer' not in m and abs(100 * m.get('coins', 0) / n - 50) < 2 and plain and not plain[0]['glow']
     report(ok, 'land changer: a jar gives a new one, shining; none while he has one (a coin instead); the first one does not shine', 'from a jar %s shining %s; with one: changer %s, coin %.1f%%; the first shines %s' % (s['players'][0]['changer'], ch and ch[0]['glow'], 'changer' in m, 100 * m.get('coins', 0) / n, plain and plain[0]['glow']))
 def f_pc_uses_spares(q):  # owner 28 Nov: what a player keeps is used for free; the PC does what is best for this turn: its extra tile first, its land changer when it makes a jar
     table(q, bag=[[0, 4]] * 4, first=1, changer=[-1, -1], extras=[[None, None], [[0, 4], None]], jarQueue=[COIN] * 20); waiting(q, 'pick'); s = st(q)
     pc = [t for t in s['tiles'] if t[5] == 1 and t[6] != 's1']; heard = q.evaluate("()=>__dg.sounds()")
     ok = s['players'][1]['extras'] == [None, None] and s['players'][1]['changer'] is None and len(pc) == 2 and 'changerdrop' in heard
     report(ok, 'pc: uses its extra tile and its land changer, then picks', 'pc extras %s, changer %s, tiles placed %d' % (s['players'][1]['extras'], s['players'][1]['changer'], len(pc)))
+def f_bee_sparkles(q):  # owner 28 Nov: "give the bee a few small stars, like the ones the extra tile has, but a bit, and only a tiny glow, and not so bright"
+    table(q); settle(q); b, glow = drawn(q, 'beestars'), drawn(q, 'beeglow'); table(q, extras=[[[0, 4], None], [None, None]]); e = drawn(q, 'extrastars'); t = drawn(q, 'token')
+    ok = bool(b) and bool(e) and 3 <= b[0]['n'] <= 8 and b[0]['size'] < e[0]['size'] and bool(glow) and glow[0]['glow'] <= 0.3
+    report(ok, 'bee: a few small stars, a faint glow', 'bee stars %s, their size %s (the extra tile\'s %s), glow %s' % (b and b[0]['n'], b and round(b[0]['size'], 2), e and round(e[0]['size'], 2), glow and glow[0]['glow']))
+def f_layout_28nov(q):  # owner 28 Nov: "On 3:2 screens the avatars run past the screen edge -> fix that"; "move changer tile slot a bit to the left, so its bot corner is aligned with the green land icon's
+    # top/bot corners. and a bit more to the top, where there is space"; "the land icons can all move a bit more above the divider"
+    seen, ok = [], True
+    for w, h in ((1920, 1080), (1366, 768), (1440, 900), (1920, 1200), (1920, 1280), (2256, 1504)):
+        q.set_viewport_size({'width': w, 'height': h}); table(q, animals=['hamster', 'chick']); settle(q)
+        a = [d['shown'] for d in drawn(q, 'avatar')]; inside = all(s['x'] - s['w'] / 2 >= 0 and s['x'] + s['w'] / 2 <= w for s in a)
+        ch = [d for d in drawn(q, 'changerplace') if d['o'] == 0][0]; green = [d for d in drawn(q, 'icon') if d['o'] == 0 and d['c'] == 1][0]; dead = [d for d in drawn(q, 'area') if d['o'] == 0 and d['kind'] == 'dead'][0]['pts']
+        top = min(p[1] for p in dead); hh = q.evaluate("()=>__dg.square(1,0)[1]-__dg.square(0,0)[1]"); high = abs(ch['x'] - green['x']) < 1 and ch['y'] < (top + max(p[1] for p in dead)) / 2
+        groove = [d for d in drawn(q, 'groove') if d['o'] == 0][0]['y']; gap = (groove - (green['y'] + green['h'] / 2)) / hh  # the icon's ground bottom over the divider, in half-squares
+        good = inside and high and gap > 0.75; ok = ok and good;  # it was about 0.6 seen.append((w, h, inside, high, round(gap, 2)))
+    q.set_viewport_size({'width': 1280, 'height': 800})
+    report(ok, 'layout: stickers on screen, the changer under the green icon and high, icons clear over the divider', '(screen, stickers on screen, changer in line and high, icons over the divider in half-squares) %s' % seen)
 def f_sound_hooks(q):  # owner 28 Nov: "make sure there are sound hooks for every event, movement, action": every sound the game plays has its line in SOUNDS.md
     names = set(q.evaluate("()=>__dg.soundNames()")); doc = set(re.findall(r'^\| `([a-z]+)` \|', (GAME.parent / 'SOUNDS.md').read_text(), re.M))
     report(names == doc, 'sounds: every one has its hook in SOUNDS.md', 'missing in SOUNDS.md %s, listed but not in the game %s' % (sorted(names - doc), sorted(doc - names)))

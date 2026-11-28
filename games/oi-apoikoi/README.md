@@ -18,7 +18,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `design.md`: the full design (draft): rules, jars, slot machine, points, tensions, sheet rows, everything open.
 - `WARNINGS.md`: traps found in this game.
 - `areas-sketch.png`: the areas sketch (each player's side split into areas, the board's border), to build from.
-- `shots/`: pictures shown to the owner (`avatars-screens.png`: the stickers on 15 screen sizes; `pool-*.png`: the pool at the start, rounds 3 and 6, with the land changer's preview, at the end; `coins-80-*.png`: 80 coins in each player's stacks at 16:10, 16:9 and 21:9; `jars-aside.png`: jars stepped aside on the materials stone while an extra tile is placed).
+- `shots/`: pictures shown to the owner (`avatars-screens.png`: the stickers on 15 screen sizes; `pool-end-*.png`: the pool at the end of 5 games; `coins-80-*.png`: 80 coins in each player's stacks at 16:10, 16:9 and 21:9).
 - `SOUNDS.md`: every sound's name and when it plays; the owner's own sound files go in `art/sounds/<name>.mp3` (or wav, ogg) and replace the built-in one.
 - `src/index.html`: the game source; `build.py` makes `oi-apoikoi.html` from it, with the hand, land, material and sea pictures put in.
 - `art/sea/`: the owner's water pack (sea and shore pictures, 6 colours); the game uses `water-c` (chosen in `build.py`), its open-water diamond only; the ripples, foam and glints moving over it are drawn by the game.
@@ -27,7 +27,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `art/things/stone-slab-1.png`, `stone-slab-2.png`: the owner's two stone slab pictures (free to use, he says), cut from their background (`tools/cut_pictures.py`); every area's stone top is one of them.
 - `art/things/apple.png`: the owner's bitten apple (his 28 Nov transparent file, trimmed by `tools/cut_pictures.py`): a jar with nothing.
 - `art/things/bee.png`: the first-player bee, the owner's picture (cut from its background); `art/things/ruby.png`: the owner's ruby (his transparent file, trimmed), on the bottom stone of whoever has the most coins, beside his materials.
-- `art/avatars/<animal>-<face>.png`: the players' stickers, 6 animals x 5 faces (neutral, happy, excited, surprised, sad), cut from the owner's two sheets by `tools/cut_stickers.py`.
+- `art/avatars/<animal>-<face>.png`: the players' stickers, 6 animals x 5 faces (neutral, happy, excited, surprised, sad), cut from the owner's two sheets by `tools/cut_stickers.py` (soft black edge; all look right, toward the pool).
 - `art/sounds/watertap.mp3`: the water tap sound, taken from the architects game (`map-tap-water`, at its volume).
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
 - `tools/flows.py`: flow tests, one per owner rule and bug report, a main test playing a whole fixed game, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 18 s on a 2-core machine).
@@ -53,12 +53,10 @@ A playable game against the PC on one shared board in the new look (sea board of
 - Players are animal stickers (a random pair per game) whose faces follow what happens to them and to the other; the bee shows who plays first next round; the coin leader has a ruby on his bottom stone.
 - Stone look (owner close to happy, 27 Nov): rules in the project doc `claude/oi-apoikoi-stone-rules.md`.
 - Extra tiles and the land changer are used only on his turn before he picks; with no market tile he can take, his turn passes even if an extra tile fits.
-- Jars stepping aside can no longer happen (nothing is placed while jars wait); its code and 2 flow steps stay until the owner decides.
 
 ## Task list
 
 - Update the flow tests to the design phase so the commit check passes again.
 - Deck: built as a layer per round, each a tile's ground high, base on its stone; a full pile runs past the screen's top: owner to check and choose.
-- Owner to choose: remove the jars stepping aside (and its 2 flow steps), or keep it.
 - Owner to choose: let him use extra tiles and the land changer at other moments (while breaking jars, or when he must pass).
-- Stickers on 3:2 screens (1920 x 1280, 2256 x 1504) run past the screen's edge: owner to decide.
+- On 21:9 screens the free stone is too thin for the land changer (it overlaps the materials' icons): owner to choose its place there.

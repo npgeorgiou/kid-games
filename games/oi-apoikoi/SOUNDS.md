@@ -31,8 +31,6 @@ Every sound the game makes has a name. Each one plays a soft built-in sound for 
 | `changerdrop` | The land changer lands on a square and turns it to its land. |
 | `leave` | A tile in hand is let go somewhere it does not fit (it stays there). |
 | `beefly` | The bee takes off toward its next holder. |
-| `aside` | Waiting jars step aside. |
-| `jarsback` | Stepped-aside jars come back to their places. |
 | `tilesback` | At a round's end, the tiles nobody took fly back under the pile. |
 | `endcoin` | At the end, a coin lands in a player's pile. |
 | `again` | The play again button is tapped. |
