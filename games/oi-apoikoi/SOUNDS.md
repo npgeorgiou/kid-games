@@ -4,13 +4,13 @@ Every sound the game makes has a name. Each one plays a soft built-in sound for 
 
 | Name | When it plays |
 |---|---|
-| `dawn` | A round starts (morning light sweeps over). |
+| `dawn` | A round starts (morning light sweeps over); the owner's grandfather clock chime, in `art/sounds/dawn.mp3`. |
 | `deal` | A tile is dealt from the pile to a market place. |
-| `turn` | The turn passes to the other player (his area lights up). |
+| `turn` | The turn passes to the other player (his area lights up); the owner's grandfather clock ticking, in `art/sounds/turn.mp3`. |
 | `pick` | A player takes a tile from the market. |
 | `rotate` | A tile in hand is turned (a tap on it). |
 | `back` | A tile in hand is put back on an empty market place. |
-| `snap` | A tile snaps into its place on the board. |
+| `snap` | A tile snaps into its place on the board (soft marimba notes). |
 | `splash` | The same moment: the tile drops onto the water (rings spread on the sea) |
 | `edge` | A matching edge glows and its land lights up. |
 | `good` | A material flies from a lit square to the player's area. |

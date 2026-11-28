@@ -29,6 +29,7 @@ A two-player tile-drafting game built on the loop of the board game Dragomino: e
 - `art/things/bee.png`: the first-player bee, the owner's picture (cut from its background); `art/things/ruby.png`: the owner's ruby (his transparent file, trimmed), on the bottom stone of whoever has the most coins, beside his materials.
 - `art/avatars/<animal>-<face>.png`: the players' stickers, 6 animals x 5 faces (neutral, happy, excited, surprised, sad), cut from the owner's two sheets by `tools/cut_stickers.py` (soft black edge; all look right, toward the pool).
 - `art/sounds/watertap.mp3`: the water tap sound, taken from the architects game (`map-tap-water`, at its volume).
+- `art/sounds/turn.mp3`, `dawn.mp3`: the owner's grandfather clock ticking (a turn changes) and chime (a round changes, with the morning light).
 - `src/hands/`: the hand pictures (Microsoft Fluent Emoji, MIT license in `src/hands/LICENSE`).
 - `tools/flows.py`: flow tests, one per owner rule and bug report, a main test playing a whole fixed game, plus random play through the screen; `tools/harness.py` builds and runs them (the whole set in two browsers side by side, about 18 s on a 2-core machine).
 - `tools/test_page.py`: a test copy of the built game with other jar odds, to try a rule by hand (`python3 tools/test_page.py out.html coins=50 tile=50`).
@@ -72,5 +73,4 @@ A playable game against the PC on one shared board in the new look (sea board of
 - All material flights (land to stockpile, stockpile to jar) one smooth motion profile (speed, trail), not steps along a path.
 - Stockpile overflow: waiting materials fly one by one as places free up, smoothly, never waiting and then all at once.
 - Bee: a bit more glow (it can't be seen now).
-- Sounds: the owner's ticking file = turn change, chime file = round change (files not received yet: ask him to attach them); half a second's pause before a round turns and before the PC acts.
 - End of game: no popup; two stone slabs (from the stone pictures, stood up tall), one per player, take his coins and the ruby; after counting and the victory, a smaller rectangular stone (two buttons wide) appears with the play again button, working like the top right buttons.

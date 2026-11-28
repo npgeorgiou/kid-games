@@ -28,3 +28,4 @@
 - A tile going back to a market place is not in the market until its glide ends: anything that reads the market (can he pick? must he pass?) waits for that glide first.
 - A canvas ignores a globalAlpha outside 0..1 and keeps the last one: clamp every computed alpha (a ruby fading below 0 flickered at full strength).
 - In-page test loops draw (render) before every tap: the buttons are where the last picture put them, and a stale one answers the new wait (a press on the held land changer hit its old place's button).
+- Every new timed look (a flight, a glow, rings, specks, the ruby) must be kept with lasts()/lastsMs(): the turn passes only when settled() finds nothing moving, and a look not kept lets the tick come during it.
