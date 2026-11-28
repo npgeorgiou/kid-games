@@ -1369,12 +1369,12 @@ function extraGlowOf(cs, r) {  // the tile's whole shape (ground and what stands
   const c = document.createElement('canvas'); c.width = one.width; c.height = one.height; const q = c.getContext('2d'); q.filter = `blur(${g * d / 2}px)`; for (let n = 0; n < 4; n++) q.drawImage(one, 0, 0);
   Object.assign(c, { ox, oy, cw: w, ch: h }); extraGlows.set(k, c); return c;
 }
-const EXTRA_STARS = 30, EXTRA_GLOW = '#ffe27a', EXTRA_SHINE = 1, EXTRA_GLOW_ALPHA = 0.45;  // owner 27 Nov: the glow brighter: a lighter gold, laid on adding light, EXTRA_SHINE times; more stars; owner 28 Nov: glowing less (once, fainter)
+const EXTRA_STARS = 20, EXTRA_GLOW = '#ffe27a', EXTRA_SHINE = 1, EXTRA_GLOW_ALPHA = 0.55;  // owner 27 Nov: the glow brighter: a lighter gold, laid on adding light, EXTRA_SHINE times; more stars; owner 28 Nov: glowing less (once, fainter); then a little more, and a third fewer stars in a smaller area round the middle of the whole tile
 function extraGlow(x, y, cs, r, z) {  // owner 27 Nov: a bright golden glow all round the extra tile (as the stickers' glow), breathing, and small stars popping up here and there round it; z: the tile's size, as drawn (1.06 in hand)
   const now = fast ? 0 : performance.now(), c = extraGlowOf(cs, Math.round(r) % 4), k = z / 1.06;
   const alpha = EXTRA_GLOW_ALPHA + 0.1 * Math.sin(now / 300); cx.globalAlpha = alpha; cx.globalCompositeOperation = 'lighter'; for (let n = 0; n < EXTRA_SHINE; n++) cx.drawImage(c, x - c.ox * k, y - c.oy * k, c.cw * k, c.ch * k); cx.globalCompositeOperation = 'source-over'; cx.globalAlpha = 1; drawn.push({ k: 'extraglow', x, y, col: EXTRA_GLOW, mode: 'lighter', shine: EXTRA_SHINE, alpha: EXTRA_GLOW_ALPHA + 0.1 });
 }
-function extraStars(x, y, z) { const { hw, hh } = L(); sparkles(x, y - EXTRA_MID * hh * z, { n: EXTRA_STARS, rx: 1.9 * hw * z, ry: 2.1 * hh * z, size: UI() * z, kind: 'extrastars' }); }  // in front of the tile, so the ones below it show: round the tile's middle (its ground and what stands on it)
+function extraStars(x, y, z) { const { hw, hh } = L(); sparkles(x, y + WALL_HH / 2 * hh * z, { n: EXTRA_STARS, rx: 1.4 * hw * z, ry: 1.5 * hh * z, size: UI() * z, kind: 'extrastars' }); }  // in front of the tile, so the ones below it show: round the middle of the whole tile (its ground and its walls' height)
 function sparkles(mx, my, o) {  // small stars popping up evenly round an oval (radii rx, ry), each a little in or out, each in its own rhythm; o.size: their size; o.alpha: how bright
   const now = fast ? 0 : performance.now(), frac = v => v - Math.floor(v), rnd = n => frac(Math.sin(n * 12.9898 + 4.1) * 43758.5), list = [];  // rnd: a fixed number per star (the standard shader hash)
   cx.globalAlpha = o.alpha ?? 1;
@@ -1383,9 +1383,8 @@ function sparkles(mx, my, o) {  // small stars popping up evenly round an oval (
     const a = 2 * Math.PI * (k + 0.6 * rnd(k + 3)) / o.n, d = 0.85 + 0.4 * rnd(k + 4), sx = mx + Math.cos(a) * o.rx * d, sy = my + Math.sin(a) * o.ry * d, sr = (6 + 10 * rnd(k + 5)) * o.size * (fast ? 1 : tw);
     cx.beginPath(); for (let q = 0; q < 8; q++) { const ang = q * Math.PI / 4, rr = q % 2 ? sr * 0.22 : sr; cx.lineTo(sx + rr * Math.cos(ang), sy + rr * Math.sin(ang)); } cx.closePath(); cx.fillStyle = '#ffe680'; cx.fill(); dot(sx, sy, sr * 0.22, '#ffffff'); list.push([sx, sy]); }
   cx.globalAlpha = 1;
-  drawn.push({ k: o.kind, x: mx, y: my, n: list.length, size: o.size, mean: list.length ? [list.reduce((v, p) => v + p[0], 0) / list.length, list.reduce((v, p) => v + p[1], 0) / list.length] : null });
+  drawn.push({ k: o.kind, x: mx, y: my, n: list.length, size: o.size, rx: o.rx, ry: o.ry, mean: list.length ? [list.reduce((v, p) => v + p[0], 0) / list.length, list.reduce((v, p) => v + p[1], 0) / list.length] : null });
 }
-const EXTRA_MID = 0.8;  // the middle of a tile with what stands on it lies this many half-squares above its ground's centre
 function changerShape(x, y, z, c, glow, side = 0) {  // owner 28 Nov: the land changer, one square: first a stripe of each land's ground (top and earth, nothing standing on it), then the land it is turned to
   // the stripes run along the board's upper edge on his side (side 0: the upper left edge, its squares' second axis; side 1, mirrored: the upper right)
   if (glow) extraGlow(x, y, [c], 0, z);
