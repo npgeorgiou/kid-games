@@ -104,7 +104,7 @@ def f_game(q):
           const [a, b] = s.players.map(p => p.coins), win = a > b ? 0 : b > a ? 1 : -1, ruby = seen('winner');
           if (s.leftFits) err('end: a tile left still fits');
           if (s.winner !== win || (win >= 0 && (ruby.length !== 1 || ruby[0].o !== win))) err('end: winner ' + s.winner + ' for coins ' + [a, b]);
-          did.end = true; await tap(btn('again')); __dg.render(); const t = S();  // owner 27 Nov: play again keeps the same two animals
+          did.end = true; const again = seen('button').find(d => d.kind === 'again'); await tap(again && [again.x, again.y]); __dg.render(); const t = S();  // owner 28 Nov: the play button a stone button; owner 27 Nov: play again keeps the same two animals
           if (t.round !== 1 || t.players.some(p => p.coins) || JSON.stringify(animals()) !== JSON.stringify(did.pets)) err('play again: ' + JSON.stringify([t.round, t.players.map(p => p.coins), animals()]));
           else did.again = true; break;
         }
