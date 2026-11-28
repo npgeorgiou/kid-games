@@ -521,7 +521,8 @@ def f_jar_mix(q):  # owner 25 Nov, per 100 jars: "1 coin about 45%, Empty about 
     # owner 28 Nov: "remove the slot machine ... Give its jar percentage to the single coin"; the land changer "gets the same as the extra piece" (shares now per 104)
     table(q, bag=[[0, 4]] * 4, seed=11, changer=[None, None])  # seeded: an unseeded sample missed the 1.5% band about once in 15 runs; without a changer, so one can come
     n = 8000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n)
-    want = {'empty': 10, 'coins': 46, 'coins2': 10, 'tile': 4, 'changer': 4, 'first': 8, 'jar': 8, 'set': 10}  # owner 28 Nov: back to 100 ("we have to readjust others"): the changer's 4 from the single coin
+    # owner 28 Nov (later): "bee 3, extra tile 3, land changer 3, the 7 freed to the single coin"
+    want = {'empty': 10, 'coins': 53, 'coins2': 10, 'tile': 3, 'changer': 3, 'first': 3, 'jar': 8, 'set': 10}
     ok = set(m) == set(want) and all(abs(100 * m[k] / n - v) < 1.5 for k, v in want.items())  # the shares are per 100 jars
     report(ok, 'jars: the owner\'s mix, no stealing', ', '.join('%s %.1f%%' % (k, 100 * m.get(k, 0) / n) for k in sorted(set(want) | set(m))))
 def f_empty_jar(q):  # owner 24 Nov: some jars hold nothing: it breaks, shows it is empty, and nothing is gained

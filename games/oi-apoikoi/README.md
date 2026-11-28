@@ -66,7 +66,6 @@ A playable game against the PC on one shared board in the new look (sea board of
 - Sticker black outline: remake it (no blur) so its inner and outer edges are clean, one pixel steps, not blocky corners.
 - Extra tile and land changer: the same effect: a little more glow than now (less than before), stars in a smaller area and a third fewer, centred on the middle of the whole 3D tile (ground and height), not its top.
 - Materials into a jar still touch the rim: fix for good.
-- Jar mix: bee 3, extra tile 3, land changer 3, the 7 freed to the single coin.
 - 5-materials prize: its materials go into the stockpile one by one from the symbol, not vanishing and appearing from nowhere.
 - PC hand: wait before breaking a new jar until it has fallen and rests.
 - Tiles on the pool's edge squares are hidden behind the pool walls, never drawn over them.
