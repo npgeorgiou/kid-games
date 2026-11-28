@@ -759,7 +759,7 @@ def f_extra_shine(q):  # owner 27 Nov: "extra tile should shine brighter, have a
     table(q, extras=[[[0, 4], None], [None, None]]); t = drawn(q, 'extra')[0]; s = drawn(q, 'extrastars'); g = drawn(q, 'extraglow'); m = s and s[0]['mean']
     w, h = [(d['w'], d['h']) for d in drawn(q, 'tile') if abs(d['x'] - t['x']) < 1 and abs(d['y'] - t['y']) < 1][0]
     # owner 28 Nov (later): "a little more glow than now (less than before), stars in a smaller area and a third fewer, centred on the middle of the whole 3D tile (ground and height), not its top"
-    centred = bool(m) and abs(m[0] - t['x']) < 0.1 * w and t['y'] < m[1] < t['y'] + h / 2 and s[0]['rx'] <= 0.5 * w and s[0]['ry'] <= 0.5 * h
+    centred = bool(m) and abs(m[0] - t['x']) < 0.1 * w and t['y'] < m[1] < t['y'] + h / 2 and math.hypot(*s[0]['u']) <= 0.5 * w
     ok = shown >= 1 and flying >= 1 and g and g[0]['shine'] == 1 and 0.45 < g[0]['alpha'] <= 0.65 and s and s[0]['n'] == 20 and centred  # owner 28 Nov: "make the extra tile glow less. now that they stay in the screen"
     report(ok, 'extra tile: shines from the jar on, softly, many stars round its middle', 'glow while shown %d, flying %d; shine %s, strength %s; stars %s round %s, tile at %s' % (shown, flying, g and g[0]['shine'], g and g[0]['alpha'], s and s[0]['n'], m and [round(v) for v in m], [round(t['x']), round(t['y'])]))
 
@@ -844,10 +844,26 @@ def f_set_from_symbol(q):  # owner 28 Nov: "5-materials prize: its materials go 
         if len(starts) >= 6 and not out: break
     q.clock.resume()
     report(len(starts) == 6 and both > 0, 'set prize: its materials leave the symbol one by one', 'materials left from %d places of the symbol; symbol still there while they left %s' % (len(starts), both > 0))
+def f_glows(q):  # owner 28 Nov (later): "make the tile stars (their area) be tilted to the tile position, so it is aligned with it"; "when 2 extra tiles are in their slots, the glows that overlap
+    # should not become so weirdly bright"; "the stars of the changer tile are smaller than the extra tile's ... same effect for both"
+    table(q, extras=[[[0, 4], [1, 2]], [None, None]]); settle(q); st_ = drawn(q, 'extrastars'); tiles = [s for s in st_ if s['halves'] == 2]; ch = [s for s in st_ if s['halves'] == 1]
+    tilted = bool(tiles) and all(abs(s['u'][1]) > 0.3 * abs(s['u'][0]) for s in tiles)  # the oval's long side lies along the tile, not flat across the screen
+    same = bool(ch) and bool(tiles) and ch[0]['size'] == tiles[0]['size']
+    g = sorted(drawn(q, 'extraglow'), key=lambda d: d['y'])[:2]; hh = q.evaluate("()=>__dg.square(1,0)[1]-__dg.square(0,0)[1]"); mx, my = (g[0]['x'] + g[1]['x']) / 2, (g[0]['y'] + g[1]['y']) / 2
+    pts = [[mx + dx * hh, my - k * hh] for k in (0.8, 1.1, 1.4, 1.7, 2.0) for dx in (-0.5, 0, 0.5)]  # over the joint, where both glows reach
+    look = lambda: [q.evaluate("(p)=>__dg.pixel(p[0],p[1])", p)[:3] for p in pts]
+    both = look(); table(q, extras=[[[0, 4], None], [None, None]]); settle(q); one = look(); table(q, extras=[[None, None], [None, None]]); settle(q); none = look()
+    lit = [k for k in range(len(pts)) if max(o - n for o, n in zip(one[k], none[k])) > 10]  # points where one glow shows
+    rise = max((max(b - o for b, o in zip(both[k], one[k])) for k in lit), default=None); soft = bool(lit) and rise < 8  # where two glows meet the brighter one shows: they do not add up
+    report(tilted and same and soft, 'glows: stars along the tile, same stars on the changer, overlaps soft', 'stars along the tile %s; changer stars as big %s; glow at %d points, the second glow adds up to %s' % (tilted, same, len(lit), rise))
+def f_square_jumps(q):  # owner 28 Nov (later): "half tiles that jump on harvesting should jump themselves, not create another tile on top of them that jumps"
+    pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2})
+    run_until(q, "()=>__dg.drawn().some(d=>d.k==='square'&&d.up>0)", 3000); up = [d for d in drawn(q, 'square') if d.get('up', 0) > 0]; copies = drawn(q, 'pop'); q.clock.resume()
+    report(bool(up) and not copies, 'harvest: the square itself jumps', 'squares lifted %d; copies drawn over them %d' % (len(up), len(copies)))
 def f_changer_jar(q):  # owner 28 Nov: "it will be able to be refreshed by a jar (same glowing as the extra tiles, but only when given from a jar), it is NOT given from jars when you have it already, then its percentage goes to the coin"
     get_jar(q, [{'k': 'changer'}], changer=[None, None]); waiting(q, 'pick'); s = st(q); ch = [d for d in drawn(q, 'changer') if d['z'] == 1]
     table(q, bag=[[0, 4]] * 4, seed=11); n = 4000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n); table(q); plain = [d for d in drawn(q, 'changer') if d['z'] == 1]
-    ok = s['players'][0]['changer'] == -1 and len(ch) == 1 and ch[0]['glow'] and 'changer' not in m and abs(100 * m.get('coins', 0) / n - 56) < 2 and plain and not plain[0]['glow']
+    ok = s['players'][0]['changer'] == -1 and len(ch) == 1 and ch[0]['glow'] and 'changer' not in m and abs(100 * m.get('coins', 0) / n - 56) < 2 and plain and plain[0]['glow']  # owner 28 Nov (later): "the changer tile should glow from the beginning, not only when its gained from jar"
     report(ok, 'land changer: a jar gives a new one, shining; none while he has one (a coin instead); the first one does not shine', 'from a jar %s shining %s; with one: changer %s, coin %.1f%%; the first shines %s' % (s['players'][0]['changer'], ch and ch[0]['glow'], 'changer' in m, 100 * m.get('coins', 0) / n, plain and plain[0]['glow']))
 def f_pc_uses_spares(q):  # owner 28 Nov: what a player keeps is used for free; the PC does what is best for this turn: its extra tile first, its land changer when it makes a jar
     table(q, bag=[[0, 4]] * 4, first=1, changer=[-1, -1], extras=[[None, None], [[0, 4], None]], jarQueue=[COIN] * 20); waiting(q, 'pick'); s = st(q)
@@ -856,7 +872,8 @@ def f_pc_uses_spares(q):  # owner 28 Nov: what a player keeps is used for free; 
     report(ok, 'pc: uses its extra tile and its land changer, then picks', 'pc extras %s, changer %s, tiles placed %d' % (s['players'][1]['extras'], s['players'][1]['changer'], len(pc)))
 def f_bee_sparkles(q):  # owner 28 Nov: "give the bee a few small stars, like the ones the extra tile has, but a bit, and only a tiny glow, and not so bright"
     table(q); settle(q); b, glow = drawn(q, 'beestars'), drawn(q, 'beeglow'); table(q, extras=[[[0, 4], None], [None, None]]); e = drawn(q, 'extrastars'); t = drawn(q, 'token')
-    ok = bool(b) and bool(e) and 3 <= b[0]['n'] <= 8 and b[0]['size'] < e[0]['size'] and bool(glow) and 0.3 < glow[0]['glow'] <= 0.6  # owner 28 Nov (later): "bee: a bit more glow (it can't be seen now)": was at most 0.3
+    # owner 28 Nov (later): "the bee should glow twice as much and have 1/3 more stars, and the stars should be 1/3 bigger" (from 0.5, 5 stars, size 0.45 of its radius)
+    r = drawn(q, 'token')[0]['r']; ok = bool(b) and bool(e) and b[0]['n'] == 7 and abs(b[0]['size'] / r - 0.6 / q.evaluate('()=>__dg.gaps().beeR')) < 0.01 and bool(glow) and glow[0]['glow'] == 1.0  # owner 28 Nov (later): "bee: a bit more glow (it can't be seen now)": was at most 0.3
     report(ok, 'bee: a few small stars, a faint glow', 'bee stars %s, their size %s (the extra tile\'s %s), glow %s' % (b and b[0]['n'], b and round(b[0]['size'], 2), e and round(e[0]['size'], 2), glow and glow[0]['glow']))
 def f_layout_28nov(q):  # owner 28 Nov: "On 3:2 screens the avatars run past the screen edge -> fix that"; "move changer tile slot a bit to the left, so its bot corner is aligned with the green land icon's
     # top/bot corners. and a bit more to the top, where there is space"; "the land icons can all move a bit more above the divider"
