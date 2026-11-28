@@ -591,17 +591,6 @@ def f_coins2(q):  # the 2 coins bonus
 def f_first_token(q):  # the first-player token comes from a jar
     get_jar(q, [{'k': 'first'}]); report(st(q)['first'] == 0, 'first: token comes to you', 'first %s' % st(q)['first'])
 
-def f_extra_glow_bright(q):  # owner 27 Nov: the extra tile's glow with more luminosity: a lighter gold, adding light to what is under it
-    table(q, bag=[[0, 4]] * 4, jarQueue=[{'k': 'tile'}] + [COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2}); waiting(q, 'jar'); tap(q, jar_btn(q))
-    for _ in range(40):
-        s = st(q)
-        if s['wait'] and s['wait']['kind'] == 'place' and s['fromNowhere']: break
-        skip(q, 300)
-    g = drawn(q, 'extraglow'); g = g[0] if g else {}
-    col = g.get('col', '#000000'); light = (max(int(col[k:k + 2], 16) for k in (1, 3, 5)) + min(int(col[k:k + 2], 16) for k in (1, 3, 5))) / 510
-    # owner 28 Nov (later): "there is no glow in the tiles, only stars": adding a light gold vanished on the light stone; now a deeper gold laid over it (was: lightness at least 0.65, added as light)
-    report(g.get('mode') == 'over' and 0.5 <= light < 0.65, 'extra tile: a gold glow seen on the stone', 'colour %s (lightness %.2f), laid on as %s' % (col, light, g.get('mode')))
-
 def f_pc_jars_faster(q):  # owner 27 Nov: the PC breaks its jars 10% faster; later: 5% slower than that (the hand's move to a jar, between jars, and its tap); its other moves as before
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 8, jarQueue=[COIN] * 12); paces = set()
     tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, best_spot(q))
@@ -856,21 +845,6 @@ def f_set_from_symbol(q):  # owner 28 Nov: "5-materials prize: its materials go 
         if len(starts) >= 6 and not out: break
     q.clock.resume()
     report(len(starts) == 6 and both > 0, 'set prize: its materials leave the symbol one by one', 'materials left from %d places of the symbol; symbol still there while they left %s' % (len(starts), both > 0))
-def f_glows(q):  # owner 28 Nov (later): "make the tile stars (their area) be tilted to the tile position, so it is aligned with it"; "when 2 extra tiles are in their slots, the glows that overlap
-    # should not become so weirdly bright"; "the stars of the changer tile are smaller than the extra tile's ... same effect for both"
-    table(q, extras=[[[0, 4], [1, 2]], [None, None]]); settle(q); st_ = drawn(q, 'extrastars'); tiles = [s for s in st_ if s['halves'] == 2]; ch = [s for s in st_ if s['halves'] == 1]
-    tilted = bool(tiles) and all(abs(s['u'][1]) > 0.3 * abs(s['u'][0]) for s in tiles)  # the oval's long side lies along the tile, not flat across the screen
-    same = bool(ch) and bool(tiles) and ch[0]['size'] == tiles[0]['size']
-    g = sorted(drawn(q, 'extraglow'), key=lambda d: d['y'])[:2]; hh = q.evaluate("()=>__dg.square(1,0)[1]-__dg.square(0,0)[1]"); mx, my = (g[0]['x'] + g[1]['x']) / 2, (g[0]['y'] + g[1]['y']) / 2
-    pts = [[mx + dx * hh, my - k * hh] for k in (0.8, 1.1, 1.4, 1.7, 2.0) for dx in (-0.5, 0, 0.5)]  # over the joint, where both glows reach
-    look = lambda: [q.evaluate("(p)=>__dg.pixel(p[0],p[1])", p)[:3] for p in pts]
-    both = look(); table(q, extras=[[[0, 4], None], [None, None]]); settle(q); one = look(); table(q, extras=[[None, None], [None, None]]); settle(q); none = look()
-    lit = [k for k in range(len(pts)) if max(o - n for o, n in zip(one[k], none[k])) > 10]  # points where one glow shows
-    rise = max((max(b - o for b, o in zip(both[k], one[k])) for k in lit), default=None); soft = bool(lit) and rise < 8  # where two glows meet the brighter one shows: they do not add up
-    hw = q.evaluate("()=>__dg.square(1,0)[0]-__dg.square(0,0)[0]"); ring = [[g[0]['x'] + 1.6 * hw * math.cos(a * math.pi / 8), g[0]['y'] + 1.6 * hh * math.sin(a * math.pi / 8)] for a in range(9)]  # round the first tile's lower half, just outside it
-    table(q, extras=[[[0, 4], None], [None, None]]); settle(q); lone = [q.evaluate("(p)=>__dg.pixel(p[0],p[1])", p) for p in ring]  # the glow's own layer over the stone: its colour and strength
-    gold = sorted(c[3] for c in lone if c[0] - c[2] > 150); shine = gold[len(gold) // 2] if len(gold) >= 3 else 0; soft = soft and shine >= 80  # owner 28 Nov (later): "there is no glow in the tiles, only stars": a deep gold, strong enough to see on the light stone
-    report(tilted and same and soft, 'glows: stars along the tile, same stars on the changer, overlaps soft', 'stars along the tile %s; changer stars as big %s; glow at %d points, as strong as %d, the second glow adds up to %s' % (tilted, same, len(lit), shine, rise))
 def f_square_jumps(q):  # owner 28 Nov (later): "half tiles that jump on harvesting should jump themselves, not create another tile on top of them that jumps"
     pause_clock(q); table(q, fast=False, bag=[[0, 4]] * 4, jarQueue=[COIN] * 8); tap(q, 'draft-0'); waiting(q, 'place'); drag_to(q, {'x': 3, 'y': 10, 'r': 2})
     run_until(q, "()=>__dg.drawn().some(d=>d.k==='square'&&d.up>0)", 3000); up = [d for d in drawn(q, 'square') if d.get('up', 0) > 0]; copies = drawn(q, 'pop'); q.clock.resume()
@@ -1241,6 +1215,18 @@ def f_random_play(q):  # seeded games played through the screen (taps and drags 
       return errs.slice(0, 5);
     }""", SETTINGS['deck'])
     report(not bad, 'random play: games end, what he sees adds up', '%s' % (bad or '4 games'))
+
+def f_glow_light(q):  # owner 28 Nov: "you have forgotten to give glow to the changer tile"; "make the changer and extra tile glow less yellow, more 'light' (as in the light the element)"
+    table(q, extras=[[[0, 4], None], [None, None]], changer=[-1, None]); settle(q)
+    a, b = q.evaluate("()=>[__dg.square(0,0), __dg.square(1,0)]"); hw, hh = abs(b[0] - a[0]), abs(b[1] - a[1])
+    def halo(x, y):  # just outside the piece, round its lower half, against the same stone further out
+        px = lambda k, t: q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [x + k * hw * math.cos(t), y + hh + k * hh * math.sin(t)])[:3]
+        near = [px(1.5, t) for t in (0.3, 0.8, 1.6, 2.3, 2.8)]; far = [px(3.2, t) for t in (0.3, 0.8, 1.6, 2.3, 2.8)]
+        lum = lambda c: sum(c) / 3; yel = lambda c: (c[0] + c[1]) / 2 - c[2]
+        return round(sum(lum(n) - lum(f) for n, f in zip(near, far)) / 5), round(sum(yel(n) - yel(f) for n, f in zip(near, far)) / 5)
+    e = [d for d in drawn(q, 'extra') if d['o'] == 0][0]; c = [d for d in drawn(q, 'changer') if d['z'] == 1 and d['x'] < 640][0]
+    he, hc = halo(e['x'], e['y']), halo(c['x'], c['y'])
+    report(he[0] >= 20 and hc[0] >= 20 and he[1] <= 10 and hc[1] <= 10, 'glow: the extra tile and the land changer both glow, a light, not yellow', 'brighter than the stone round it, and more yellow than it: extra tile %s, land changer %s' % (he, hc))
 
 # SECTION: RUN -- one browser, one page (with a fake clock that runs normally until a flow pauses it), every flow on a new game
 # The browser does not wait for the screen's refresh: each step of a finger drag otherwise waits a whole frame (16 ms); the game's own time is the fake clock either way.

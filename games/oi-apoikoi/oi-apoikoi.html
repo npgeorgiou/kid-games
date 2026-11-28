@@ -1373,13 +1373,13 @@ function drawPanel(i) {
 }
 const extraGlows = new Map();  // the extra tile's glow for each look and turn, made once (a blur every frame costs a lot)
 function extraGlowOf(cs, r) {  // the tile's whole shape (ground and what stands on it), in gold, blurred: a canvas with the tile's centre at (c.ox, c.oy)
-  const { hw, hh } = L(), d = devicePixelRatio || 1, k = [cs, r, hw, d].join(); if (extraGlows.has(k)) return extraGlows.get(k);
+  const { hw, hh } = L(), d = devicePixelRatio || 1, k = [cs, r, hw, d, Object.keys(pics).length].join(); if (extraGlows.has(k)) return extraGlows.get(k);  // made again once the pictures are in (made before, the striped land changer's glow stayed empty)
   const g = 1.1 * hh, w = 4 * hw + 4 * g, h = 8 * hh + 4 * g, ox = w / 2, oy = 5.5 * hh + 2 * g;
   const one = offCanvas({ x: 0, y: 0, w, h }, () => cs.length === 1 ? changerShape(ox, oy, 1.06, cs[0], false) : tileShape(ox, oy, 1.06, cs, r, null, 'held')), o = one.getContext('2d'); o.setTransform(1, 0, 0, 1, 0, 0); o.globalCompositeOperation = 'source-in'; o.fillStyle = EXTRA_GLOW; o.fillRect(0, 0, one.width, one.height);
   const c = document.createElement('canvas'); c.width = one.width; c.height = one.height; const q = c.getContext('2d'); q.filter = `blur(${g * d / 2}px)`; for (let n = 0; n < 4; n++) q.drawImage(one, 0, 0);
   Object.assign(c, { ox, oy, cw: w, ch: h }); extraGlows.set(k, c); return c;
 }
-const EXTRA_STARS = 20, EXTRA_GLOW = '#ffc23a', EXTRA_SHINE = 1, EXTRA_GLOW_ALPHA = 0.8;  // owner 27 Nov: the glow brighter: a lighter gold, laid on adding light, EXTRA_SHINE times; more stars; owner 28 Nov: glowing less (once, fainter); then a little more; then plainly seen on the light stone (a deeper gold laid over it, as the stickers' glow), and a third fewer stars in a smaller area round the middle of the whole tile
+const EXTRA_STARS = 20, EXTRA_GLOW = '#fffbf0', EXTRA_SHINE = 1, EXTRA_GLOW_ALPHA = 0.8;  // owner 27 Nov: the glow brighter: a lighter gold, laid on adding light, EXTRA_SHINE times; more stars; owner 28 Nov: glowing less (once, fainter); then a little more; then plainly seen on the light stone (laid over it, as the stickers' glow); later: less yellow, a light (the element), and a third fewer stars in a smaller area round the middle of the whole tile
 let glowPad = null;  // the shared layer the glows are laid into
 function extraGlow(...one) { keptGlows([one]); }  // one glow: x, y, cs, r, z
 function keptGlows(list) {  // owner 27 Nov: a golden glow all round each extra tile and the land changer (as the stickers' glow), breathing; each item [x, y, cs, r, z] (z: its size as drawn, 1.06 in hand)
