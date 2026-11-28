@@ -61,7 +61,6 @@ A playable game against the PC on one shared board in the new look (sea board of
 - Deck: built as a layer per round, each a tile's ground high, base on its stone; a full pile runs past the screen's top: owner to check and choose.
 - Let him use extra tiles and the land changer at other moments (while breaking jars, or when he must pass): owner to choose.
 - Land changer's place: halfway between its first place (middle of the free stone) and now; on 21:9 screens a third slot right below the two extra places, along the pool's edge like them.
-- Land changer stripes: the same way for both players (the right player's way now); the far yellow stripe solid, no brown line.
 - Sticker black outline: remake it (no blur) so its inner and outer edges are clean, one pixel steps, not blocky corners.
 - Materials into a jar still touch the rim: fix for good.
 - 5-materials prize: its materials go into the stockpile one by one from the symbol, not vanishing and appearing from nowhere.

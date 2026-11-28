@@ -809,6 +809,15 @@ def f_pc_waits_new_jar(q):  # owner 28 Nov: "PC hand: wait before breaking a new
     names = [n for n, _ in q.evaluate("()=>__dg.heardAt()")]; q.clock.resume()
     first = names.index('jar'); land = names.index('jarland', first) if 'jarland' in names[first:] else len(names); between = names[first + 1:land].count('jar')  # broken before it landed: it never lands
     report(between == 0, 'pc: a new jar is broken only once it rests', 'jars broken while the new one rose and fell: %d' % between)
+def f_changer_stripes(q):  # owner 28 Nov: "land changer stripes: the same way for both players (the right player's way now); the far yellow stripe solid, no brown line"
+    table(q, changer=[-1, -1]); settle(q); ch = sorted(drawn(q, 'changer'), key=lambda d: d['x'])
+    a, b = q.evaluate("()=>[__dg.square(0,0),__dg.square(1,0)]"); hw, hh = abs(b[0] - a[0]), abs(b[1] - a[1])
+    px = lambda x, y: q.evaluate("(p)=>__dg.pixel(p[0],p[1])", [x, y])[:3]
+    grid = lambda c: [px(c['x'] + i * hw / 6, c['y'] + j * hh / 6) for i in range(-3, 1) for j in range(-5, 0) if abs(i) + abs(j) < 5]  # inside the top's upper left quarter (the PC's hand rests on the rest)
+    same = sum(max(abs(u - v) for u, v in zip(p1, p2)) < 30 for p1, p2 in zip(grid(ch[0]), grid(ch[1]))) / len(grid(ch[0]))
+    far = [px(c['x'] + (v - 0.08) * hw, c['y'] + (v - 0.92) * hh) for c in ch[:1] for v in (0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75)]
+    spread = max(max(p[k] for p in far) - min(p[k] for p in far) for k in range(3))
+    report(same >= 0.85 and spread < 25, 'land changer: stripes one way for both, far stripe solid', 'same picture %.0f%% of the points; far stripe colours spread %d' % (100 * same, spread))
 def f_changer_jar(q):  # owner 28 Nov: "it will be able to be refreshed by a jar (same glowing as the extra tiles, but only when given from a jar), it is NOT given from jars when you have it already, then its percentage goes to the coin"
     get_jar(q, [{'k': 'changer'}], changer=[None, None]); waiting(q, 'pick'); s = st(q); ch = [d for d in drawn(q, 'changer') if d['z'] == 1]
     table(q, bag=[[0, 4]] * 4, seed=11); n = 4000; m = q.evaluate("(n)=>__dg.sampleJars(n, 0)", n); table(q); plain = [d for d in drawn(q, 'changer') if d['z'] == 1]

@@ -647,6 +647,13 @@ function earthSides(c, L0, F0, hw, hh, step) {
   side([F0, R0, [R0[0], R0[1] + step], [F0[0], F0[1] + step]], [[2 * hw / 128, -2 * hh / 128 + WALL_SLOPE * s, 0, s, F0[0] - 2 * hw, F0[1] + 2 * hh - (EARTH_TOP + 72.7 + WALL_SLOPE * 128) * s]]);
   return [1, 1];  // pieces per side
 }
+const landTops = new Map();
+function topColour(c) {  // a land's ground top as one colour: the middle colour (per channel) round the centre of its picture's diamond, measured once
+  const src = pics[groundPic(c)]; if (!src) return null; if (landTops.has(c)) return landTops.get(c);
+  const k = src.width / 256, q = document.createElement('canvas').getContext('2d'); q.canvas.width = q.canvas.height = 8; q.drawImage(src, 104 * k, 60 * k, 48 * k, 26 * k, 0, 0, 8, 8);
+  const d = q.getImageData(0, 0, 8, 8).data, ch = [0, 1, 2].map(o => { const v = []; for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200) v.push(d[i + o]); v.sort((a, b) => a - b); return v[v.length >> 1] ?? 0; });
+  const col = `rgb(${ch.join(",")})`; landTops.set(c, col); return col;
+}
 const earths = new Map();
 function earthColour(c) {  // the mean colour of a land's wall earth, measured once from its picture
   const src = pics[groundPic(c)]; if (!src) return '#9e7a47'; if (earths.has(c)) return earths.get(c);
@@ -985,7 +992,7 @@ function content(j, x, y, s, who = 0) {  // what a jar held, player who's
   if (j.k === 'empty') nothing(x, y, s * 0.22);  // nothing (owner 25 Nov)
   else if (j.k === 'coins') coin(x, y, s * 0.24);
   else if (j.k === 'coins2') { coin(x - s * 0.13, y + s * 0.08, s * 0.24); coin(x + s * 0.13, y - s * 0.08, s * 0.24); }  // owner 26 Nov: each as big as the single coin  // owner 26 Nov: overlapping, the second higher and on top
-  else if (j.k === 'changer') changerShape(x, y, s * 0.4 / (2 * L().hw), -1, true, who);  // owner 28 Nov: the land changer, striped
+  else if (j.k === 'changer') changerShape(x, y, s * 0.4 / (2 * L().hw), -1, true);  // owner 28 Nov: the land changer, striped
   else if (j.k === 'first') bee(x, y, s * 0.27);
   else if (j.k === 'tile') j.cs ? giftTile(x, y, s * 0.55 / (3 * L().hw), j.cs, 0) : nothing(x, y, s * 0.2);  // owner 26 Nov: the very tile he gets; nothing when none fits
   else if (j.k === 'jar') jarShape(x, y, JAR_SIZE());  // owner 26 Nov: full size, as it will stand in its place
@@ -1201,7 +1208,7 @@ function drawDraft() {
       if (ok && mine) btn('extra-' + n, b.x - 12, b.y - 12, b.w + 24, b.h + 24, ev => { if (ev) press = { x: ev.clientX, y: ev.clientY, dx: x - ev.clientX, dy: y - ev.clientY, moved: false, taking: true }; answer({ extra: n }); });
     });
     const ch = p.changer; if (!ch || !ch.here || (wait && wait.kind === 'paint' && wait.who === i)) return;
-    const [x, y] = changerSpot(i), { hw, hh } = L(); changerShape(x, y, 1, ch.c, ch.glow, i);
+    const [x, y] = changerSpot(i), { hw, hh } = L(); changerShape(x, y, 1, ch.c, ch.glow);
     if (mine) btn('changer', x - hw - 12, y - 2 * hh - 12, 2 * hw + 24, 3 * hh + wallHigh() + 24, ev => { if (ev) press = { x: ev.clientX, y: ev.clientY, dx: x - ev.clientX, dy: y - ev.clientY, moved: false, taking: true }; answer({ changer: true }); });
   });
   const layers = pileLayers(G.bag.length), step = PILE_LAYER_H(), [px, top] = pileTop(), bottom = pileBase(), box = { x: px - 1.5 * hw - 2, y: top - 1.5 * hh - 2, w: 3 * hw + 4, h: bottom - top + 3 * hh + 4 };
@@ -1385,23 +1392,25 @@ function sparkles(mx, my, o) {  // small stars popping up evenly round an oval (
   cx.globalAlpha = 1;
   drawn.push({ k: o.kind, x: mx, y: my, n: list.length, size: o.size, rx: o.rx, ry: o.ry, mean: list.length ? [list.reduce((v, p) => v + p[0], 0) / list.length, list.reduce((v, p) => v + p[1], 0) / list.length] : null });
 }
-function changerShape(x, y, z, c, glow, side = 0) {  // owner 28 Nov: the land changer, one square: first a stripe of each land's ground (top and earth, nothing standing on it), then the land it is turned to
-  // the stripes run along the board's upper edge on his side (side 0: the upper left edge, its squares' second axis; side 1, mirrored: the upper right)
+function changerShape(x, y, z, c, glow) {  // owner 28 Nov: the land changer, one square: first a stripe of each land's ground (top and earth, nothing standing on it), then the land it is turned to
+  // the stripes run along the board's upper right edge, the same way for both players (owner 28 Nov)
   if (glow) extraGlow(x, y, [c], 0, z);
   if (c >= 0) { groundAt(c, x, y, z); thingsAt(c, x, y, z); }
-  else { const { hw, hh } = L(), order = landOrder(), n = order.length, D = 3 * wallHigh() * z, P = (u, v) => side ? [x + (v - u) * hw * z, y + (u + v - 1) * hh * z] : [x + (u - v) * hw * z, y + (u + v - 1) * hh * z], down = q => [q[0], q[1] + D];
+  else { const { hw, hh } = L(), order = landOrder(), n = order.length, D = 3 * wallHigh() * z, P = (u, v) => [x + (v - u) * hw * z, y + (u + v - 1) * hh * z], down = q => [q[0], q[1] + D];
     order.forEach((l, k) => { const a = k / n, b = (k + 1) / n + (k < n - 1 ? 0.01 : 0); cx.save(); cx.beginPath();  // band k: its top, the front wall under its front edge; the last band the side wall too
       [[P(a, 0), P(b, 0), P(b, 1), P(a, 1)], [P(a, 1), P(b, 1), down(P(b, 1)), down(P(a, 1))], ...(k === n - 1 ? [[P(1, 0), P(1, 1), down(P(1, 1)), down(P(1, 0))]] : [])].forEach(pts => { cx.moveTo(...pts[0]); pts.slice(1).forEach(q => cx.lineTo(...q)); cx.closePath(); });
-      cx.clip(); groundAt(l, x, y, z); cx.restore(); }); }
+      cx.clip(); groundAt(l, x, y, z); cx.restore(); });
+    const far = order[0], [p0, p1, p2, p3] = [P(0, 0), P(1 / n, 0), P(1 / n, 1), P(0, 1)];  // owner 28 Nov: the far stripe's top solid, no lines on it
+    if (topColour(far)) { cx.beginPath(); cx.moveTo(...p0); [p1, p2, p3].forEach(q => cx.lineTo(...q)); cx.closePath(); cx.fillStyle = topColour(far); cx.fill(); } }
   if (glow) extraStars(x, y, z * 0.6);
-  drawn.push({ k: 'changer', x, y, z, c, glow: !!glow, side });
+  drawn.push({ k: 'changer', x, y, z, c, glow: !!glow });
 }
 function giftTile(x, y, z, cs, r) { extraGlow(x, y, cs, r, z); tileShape(x, y, z, cs, r); extraStars(x, y, z); }  // owner 27 Nov: the extra tile shines from the moment it comes out of its jar
 function drawPaint() {  // owner 28 Nov: the land changer in hand, and the square it will change: its new land shown faded, its outline dashed in white (as a tile's place)
   const sp = paintSpot(), [x, y] = wait.pos, ch = G.players[wait.who].changer;
   if (sp) { const [gx, gy] = squareCentre(sp.x, sp.y); cx.save(); cx.globalAlpha = 0.55; groundAt(ch.c, gx, gy, 1); thingsAt(ch.c, gx, gy, 1); cx.restore();
     cx.setLineDash([8, 6]); cx.lineCap = 'round'; shapePath(squareCorners(gx, gy, 1.08)); cx.strokeStyle = '#ffffff'; cx.lineWidth = 4; cx.stroke(); cx.setLineDash([]); cx.lineCap = 'butt'; drawn.push({ k: 'preview', where: 'square', x: sp.x, y: sp.y, c: ch.c }); }
-  const tilt = tiltNow(wait); cx.save(); cx.translate(x, y); cx.rotate(tilt * Math.PI / 180); cx.translate(-x, -y); changerShape(x, y, 1.06, ch.c, ch.glow, wait.who); cx.restore();
+  const tilt = tiltNow(wait); cx.save(); cx.translate(x, y); cx.rotate(tilt * Math.PI / 180); cx.translate(-x, -y); changerShape(x, y, 1.06, ch.c, ch.glow); cx.restore();
   drawn.push({ k: 'heldchanger', o: wait.who, x, y, c: ch.c });
   const { hw, hh } = L(); btn('held', x - hw - 8, y - 2 * hh - 8, 2 * hw + 16, 3 * hh + wallHigh() + 16, e => { press = { x: e.clientX, y: e.clientY, dx: x - e.clientX, dy: y - e.clientY, moved: false }; });  // a press on it in hand: a drag moves it, a tap turns it
 }
@@ -1507,7 +1516,7 @@ function drawFlights() {  // everything on its way, at its point on its curve
     else if (L0.k === 'jar') jarShape(x, y, JAR_SIZE() * z);
     else if (L0.k === 'shown') shownCard(L0.j, L0.o, x, y, z);
     else if (L0.k === 'bee') bee(x, y, BEE_R * UI() * z);
-    else if (L0.k === 'changer') changerShape(x, y, z, L0.c, L0.glow, L0.o);
+    else if (L0.k === 'changer') changerShape(x, y, z, L0.c, L0.glow);
     else if (L0.k === 'tile') (L0.gift ? giftTile : tileShape)(x, y, z, L0.cs, L0.r1 == null ? L0.r || 0 : L0.r + (L0.r1 - L0.r) * easeInOut(Math.min(1, Math.max(0, (now - f.t0) / f.ms))));  // r1: it turns on its way
     drawn.push({ k: 'flight', look: L0.k, c: L0.c, x, y, fx: f.from[0], fy: f.from[1], tx: f.to[0], ty: f.to[1], rim: L0.rim || null, r: L0.k === 'good' ? stock(L0.o).r : null, trail: f.trail || null });
   }
