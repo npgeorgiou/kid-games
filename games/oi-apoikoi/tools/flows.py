@@ -820,7 +820,7 @@ def f_pc_uses_spares(q):  # owner 28 Nov: what a player keeps is used for free; 
     report(ok, 'pc: uses its extra tile and its land changer, then picks', 'pc extras %s, changer %s, tiles placed %d' % (s['players'][1]['extras'], s['players'][1]['changer'], len(pc)))
 def f_bee_sparkles(q):  # owner 28 Nov: "give the bee a few small stars, like the ones the extra tile has, but a bit, and only a tiny glow, and not so bright"
     table(q); settle(q); b, glow = drawn(q, 'beestars'), drawn(q, 'beeglow'); table(q, extras=[[[0, 4], None], [None, None]]); e = drawn(q, 'extrastars'); t = drawn(q, 'token')
-    ok = bool(b) and bool(e) and 3 <= b[0]['n'] <= 8 and b[0]['size'] < e[0]['size'] and bool(glow) and glow[0]['glow'] <= 0.3
+    ok = bool(b) and bool(e) and 3 <= b[0]['n'] <= 8 and b[0]['size'] < e[0]['size'] and bool(glow) and 0.3 < glow[0]['glow'] <= 0.6  # owner 28 Nov (later): "bee: a bit more glow (it can't be seen now)": was at most 0.3
     report(ok, 'bee: a few small stars, a faint glow', 'bee stars %s, their size %s (the extra tile\'s %s), glow %s' % (b and b[0]['n'], b and round(b[0]['size'], 2), e and round(e[0]['size'], 2), glow and glow[0]['glow']))
 def f_layout_28nov(q):  # owner 28 Nov: "On 3:2 screens the avatars run past the screen edge -> fix that"; "move changer tile slot a bit to the left, so its bot corner is aligned with the green land icon's
     # top/bot corners. and a bit more to the top, where there is space"; "the land icons can all move a bit more above the divider"

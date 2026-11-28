@@ -973,7 +973,7 @@ const JAR_TALL = 1.45;
 const SET_ORDER = [0, 4, 1, 5, 2, 3];  // owner 26 Nov: round the ring grain, stone, meat, statue, grapes, timber: the white statue and the grey stone never side by side
 function setShape(x, y, r) { SET_ORDER.forEach((c, k) => { const a = -Math.PI / 2 + k * 2 * Math.PI / SET_ORDER.length; goodShape(c, x + Math.cos(a) * r * 0.85, y + Math.sin(a) * r * 0.85, r * 0.34); }); }  // owner 26 Nov: apart, none over another  // a set: one of each material
 function nothing(x, y, r) { const c = pics['things/apple'], h = 2.4 * r, w = c ? h * c.width / c.height : h; picture('things/apple', x - w / 2, y - h / 2, w, h); drawn.push({ k: 'nothing', pic: 'apple', x, y, w, h }); }  // owner 27 Nov: nothing is his bitten apple (it was a red X)
-const BEE_STARS = 5, BEE_GLOW = 0.25;  // owner 28 Nov: a few small stars round the bee, dimmer than the extra tile's, and a faint glow
+const BEE_STARS = 5, BEE_GLOW = 0.5;  // owner 28 Nov: a few small stars round the bee, dimmer than the extra tile's, and a glow (later: a bit more, it could not be seen)
 function bee(x, y, r) {  // the bee picture with its faint glow and few stars
   if (![x, y, r].every(Number.isFinite)) return;  // its place is measured from the stickers' pictures: not before they are in
   const g = cx.createRadialGradient(x, y, 0, x, y, 1.4 * r); g.addColorStop(0, 'rgba(255,226,122,' + BEE_GLOW + ')'); g.addColorStop(1, 'rgba(255,226,122,0)'); cx.fillStyle = g; cx.beginPath(); cx.arc(x, y, 1.4 * r, 0, 7); cx.fill();

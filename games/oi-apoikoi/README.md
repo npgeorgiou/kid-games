@@ -69,5 +69,4 @@ A playable game against the PC on one shared board in the new look (sea board of
 - Tiles on the pool's edge squares are hidden behind the pool walls, never drawn over them.
 - All material flights (land to stockpile, stockpile to jar) one smooth motion profile (speed, trail), not steps along a path.
 - Stockpile overflow: waiting materials fly one by one as places free up, smoothly, never waiting and then all at once.
-- Bee: a bit more glow (it can't be seen now).
 - End of game: no popup; two stone slabs (from the stone pictures, stood up tall), one per player, take his coins and the ruby; after counting and the victory, a smaller rectangular stone (two buttons wide) appears with the play again button, working like the top right buttons.
